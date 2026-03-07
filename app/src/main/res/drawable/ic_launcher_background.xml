@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Teal → green gradient matching the logo.svg gradient (#14B8A6 → #10B981, 135°) -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="135"
+        android:endColor="#10B981"
+        android:startColor="#14B8A6"
+        android:type="linear" />
+</shape>

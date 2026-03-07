@@ -1,0 +1,21 @@
+package com.localdownloader.worker
+
+object WorkerKeys {
+    const val URL = "url"
+    const val FORMAT_ID = "format_id"
+    const val OUTPUT_TEMPLATE = "output_template"
+    const val MERGE_OUTPUT_FORMAT = "merge_output_format"
+    const val PLAYLIST_ENABLED = "playlist_enabled"
+    const val DOWNLOAD_SUBTITLES = "download_subtitles"
+    const val EMBED_METADATA = "embed_metadata"
+    const val EMBED_THUMBNAIL = "embed_thumbnail"
+    const val WRITE_THUMBNAIL = "write_thumbnail"
+    const val EXTRACT_AUDIO = "extract_audio"
+    const val AUDIO_FORMAT = "audio_format"
+    const val AUDIO_BITRATE = "audio_bitrate"
+    const val TITLE_HINT = "title_hint"
+
+    const val PROGRESS_PERCENT = "progress_percent"
+    const val ERROR_MESSAGE = "error_message"
+    const val OUTPUT_PATH = "output_path"
+}

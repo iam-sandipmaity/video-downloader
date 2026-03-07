@@ -1,0 +1,13 @@
+.gradle/
+/build/
+**/build/
+local.properties
+.idea/
+*.iml
+captures/
+.DS_Store
+Thumbs.db
+
+# Generated artifacts
+*.apk
+*.aab

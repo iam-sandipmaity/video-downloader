@@ -1,0 +1,143 @@
+name: Android Build
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    outputs:
+      version_name: ${{ steps.version.outputs.version_name }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: Read version from gradle.properties
+        id: version
+        run: |
+          VERSION=$(grep '^APP_VERSION_NAME=' gradle.properties | cut -d'=' -f2)
+          echo "version_name=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify bundled yt-dlp and ffmpeg binaries exist (blocking)
+        run: |
+          required_ytdlp="app/src/main/assets/yt-dlp/arm64-v8a/yt-dlp"
+          required_ffmpeg="app/src/main/assets/ffmpeg/arm64-v8a/ffmpeg"
+
+          if [ ! -f "$required_ytdlp" ] || [ ! -f "$required_ffmpeg" ]; then
+            echo "::error::Missing required bundled binaries."
+            echo "Required files:"
+            echo "  $required_ytdlp"
+            echo "  $required_ffmpeg"
+            echo "Detected files under app/src/main/assets/yt-dlp:"
+            find app/src/main/assets/yt-dlp -type f 2>/dev/null || true
+            echo "Detected files under app/src/main/assets/ffmpeg:"
+            find app/src/main/assets/ffmpeg -type f 2>/dev/null || true
+            exit 1
+          fi
+
+      - name: Build debug APK
+        run: gradle :app:assembleDebug
+
+      - name: Rename APK
+        run: |
+          VERSION="${{ steps.version.outputs.version_name }}"
+          mv app/build/outputs/apk/debug/app-debug.apk \
+             app/build/outputs/apk/debug/video-downloader-v${VERSION}-debug.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: video-downloader-v${{ steps.version.outputs.version_name }}-debug
+          path: app/build/outputs/apk/debug/video-downloader-*.apk
+
+  release-nightly:
+    if: github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download debug APK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: video-downloader-v${{ needs.build.outputs.version_name }}-debug
+          path: dist
+
+      - name: Create nightly GitHub prerelease
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nightly-${{ github.run_number }}
+          name: "Nightly Build #${{ github.run_number }} (v${{ needs.build.outputs.version_name }})"
+          target_commitish: ${{ github.sha }}
+          prerelease: true
+          generate_release_notes: true
+          files: dist/*.apk
+
+  release-tag:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: Read version from gradle.properties
+        id: version
+        run: |
+          VERSION=$(grep '^APP_VERSION_NAME=' gradle.properties | cut -d'=' -f2)
+          echo "version_name=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Build release APK
+        run: gradle :app:assembleRelease
+
+      - name: Rename release APK
+        run: |
+          VERSION="${{ steps.version.outputs.version_name }}"
+          mv app/build/outputs/apk/release/app-release-unsigned.apk \
+             app/build/outputs/apk/release/video-downloader-v${VERSION}.apk 2>/dev/null || \
+          mv app/build/outputs/apk/release/app-release.apk \
+             app/build/outputs/apk/release/video-downloader-v${VERSION}.apk 2>/dev/null || true
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Video Downloader v${{ steps.version.outputs.version_name }}"
+          generate_release_notes: true
+          files: app/build/outputs/apk/release/video-downloader-*.apk
