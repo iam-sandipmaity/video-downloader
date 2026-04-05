@@ -6,9 +6,7 @@ import com.localdownloader.domain.models.AppSettings
 import com.localdownloader.domain.models.DownloadOptions
 import com.localdownloader.domain.models.StreamType
 import com.localdownloader.domain.models.VideoQuality
-import com.localdownloader.domain.usecases.AnalyzeUrlUseCase
-import com.localdownloader.domain.usecases.ManageSettingsUseCase
-import com.localdownloader.domain.usecases.StartDownloadUseCase
+import com.localdownloader.domain.repositories.DownloaderRepository
 import com.localdownloader.utils.Logger
 import com.localdownloader.utils.UrlValidator
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -21,9 +19,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class FormatViewModel @Inject constructor(
-    private val analyzeUrlUseCase: AnalyzeUrlUseCase,
-    private val startDownloadUseCase: StartDownloadUseCase,
-    private val manageSettingsUseCase: ManageSettingsUseCase,
+    private val repository: DownloaderRepository,
     private val urlValidator: UrlValidator,
     private val logger: Logger,
 ) : ViewModel() {
@@ -32,7 +28,7 @@ class FormatViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            manageSettingsUseCase.observe().collect { settings ->
+            repository.observeSettings().collect { settings ->
                 applySettings(settings)
             }
         }
@@ -65,7 +61,7 @@ class FormatViewModel @Inject constructor(
                 )
             }
 
-            val result = runCatching { analyzeUrlUseCase(url) }
+            val result = runCatching { repository.analyzeUrl(url) }
                 .getOrElse { throwable ->
                     Result.failure(IllegalStateException(throwable.message ?: "Analyze failed", throwable))
                 }
@@ -151,8 +147,9 @@ class FormatViewModel @Inject constructor(
                 defaultMergeContainer = state.selectedContainer,
                 autoEmbedMetadata = state.embedMetadata,
                 autoEmbedThumbnail = state.embedThumbnail,
+                darkTheme = state.isDarkTheme,
             )
-            runCatching { manageSettingsUseCase.update(newSettings) }
+            runCatching { repository.updateSettings(newSettings) }
                 .onSuccess {
                     _uiState.update { it.copy(infoMessage = "Settings saved locally.") }
                 }
@@ -206,7 +203,7 @@ class FormatViewModel @Inject constructor(
                 "Queueing download for URL=${options.url}, formatSelector=$formatSelector, extractAudio=${options.extractAudio}",
             )
 
-            val queueResult = runCatching { startDownloadUseCase(options, info.title) }
+            val queueResult = runCatching { repository.enqueueDownload(options, info.title) }
                 .getOrElse { throwable ->
                     Result.failure(IllegalStateException(throwable.message ?: "Unable to queue download.", throwable))
                 }
@@ -238,12 +235,16 @@ class FormatViewModel @Inject constructor(
         _uiState.update { state -> state.copy(errorMessage = null, infoMessage = null) }
     }
 
+    fun toggleDarkTheme(enabled: Boolean) {
+        _uiState.update { it.copy(isDarkTheme = enabled) }
+    }
+
     private fun buildFormatSelector(
         quality: VideoQuality,
         streamType: StreamType,
         container: String,
     ): String {
-        val h = quality.maxHeight?.let { "[height<=$it]" } ?: ""
+        val h = quality.maxHeight ?.let { "[height<=$it]" } ?: ""
         return when (streamType) {
             StreamType.AUDIO_ONLY -> "bestaudio/best"
             StreamType.VIDEO_ONLY -> "bestvideo$h/bestvideo"
@@ -275,6 +276,7 @@ class FormatViewModel @Inject constructor(
                 outputTemplate = settings.defaultOutputTemplate,
                 embedMetadata = settings.autoEmbedMetadata,
                 embedThumbnail = settings.autoEmbedThumbnail,
+                isDarkTheme = settings.darkTheme,
             )
         }
     }
