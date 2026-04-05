@@ -178,7 +178,8 @@ class FormatViewModel @Inject constructor(
             _uiState.update { current -> current.copy(isQueueing = true, errorMessage = null, infoMessage = null) }
 
             val isAudioOnly = state.selectedStreamType == StreamType.AUDIO_ONLY
-            val formatSelector = buildFormatSelector(
+            val resolvedFormat = DownloadFormatResolver.resolve(
+                videoInfo = info,
                 quality = state.selectedQuality,
                 streamType = state.selectedStreamType,
                 container = state.selectedContainer,
@@ -186,9 +187,9 @@ class FormatViewModel @Inject constructor(
 
             val options = DownloadOptions(
                 url = info.webpageUrl,
-                formatId = formatSelector,
+                formatId = resolvedFormat.formatSelector,
                 outputTemplate = state.outputTemplate,
-                mergeOutputFormat = if (!isAudioOnly) state.selectedContainer.ifBlank { null } else null,
+                mergeOutputFormat = resolvedFormat.mergeOutputFormat,
                 isPlaylistEnabled = state.enablePlaylist,
                 shouldDownloadSubtitles = state.downloadSubtitles,
                 shouldEmbedMetadata = state.embedMetadata,
@@ -200,7 +201,7 @@ class FormatViewModel @Inject constructor(
             )
             logger.i(
                 "FormatViewModel",
-                "Queueing download for URL=${options.url}, formatSelector=$formatSelector, extractAudio=${options.extractAudio}",
+                "Queueing download for URL=${options.url}, formatSelector=${resolvedFormat.formatSelector}, merge=${resolvedFormat.mergeOutputFormat}, extractAudio=${options.extractAudio}",
             )
 
             val queueResult = runCatching { repository.enqueueDownload(options, info.title) }
@@ -240,31 +241,6 @@ class FormatViewModel @Inject constructor(
         viewModelScope.launch {
             val state = uiState.value
             repository.updateSettings(state.appSettings.copy(darkTheme = enabled))
-        }
-    }
-
-    private fun buildFormatSelector(
-        quality: VideoQuality,
-        streamType: StreamType,
-        container: String,
-    ): String {
-        val h = quality.maxHeight ?.let { "[height<=$it]" } ?: ""
-        return when (streamType) {
-            StreamType.AUDIO_ONLY -> "bestaudio/best"
-            StreamType.VIDEO_ONLY -> "bestvideo$h/bestvideo"
-            StreamType.VIDEO_AUDIO -> {
-                val vExt = when (container) {
-                    "mp4", "mov" -> "[ext=mp4]"
-                    "webm" -> "[ext=webm]"
-                    else -> ""
-                }
-                val aExt = when (container) {
-                    "mp4", "mov" -> "[ext=m4a]"
-                    "webm" -> "[ext=webm]"
-                    else -> ""
-                }
-                "bestvideo$h$vExt+bestaudio$aExt/bestvideo$h+bestaudio/best$h/best"
-            }
         }
     }
 

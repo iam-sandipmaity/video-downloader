@@ -14,6 +14,7 @@ import javax.inject.Singleton
 @Singleton
 class YtDlpExecutor @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val binaryInstaller: BinaryInstaller,
     private val processRunner: ProcessRunner,
     private val logger: Logger,
 ) {
@@ -68,7 +69,7 @@ class YtDlpExecutor @Inject constructor(
         }
     }
 
-    private fun resolveRuntime(): YtDlpRuntime {
+    private suspend fun resolveRuntime(): YtDlpRuntime {
         val nativeLibraryDir = File(context.applicationInfo.nativeLibraryDir)
         val baseDir = File(context.noBackupFilesDir, YoutubeDL.baseName)
         val packagesDir = File(baseDir, "packages")
@@ -78,7 +79,7 @@ class YtDlpExecutor @Inject constructor(
 
         val pythonBinary = File(nativeLibraryDir, "libpython.so")
         val quickJsBinary = File(nativeLibraryDir, "libqjs.so")
-        val ffmpegBinary = File(nativeLibraryDir, "libffmpeg.so")
+        val ffmpegBinary = resolveFfmpegBinary(nativeLibraryDir)
         val ytDlpScript = File(
             File(baseDir, YoutubeDL.ytdlpDirName),
             YoutubeDL.ytdlpBin,
@@ -114,6 +115,17 @@ class YtDlpExecutor @Inject constructor(
             ytDlpScript = ytDlpScript,
             environment = environment,
         )
+    }
+
+    private suspend fun resolveFfmpegBinary(nativeLibraryDir: File): File {
+        val nativeBinary = ExecutableBinaryResolver.resolveFirstExisting(
+            directory = nativeLibraryDir,
+            candidates = listOf("libffmpeg_exec.so", "libffmpeg.so"),
+        )
+        if (nativeBinary != null) return nativeBinary
+
+        logger.w("YtDlpExecutor", "Falling back to installed FFmpeg binary outside nativeLibraryDir")
+        return binaryInstaller.ensureFfmpegBinary()
     }
 
     private fun normalizeArgs(args: List<String>, runtime: YtDlpRuntime): List<String> {
