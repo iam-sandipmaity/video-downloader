@@ -260,7 +260,7 @@ class FormatViewModel @Inject constructor(
         return when (streamType) {
             StreamType.AUDIO_ONLY -> "bestaudio/best"
             StreamType.VIDEO_ONLY -> "bestvideo$h$containerFilter/bestvideo"
-            StreamType.VIDEO_AUDIO -> "best$h$containerFilter/best"
+            StreamType.VIDEO_AUDIO -> "best$h/best"
         }
     }
 
