@@ -1,8 +1,11 @@
 package com.localdownloader.domain.models
 
+import kotlinx.serialization.Serializable
+
 /**
  * User-selected download behavior mapped to yt-dlp arguments.
  */
+@Serializable
 data class DownloadOptions(
     val url: String,
     val formatId: String,
