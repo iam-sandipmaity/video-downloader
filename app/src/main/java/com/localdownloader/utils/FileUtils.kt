@@ -2,7 +2,6 @@ package com.localdownloader.utils
 
 import android.content.Context
 import android.net.Uri
-import android.os.Build
 import android.os.Environment
 import android.provider.OpenableColumns
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -18,16 +17,12 @@ class FileUtils @Inject constructor(
     private val binDirName = "bin"
 
     /**
-     * Returns a writable Downloads directory visible in the system file manager.
-     * Primary: /sdcard/Download/LocalDownloader/
-     * Fallback: app-specific external storage (Android/data/…), still browseable.
-     * Last resort: app internal files dir (original behaviour, invisible to user).
+     * Returns a writable downloads directory.
+     * Primary: app-specific external storage (Android/data/…/Download), visible in Files app,
+     *          no permission needed, survives Scoped Storage on Android 11+.
+     * Fallback: app internal files dir (invisible to user, last resort).
      */
     fun ensureDownloadsDir(): File {
-        val publicDownloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-        val appDir = File(publicDownloads, "LocalDownloader")
-        if ((appDir.exists() || appDir.mkdirs()) && appDir.canWrite()) return appDir
-
         // External app-specific dir — no permission needed, visible in Files app.
         val extDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
         if (extDir != null && (extDir.exists() || extDir.mkdirs()) && extDir.canWrite()) return extDir
