@@ -4,8 +4,14 @@ import com.localdownloader.data.persistence.DownloadTaskDao
 import com.localdownloader.data.persistence.DownloadTaskEntity
 import com.localdownloader.domain.models.DownloadTask
 import com.localdownloader.domain.models.DownloadStatus
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -16,36 +22,52 @@ class DownloadTaskStore @Inject constructor(
     private val json: Json,
 ) {
 
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** In-memory cache synced from Room for fast non-suspending access. */
+    private val tasks = MutableStateFlow<Map<String, DownloadTask>>(emptyMap())
+
+    init {
+        scope.launch {
+            dao.observeAll().collect { entities ->
+                val map = entities.mapNotNull { it.toDomainTask() }.associateBy { it.id }
+                tasks.update { map }
+            }
+        }
+    }
+
     fun observeAll(): Flow<List<DownloadTask>> {
-        return dao.observeAll().map { entities ->
-            entities.mapNotNull { it.toDomainTask() }
+        return tasks.map { taskMap ->
+            taskMap.values.sortedByDescending { it.createdAtEpochMs }
         }
     }
 
-    suspend fun getTask(taskId: String): DownloadTask? {
-        return dao.getById(taskId)?.toDomainTask()
+    fun getTask(taskId: String): DownloadTask? = tasks.value[taskId]
+
+    fun upsert(task: DownloadTask) {
+        tasks.update { taskMap -> taskMap + (task.id to task) }
+        scope.launch { dao.upsert(task.toEntity()) }
     }
 
-    suspend fun upsert(task: DownloadTask) {
-        dao.upsert(task.toEntity())
-    }
-
-    suspend fun update(taskId: String, reducer: (DownloadTask) -> DownloadTask) {
-        val current = dao.getById(taskId)?.toDomainTask() ?: return
-        val updated = reducer(current)
-        dao.upsert(updated.toEntity())
-    }
-
-    suspend fun countByUrl(url: String): Int = dao.countByUrl(url)
-
-    /** Caches download options as JSON for resume capability. */
-    suspend fun cacheOptions(taskId: String, optionsJson: String) {
-        dao.getById(taskId)?.let { entity ->
-            dao.upsert(entity.copy(optionsJson = optionsJson))
+    fun update(taskId: String, reducer: (DownloadTask) -> DownloadTask) {
+        tasks.update { taskMap ->
+            val current = taskMap[taskId] ?: return@update taskMap
+            val updated = reducer(current)
+            scope.launch { dao.upsert(updated.toEntity()) }
+            taskMap + (taskId to updated)
         }
     }
 
-    /** Retrieves cached download options JSON for resume capability. */
+    fun countByUrl(url: String): Int = tasks.value.values.count { it.url == url }
+
+    fun cacheOptions(taskId: String, optionsJson: String) {
+        scope.launch {
+            dao.getById(taskId)?.let { entity ->
+                dao.upsert(entity.copy(optionsJson = optionsJson))
+            }
+        }
+    }
+
     suspend fun getCachedOptions(taskId: String): String? {
         return dao.getById(taskId)?.optionsJson
     }

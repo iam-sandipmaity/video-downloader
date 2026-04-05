@@ -20,7 +20,7 @@ import com.localdownloader.ffmpeg.Compressor
 import com.localdownloader.ffmpeg.FormatConverter
 import com.localdownloader.utils.FileUtils
 import com.localdownloader.utils.Logger
-import com.localdownloader.work.WorkerKeys
+import com.localdownloader.worker.WorkerKeys
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
