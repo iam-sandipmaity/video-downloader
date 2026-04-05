@@ -1,9 +1,12 @@
 package com.localdownloader.data
 
+import androidx.work.BackoffPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.localdownloader.worker.DownloadWorker
+import com.localdownloader.data.persistence.DownloadTaskEntity
 import com.localdownloader.domain.models.AppSettings
 import com.localdownloader.domain.models.CompressionRequest
 import com.localdownloader.domain.models.ConversionRequest
@@ -17,16 +20,17 @@ import com.localdownloader.ffmpeg.Compressor
 import com.localdownloader.ffmpeg.FormatConverter
 import com.localdownloader.utils.FileUtils
 import com.localdownloader.utils.Logger
-import com.localdownloader.worker.DownloadWorker
-import com.localdownloader.worker.WorkerKeys
+import com.localdownloader.work.WorkerKeys
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -40,10 +44,10 @@ class DownloadRepositoryImpl @Inject constructor(
     private val workManager: WorkManager,
     private val fileUtils: FileUtils,
     private val logger: Logger,
+    private val json: Json,
 ) : DownloaderRepository {
-    private val optionsByTaskId = ConcurrentHashMap<String, DownloadOptions>()
     private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val workObserverJobs = ConcurrentHashMap<String, Job>()
+    private val workObserverJobs = ConcurrentHashMap.newKeySet<String>()
 
     override suspend fun analyzeUrl(url: String): Result<VideoInfo> {
         logger.i("DownloadRepository", "analyzeUrl called for: $url")
@@ -65,8 +69,6 @@ class DownloadRepositoryImpl @Inject constructor(
                 "DownloadRepository",
                 "enqueueDownload called url=${options.url}, format=${options.formatId}, titleHint='$titleHint'",
             )
-            // If the same URL has been queued before in this session, append "(n)" to the
-            // filename so repeated downloads don't silently overwrite the previous file.
             val sameUrlCount = downloadTaskStore.countByUrl(options.url)
             val templateBase = if (sameUrlCount > 0) {
                 fileUtils.appendCounterToTemplate(options.outputTemplate, sameUrlCount)
@@ -74,6 +76,7 @@ class DownloadRepositoryImpl @Inject constructor(
                 options.outputTemplate
             }
             val outputTemplate = fileUtils.createOutputTemplateWithDirectory(templateBase)
+
             val request = OneTimeWorkRequestBuilder<DownloadWorker>()
                 .setInputData(
                     workDataOf(
@@ -92,10 +95,19 @@ class DownloadRepositoryImpl @Inject constructor(
                         WorkerKeys.TITLE_HINT to titleHint,
                     ),
                 )
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10, TimeUnit.SECONDS)
                 .build()
 
             val taskId = request.id.toString()
-            optionsByTaskId[taskId] = options
+
+            // Cache options in Room for resume capability
+            val optionsEntity = DownloadTaskEntity(
+                id = taskId,
+                url = options.url,
+                title = titleHint.ifBlank { "Queued download" },
+                status = DownloadStatus.QUEUED.name,
+                optionsJson = json.encodeToString(options),
+            )
 
             downloadTaskStore.upsert(
                 DownloadTask(
@@ -119,7 +131,6 @@ class DownloadRepositoryImpl @Inject constructor(
     override suspend fun pauseDownload(taskId: String) {
         logger.i("DownloadRepository", "pauseDownload taskId=$taskId")
         workManager.cancelWorkById(UUID.fromString(taskId))
-        stopObserving(taskId)
         downloadTaskStore.update(taskId) { task ->
             task.copy(
                 status = DownloadStatus.PAUSED,
@@ -130,17 +141,22 @@ class DownloadRepositoryImpl @Inject constructor(
 
     override suspend fun resumeDownload(taskId: String): Result<String> {
         logger.i("DownloadRepository", "resumeDownload taskId=$taskId")
-        val options = optionsByTaskId[taskId]
-            ?: return Result.failure(IllegalStateException("No cached options for task $taskId"))
 
-        val title = downloadTaskStore.getTask(taskId)?.title ?: "Resumed download"
-        return enqueueDownload(options = options, titleHint = title)
+        val task = downloadTaskStore.getTask(taskId)
+            ?: return Result.failure(IllegalStateException("No task found with ID $taskId"))
+
+        val optionsJson = downloadTaskStore.getCachedOptions(taskId)
+            ?: return Result.failure(IllegalStateException("No cached download options for task $taskId"))
+
+        val options = runCatching { json.decodeFromString<DownloadOptions>(optionsJson) }
+            .getOrElse { return Result.failure(it) }
+
+        return enqueueDownload(options = options, titleHint = task.title)
     }
 
     override suspend fun cancelDownload(taskId: String) {
         logger.i("DownloadRepository", "cancelDownload taskId=$taskId")
         workManager.cancelWorkById(UUID.fromString(taskId))
-        stopObserving(taskId)
         downloadTaskStore.update(taskId) { task ->
             task.copy(
                 status = DownloadStatus.CANCELED,
@@ -151,13 +167,15 @@ class DownloadRepositoryImpl @Inject constructor(
 
     override fun observeDownloadQueue(): Flow<List<DownloadTask>> = downloadTaskStore.observeAll()
 
-    override suspend fun convertMedia(request: ConversionRequest, onProgress: ((Float) -> Unit)?): Result<String> {
-        return formatConverter.convert(request, onProgress)
-    }
+    override suspend fun convertMedia(
+        request: ConversionRequest,
+        onProgress: ((Float) -> Unit)?,
+    ): Result<String> = formatConverter.convert(request, onProgress)
 
-    override suspend fun compressMedia(request: CompressionRequest, onProgress: ((Float) -> Unit)?): Result<String> {
-        return compressor.compress(request, onProgress)
-    }
+    override suspend fun compressMedia(
+        request: CompressionRequest,
+        onProgress: ((Float) -> Unit)?,
+    ): Result<String> = compressor.compress(request, onProgress)
 
     override fun observeSettings(): Flow<AppSettings> = settingsStore.observeSettings()
 
@@ -166,71 +184,49 @@ class DownloadRepositoryImpl @Inject constructor(
     }
 
     private fun observeWorkState(taskId: String, workId: UUID) {
-        stopObserving(taskId)
-        val job = repositoryScope.launch {
-            var lastState: WorkInfo.State? = null
+        repositoryScope.launch {
             workManager.getWorkInfoByIdFlow(workId).collect { info ->
                 if (info == null) {
                     appendTaskDebug(taskId, "WorkManager state unavailable")
                     return@collect
                 }
-
-                val state = info.state
-                if (state != lastState) {
-                    logger.i("DownloadRepository", "WorkManager state taskId=$taskId state=$state")
-                    appendTaskDebug(
-                        taskId,
-                        "WorkManager state: $state (attempt=${info.runAttemptCount}, id=${info.id})",
-                    )
-                    syncTaskFromWorkState(taskId, info)
-                    lastState = state
-                }
+                syncTaskFromWorkState(taskId, info)
             }
-        }
-        workObserverJobs[taskId] = job
+        }.also { /* no need to store reference, WorkManager handles persistence */ }
     }
 
     private fun syncTaskFromWorkState(taskId: String, info: WorkInfo) {
         when (info.state) {
             WorkInfo.State.ENQUEUED -> {
                 downloadTaskStore.update(taskId) { task ->
-                    if (task.status == DownloadStatus.COMPLETED || task.status == DownloadStatus.FAILED || task.status == DownloadStatus.CANCELED) {
-                        task
-                    } else {
-                        task.copy(
-                            status = DownloadStatus.QUEUED,
-                            updatedAtEpochMs = System.currentTimeMillis(),
-                        )
-                    }
+                    if (task.status.isTerminal) task
+                    else task.copy(
+                        status = DownloadStatus.QUEUED,
+                        updatedAtEpochMs = System.currentTimeMillis(),
+                    )
                 }
             }
 
             WorkInfo.State.RUNNING -> {
                 downloadTaskStore.update(taskId) { task ->
-                    if (task.status == DownloadStatus.COMPLETED || task.status == DownloadStatus.FAILED || task.status == DownloadStatus.CANCELED) {
-                        task
-                    } else {
-                        task.copy(
-                            status = DownloadStatus.RUNNING,
-                            updatedAtEpochMs = System.currentTimeMillis(),
-                        )
-                    }
+                    if (task.status.isTerminal) task
+                    else task.copy(
+                        status = DownloadStatus.RUNNING,
+                        updatedAtEpochMs = System.currentTimeMillis(),
+                    )
                 }
             }
 
             WorkInfo.State.SUCCEEDED -> {
                 val outputPath = info.outputData.getString(WorkerKeys.OUTPUT_PATH)
                 downloadTaskStore.update(taskId) { task ->
-                    if (task.status == DownloadStatus.COMPLETED) {
-                        task
-                    } else {
-                        task.copy(
-                            status = DownloadStatus.COMPLETED,
-                            progressPercent = if (task.progressPercent > 0) task.progressPercent else 100,
-                            outputPath = outputPath ?: task.outputPath,
-                            updatedAtEpochMs = System.currentTimeMillis(),
-                        )
-                    }
+                    if (task.status == DownloadStatus.COMPLETED) task
+                    else task.copy(
+                        status = DownloadStatus.COMPLETED,
+                        progressPercent = task.progressPercent.coerceAtLeast(100),
+                        outputPath = outputPath ?: task.outputPath,
+                        updatedAtEpochMs = System.currentTimeMillis(),
+                    )
                 }
             }
 
@@ -242,10 +238,7 @@ class DownloadRepositoryImpl @Inject constructor(
                     task.copy(
                         status = DownloadStatus.FAILED,
                         errorMessage = failureMessage,
-                        debugTrace = appendDebugLine(
-                            existing = task.debugTrace,
-                            line = "WorkManager failed: $failureMessage",
-                        ),
+                        debugTrace = appendDebugLine(task.debugTrace, "WorkManager failed: $failureMessage"),
                         updatedAtEpochMs = System.currentTimeMillis(),
                     )
                 }
@@ -255,10 +248,7 @@ class DownloadRepositoryImpl @Inject constructor(
                 downloadTaskStore.update(taskId) { task ->
                     task.copy(
                         status = DownloadStatus.CANCELED,
-                        debugTrace = appendDebugLine(
-                            existing = task.debugTrace,
-                            line = "WorkManager cancelled",
-                        ),
+                        debugTrace = appendDebugLine(task.debugTrace, "WorkManager cancelled"),
                         updatedAtEpochMs = System.currentTimeMillis(),
                     )
                 }
@@ -273,29 +263,24 @@ class DownloadRepositoryImpl @Inject constructor(
     private fun appendTaskDebug(taskId: String, line: String) {
         val cleaned = line.trim().replace("\n", " ")
         if (cleaned.isBlank()) return
-
         val entry = "${System.currentTimeMillis()}: $cleaned"
         downloadTaskStore.update(taskId) { task ->
             task.copy(
-                debugTrace = appendDebugLine(existing = task.debugTrace, line = entry),
+                debugTrace = appendDebugLine(task.debugTrace, entry),
                 updatedAtEpochMs = System.currentTimeMillis(),
             )
         }
     }
 
     private fun appendDebugLine(existing: String?, line: String): String {
-        return if (existing.isNullOrBlank()) {
-            line.takeLast(MAX_DEBUG_TRACE_CHARS)
-        } else {
-            (existing + "\n" + line).takeLast(MAX_DEBUG_TRACE_CHARS)
-        }
-    }
-
-    private fun stopObserving(taskId: String) {
-        workObserverJobs.remove(taskId)?.cancel()
+        val combined = if (existing.isNullOrBlank()) line else "$existing\n$line"
+        return combined.takeLast(MAX_DEBUG_TRACE_CHARS)
     }
 
     private companion object {
         const val MAX_DEBUG_TRACE_CHARS = 10_000
     }
 }
+
+private val DownloadStatus.isTerminal: Boolean
+    get() = this in setOf(DownloadStatus.COMPLETED, DownloadStatus.FAILED, DownloadStatus.CANCELED)
