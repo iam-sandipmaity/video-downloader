@@ -37,12 +37,6 @@ class DownloaderApplication : Application() {
             safeLogger.i("DownloaderApplication", "App started")
             safeLogger.i("DownloaderApplication", "File logs path: ${safeLogger.logFilePath()}")
             safeLogger.i("DownloaderApplication", "Crash logs path: ${safeLogger.crashLogFilePath()}")
-            safeLogger.externalLogFilePathOrNull()?.let { path ->
-                safeLogger.i("DownloaderApplication", "External logs path: $path")
-            }
-            safeLogger.externalCrashLogFilePathOrNull()?.let { path ->
-                safeLogger.i("DownloaderApplication", "External crash logs path: $path")
-            }
         }
         runCatching {
             YoutubeDL.getInstance().init(this)
