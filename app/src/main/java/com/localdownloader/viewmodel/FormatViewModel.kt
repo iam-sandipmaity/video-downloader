@@ -249,18 +249,22 @@ class FormatViewModel @Inject constructor(
         container: String,
     ): String {
         val h = quality.maxHeight ?.let { "[height<=$it]" } ?: ""
-        val isAudio = streamType == StreamType.AUDIO_ONLY
-        val hasContainer = !isAudio && container.isNotBlank()
-        val containerFilter = when {
-            !hasContainer -> ""
-            container == "mp4" || container == "mov" -> "[ext=mp4]"
-            container == "webm" -> "[ext=webm]"
-            else -> ""
-        }
         return when (streamType) {
             StreamType.AUDIO_ONLY -> "bestaudio/best"
-            StreamType.VIDEO_ONLY -> "bestvideo$h$containerFilter/bestvideo"
-            StreamType.VIDEO_AUDIO -> "best$h/best"
+            StreamType.VIDEO_ONLY -> "bestvideo$h/bestvideo"
+            StreamType.VIDEO_AUDIO -> {
+                val vExt = when (container) {
+                    "mp4", "mov" -> "[ext=mp4]"
+                    "webm" -> "[ext=webm]"
+                    else -> ""
+                }
+                val aExt = when (container) {
+                    "mp4", "mov" -> "[ext=m4a]"
+                    "webm" -> "[ext=webm]"
+                    else -> ""
+                }
+                "bestvideo$h$vExt+bestaudio$aExt/bestvideo$h+bestaudio/best$h/best"
+            }
         }
     }
 
