@@ -47,16 +47,13 @@ class Logger @Inject constructor(
 
     fun logFilePath(): String = currentLogFile().absolutePath
     fun crashLogFilePath(): String = currentCrashLogFile().absolutePath
-    fun externalLogFilePathOrNull(): String? = externalLogFileOrNull()?.absolutePath
-    fun externalCrashLogFilePathOrNull(): String? = externalCrashLogFileOrNull()?.absolutePath
+    // External file paths removed for privacy; logs are internal-only.
 
     fun ensureLogFilesExist() {
         runCatching {
-            listOfNotNull(
+            listOf(
                 currentLogFile(),
                 currentCrashLogFile(),
-                externalLogFileOrNull(),
-                externalCrashLogFileOrNull(),
             ).forEach { file ->
                 file.parentFile?.mkdirs()
                 if (!file.exists()) {
@@ -124,10 +121,8 @@ class Logger @Inject constructor(
 
     private fun buildTargetLogFiles(level: String): List<File> {
         val targets = mutableListOf(currentLogFile())
-        externalLogFileOrNull()?.let(targets::add)
         if (level == "W" || level == "E") {
             targets += currentCrashLogFile()
-            externalCrashLogFileOrNull()?.let(targets::add)
         }
         return targets
     }
@@ -147,16 +142,6 @@ class Logger @Inject constructor(
 
     private fun currentCrashLogFile(): File {
         return File(File(context.filesDir, LOG_DIR_NAME), CRASH_LOG_FILE_NAME)
-    }
-
-    private fun externalLogFileOrNull(): File? {
-        val externalDir = context.getExternalFilesDir(LOG_DIR_NAME) ?: return null
-        return File(externalDir, LOG_FILE_NAME)
-    }
-
-    private fun externalCrashLogFileOrNull(): File? {
-        val externalDir = context.getExternalFilesDir(LOG_DIR_NAME) ?: return null
-        return File(externalDir, CRASH_LOG_FILE_NAME)
     }
 
     private companion object {
