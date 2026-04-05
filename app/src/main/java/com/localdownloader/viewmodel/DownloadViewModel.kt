@@ -3,7 +3,6 @@ package com.localdownloader.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.localdownloader.domain.repositories.DownloaderRepository
-import com.localdownloader.domain.usecases.ObserveDownloadQueueUseCase
 import com.localdownloader.utils.Logger
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,7 +14,6 @@ import javax.inject.Inject
 
 @HiltViewModel
 class DownloadViewModel @Inject constructor(
-    observeDownloadQueueUseCase: ObserveDownloadQueueUseCase,
     private val repository: DownloaderRepository,
     private val logger: Logger,
 ) : ViewModel() {
@@ -24,7 +22,7 @@ class DownloadViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            observeDownloadQueueUseCase().collect { tasks ->
+            repository.observeDownloadQueue().collect { tasks ->
                 logger.d("DownloadViewModel", "Queue update received: count=${tasks.size}")
                 _uiState.update { state -> state.copy(tasks = tasks) }
             }
