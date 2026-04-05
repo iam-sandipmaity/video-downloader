@@ -1,36 +1,92 @@
 package com.localdownloader.data
 
+import com.localdownloader.data.persistence.DownloadTaskDao
+import com.localdownloader.data.persistence.DownloadTaskEntity
 import com.localdownloader.domain.models.DownloadTask
+import com.localdownloader.domain.models.DownloadStatus
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.update
+import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class DownloadTaskStore @Inject constructor() {
-    private val tasks = MutableStateFlow<Map<String, DownloadTask>>(emptyMap())
+class DownloadTaskStore @Inject constructor(
+    private val dao: DownloadTaskDao,
+    private val json: Json,
+) {
 
     fun observeAll(): Flow<List<DownloadTask>> {
-        return tasks.map { taskMap ->
-            taskMap.values.sortedByDescending { it.createdAtEpochMs }
+        return dao.observeAll().map { entities ->
+            entities.mapNotNull { it.toDomainTask() }
         }
     }
 
-    fun getTask(taskId: String): DownloadTask? = tasks.value[taskId]
-
-    fun upsert(task: DownloadTask) {
-        tasks.update { taskMap -> taskMap + (task.id to task) }
+    suspend fun getTask(taskId: String): DownloadTask? {
+        return dao.getById(taskId)?.toDomainTask()
     }
 
-    fun update(taskId: String, reducer: (DownloadTask) -> DownloadTask) {
-        tasks.update { taskMap ->
-            val current = taskMap[taskId] ?: return@update taskMap
-            taskMap + (taskId to reducer(current))
+    suspend fun upsert(task: DownloadTask) {
+        dao.upsert(task.toEntity())
+    }
+
+    suspend fun update(taskId: String, reducer: (DownloadTask) -> DownloadTask) {
+        val current = dao.getById(taskId)?.toDomainTask() ?: return
+        val updated = reducer(current)
+        dao.upsert(updated.toEntity())
+    }
+
+    suspend fun countByUrl(url: String): Int = dao.countByUrl(url)
+
+    /** Caches download options as JSON for resume capability. */
+    suspend fun cacheOptions(taskId: String, optionsJson: String) {
+        dao.getById(taskId)?.let { entity ->
+            dao.upsert(entity.copy(optionsJson = optionsJson))
         }
     }
 
-    /** Returns how many tasks (any status) share this URL in the current session. */
-    fun countByUrl(url: String): Int = tasks.value.values.count { it.url == url }
+    /** Retrieves cached download options JSON for resume capability. */
+    suspend fun getCachedOptions(taskId: String): String? {
+        return dao.getById(taskId)?.optionsJson
+    }
+}
+
+private fun DownloadTask.toEntity(): DownloadTaskEntity {
+    return DownloadTaskEntity(
+        id = id,
+        url = url,
+        title = title,
+        status = status.name,
+        progressPercent = progressPercent,
+        speed = speed,
+        eta = eta,
+        outputPath = outputPath,
+        downloadedStr = downloadedStr,
+        totalSizeStr = totalSizeStr,
+        errorMessage = errorMessage,
+        debugTrace = debugTrace,
+        createdAtEpochMs = createdAtEpochMs,
+        updatedAtEpochMs = updatedAtEpochMs,
+    )
+}
+
+private fun DownloadTaskEntity.toDomainTask(): DownloadTask? {
+    return runCatching {
+        DownloadTask(
+            id = id,
+            url = url,
+            title = title,
+            status = DownloadStatus.valueOf(status),
+            progressPercent = progressPercent,
+            speed = speed,
+            eta = eta,
+            outputPath = outputPath,
+            downloadedStr = downloadedStr,
+            totalSizeStr = totalSizeStr,
+            errorMessage = errorMessage,
+            debugTrace = debugTrace,
+            createdAtEpochMs = createdAtEpochMs,
+            updatedAtEpochMs = updatedAtEpochMs,
+        )
+    }.getOrNull()
 }
