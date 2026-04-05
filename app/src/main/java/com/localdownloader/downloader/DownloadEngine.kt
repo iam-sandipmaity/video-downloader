@@ -25,8 +25,8 @@ class DownloadEngine @Inject constructor(
             "--no-warnings",
             "--progress-template",
             "download:PROG|%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s|%(progress._downloaded_bytes_str)s|%(progress._total_bytes_estimate_str)s",
-            // Use the Android player client for YouTube to avoid po_token / 403 CDN errors.
-            "--extractor-args", "youtube:player_client=android,web",
+            // Use web client for full DASH stream access; android as fallback for muxed.
+            "--extractor-args", "youtube:player_client=web,android",
             // Retry on transient CDN 403s and expired DASH segment URLs.
             "--retries", "10",
             "--fragment-retries", "10",
