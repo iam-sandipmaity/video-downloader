@@ -55,6 +55,7 @@ import com.localdownloader.viewmodel.FormatUiState
 @Composable
 fun SettingsScreen(
     uiState: FormatUiState,
+    onDarkThemeChanged: ((Boolean) -> Unit)? = null,
     onOutputTemplateChanged: (String) -> Unit,
     onContainerChanged: (String) -> Unit,
     onEmbedMetadataChanged: (Boolean) -> Unit,
@@ -157,6 +158,17 @@ fun SettingsScreen(
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            // ── Appearance section ────────────────────────────────────
+            SettingsSectionLabel("Appearance")
+            Card(modifier = Modifier.fillMaxWidth()) {
+                SettingsToggleRow(
+                    title = "Dark theme",
+                    subtitle = "Switch between light and dark appearance",
+                    checked = uiState.isDarkTheme,
+                    onCheckedChange = { onDarkThemeChanged?.invoke(it) },
+                )
+            }
+
             // ── Output section ────────────────────────────────────────
             SettingsSectionLabel("Output")
             Card(modifier = Modifier.fillMaxWidth()) {
