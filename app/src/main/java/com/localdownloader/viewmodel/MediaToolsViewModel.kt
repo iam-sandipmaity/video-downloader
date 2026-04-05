@@ -4,12 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.localdownloader.domain.models.CompressionRequest
 import com.localdownloader.domain.models.ConversionRequest
-import com.localdownloader.domain.usecases.ConvertMediaUseCase
+import com.localdownloader.domain.repositories.DownloaderRepository
 import com.localdownloader.utils.FileUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -37,7 +38,7 @@ data class MediaToolsUiState(
 
 @HiltViewModel
 class MediaToolsViewModel @Inject constructor(
-    private val convertMediaUseCase: ConvertMediaUseCase,
+    private val repository: DownloaderRepository,
     private val fileUtils: FileUtils,
 ) : ViewModel() {
 
@@ -72,7 +73,7 @@ class MediaToolsViewModel @Inject constructor(
         )
         viewModelScope.launch {
             _uiState.update { it.copy(isConverting = true, convertResult = null, convertError = null, convertProgress = 0f) }
-            val result = convertMediaUseCase.convert(request) { progress ->
+            val result = repository.convertMedia(request) { progress ->
                 _uiState.value = _uiState.value.copy(convertProgress = progress)
             }
             _uiState.update {
@@ -116,7 +117,7 @@ class MediaToolsViewModel @Inject constructor(
         )
         viewModelScope.launch {
             _uiState.update { it.copy(isCompressing = true, compressResult = null, compressError = null, compressProgress = 0f) }
-            val result = convertMediaUseCase.compress(request) { progress ->
+            val result = repository.compressMedia(request) { progress ->
                 _uiState.value = _uiState.value.copy(compressProgress = progress)
             }
             _uiState.update {
