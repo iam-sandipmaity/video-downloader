@@ -47,6 +47,7 @@ private object NavIcons {
 
 @Composable
 fun DownloaderApp(
+    onDarkThemeChanged: ((Boolean) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val navController = rememberNavController()
@@ -173,6 +174,7 @@ fun DownloaderApp(
             composable(AppDestination.Settings.route) {
                 SettingsScreen(
                     uiState = formatState,
+                    onDarkThemeChanged = onDarkThemeChanged ?: { formatViewModel.toggleDarkTheme(it) },
                     onOutputTemplateChanged = formatViewModel::onOutputTemplateChanged,
                     onContainerChanged = formatViewModel::onContainerChanged,
                     onEmbedMetadataChanged = formatViewModel::onEmbedMetadataChanged,

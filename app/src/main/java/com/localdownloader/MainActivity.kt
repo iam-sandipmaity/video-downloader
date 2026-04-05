@@ -7,7 +7,11 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.impl.LifecycleCameraController
 import androidx.core.content.ContextCompat
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import com.localdownloader.ui.DownloaderApp
 import com.localdownloader.ui.theme.LocalDownloaderTheme
 import com.localdownloader.utils.Logger
@@ -32,14 +36,23 @@ class MainActivity : ComponentActivity() {
         logger.i("MainActivity", "Storage permission result granted=$granted")
     }
 
+    private var darkTheme by mutableStateOf(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         logger.i("MainActivity", "onCreate")
         requestNotificationPermissionIfNeeded()
         requestStoragePermissionIfNeeded()
         setContent {
-            LocalDownloaderTheme {
-                DownloaderApp()
+            LocalDownloaderTheme(darkTheme = darkTheme) {
+                DownloaderApp(
+                    onDarkThemeChanged = { enabled ->
+                        darkTheme = enabled
+                        logger.i("MainActivity", "Dark theme changed to $enabled")
+                        // Force recreation of activity for theme change
+                        recreate()
+                    },
+                )
             }
         }
     }
