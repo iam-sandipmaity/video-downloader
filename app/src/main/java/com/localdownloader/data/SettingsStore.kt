@@ -32,6 +32,7 @@ class SettingsStore @Inject constructor(
         val autoEmbedMetadata = booleanPreferencesKey("auto_embed_metadata")
         val autoEmbedThumbnail = booleanPreferencesKey("auto_embed_thumbnail")
         val maxConcurrent = intPreferencesKey("max_concurrent")
+        val darkTheme = booleanPreferencesKey("dark_theme")
     }
 
     fun observeSettings(): Flow<AppSettings> {
@@ -50,6 +51,7 @@ class SettingsStore @Inject constructor(
                     autoEmbedMetadata = prefs[Keys.autoEmbedMetadata] ?: true,
                     autoEmbedThumbnail = prefs[Keys.autoEmbedThumbnail] ?: false,
                     maxConcurrentDownloads = prefs[Keys.maxConcurrent] ?: 2,
+                    darkTheme = prefs[Keys.darkTheme] ?: false,
                 )
             }
     }
@@ -61,6 +63,7 @@ class SettingsStore @Inject constructor(
             prefs[Keys.autoEmbedMetadata] = settings.autoEmbedMetadata
             prefs[Keys.autoEmbedThumbnail] = settings.autoEmbedThumbnail
             prefs[Keys.maxConcurrent] = settings.maxConcurrentDownloads
+            prefs[Keys.darkTheme] = settings.darkTheme
         }
     }
 }

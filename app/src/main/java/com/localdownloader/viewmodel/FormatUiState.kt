@@ -26,4 +26,5 @@ data class FormatUiState(
     val appSettings: AppSettings = AppSettings(),
     val infoMessage: String? = null,
     val errorMessage: String? = null,
+    val isDarkTheme: Boolean = false,
 )

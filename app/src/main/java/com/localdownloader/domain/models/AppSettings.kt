@@ -9,4 +9,5 @@ data class AppSettings(
     val autoEmbedMetadata: Boolean = true,
     val autoEmbedThumbnail: Boolean = false,
     val maxConcurrentDownloads: Int = 2,
+    val darkTheme: Boolean = false,
 )
