@@ -40,6 +40,7 @@ fun HomeScreen(
     onAnalyzeClicked: () -> Unit,
     onQualityChanged: (VideoQuality) -> Unit,
     onStreamTypeChanged: (StreamType) -> Unit,
+    onFormatSelectorChanged: (String) -> Unit,
     onContainerChanged: (String) -> Unit,
     onAudioFormatChanged: (String) -> Unit,
     onAudioBitrateChanged: (Int) -> Unit,
@@ -85,12 +86,29 @@ fun HomeScreen(
             ) {
                 Text("Download options", style = MaterialTheme.typography.titleMedium)
 
-                DropdownRow(
-                    label = "Quality",
-                    options = VideoQuality.entries.map { it.label },
-                    selectedIndex = VideoQuality.entries.indexOf(uiState.selectedQuality).coerceAtLeast(0),
-                    onSelected = { onQualityChanged(VideoQuality.entries[it]) },
-                )
+                val choices = when (uiState.selectedStreamType) {
+                    StreamType.VIDEO_AUDIO -> uiState.availableVideoAudioChoices
+                    StreamType.VIDEO_ONLY -> uiState.availableVideoOnlyChoices
+                    StreamType.AUDIO_ONLY -> uiState.availableAudioOnlyChoices
+                }
+
+                if (choices.isNotEmpty()) {
+                    val selectedIndex = choices.indexOfFirst { it.selector == uiState.selectedFormatSelector }
+                        .coerceAtLeast(0)
+                    DropdownRow(
+                        label = "Format",
+                        options = choices.map { it.label },
+                        selectedIndex = selectedIndex,
+                        onSelected = { index -> onFormatSelectorChanged(choices[index].selector) },
+                    )
+                } else {
+                    DropdownRow(
+                        label = "Quality",
+                        options = VideoQuality.entries.map { it.label },
+                        selectedIndex = VideoQuality.entries.indexOf(uiState.selectedQuality).coerceAtLeast(0),
+                        onSelected = { onQualityChanged(VideoQuality.entries[it]) },
+                    )
+                }
 
                 DropdownRow(
                     label = "Type",

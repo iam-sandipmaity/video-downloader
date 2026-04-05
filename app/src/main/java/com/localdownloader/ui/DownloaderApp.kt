@@ -26,15 +26,18 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.localdownloader.domain.models.YoutubeAuthBundle
 import com.localdownloader.ui.screens.CompressScreen
 import com.localdownloader.ui.screens.ConvertScreen
 import com.localdownloader.ui.screens.DownloadHistoryScreen
 import com.localdownloader.ui.screens.DownloadManagerScreen
 import com.localdownloader.ui.screens.HomeScreen
 import com.localdownloader.ui.screens.SettingsScreen
+import com.localdownloader.utils.FileUtils
 import com.localdownloader.viewmodel.DownloadViewModel
 import com.localdownloader.viewmodel.FormatViewModel
 import com.localdownloader.viewmodel.MediaToolsViewModel
+import kotlinx.serialization.json.Json
 
 // SVG path data (24×24 viewBox)
 private object NavIcons {
@@ -57,6 +60,13 @@ fun DownloaderApp(
     val downloadViewModel: DownloadViewModel = hiltViewModel()
     val mediaToolsViewModel: MediaToolsViewModel = hiltViewModel()
     val context = LocalContext.current
+    val fileUtils = remember(context) { FileUtils(context) }
+    val localJson = remember {
+        Json {
+            ignoreUnknownKeys = true
+            isLenient = true
+        }
+    }
 
     // File picker for Convert screen
     val convertFilePicker = rememberLauncherForActivityResult(
@@ -77,6 +87,59 @@ fun DownloaderApp(
             val path = com.localdownloader.utils.FileUtils.getRealPathFromUri(context, it)
                 ?: it.toString()
             mediaToolsViewModel.onCompressInputPathChanged(path)
+        }
+    }
+
+    val youtubeCookiesPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        uri?.let {
+            runCatching {
+                fileUtils.importDocumentToInternalFile(
+                    uri = it,
+                    subDirectoryName = "auth",
+                    targetFileName = "youtube-cookies.txt",
+                )
+            }.onSuccess { path ->
+                formatViewModel.onYoutubeCookiesImported(path)
+            }.onFailure { error ->
+                formatViewModel.onYoutubeAuthImportFailed(
+                    error.message ?: "Unable to import cookies file.",
+                )
+            }
+        }
+    }
+
+    val youtubeAuthBundlePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        uri?.let {
+            runCatching {
+                val bundleText = fileUtils.readTextFromUri(it)
+                val bundle = localJson.decodeFromString<YoutubeAuthBundle>(bundleText)
+                val cookiesContent = bundle.cookiesContent?.takeIf { content -> content.isNotBlank() }
+                    ?: throw IllegalStateException(
+                        "This auth bundle is missing inline cookies. Regenerate it with the latest desktop helper or import cookies.txt manually.",
+                    )
+                val poToken = bundle.poToken?.trim().orEmpty()
+                if (poToken.isBlank()) {
+                    throw IllegalStateException(
+                        "This auth bundle is missing the PO token. Regenerate it with the latest desktop helper or paste the token manually.",
+                    )
+                }
+                val cookiesPath = fileUtils.writeTextToInternalFile(
+                    subDirectoryName = "auth",
+                    targetFileName = "youtube-cookies.txt",
+                    content = cookiesContent,
+                )
+                bundle to cookiesPath
+            }.onSuccess { (bundle, cookiesPath) ->
+                formatViewModel.applyYoutubeAuthBundle(bundle, cookiesPath)
+            }.onFailure { error ->
+                formatViewModel.onYoutubeAuthImportFailed(
+                    error.message ?: "Unable to import YouTube auth bundle.",
+                )
+            }
         }
     }
 
@@ -131,6 +194,7 @@ fun DownloaderApp(
                     onAnalyzeClicked = formatViewModel::analyzeUrl,
                     onQualityChanged = formatViewModel::onQualityChanged,
                     onStreamTypeChanged = formatViewModel::onStreamTypeChanged,
+                    onFormatSelectorChanged = formatViewModel::onFormatSelectorChanged,
                     onContainerChanged = formatViewModel::onContainerChanged,
                     onAudioFormatChanged = formatViewModel::onAudioFormatChanged,
                     onAudioBitrateChanged = formatViewModel::onAudioBitrateChanged,
@@ -189,6 +253,12 @@ fun DownloaderApp(
                     onEmbedMetadataChanged = formatViewModel::onEmbedMetadataChanged,
                     onEmbedThumbnailChanged = formatViewModel::onEmbedThumbnailChanged,
                     onSaveClicked = formatViewModel::saveSettings,
+                    onYoutubeAuthEnabledChanged = formatViewModel::onYoutubeAuthEnabledChanged,
+                    onYoutubePoTokenChanged = formatViewModel::onYoutubePoTokenChanged,
+                    onYoutubePoTokenClientHintChanged = formatViewModel::onYoutubePoTokenClientHintChanged,
+                    onYoutubeCookiesPathChanged = formatViewModel::onYoutubeCookiesPathChanged,
+                    onPickYoutubeCookies = { youtubeCookiesPicker.launch(arrayOf("text/plain", "*/*")) },
+                    onPickYoutubeAuthBundle = { youtubeAuthBundlePicker.launch(arrayOf("application/json", "text/plain", "*/*")) },
                 )
             }
         }
@@ -216,4 +286,3 @@ private enum class AppDestination(
     Compress(route = "compress", svgPath = NavIcons.COMPRESS),
     Settings(route = "settings", svgPath = NavIcons.SETTINGS),
 }
-

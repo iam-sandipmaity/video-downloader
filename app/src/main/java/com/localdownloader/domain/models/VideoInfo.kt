@@ -11,6 +11,7 @@ data class VideoInfo(
     val thumbnailUrl: String?,
     val webpageUrl: String,
     val formats: List<MediaFormat>,
+    val extractorArgs: String?,
     val isPlaylist: Boolean,
     val playlistCount: Int?,
 )

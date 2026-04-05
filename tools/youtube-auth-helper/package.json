@@ -1,0 +1,13 @@
+{
+  "name": "youtube-auth-helper",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Desktop helper to export YouTube cookies and PO token for LocalDownloader",
+  "type": "module",
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.53.0"
+  }
+}

@@ -60,12 +60,22 @@ fun SettingsScreen(
     onContainerChanged: (String) -> Unit,
     onEmbedMetadataChanged: (Boolean) -> Unit,
     onEmbedThumbnailChanged: (Boolean) -> Unit,
+    onYoutubeAuthEnabledChanged: (Boolean) -> Unit,
+    onYoutubePoTokenChanged: (String) -> Unit,
+    onYoutubePoTokenClientHintChanged: (String) -> Unit,
+    onYoutubeCookiesPathChanged: (String) -> Unit,
+    onPickYoutubeCookies: () -> Unit,
+    onPickYoutubeAuthBundle: () -> Unit,
     onSaveClicked: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val containers = listOf("mp4", "webm", "mkv", "mov")
+    val poTokenHints = listOf("web.gvs", "mweb.gvs")
     val context = LocalContext.current
     var showReportDialog by remember { mutableStateOf(false) }
+    val hasCookies = uiState.youtubeCookiesPath.isNotBlank()
+    val hasPoToken = uiState.youtubePoToken.isNotBlank()
+    val authConfigured = hasCookies && hasPoToken
 
     fun openUrl(url: String) {
         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
@@ -217,6 +227,146 @@ fun SettingsScreen(
                         checked = uiState.embedThumbnail,
                         onCheckedChange = onEmbedThumbnailChanged,
                     )
+                }
+            }
+
+            SettingsSectionLabel("YouTube Auth")
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Text(
+                                text = "Recommended setup",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                text = "1. Run the desktop helper on your computer\n2. Move auth_bundle.json to your phone\n3. Import it here and the app fills everything automatically",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Button(
+                                onClick = onPickYoutubeAuthBundle,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text("Import auth bundle")
+                            }
+                            Text(
+                                text = "Manual cookies + PO token entry is still available below if you need it.",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                            )
+                        }
+                    }
+                    Surface(
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Text(
+                                text = if (authConfigured) "Status: ready for YouTube auth fallback" else "Status: setup incomplete",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            )
+                            Text(
+                                text = if (authConfigured) {
+                                    "Cookies and a PO token are saved. The app can retry blocked YouTube formats with auth."
+                                } else {
+                                    "Import auth_bundle.json for the easiest setup, or add both a cookies file and a PO token manually."
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            )
+                        }
+                    }
+                    SettingsToggleRow(
+                        title = "Enable YouTube auth fallback",
+                        subtitle = "Retry blocked YouTube videos with imported auth data when normal download attempts get blocked",
+                        checked = uiState.youtubeAuthEnabled,
+                        onCheckedChange = onYoutubeAuthEnabledChanged,
+                    )
+                    Text(
+                        text = "Manual setup",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    OutlinedTextField(
+                        value = uiState.youtubeCookiesPath,
+                        onValueChange = onYoutubeCookiesPathChanged,
+                        label = { Text("Cookies file path") },
+                        supportingText = { Text("Imported Netscape cookies file stored inside the app") },
+                        modifier = Modifier.fillMaxWidth(),
+                        readOnly = true,
+                        singleLine = true,
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Button(
+                            onClick = onPickYoutubeCookies,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text("Import cookies")
+                        }
+                        TextButton(
+                            onClick = { onYoutubeCookiesPathChanged("") },
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text("Clear cookies")
+                        }
+                    }
+                    SettingsDropdownRow(
+                        label = "PO token client",
+                        subtitle = "Use the same token type the helper or browser session produced",
+                        options = poTokenHints,
+                        selectedIndex = poTokenHints.indexOf(uiState.youtubePoTokenClientHint).coerceAtLeast(0),
+                        onSelected = { onYoutubePoTokenClientHintChanged(poTokenHints[it]) },
+                    )
+                    OutlinedTextField(
+                        value = uiState.youtubePoToken,
+                        onValueChange = onYoutubePoTokenChanged,
+                        label = { Text("PO token") },
+                        supportingText = { Text("Paste the PO token only if you are not importing auth_bundle.json") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                    )
+                    Text(
+                        text = if (authConfigured) {
+                            "Manual auth fields are complete."
+                        } else {
+                            "Manual auth fields are incomplete."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    TextButton(
+                        onClick = {
+                            onYoutubeAuthEnabledChanged(false)
+                            onYoutubeCookiesPathChanged("")
+                            onYoutubePoTokenChanged("")
+                            onYoutubePoTokenClientHintChanged("web.gvs")
+                        },
+                        modifier = Modifier.align(Alignment.End),
+                    ) {
+                        Text("Clear all auth data")
+                    }
                 }
             }
 
@@ -559,5 +709,3 @@ private fun SettingsDropdownRow(
         }
     }
 }
-
-

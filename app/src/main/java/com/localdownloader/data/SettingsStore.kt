@@ -31,6 +31,10 @@ class SettingsStore @Inject constructor(
         val mergeContainer = stringPreferencesKey("merge_container")
         val autoEmbedMetadata = booleanPreferencesKey("auto_embed_metadata")
         val autoEmbedThumbnail = booleanPreferencesKey("auto_embed_thumbnail")
+        val youtubeAuthEnabled = booleanPreferencesKey("youtube_auth_enabled")
+        val youtubeCookiesPath = stringPreferencesKey("youtube_cookies_path")
+        val youtubePoToken = stringPreferencesKey("youtube_po_token")
+        val youtubePoTokenClientHint = stringPreferencesKey("youtube_po_token_client_hint")
         val maxConcurrent = intPreferencesKey("max_concurrent")
         val darkTheme = booleanPreferencesKey("dark_theme")
     }
@@ -50,6 +54,10 @@ class SettingsStore @Inject constructor(
                     defaultMergeContainer = prefs[Keys.mergeContainer] ?: "mp4",
                     autoEmbedMetadata = prefs[Keys.autoEmbedMetadata] ?: true,
                     autoEmbedThumbnail = prefs[Keys.autoEmbedThumbnail] ?: false,
+                    youtubeAuthEnabled = prefs[Keys.youtubeAuthEnabled] ?: false,
+                    youtubeCookiesPath = prefs[Keys.youtubeCookiesPath] ?: "",
+                    youtubePoToken = prefs[Keys.youtubePoToken] ?: "",
+                    youtubePoTokenClientHint = prefs[Keys.youtubePoTokenClientHint] ?: "web.gvs",
                     maxConcurrentDownloads = prefs[Keys.maxConcurrent] ?: 2,
                     darkTheme = prefs[Keys.darkTheme] ?: false,
                 )
@@ -62,6 +70,10 @@ class SettingsStore @Inject constructor(
             prefs[Keys.mergeContainer] = settings.defaultMergeContainer
             prefs[Keys.autoEmbedMetadata] = settings.autoEmbedMetadata
             prefs[Keys.autoEmbedThumbnail] = settings.autoEmbedThumbnail
+            prefs[Keys.youtubeAuthEnabled] = settings.youtubeAuthEnabled
+            prefs[Keys.youtubeCookiesPath] = settings.youtubeCookiesPath
+            prefs[Keys.youtubePoToken] = settings.youtubePoToken
+            prefs[Keys.youtubePoTokenClientHint] = settings.youtubePoTokenClientHint
             prefs[Keys.maxConcurrent] = settings.maxConcurrentDownloads
             prefs[Keys.darkTheme] = settings.darkTheme
         }

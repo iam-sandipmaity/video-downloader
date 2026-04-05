@@ -19,7 +19,9 @@ import com.localdownloader.data.DownloadTaskStore
 import com.localdownloader.domain.models.DownloadOptions
 import com.localdownloader.domain.models.DownloadStatus
 import com.localdownloader.domain.models.DownloadTask
+import com.localdownloader.downloader.CommandResult
 import com.localdownloader.downloader.DownloadEngine
+import com.localdownloader.ffmpeg.FfmpegExecutor
 import com.localdownloader.utils.FileUtils
 import com.localdownloader.utils.Logger
 import dagger.assisted.Assisted
@@ -32,6 +34,7 @@ class DownloadWorker @AssistedInject constructor(
     @Assisted params: WorkerParameters,
     private val downloadEngine: DownloadEngine,
     private val downloadTaskStore: DownloadTaskStore,
+    private val ffmpegExecutor: FfmpegExecutor,
     private val fileUtils: FileUtils,
     private val logger: Logger,
 ) : CoroutineWorker(appContext, params) {
@@ -55,6 +58,12 @@ class DownloadWorker @AssistedInject constructor(
             url = url,
             formatId = formatId,
             outputTemplate = outputTemplate,
+            extractorArgs = inputData.getString(WorkerKeys.EXTRACTOR_ARGS).orEmpty().ifBlank { null },
+            fallbackExtractorArgs = inputData.getString(WorkerKeys.FALLBACK_EXTRACTOR_ARGS).orEmpty().ifBlank { null },
+            youtubeAuthEnabled = inputData.getBoolean(WorkerKeys.YOUTUBE_AUTH_ENABLED, false),
+            youtubeCookiesPath = inputData.getString(WorkerKeys.YOUTUBE_COOKIES_PATH).orEmpty().ifBlank { null },
+            youtubePoToken = inputData.getString(WorkerKeys.YOUTUBE_PO_TOKEN).orEmpty().ifBlank { null },
+            youtubePoTokenClientHint = inputData.getString(WorkerKeys.YOUTUBE_PO_TOKEN_CLIENT_HINT) ?: "web.gvs",
             mergeOutputFormat = inputData.getString(WorkerKeys.MERGE_OUTPUT_FORMAT).orEmpty().ifBlank { null },
             isPlaylistEnabled = inputData.getBoolean(WorkerKeys.PLAYLIST_ENABLED, false),
             shouldDownloadSubtitles = inputData.getBoolean(WorkerKeys.DOWNLOAD_SUBTITLES, false),
@@ -93,10 +102,10 @@ class DownloadWorker @AssistedInject constructor(
 
         var outputPath: String? = null
         var lastLoggedProgress = -1
-        val result = runCatching {
-            downloadEngine.runDownload(
-                options = options,
-                outputTemplate = outputTemplate,
+        suspend fun runDownloadAttempt(attemptOptions: DownloadOptions): CommandResult {
+            return downloadEngine.runDownload(
+                options = attemptOptions,
+                outputTemplate = attemptOptions.outputTemplate,
                 onProgress = { progress ->
                     val normalizedProgress = progress.percent?.coerceIn(0, 100)
                     logger.d(
@@ -137,7 +146,45 @@ class DownloadWorker @AssistedInject constructor(
                     parseOutputPath(line)?.let { parsed -> outputPath = parsed }
                 },
             )
-        }.getOrElse { throwable ->
+        }
+
+        suspend fun runDownloadWithExtractorFallbacks(
+            attemptOptions: DownloadOptions,
+            stageLabel: String,
+        ): CommandResult {
+            var stageResult = runDownloadAttempt(attemptOptions)
+            if (!stageResult.isSuccess && shouldRetryWithFallbackExtractor(attemptOptions, stageResult.stderr)) {
+                appendDebugTrace(taskId, "$stageLabel retry: switching to analyzed YouTube extractor args")
+                stageResult = runDownloadAttempt(
+                    attemptOptions.copy(extractorArgs = attemptOptions.fallbackExtractorArgs),
+                )
+            }
+            return stageResult
+        }
+
+        var result = try {
+            if (shouldTryExplicitSplitDownload(options)) {
+                appendDebugTrace(taskId, "Trying explicit video/audio split download before combined fallback")
+                val splitResult = tryExplicitSplitDownload(
+                    options = options,
+                    originalOutputTemplate = outputTemplate,
+                    taskId = taskId,
+                    onRunDownload = ::runDownloadWithExtractorFallbacks,
+                )
+                if (splitResult.isSuccess) {
+                    outputPath = splitResult.outputPath
+                    CommandResult(exitCode = 0, stdout = "split download succeeded", stderr = "")
+                } else {
+                    appendDebugTrace(
+                        taskId,
+                        "Split download fallback failed: ${splitResult.errorMessage ?: "unknown error"}",
+                    )
+                    runDownloadAttempt(options)
+                }
+            } else {
+                runDownloadAttempt(options)
+            }
+        } catch (throwable: Throwable) {
             val failureMessage = buildFailureMessage(
                 throwable = throwable,
                 stderr = null,
@@ -153,6 +200,60 @@ class DownloadWorker @AssistedInject constructor(
             }
             logger.e("DownloadWorker", "Task failed due to exception taskId=$taskId message=${throwable.message}")
             return Result.failure(workDataOf(WorkerKeys.ERROR_MESSAGE to failureMessage))
+        }
+
+        if (!result.isSuccess && shouldRetryWithFallbackExtractor(options, result.stderr)) {
+            appendDebugTrace(taskId, "Retrying with analyzed YouTube extractor args after initial failure")
+            val fallbackOptions = options.copy(extractorArgs = options.fallbackExtractorArgs)
+            result = runDownloadAttempt(fallbackOptions)
+        }
+
+        if (!result.isSuccess && shouldRetryWithMp4Fallback(options, result.stderr)) {
+            appendDebugTrace(taskId, "Retrying with mp4 fallback after YouTube format/access failure")
+            val fallbackOptions = options.copy(
+                formatId = buildMp4FallbackSelector(),
+                mergeOutputFormat = "mp4",
+            )
+            result = runDownloadAttempt(fallbackOptions)
+        }
+
+        if (!result.isSuccess && shouldRetryWithYoutubeAuth(options, result.stderr)) {
+            val authAttempts = youtubeAuthAttempts(options.youtubePoTokenClientHint)
+            authAttempts.forEachIndexed { index, attempt ->
+                if (result.isSuccess) return@forEachIndexed
+                appendDebugTrace(
+                    taskId,
+                    "Retrying with YouTube auth mode ${index + 1}/${authAttempts.size}: ${attempt.label}",
+                )
+                result = runDownloadAttempt(
+                    options.copy(
+                        formatId = attempt.selector,
+                        extractorArgs = buildYoutubeAuthExtractorArgs(
+                            clientSpec = attempt.clientSpec.orEmpty(),
+                            poToken = options.youtubePoToken,
+                        ),
+                        fallbackExtractorArgs = null,
+                    ),
+                )
+            }
+        }
+
+        if (!result.isSuccess && shouldRetryWithYoutubeSafeMode(options, result.stderr)) {
+            val safeModeAttempts = youtubeSafeModeAttempts()
+            safeModeAttempts.forEachIndexed { index, attempt ->
+                if (result.isSuccess) return@forEachIndexed
+                appendDebugTrace(
+                    taskId,
+                    "Retrying with YouTube safe mode ${index + 1}/${safeModeAttempts.size}: ${attempt.label}",
+                )
+                result = runDownloadAttempt(
+                    options.copy(
+                        formatId = attempt.selector,
+                        extractorArgs = null,
+                        mergeOutputFormat = null,
+                    ),
+                )
+            }
         }
 
         if (result.isSuccess) {
@@ -200,6 +301,264 @@ class DownloadWorker @AssistedInject constructor(
             )
         }
         return Result.failure(workDataOf(WorkerKeys.ERROR_MESSAGE to failureMessage))
+    }
+
+    private fun shouldRetryWithMp4Fallback(options: DownloadOptions, stderr: String): Boolean {
+        if (options.extractAudio) return false
+        val lower = stderr.lowercase()
+        return lower.contains("http error 403") ||
+            lower.contains("403: forbidden") ||
+            lower.contains("requested format is not available")
+    }
+
+    private fun shouldRetryWithFallbackExtractor(options: DownloadOptions, stderr: String): Boolean {
+        val fallbackArgs = options.fallbackExtractorArgs?.trim().orEmpty()
+        if (fallbackArgs.isBlank() || fallbackArgs == options.extractorArgs) return false
+
+        val lower = stderr.lowercase()
+        return lower.contains("http error 403") ||
+            lower.contains("403: forbidden") ||
+            lower.contains("requested format is not available")
+    }
+
+    private fun buildMp4FallbackSelector(): String {
+        return "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best"
+    }
+
+    private fun shouldRetryWithYoutubeSafeMode(options: DownloadOptions, stderr: String): Boolean {
+        if (options.extractAudio) return false
+        if (!isYoutubeUrl(options.url)) return false
+
+        val lower = stderr.lowercase()
+        return lower.contains("http error 403") ||
+            lower.contains("403: forbidden") ||
+            lower.contains("requested format is not available")
+    }
+
+    private fun youtubeSafeModeAttempts(): List<SafeModeAttempt> {
+        return listOf(
+            SafeModeAttempt(
+                label = "classic mp4 progressive",
+                selector = "18/22/best[height<=360][vcodec!=none][acodec!=none][ext=mp4]/best[height<=360][vcodec!=none][acodec!=none]",
+            ),
+            SafeModeAttempt(
+                label = "best muxed under 480p",
+                selector = "best[height<=480][vcodec!=none][acodec!=none]/best[height<=360]/best[vcodec!=none][acodec!=none]",
+            ),
+        )
+    }
+
+    private fun shouldRetryWithYoutubeAuth(options: DownloadOptions, stderr: String): Boolean {
+        if (!options.youtubeAuthEnabled) return false
+        if (options.extractAudio) return false
+        if (!isYoutubeUrl(options.url)) return false
+        if (options.youtubeCookiesPath.isNullOrBlank()) return false
+        if (!File(options.youtubeCookiesPath).exists()) return false
+        if (options.youtubePoToken.isNullOrBlank()) return false
+
+        val lower = stderr.lowercase()
+        return lower.contains("http error 403") ||
+            lower.contains("403: forbidden") ||
+            lower.contains("requested format is not available")
+    }
+
+    private fun youtubeAuthAttempts(preferredHint: String): List<SafeModeAttempt> {
+        val attempts = listOf(
+            SafeModeAttempt(
+                label = "mweb authenticated best",
+                selector = "bestvideo*+bestaudio/best",
+                clientSpec = "default,mweb",
+            ),
+            SafeModeAttempt(
+                label = "web authenticated best",
+                selector = "bestvideo*+bestaudio/best",
+                clientSpec = "default,web",
+            ),
+            SafeModeAttempt(
+                label = "mweb authenticated muxed safe mode",
+                selector = "best[height<=480][vcodec!=none][acodec!=none]/best[height<=360]/best",
+                clientSpec = "default,mweb",
+            ),
+        )
+        val normalizedHint = preferredHint.trim().lowercase()
+        return attempts.sortedByDescending { attempt ->
+            when {
+                normalizedHint == "mweb.gvs" && attempt.clientSpec?.contains("mweb") == true -> 1
+                normalizedHint == "web.gvs" && attempt.clientSpec?.contains("web") == true && attempt.clientSpec?.contains("mweb") != true -> 1
+                else -> 0
+            }
+        }
+    }
+
+    private fun buildYoutubeAuthExtractorArgs(clientSpec: String, poToken: String?): String {
+        val trimmedToken = poToken.orEmpty().trim()
+        val poTokenPrefix = when {
+            clientSpec.contains("mweb") -> "mweb.gvs+"
+            clientSpec.contains("web") -> "web.gvs+"
+            else -> "mweb.gvs+"
+        }
+        return "youtube:player_client=$clientSpec;po_token=$poTokenPrefix$trimmedToken"
+    }
+
+    private fun shouldTryExplicitSplitDownload(options: DownloadOptions): Boolean {
+        if (options.extractAudio) return false
+        if (!isYoutubeUrl(options.url)) return false
+        if (options.formatId.contains("/")) return false
+        return options.formatId.contains("+")
+    }
+
+    private fun isYoutubeUrl(url: String): Boolean {
+        val normalized = url.lowercase()
+        return normalized.contains("youtube.com") || normalized.contains("youtu.be")
+    }
+
+    private suspend fun tryExplicitSplitDownload(
+        options: DownloadOptions,
+        originalOutputTemplate: String,
+        taskId: String,
+        onRunDownload: suspend (DownloadOptions, String) -> CommandResult,
+    ): SplitDownloadResult {
+        val selectors = splitFormatSelector(options.formatId) ?: return SplitDownloadResult.failure("Format is not splittable")
+        val videoTemplate = buildSplitOutputTemplate(originalOutputTemplate, ".video")
+        val audioTemplate = buildSplitOutputTemplate(originalOutputTemplate, ".audio")
+
+        appendDebugTrace(taskId, "Split video selector=${selectors.videoSelector}")
+        val videoPath = downloadSinglePart(
+            taskId = taskId,
+            stageLabel = "Video stream",
+            outputTemplate = videoTemplate,
+            options = options.copy(
+                formatId = selectors.videoSelector,
+                mergeOutputFormat = null,
+                shouldDownloadSubtitles = false,
+                shouldEmbedMetadata = false,
+                shouldEmbedThumbnail = false,
+                shouldWriteThumbnail = false,
+            ),
+            onRunDownload = onRunDownload,
+        ) ?: return SplitDownloadResult.failure("Video stream download failed")
+
+        appendDebugTrace(taskId, "Split audio selector=${selectors.audioSelector}")
+        val audioPath = downloadSinglePart(
+            taskId = taskId,
+            stageLabel = "Audio stream",
+            outputTemplate = audioTemplate,
+            options = options.copy(
+                formatId = selectors.audioSelector,
+                mergeOutputFormat = null,
+                shouldDownloadSubtitles = false,
+                shouldEmbedMetadata = false,
+                shouldEmbedThumbnail = false,
+                shouldWriteThumbnail = false,
+            ),
+            onRunDownload = onRunDownload,
+        ) ?: return SplitDownloadResult.failure("Audio stream download failed")
+
+        val mergedOutputPath = buildMergedOutputPath(
+            videoPath = videoPath,
+            preferredExtension = options.mergeOutputFormat ?: File(videoPath).extension.ifBlank { "mp4" },
+        )
+        appendDebugTrace(taskId, "Merging split streams into $mergedOutputPath")
+
+        val mergeResult = ffmpegExecutor.execute(
+            args = buildList {
+                add("-i")
+                add(videoPath)
+                add("-i")
+                add(audioPath)
+                add("-map")
+                add("0:v:0")
+                add("-map")
+                add("1:a:0")
+                add("-c")
+                add("copy")
+                if (mergedOutputPath.endsWith(".mp4", ignoreCase = true) || mergedOutputPath.endsWith(".mov", ignoreCase = true)) {
+                    add("-movflags")
+                    add("+faststart")
+                }
+                add("-y")
+                add(mergedOutputPath)
+            },
+            onStderrLine = { line ->
+                appendDebugTrace(taskId, "ffmpeg: ${line.take(MAX_OUTPUT_TRACE_LINE_LENGTH)}")
+            },
+        )
+
+        if (!mergeResult.isSuccess) {
+            safeDelete(videoPath)
+            safeDelete(audioPath)
+            return SplitDownloadResult.failure(mergeResult.stderr.ifBlank { "FFmpeg merge failed" })
+        }
+
+        safeDelete(videoPath)
+        safeDelete(audioPath)
+        return SplitDownloadResult.success(mergedOutputPath)
+    }
+
+    private suspend fun downloadSinglePart(
+        taskId: String,
+        stageLabel: String,
+        outputTemplate: String,
+        options: DownloadOptions,
+        onRunDownload: suspend (DownloadOptions, String) -> CommandResult,
+    ): String? {
+        appendDebugTrace(taskId, "$stageLabel start format=${options.formatId}")
+        val result = onRunDownload(options.copy(outputTemplate = outputTemplate), stageLabel)
+        if (!result.isSuccess) {
+            appendDebugTrace(
+                taskId,
+                "$stageLabel failed: ${result.stderr.take(MAX_OUTPUT_TRACE_LINE_LENGTH).ifBlank { "unknown error" }}",
+            )
+            return null
+        }
+
+        val path = inferDownloadedPath(outputTemplate) ?: return null
+        appendDebugTrace(taskId, "$stageLabel saved to $path")
+        return path
+    }
+
+    private fun inferDownloadedPath(outputTemplate: String): String? {
+        val templateFile = File(outputTemplate)
+        val dir = templateFile.parentFile ?: return null
+        val stem = templateFile.name.substringBefore(".%(ext)s")
+        val matches = dir.listFiles()
+            ?.filter { it.isFile && it.name.startsWith(stem) }
+            ?.sortedByDescending { it.lastModified() }
+            .orEmpty()
+        return matches.firstOrNull()?.absolutePath
+    }
+
+    private fun buildSplitOutputTemplate(outputTemplate: String, suffix: String): String {
+        val extToken = ".%(ext)s"
+        return if (outputTemplate.contains(extToken)) {
+            outputTemplate.replace(extToken, "$suffix$extToken")
+        } else {
+            "$outputTemplate$suffix.%(ext)s"
+        }
+    }
+
+    private fun buildMergedOutputPath(videoPath: String, preferredExtension: String): String {
+        val videoFile = File(videoPath)
+        val ext = preferredExtension.ifBlank { videoFile.extension.ifBlank { "mp4" } }
+        val baseName = videoFile.nameWithoutExtension.removeSuffix(".video")
+        return File(videoFile.parentFile, "$baseName.$ext").absolutePath
+    }
+
+    private fun splitFormatSelector(selector: String): SplitSelectors? {
+        val separatorIndex = selector.indexOf('+')
+        if (separatorIndex <= 0 || separatorIndex >= selector.lastIndex) return null
+        val videoSelector = selector.substring(0, separatorIndex).trim()
+        val audioSelector = selector.substring(separatorIndex + 1).trim()
+        if (videoSelector.isBlank() || audioSelector.isBlank()) return null
+        return SplitSelectors(
+            videoSelector = videoSelector,
+            audioSelector = audioSelector,
+        )
+    }
+
+    private fun safeDelete(path: String?) {
+        if (path.isNullOrBlank()) return
+        runCatching { File(path).delete() }
     }
 
     private fun parseOutputPath(line: String): String? {
@@ -369,4 +728,35 @@ class DownloadWorker @AssistedInject constructor(
         const val MAX_ERROR_MESSAGE_CHARS = 800
         const val MAX_OUTPUT_TRACE_LINE_LENGTH = 240
     }
+
+    private data class SplitSelectors(
+        val videoSelector: String,
+        val audioSelector: String,
+    )
+
+    private data class SplitDownloadResult(
+        val isSuccess: Boolean,
+        val outputPath: String?,
+        val errorMessage: String?,
+    ) {
+        companion object {
+            fun success(outputPath: String) = SplitDownloadResult(
+                isSuccess = true,
+                outputPath = outputPath,
+                errorMessage = null,
+            )
+
+            fun failure(errorMessage: String) = SplitDownloadResult(
+                isSuccess = false,
+                outputPath = null,
+                errorMessage = errorMessage,
+            )
+        }
+    }
+
+    private data class SafeModeAttempt(
+        val label: String,
+        val selector: String,
+        val clientSpec: String? = null,
+    )
 }

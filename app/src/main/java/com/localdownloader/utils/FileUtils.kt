@@ -48,6 +48,35 @@ class FileUtils @Inject constructor(
 
     fun ensureBinDir(): File = ensureInternalDir(binDirName)
 
+    fun importDocumentToInternalFile(
+        uri: Uri,
+        subDirectoryName: String,
+        targetFileName: String,
+    ): String {
+        val targetDir = ensureInternalDir(subDirectoryName)
+        val targetFile = File(targetDir, sanitizeFileName(targetFileName))
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            targetFile.outputStream().use { output -> input.copyTo(output) }
+        } ?: throw IllegalStateException("Unable to open selected file")
+        return targetFile.absolutePath
+    }
+
+    fun writeTextToInternalFile(
+        subDirectoryName: String,
+        targetFileName: String,
+        content: String,
+    ): String {
+        val targetDir = ensureInternalDir(subDirectoryName)
+        val targetFile = File(targetDir, sanitizeFileName(targetFileName))
+        targetFile.writeText(content)
+        return targetFile.absolutePath
+    }
+
+    fun readTextFromUri(uri: Uri): String {
+        return context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+            ?: throw IllegalStateException("Unable to read selected file")
+    }
+
     fun createOutputTemplateWithDirectory(template: String): String {
         val outputDir = ensureDownloadsDir().absolutePath
         return "$outputDir/$template"

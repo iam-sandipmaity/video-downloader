@@ -2,6 +2,7 @@ package com.localdownloader.downloader
 
 import com.localdownloader.domain.models.DownloadOptions
 import com.localdownloader.utils.Logger
+import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,12 +26,11 @@ class DownloadEngine @Inject constructor(
             "--no-warnings",
             "--progress-template",
             "download:PROG|%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s|%(progress._downloaded_bytes_str)s|%(progress._total_bytes_estimate_str)s",
-            // Use the Android player client for YouTube to avoid po_token / 403 CDN errors.
-            "--extractor-args", "youtube:player_client=android,web",
             // Retry on transient CDN 403s and expired DASH segment URLs.
-            "--retries", "10",
-            "--fragment-retries", "10",
+            "--retries", "20",
+            "--fragment-retries", "20",
             "--retry-sleep", "3",
+            "--retry-sleep", "fragment:3",
             // Single-threaded fragment downloads prevent aggressive rate-limiting.
             "--concurrent-fragments", "1",
             "-f",
@@ -38,6 +38,15 @@ class DownloadEngine @Inject constructor(
             "-o",
             outputTemplate,
         )
+
+        if (!options.extractorArgs.isNullOrBlank()) {
+            args += listOf("--extractor-args", options.extractorArgs)
+        }
+
+        val usesYoutubeAuthExtractor = options.extractorArgs?.contains("po_token=") == true
+        options.youtubeCookiesPath
+            ?.takeIf { usesYoutubeAuthExtractor && it.isNotBlank() && File(it).exists() }
+            ?.let { args += listOf("--cookies", it) }
 
         if (options.isPlaylistEnabled) {
             args += "--yes-playlist"
@@ -94,4 +103,6 @@ class DownloadEngine @Inject constructor(
         )
         return result
     }
+
+    // Keep URL helpers local to FormatExtractor; download should honor analysis selection.
 }

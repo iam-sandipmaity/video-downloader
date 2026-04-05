@@ -15,20 +15,11 @@ data class MediaFormat(
     val fps: Double?,
     val note: String?,
 ) {
-    val hasVideo: Boolean
-        get() = videoCodec != "none"
-
-    val hasAudio: Boolean
-        get() = audioCodec != "none"
-
     val isAudioOnly: Boolean
-        get() = !hasVideo && hasAudio
+        get() = videoCodec == "none" && audioCodec != "none"
 
     val isVideoOnly: Boolean
-        get() = hasVideo && !hasAudio
-
-    val heightPixels: Int?
-        get() = resolution?.substringBefore("p")?.toIntOrNull()
+        get() = videoCodec != "none" && audioCodec == "none"
 
     fun asReadableLabel(): String {
         val qualityPart = resolution ?: if (isAudioOnly) "audio" else "unknown"

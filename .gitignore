@@ -11,3 +11,6 @@ Thumbs.db
 # Generated artifacts
 *.apk
 *.aab
+tools/youtube-auth-helper/node_modules/
+tools/youtube-auth-helper/output/
+tools/youtube-auth-helper/.profile/

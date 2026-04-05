@@ -25,36 +25,70 @@ class FormatExtractor @Inject constructor(
 ) {
     suspend fun analyze(url: String): Result<VideoInfo> {
         return runCatching {
-            val args = listOf(
-                "-J",
-                "--skip-download",
-                "--no-warnings",
-                url,
-            )
             logger.i("FormatExtractor", "Starting yt-dlp analyze for URL: $url")
-            val result = ytDlpExecutor.execute(args = args)
-            logger.i(
-                "FormatExtractor",
-                "Analyze command finished exitCode=${result.exitCode}, stdoutLen=${result.stdout.length}, stderrLen=${result.stderr.length}",
-            )
-            if (!result.isSuccess) {
-                logger.w("FormatExtractor", "Analyze failed stderr=${result.stderr.take(1000)}")
-                throw IllegalStateException(result.stderr.ifBlank { "yt-dlp analyze failed" })
+
+            val isYoutube = isYoutubeUrl(url)
+            val extractorCandidates = if (isYoutube) {
+                listOf(
+                    null,
+                    "youtube:player_client=android,web,ios,tv",
+                    "youtube:player_client=web",
+                    "youtube:player_client=android",
+                )
+            } else {
+                listOf<String?>(null)
             }
 
-            val root = json.parseToJsonElement(result.stdout).jsonObject
-            mapVideoInfo(root = root, fallbackUrl = url).also { info ->
+            var best: AnalyzeCandidate? = null
+            extractorCandidates.forEachIndexed { index, extractorArgs ->
+                if (best != null && !shouldTryMoreCandidates(best?.stats)) return@forEachIndexed
+                val candidate = analyzeWithExtractor(url = url, extractorArgs = extractorArgs)
+                if (candidate != null) {
+                    val stats = candidate.stats
+                    val descriptor = extractorArgs ?: "(default)"
+                    logger.i(
+                        "FormatExtractor",
+                        "Analyze candidate[$index] args=$descriptor formats=${stats.total} videoOnly=${stats.videoOnly} audioOnly=${stats.audioOnly} maxHeight=${stats.maxHeight}",
+                    )
+                    if (best == null || stats.isBetterThan(best?.stats)) {
+                        best = candidate
+                    }
+                    if (stats.hasAdaptiveVideo) return@forEachIndexed
+                }
+            }
+
+            val resolved = best ?: throw IllegalStateException("yt-dlp analyze failed")
+            mapVideoInfo(root = resolved.root, fallbackUrl = url, extractorArgs = resolved.extractorArgs).also { info ->
                 logger.i(
                     "FormatExtractor",
-                    "Analyze parsed successfully title='${info.title}', formats=${info.formats.size}",
+                    "Analyze parsed successfully title='${info.title}', formats=${info.formats.size}, extractorArgs=${resolved.extractorArgs}",
                 )
+                logFormatSummary(url = url, formats = info.formats, extractorArgs = resolved.extractorArgs)
             }
         }.onFailure { error ->
             logger.e("FormatExtractor", "Analyze exception for URL: $url", error)
         }
     }
 
-    private fun mapVideoInfo(root: JsonObject, fallbackUrl: String): VideoInfo {
+    private fun logFormatSummary(url: String, formats: List<MediaFormat>, extractorArgs: String?) {
+        if (!isYoutubeUrl(url)) return
+        val videoOnly = formats.filter { it.isVideoOnly }
+        val audioOnly = formats.filter { it.isAudioOnly }
+        val muxed = formats.filter { !it.isVideoOnly && !it.isAudioOnly }
+        val maxHeight = formats.mapNotNull { parseHeight(it.resolution) }.maxOrNull() ?: 0
+        logger.i(
+            "FormatExtractor",
+            "YouTube formats summary extractorArgs=${extractorArgs ?: "(none)"} total=${formats.size} videoOnly=${videoOnly.size} audioOnly=${audioOnly.size} muxed=${muxed.size} maxHeight=${maxHeight}",
+        )
+        formats.take(12).forEachIndexed { index, format ->
+            logger.i(
+                "FormatExtractor",
+                "Format[$index] id=${format.formatId} ext=${format.extension} res=${format.resolution} vcodec=${format.videoCodec} acodec=${format.audioCodec} fps=${format.fps ?: "-"} tbr=${format.bitrateKbps ?: "-"}",
+            )
+        }
+    }
+
+    private fun mapVideoInfo(root: JsonObject, fallbackUrl: String, extractorArgs: String?): VideoInfo {
         val formats = parseFormats(root["formats"] as? JsonArray ?: JsonArray(emptyList()))
         val type = root["\u005ftype"]?.jsonPrimitive?.contentOrNull
         return VideoInfo(
@@ -65,8 +99,42 @@ class FormatExtractor @Inject constructor(
             thumbnailUrl = root["thumbnail"]?.jsonPrimitive?.contentOrNull,
             webpageUrl = root["webpage_url"]?.jsonPrimitive?.contentOrNull ?: fallbackUrl,
             formats = formats,
+            extractorArgs = extractorArgs,
             isPlaylist = type == "playlist",
             playlistCount = root["playlist_count"]?.jsonPrimitive?.intOrNull,
+        )
+    }
+
+    private suspend fun analyzeWithExtractor(url: String, extractorArgs: String?): AnalyzeCandidate? {
+        val args = buildList {
+            add("-J")
+            add("--skip-download")
+            add("--no-warnings")
+            add("--ignore-config")
+            if (!extractorArgs.isNullOrBlank()) {
+                add("--extractor-args")
+                add(extractorArgs)
+            }
+            add(url)
+        }
+
+        val result = ytDlpExecutor.execute(args = args)
+        logger.i(
+            "FormatExtractor",
+            "Analyze command finished exitCode=${result.exitCode}, stdoutLen=${result.stdout.length}, stderrLen=${result.stderr.length}",
+        )
+        if (!result.isSuccess) {
+            logger.w("FormatExtractor", "Analyze failed stderr=${result.stderr.take(1000)}")
+            return null
+        }
+
+        val root = json.parseToJsonElement(result.stdout).jsonObject
+        val formats = parseFormats(root["formats"] as? JsonArray ?: JsonArray(emptyList()))
+        return AnalyzeCandidate(
+            root = root,
+            formats = formats,
+            extractorArgs = extractorArgs,
+            stats = FormatStats.from(formats),
         )
     }
 
@@ -108,5 +176,67 @@ class FormatExtractor @Inject constructor(
             fps = item["fps"]?.jsonPrimitive?.doubleOrNull,
             note = item["format_note"]?.jsonPrimitive?.contentOrNull,
         )
+    }
+
+    private fun parseHeight(resolution: String?): Int? {
+        val trimmed = resolution ?: return null
+        return trimmed.substringBefore("p", trimmed).toIntOrNull()
+    }
+
+    private fun isYoutubeUrl(url: String): Boolean {
+        val normalized = url.lowercase()
+        return normalized.contains("youtube.com") || normalized.contains("youtu.be")
+    }
+
+    private data class AnalyzeCandidate(
+        val root: JsonObject,
+        val formats: List<MediaFormat>,
+        val extractorArgs: String?,
+        val stats: FormatStats,
+    )
+
+    private data class FormatStats(
+        val total: Int,
+        val videoOnly: Int,
+        val audioOnly: Int,
+        val maxHeight: Int,
+        val hasAdaptiveVideo: Boolean,
+    ) {
+        fun isBetterThan(other: FormatStats?): Boolean {
+            if (other == null) return true
+            if (total != other.total) return total > other.total
+            if (videoOnly != other.videoOnly) return videoOnly > other.videoOnly
+            if (maxHeight != other.maxHeight) return maxHeight > other.maxHeight
+            return audioOnly > other.audioOnly
+        }
+
+        companion object {
+            fun from(formats: List<MediaFormat>): FormatStats {
+                val videoOnly = formats.count { it.isVideoOnly }
+                val audioOnly = formats.count { it.isAudioOnly }
+                val maxHeight = formats.mapNotNull { parseHeight(it.resolution) }.maxOrNull() ?: 0
+                val hasAdaptiveVideo = videoOnly > 0 && maxHeight >= 720
+                return FormatStats(
+                    total = formats.size,
+                    videoOnly = videoOnly,
+                    audioOnly = audioOnly,
+                    maxHeight = maxHeight,
+                    hasAdaptiveVideo = hasAdaptiveVideo,
+                )
+            }
+
+            private fun parseHeight(resolution: String?): Int? {
+                val trimmed = resolution ?: return null
+                return trimmed.substringBefore("p", trimmed).toIntOrNull()
+            }
+        }
+    }
+
+    private fun shouldTryMoreCandidates(stats: FormatStats?): Boolean {
+        if (stats == null) return true
+        if (stats.hasAdaptiveVideo) return false
+        if (stats.maxHeight >= 720 && stats.videoOnly > 0 && stats.audioOnly > 0) return false
+        if (stats.total >= 20) return false
+        return true
     }
 }

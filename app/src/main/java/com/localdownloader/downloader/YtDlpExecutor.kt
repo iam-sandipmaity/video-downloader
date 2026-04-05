@@ -26,6 +26,8 @@ class YtDlpExecutor @Inject constructor(
         onStdoutLine: ((String) -> Unit)? = null,
         onStderrLine: ((String) -> Unit)? = null,
     ): CommandResult = withContext(Dispatchers.IO) {
+        executeWithStandaloneBinary(args, onStdoutLine, onStderrLine)?.let { return@withContext it }
+
         ensureRuntimeInitialized()
 
         val runtime = resolveRuntime()
@@ -57,6 +59,36 @@ class YtDlpExecutor @Inject constructor(
         result
     }
 
+    private suspend fun executeWithStandaloneBinary(
+        args: List<String>,
+        onStdoutLine: ((String) -> Unit)? = null,
+        onStderrLine: ((String) -> Unit)? = null,
+    ): CommandResult? {
+        val ytDlpBinary = runCatching { binaryInstaller.ensureYtDlpBinary() }.getOrNull()
+            ?: return null
+        val ffmpegBinary = runCatching { binaryInstaller.ensureFfmpegBinary() }.getOrNull()
+
+        val normalizedArgs = normalizeArgsForStandalone(args = args, ffmpegPath = ffmpegBinary?.absolutePath)
+        val command = listOf(ytDlpBinary.absolutePath) + normalizedArgs
+        logger.d("YtDlpExecutor", "Executing standalone yt-dlp: ${command.joinToString(" ")}")
+
+        return runCatching {
+            processRunner.runCommand(
+                command = command,
+                onStdoutLine = { line ->
+                    logger.d("YtDlpExecutor/stdout", line)
+                    onStdoutLine?.invoke(line)
+                },
+                onStderrLine = { line ->
+                    logger.d("YtDlpExecutor/stderr", line)
+                    onStderrLine?.invoke(line)
+                },
+            )
+        }.onFailure { error ->
+            logger.w("YtDlpExecutor", "Standalone yt-dlp failed; falling back to embedded runtime", error)
+        }.getOrNull()
+    }
+
     private fun ensureRuntimeInitialized() {
         if (isInitialized) return
         synchronized(this) {
@@ -69,7 +101,7 @@ class YtDlpExecutor @Inject constructor(
         }
     }
 
-    private suspend fun resolveRuntime(): YtDlpRuntime {
+    private fun resolveRuntime(): YtDlpRuntime {
         val nativeLibraryDir = File(context.applicationInfo.nativeLibraryDir)
         val baseDir = File(context.noBackupFilesDir, YoutubeDL.baseName)
         val packagesDir = File(baseDir, "packages")
@@ -79,7 +111,7 @@ class YtDlpExecutor @Inject constructor(
 
         val pythonBinary = File(nativeLibraryDir, "libpython.so")
         val quickJsBinary = File(nativeLibraryDir, "libqjs.so")
-        val ffmpegBinary = resolveFfmpegBinary(nativeLibraryDir)
+        val ffmpegBinary = File(nativeLibraryDir, "libffmpeg.so")
         val ytDlpScript = File(
             File(baseDir, YoutubeDL.ytdlpDirName),
             YoutubeDL.ytdlpBin,
@@ -117,17 +149,6 @@ class YtDlpExecutor @Inject constructor(
         )
     }
 
-    private suspend fun resolveFfmpegBinary(nativeLibraryDir: File): File {
-        val nativeBinary = ExecutableBinaryResolver.resolveFirstExisting(
-            directory = nativeLibraryDir,
-            candidates = listOf("libffmpeg_exec.so", "libffmpeg.so"),
-        )
-        if (nativeBinary != null) return nativeBinary
-
-        logger.w("YtDlpExecutor", "Falling back to installed FFmpeg binary outside nativeLibraryDir")
-        return binaryInstaller.ensureFfmpegBinary()
-    }
-
     private fun normalizeArgs(args: List<String>, runtime: YtDlpRuntime): List<String> {
         val normalized = args.toMutableList()
         var insertionIndex = normalized.indexOfFirst {
@@ -147,6 +168,25 @@ class YtDlpExecutor @Inject constructor(
 
         if (!normalized.contains("--ffmpeg-location")) {
             normalized.addAll(insertionIndex, listOf("--ffmpeg-location", runtime.ffmpegBinary.absolutePath))
+        }
+
+        return normalized
+    }
+
+    private fun normalizeArgsForStandalone(args: List<String>, ffmpegPath: String?): List<String> {
+        val normalized = args.toMutableList()
+        var insertionIndex = normalized.indexOfFirst {
+            it.startsWith("http://", ignoreCase = true) || it.startsWith("https://", ignoreCase = true)
+        }.let { if (it >= 0) it else normalized.size }
+
+        val hasCacheDir = normalized.any { it == "--cache-dir" }
+        if (!hasCacheDir) {
+            normalized.add(insertionIndex, "--no-cache-dir")
+            insertionIndex += 1
+        }
+
+        if (!ffmpegPath.isNullOrBlank() && !normalized.contains("--ffmpeg-location")) {
+            normalized.addAll(insertionIndex, listOf("--ffmpeg-location", ffmpegPath))
         }
 
         return normalized
