@@ -22,6 +22,8 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var logger: Logger
 
+    private var darkTheme by mutableStateOf(false)
+
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
@@ -35,8 +37,6 @@ class MainActivity : ComponentActivity() {
         logger.i("MainActivity", "Storage permission result granted=$granted")
     }
 
-    private var darkTheme by mutableStateOf(false)
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         logger.i("MainActivity", "onCreate")
@@ -48,8 +48,10 @@ class MainActivity : ComponentActivity() {
                     onDarkThemeChanged = { enabled ->
                         darkTheme = enabled
                         logger.i("MainActivity", "Dark theme changed to $enabled")
-                        // Force recreation of activity for theme change
-                        recreate()
+                    },
+                    onDarkThemeUpdated = { enabled ->
+                        darkTheme = enabled
+                        if (darkTheme) logger.i("MainActivity", "Applied persisted dark theme")
                     },
                 )
             }

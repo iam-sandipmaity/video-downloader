@@ -10,6 +10,7 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -48,6 +49,7 @@ private object NavIcons {
 @Composable
 fun DownloaderApp(
     onDarkThemeChanged: ((Boolean) -> Unit)? = null,
+    onDarkThemeUpdated: ((Boolean) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val navController = rememberNavController()
@@ -82,6 +84,10 @@ fun DownloaderApp(
     val downloadState by downloadViewModel.uiState.collectAsStateWithLifecycle()
     val mediaToolsState by mediaToolsViewModel.uiState.collectAsStateWithLifecycle()
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
+
+    LaunchedEffect(formatState.isDarkTheme) {
+        onDarkThemeUpdated?.invoke(formatState.isDarkTheme)
+    }
 
     Scaffold(
         modifier = modifier,
@@ -174,7 +180,10 @@ fun DownloaderApp(
             composable(AppDestination.Settings.route) {
                 SettingsScreen(
                     uiState = formatState,
-                    onDarkThemeChanged = onDarkThemeChanged ?: { formatViewModel.toggleDarkTheme(it) },
+                    onDarkThemeChanged = { enabled ->
+                        formatViewModel.toggleDarkTheme(enabled)
+                        onDarkThemeChanged?.invoke(enabled)
+                    },
                     onOutputTemplateChanged = formatViewModel::onOutputTemplateChanged,
                     onContainerChanged = formatViewModel::onContainerChanged,
                     onEmbedMetadataChanged = formatViewModel::onEmbedMetadataChanged,

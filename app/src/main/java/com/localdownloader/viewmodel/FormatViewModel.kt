@@ -237,6 +237,10 @@ class FormatViewModel @Inject constructor(
 
     fun toggleDarkTheme(enabled: Boolean) {
         _uiState.update { it.copy(isDarkTheme = enabled) }
+        viewModelScope.launch {
+            val state = uiState.value
+            repository.updateSettings(state.appSettings.copy(darkTheme = enabled))
+        }
     }
 
     private fun buildFormatSelector(
