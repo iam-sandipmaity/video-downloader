@@ -19,6 +19,7 @@ import com.localdownloader.domain.models.DownloadOptions
 import com.localdownloader.domain.models.DownloadStatus
 import com.localdownloader.domain.models.DownloadTask
 import com.localdownloader.downloader.DownloadEngine
+import com.localdownloader.utils.FileUtils
 import com.localdownloader.utils.Logger
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -30,6 +31,7 @@ class DownloadWorker @AssistedInject constructor(
     @Assisted params: WorkerParameters,
     private val downloadEngine: DownloadEngine,
     private val downloadTaskStore: DownloadTaskStore,
+    private val fileUtils: FileUtils,
     private val logger: Logger,
 ) : CoroutineWorker(appContext, params) {
 
@@ -155,16 +157,29 @@ class DownloadWorker @AssistedInject constructor(
         if (result.isSuccess) {
             logger.i("DownloadWorker", "Task completed taskId=$taskId outputPath=$outputPath")
             appendDebugTrace(taskId, "Task completed successfully")
-            outputPath?.let { appendDebugTrace(taskId, "Saved file: $it") }
+
+            var publicPath: String? = null
+            outputPath?.let { path ->
+                val file = File(path)
+                if (file.exists()) {
+                    fileUtils.copyToPublicDownloads(file)?.let { destPath ->
+                        publicPath = destPath
+                        appendDebugTrace(taskId, "Copied to public Downloads: $destPath")
+                    }
+                }
+                appendDebugTrace(taskId, "Saved file: $path")
+            }
+            val finalPath = publicPath ?: outputPath
+
             downloadTaskStore.update(taskId) { task ->
                 task.copy(
                     status = DownloadStatus.COMPLETED,
                     progressPercent = 100,
-                    outputPath = outputPath,
+                    outputPath = finalPath,
                     updatedAtEpochMs = System.currentTimeMillis(),
                 )
             }
-            return Result.success(workDataOf(WorkerKeys.OUTPUT_PATH to outputPath))
+            return Result.success(workDataOf(WorkerKeys.OUTPUT_PATH to finalPath))
         }
 
         logger.w(
