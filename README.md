@@ -148,6 +148,42 @@ gradle :app:assembleDebug
 **Or use GitHub Actions** — every push auto-builds a debug APK available under the **Actions** tab → latest workflow run → `app-debug-apk` artifact.  
 Tagged releases (`v*`) also produce a release APK attached to the GitHub Release.
 
+## Stable update installs
+
+Android only treats a new APK as an update when all of these stay aligned:
+
+- same package name
+- higher `versionCode`
+- same signing certificate
+
+This project now supports persistent signing for both install channels:
+
+- internal debug APK: `com.localdownloader.debug`
+- production release APK: `com.localdownloader`
+
+To configure local signing:
+
+1. Copy `keystore.properties.example` to `keystore.properties`
+2. Fill in the stable debug and/or release keystore values
+3. Keep the real keystore files and `keystore.properties` out of git
+
+CI expects these secrets for stable update-compatible artifacts:
+
+- `INTERNAL_DEBUG_KEYSTORE_BASE64`
+- `INTERNAL_DEBUG_STORE_PASSWORD`
+- `INTERNAL_DEBUG_KEY_ALIAS`
+- `INTERNAL_DEBUG_KEY_PASSWORD`
+- `RELEASE_KEYSTORE_BASE64`
+- `RELEASE_STORE_PASSWORD`
+- `RELEASE_KEY_ALIAS`
+- `RELEASE_KEY_PASSWORD`
+
+Important:
+
+- If a user already installed an APK signed by a different key, Android cannot upgrade it in place.
+- That old install must be uninstalled once.
+- After switching to the stable keystore, future APKs from that same channel will install as updates.
+
 ---
 
 ## 🌐 Supported sites
