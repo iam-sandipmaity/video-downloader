@@ -101,7 +101,7 @@ fun HomeScreen(
                         selectedIndex = selectedIndex,
                         onSelected = { index -> onFormatSelectorChanged(choices[index].selector) },
                     )
-                } else {
+                } else if (!isYoutubeUrl(uiState.urlInput)) {
                     DropdownRow(
                         label = "Quality",
                         options = VideoQuality.entries.map { it.label },
@@ -110,18 +110,30 @@ fun HomeScreen(
                     )
                 }
 
-                DropdownRow(
-                    label = "Type",
-                    options = StreamType.entries.map { it.label },
-                    selectedIndex = StreamType.entries.indexOf(uiState.selectedStreamType).coerceAtLeast(0),
-                    onSelected = { onStreamTypeChanged(StreamType.entries[it]) },
-                )
+                val isYoutube = isYoutubeUrl(uiState.urlInput)
+
+                if ((!choices.isNotEmpty()) && !isYoutube) {
+                    DropdownRow(
+                        label = "Type",
+                        options = StreamType.entries.map { it.label },
+                        selectedIndex = StreamType.entries.indexOf(uiState.selectedStreamType).coerceAtLeast(0),
+                        onSelected = { onStreamTypeChanged(StreamType.entries[it]) },
+                    )
+                }
 
                 val containers = listOf("mp4", "webm", "mkv", "mov")
                 val audioFormats = listOf("mp3", "m4a", "aac", "opus", "flac", "wav")
                 val bitrates = listOf(64, 96, 128, 192, 256, 320)
 
-                if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
+                if (isYoutube) {
+                    // YouTube always uses 360p with mp4 container — no extra options
+                    DropdownRow(
+                        label = "Quality",
+                        options = listOf("360p (default)"),
+                        selectedIndex = 0,
+                        onSelected = {},
+                    )
+                } else if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
                     DropdownRow(
                         label = "Audio format",
                         options = audioFormats,
@@ -177,6 +189,12 @@ fun HomeScreen(
             Text(if (uiState.isQueueing) "Queueing..." else "Download")
         }
     }
+}
+
+@Composable
+private fun isYoutubeUrl(url: String): Boolean {
+    val normalized = url.lowercase()
+    return normalized.contains("youtube.com") || normalized.contains("youtu.be")
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
