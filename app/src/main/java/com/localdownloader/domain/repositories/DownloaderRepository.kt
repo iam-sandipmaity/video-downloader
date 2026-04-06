@@ -5,6 +5,7 @@ import com.localdownloader.domain.models.CompressionRequest
 import com.localdownloader.domain.models.ConversionRequest
 import com.localdownloader.domain.models.DownloadOptions
 import com.localdownloader.domain.models.DownloadTask
+import com.localdownloader.domain.models.PlaylistEntry
 import com.localdownloader.domain.models.VideoInfo
 import kotlinx.coroutines.flow.Flow
 
@@ -14,9 +15,16 @@ import kotlinx.coroutines.flow.Flow
 interface DownloaderRepository {
     suspend fun analyzeUrl(url: String): Result<VideoInfo>
     suspend fun enqueueDownload(options: DownloadOptions, titleHint: String): Result<String>
+    suspend fun enqueuePlaylistDownload(
+        options: DownloadOptions,
+        playlistTitle: String,
+        entries: List<PlaylistEntry>,
+    ): Result<List<String>>
     suspend fun pauseDownload(taskId: String)
     suspend fun resumeDownload(taskId: String): Result<String>
     suspend fun cancelDownload(taskId: String)
+    suspend fun renameDownloadedFile(taskId: String, newName: String): Result<Unit>
+    suspend fun deleteDownloadedFile(taskId: String): Result<Unit>
     fun observeDownloadQueue(): Flow<List<DownloadTask>>
 
     suspend fun convertMedia(request: ConversionRequest, onProgress: ((Float) -> Unit)?): Result<String>
