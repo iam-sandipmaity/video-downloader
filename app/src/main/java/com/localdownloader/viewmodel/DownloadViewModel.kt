@@ -62,6 +62,38 @@ class DownloadViewModel @Inject constructor(
         }
     }
 
+    fun renameDownloadedFile(taskId: String, newName: String) {
+        logger.i("DownloadViewModel", "rename requested taskId=$taskId")
+        viewModelScope.launch {
+            repository.renameDownloadedFile(taskId, newName)
+                .onSuccess {
+                    _uiState.update { state ->
+                        state.copy(infoMessage = "Saved file renamed.", errorMessage = null)
+                    }
+                }
+                .onFailure { error ->
+                    logger.e("DownloadViewModel", "rename failed taskId=$taskId", error)
+                    _uiState.update { state -> state.copy(errorMessage = error.message) }
+                }
+        }
+    }
+
+    fun deleteDownloadedFile(taskId: String) {
+        logger.i("DownloadViewModel", "delete requested taskId=$taskId")
+        viewModelScope.launch {
+            repository.deleteDownloadedFile(taskId)
+                .onSuccess {
+                    _uiState.update { state ->
+                        state.copy(infoMessage = "Saved file removed.", errorMessage = null)
+                    }
+                }
+                .onFailure { error ->
+                    logger.e("DownloadViewModel", "delete failed taskId=$taskId", error)
+                    _uiState.update { state -> state.copy(errorMessage = error.message) }
+                }
+        }
+    }
+
     fun toggleDebug(taskId: String) {
         _uiState.update { state ->
             val ids = state.expandedDebugTaskIds
@@ -71,5 +103,9 @@ class DownloadViewModel @Inject constructor(
 
     fun dismissError() {
         _uiState.update { state -> state.copy(errorMessage = null) }
+    }
+
+    fun dismissMessage() {
+        _uiState.update { state -> state.copy(infoMessage = null, errorMessage = null) }
     }
 }
