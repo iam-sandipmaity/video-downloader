@@ -25,6 +25,8 @@ data class DownloadOptions(
     val extractAudio: Boolean = false,
     val audioFormat: String? = null,
     val audioBitrateKbps: Int? = null,
+    val playlistItemIndex: Int? = null,
+    val playlistFolderName: String? = null,
 )
 
 /**
