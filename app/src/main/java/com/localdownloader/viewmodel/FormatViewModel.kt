@@ -92,18 +92,28 @@ class FormatViewModel @Inject constructor(
                             availableVideoOnlyChoices = choiceBundle.videoOnlyChoices,
                             availableAudioOnlyChoices = choiceBundle.audioOnlyChoices,
                             selectedFormatSelector = selectedSelector,
-                            infoMessage = "Found ${info.formats.size} formats.",
+                            enablePlaylist = state.enablePlaylist || info.isPlaylist,
+                            infoMessage = when {
+                                info.isPlaylist -> {
+                                    val itemCount = info.playlistCount ?: info.playlistEntries.size
+                                    "Playlist ready: $itemCount items will queue one by one."
+                                }
+                                else -> "Found ${info.formats.size} formats."
+                            },
                         )
                     }
                 },
                 onFailure = { error ->
                     logger.e("FormatViewModel", "Analyze failed for URL: $url", error)
+                    val baseMessage = error.message?.takeIf { it.isNotBlank() } ?: "Failed to analyze URL."
                     _uiState.update { state ->
                         state.copy(
                             isAnalyzing = false,
                             errorMessage = buildString {
-                                append(error.message ?: "Failed to analyze URL.")
-                                append(" Ensure yt-dlp runtime is initialized and this device ABI is supported.")
+                                append(baseMessage)
+                                if (shouldShowRuntimeHint(baseMessage)) {
+                                    append(" Ensure yt-dlp runtime is initialized and this device ABI is supported.")
+                                }
                             },
                         )
                     }
@@ -267,7 +277,13 @@ class FormatViewModel @Inject constructor(
             _uiState.update { current -> current.copy(isQueueing = true, errorMessage = null, infoMessage = null) }
 
             val selectedChoice = findChoice(state, state.selectedFormatSelector)
-            val formatSelector = if (selectedChoice != null) {
+            val formatSelector = if (info.isPlaylist) {
+                buildFormatSelector(
+                    quality = state.selectedQuality,
+                    streamType = state.selectedStreamType,
+                    container = state.selectedContainer,
+                )
+            } else if (selectedChoice != null) {
                 selectedChoice.selector
             } else if (isYoutubeUrl(info.webpageUrl)) {
                 val h = "[height<=360]"
@@ -299,7 +315,7 @@ class FormatViewModel @Inject constructor(
                 youtubePoToken = state.youtubePoToken.ifBlank { null },
                 youtubePoTokenClientHint = normalizePoTokenClientHint(state.youtubePoTokenClientHint),
                 mergeOutputFormat = if (!isAudioOnly) mergeContainer ?: state.selectedContainer.ifBlank { null } else null,
-                isPlaylistEnabled = state.enablePlaylist,
+                isPlaylistEnabled = info.isPlaylist || state.enablePlaylist,
                 shouldDownloadSubtitles = state.downloadSubtitles,
                 shouldEmbedMetadata = state.embedMetadata,
                 shouldEmbedThumbnail = state.embedThumbnail,
@@ -312,6 +328,40 @@ class FormatViewModel @Inject constructor(
                 "FormatViewModel",
                 "Queueing download for URL=${options.url}, formatSelector=$formatSelector, extractAudio=${options.extractAudio}",
             )
+
+            if (info.isPlaylist) {
+                val playlistResult = runCatching {
+                    repository.enqueuePlaylistDownload(
+                        options = options,
+                        playlistTitle = info.title,
+                        entries = info.playlistEntries,
+                    )
+                }.getOrElse { throwable ->
+                    Result.failure(IllegalStateException(throwable.message ?: "Unable to queue playlist.", throwable))
+                }
+
+                playlistResult.fold(
+                    onSuccess = { taskIds ->
+                        logger.i("FormatViewModel", "Playlist queue success. taskCount=${taskIds.size}")
+                        _uiState.update { current ->
+                            current.copy(
+                                isQueueing = false,
+                                infoMessage = "Queued ${taskIds.size} playlist items in order.",
+                            )
+                        }
+                    },
+                    onFailure = { error ->
+                        logger.e("FormatViewModel", "Playlist queue failed", error)
+                        _uiState.update { current ->
+                            current.copy(
+                                isQueueing = false,
+                                errorMessage = error.message ?: "Unable to queue playlist.",
+                            )
+                        }
+                    },
+                )
+                return@launch
+            }
 
             val queueResult = runCatching { repository.enqueueDownload(options, info.title) }
                 .getOrElse { throwable ->
@@ -395,6 +445,13 @@ class FormatViewModel @Inject constructor(
     )
 
     private fun buildChoices(info: VideoInfo): ChoiceBundle {
+        if (info.isPlaylist) {
+            return ChoiceBundle(
+                videoAudioChoices = emptyList(),
+                videoOnlyChoices = emptyList(),
+                audioOnlyChoices = emptyList(),
+            )
+        }
         val formats = info.formats
         val audioOnly = formats.filter { it.isAudioOnly }
         val videoOnly = formats.filter { it.isVideoOnly }
@@ -549,4 +606,16 @@ class FormatViewModel @Inject constructor(
             else -> "web.gvs"
         }
     }
+
+    private fun shouldShowRuntimeHint(message: String): Boolean {
+        val normalized = message.lowercase()
+        return normalized.contains("abi") ||
+            normalized.contains("runtime") ||
+            normalized.contains("missing runtime binary") ||
+            normalized.contains("missing yt-dlp script") ||
+            normalized.contains("exec format") ||
+            normalized.contains("libpython") ||
+            normalized.contains("not initialized")
+    }
 }
+
