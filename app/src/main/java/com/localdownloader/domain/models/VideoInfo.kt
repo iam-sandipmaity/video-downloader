@@ -14,4 +14,5 @@ data class VideoInfo(
     val extractorArgs: String?,
     val isPlaylist: Boolean,
     val playlistCount: Int?,
+    val playlistEntries: List<PlaylistEntry> = emptyList(),
 )
