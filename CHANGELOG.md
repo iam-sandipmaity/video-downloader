@@ -37,6 +37,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ---
 
+## [1.3.0] — 2026-04-06
+
+### Added
+- **Progress indicator during URL analysis** — a `LinearProgressIndicator` bar appears while yt-dlp fetches video info so users get visual feedback that something is happening
+
+### Changed
+- **YouTube download quality locked to 360p** — YouTube downloads without a manual format selection are capped at 360p, skipping the previous multi-resolution fallback chain that always ended up at 360p anyway
+- **YouTube extraction simplified** — removed the 4-client extractor retry loop (default → android,web,ios,tv → web → android). A single default yt-dlp call is used instead, cutting down unnecessary network retries
+
+### Fixed
+- **APK update conflict** — same `applicationId` (`com.localdownloader`) retained across builds with incremented `versionCode` so new APKs install over old ones without requiring manual uninstall first
+
+---
+
 ## [1.1.0] — (pre-1.2.0 baseline)
 
 Initial release with:
