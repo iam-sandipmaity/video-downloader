@@ -8,8 +8,6 @@ import android.provider.MediaStore
 import android.provider.OpenableColumns
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -82,6 +80,31 @@ class FileUtils @Inject constructor(
         return "$outputDir/$template"
     }
 
+    fun createUniquePlaylistDirectory(playlistName: String): File {
+        val root = ensureDownloadsDir()
+        val baseName = sanitizeFileName(playlistName)
+        var candidate = File(root, baseName)
+        var counter = 2
+        while (candidate.exists()) {
+            candidate = File(root, "$baseName ($counter)")
+            counter += 1
+        }
+        if (!candidate.mkdirs() && !candidate.isDirectory) {
+            throw IllegalStateException("Storage denied: unable to create playlist directory ${candidate.absolutePath}")
+        }
+        return candidate
+    }
+
+    fun buildPlaylistItemOutputTemplate(
+        playlistDirectory: File,
+        baseTemplate: String,
+        playlistItemIndex: Int,
+    ): String {
+        val fileTemplate = baseTemplate.substringAfterLast('/').substringAfterLast('\\')
+        val prefixedFileTemplate = "v$playlistItemIndex - $fileTemplate"
+        return File(playlistDirectory, prefixedFileTemplate).absolutePath
+    }
+
     fun appendCounterToTemplate(template: String, n: Int): String {
         if (template.endsWith(".%(ext)s")) {
             return "${template.removeSuffix(".%(ext)s")}($n).%(ext)s"
@@ -112,35 +135,45 @@ class FileUtils @Inject constructor(
      * Downloads folder via MediaStore so it becomes visible in file managers.
      * Returns the public path, or null on Android 10 and below (file is already public).
      */
-    fun copyToPublicDownloads(sourceFile: File): String? {
+    fun copyToPublicDownloads(sourceFile: File, playlistFolderName: String? = null): String? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
 
         val publicDownloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-        val publicDir = File(publicDownloads, "LocalDownloader")
+        val relativeParent = playlistFolderName
+            ?.trim()
+            ?.trim('/', '\\')
+            ?.ifBlank { null }
+            ?: relativePathWithinDownloadsRoot(sourceFile)
+                ?.substringBeforeLast('/', "")
+                .orEmpty()
+        val publicDir = if (relativeParent.isBlank()) {
+            File(publicDownloads, "LocalDownloader")
+        } else {
+            File(publicDownloads, "LocalDownloader/$relativeParent")
+        }
         if (!publicDir.exists()) publicDir.mkdirs()
 
-        val destFile = File(publicDir, sourceFile.name)
-        if (destFile.exists()) {
-            var i = 1
-            val nameWithoutExt = sourceFile.nameWithoutExtension
-            val ext = sourceFile.extension
-            do {
-                destFile.parentFile?.let { parent ->
-                    // destFile = File(parent, "${nameWithoutExt}($i).$ext")
-                }
-            } while (File(publicDir, "${nameWithoutExt}($i).$ext").exists())
-            return null // Let the worker handle naming; don't overwrite
-        }
+        val displayName = resolveUniqueFileName(publicDir, sourceFile.name)
+        val destFile = File(publicDir, displayName)
 
         return try {
             val values = android.content.ContentValues().apply {
-                put(MediaStore.MediaColumns.DISPLAY_NAME, sourceFile.name)
+                put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
                 put(MediaStore.MediaColumns.MIME_TYPE, guessMimeType(sourceFile.name))
-                put(MediaStore.MediaColumns.RELATIVE_PATH, "Download/LocalDownloader/")
+                put(
+                    MediaStore.MediaColumns.RELATIVE_PATH,
+                    buildString {
+                        append("Download/LocalDownloader/")
+                        if (relativeParent.isNotBlank()) {
+                            append(relativeParent.trim('/'))
+                            append('/')
+                        }
+                    },
+                )
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
             }
             val uri = context.contentResolver.insert(
-                MediaStore.Files.getContentUri("external"),
+                MediaStore.Downloads.EXTERNAL_CONTENT_URI,
                 values,
             ) ?: return null
             context.contentResolver.openOutputStream(uri)?.use { outputStream ->
@@ -151,17 +184,42 @@ class FileUtils @Inject constructor(
             values.clear()
             values.put(MediaStore.MediaColumns.IS_PENDING, 0)
             context.contentResolver.update(uri, values, null, null)
-            // Resolve the real path
             sourceFile.absolutePath
         } catch (e: Exception) {
-            // Fallback: direct copy
             try {
                 sourceFile.copyTo(destFile, overwrite = false)
                 triggerMediaScan(Uri.fromFile(destFile))
-                destFile.absolutePath
+                sourceFile.absolutePath
             } catch (_: Exception) {
                 null
             }
+        }
+    }
+
+    private fun relativePathWithinDownloadsRoot(sourceFile: File): String? {
+        val downloadsRoot = ensureDownloadsDir().absoluteFile.normalize().path
+        val sourcePath = sourceFile.absoluteFile.normalize().path
+        if (!sourcePath.startsWith(downloadsRoot)) return null
+        return sourcePath
+            .removePrefix(downloadsRoot)
+            .trimStart(File.separatorChar)
+            .replace(File.separatorChar, '/')
+            .ifBlank { null }
+    }
+
+    private fun resolveUniqueFileName(parentDir: File, originalName: String): String {
+        if (!File(parentDir, originalName).exists()) return originalName
+        val nameWithoutExt = originalName.substringBeforeLast('.', originalName)
+        val extension = originalName.substringAfterLast('.', "")
+        var counter = 2
+        while (true) {
+            val candidate = if (extension.isBlank()) {
+                "$nameWithoutExt ($counter)"
+            } else {
+                "$nameWithoutExt ($counter).$extension"
+            }
+            if (!File(parentDir, candidate).exists()) return candidate
+            counter += 1
         }
     }
 
