@@ -23,6 +23,9 @@ interface DownloadTaskDao {
     @Query("SELECT COUNT(*) FROM download_tasks WHERE url = :url")
     suspend fun countByUrl(url: String): Int
 
+    @Query("DELETE FROM download_tasks WHERE id = :taskId")
+    suspend fun deleteById(taskId: String)
+
     @Query("DELETE FROM download_tasks")
     suspend fun deleteAll()
 }
