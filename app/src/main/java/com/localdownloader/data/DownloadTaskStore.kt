@@ -44,16 +44,19 @@ class DownloadTaskStore @Inject constructor(
 
     fun getTask(taskId: String): DownloadTask? = tasks.value[taskId]
 
-    fun upsert(task: DownloadTask) {
+    fun upsert(task: DownloadTask, optionsJson: String? = null) {
         tasks.update { taskMap -> taskMap + (task.id to task) }
-        scope.launch { dao.upsert(task.toEntity()) }
+        scope.launch { dao.upsert(task.toEntity(optionsJson = optionsJson)) }
     }
 
     fun update(taskId: String, reducer: (DownloadTask) -> DownloadTask) {
         tasks.update { taskMap ->
             val current = taskMap[taskId] ?: return@update taskMap
             val updated = reducer(current)
-            scope.launch { dao.upsert(updated.toEntity()) }
+            scope.launch {
+                val existingOptionsJson = dao.getById(taskId)?.optionsJson
+                dao.upsert(updated.toEntity(optionsJson = existingOptionsJson))
+            }
             taskMap + (taskId to updated)
         }
     }
@@ -68,12 +71,17 @@ class DownloadTaskStore @Inject constructor(
         }
     }
 
+    fun remove(taskId: String) {
+        tasks.update { taskMap -> taskMap - taskId }
+        scope.launch { dao.deleteById(taskId) }
+    }
+
     suspend fun getCachedOptions(taskId: String): String? {
         return dao.getById(taskId)?.optionsJson
     }
 }
 
-private fun DownloadTask.toEntity(): DownloadTaskEntity {
+private fun DownloadTask.toEntity(optionsJson: String? = null): DownloadTaskEntity {
     return DownloadTaskEntity(
         id = id,
         url = url,
@@ -87,6 +95,7 @@ private fun DownloadTask.toEntity(): DownloadTaskEntity {
         totalSizeStr = totalSizeStr,
         errorMessage = errorMessage,
         debugTrace = debugTrace,
+        optionsJson = optionsJson,
         createdAtEpochMs = createdAtEpochMs,
         updatedAtEpochMs = updatedAtEpochMs,
     )
