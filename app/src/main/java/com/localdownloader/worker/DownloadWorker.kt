@@ -73,6 +73,8 @@ class DownloadWorker @AssistedInject constructor(
             extractAudio = inputData.getBoolean(WorkerKeys.EXTRACT_AUDIO, false),
             audioFormat = inputData.getString(WorkerKeys.AUDIO_FORMAT).orEmpty().ifBlank { null },
             audioBitrateKbps = inputData.getInt(WorkerKeys.AUDIO_BITRATE, -1).takeIf { it > 0 },
+            playlistItemIndex = inputData.getInt(WorkerKeys.PLAYLIST_ITEM_INDEX, -1).takeIf { it > 0 },
+            playlistFolderName = inputData.getString(WorkerKeys.PLAYLIST_FOLDER_NAME).orEmpty().ifBlank { null },
         )
         logger.d("DownloadWorker", "DownloadOptions: $options")
 
@@ -264,7 +266,10 @@ class DownloadWorker @AssistedInject constructor(
             outputPath?.let { path ->
                 val file = File(path)
                 if (file.exists()) {
-                    fileUtils.copyToPublicDownloads(file)?.let { destPath ->
+                    fileUtils.copyToPublicDownloads(
+                        sourceFile = file,
+                        playlistFolderName = options.playlistFolderName,
+                    )?.let { destPath ->
                         publicPath = destPath
                         appendDebugTrace(taskId, "Copied to public Downloads: $destPath")
                     }
@@ -272,12 +277,19 @@ class DownloadWorker @AssistedInject constructor(
                 appendDebugTrace(taskId, "Saved file: $path")
             }
             val finalPath = publicPath ?: outputPath
+            val finalSizeLabel = finalPath
+                ?.let(::File)
+                ?.takeIf { it.exists() }
+                ?.length()
+                ?.toReadableSize()
 
             downloadTaskStore.update(taskId) { task ->
                 task.copy(
                     status = DownloadStatus.COMPLETED,
                     progressPercent = 100,
                     outputPath = finalPath,
+                    downloadedStr = finalSizeLabel ?: task.downloadedStr.takeMeaningfulSizeLabel(),
+                    totalSizeStr = finalSizeLabel ?: task.totalSizeStr.takeMeaningfulSizeLabel(),
                     updatedAtEpochMs = System.currentTimeMillis(),
                 )
             }
@@ -727,6 +739,28 @@ class DownloadWorker @AssistedInject constructor(
         const val MAX_DEBUG_TRACE_CHARS = 10_000
         const val MAX_ERROR_MESSAGE_CHARS = 800
         const val MAX_OUTPUT_TRACE_LINE_LENGTH = 240
+    }
+
+    private fun Long.toReadableSize(): String {
+        if (this <= 0L) return ""
+        val kib = 1024.0
+        val mib = kib * 1024.0
+        val gib = mib * 1024.0
+        return when {
+            this >= gib -> String.format("%.1f GB", this / gib)
+            this >= mib -> String.format("%.1f MB", this / mib)
+            this >= kib -> String.format("%.1f KB", this / kib)
+            else -> "$this B"
+        }
+    }
+
+    private fun String?.takeMeaningfulSizeLabel(): String? {
+        val normalized = this?.trim().orEmpty()
+        if (normalized.isBlank()) return null
+        if (normalized.equals("na", ignoreCase = true)) return null
+        if (normalized.equals("n/a", ignoreCase = true)) return null
+        if (normalized.equals("unknown", ignoreCase = true)) return null
+        return normalized
     }
 
     private data class SplitSelectors(
