@@ -20,6 +20,8 @@ object WorkerKeys {
     const val AUDIO_FORMAT = "audio_format"
     const val AUDIO_BITRATE = "audio_bitrate"
     const val TITLE_HINT = "title_hint"
+    const val PLAYLIST_ITEM_INDEX = "playlist_item_index"
+    const val PLAYLIST_FOLDER_NAME = "playlist_folder_name"
 
     const val PROGRESS_PERCENT = "progress_percent"
     const val ERROR_MESSAGE = "error_message"
