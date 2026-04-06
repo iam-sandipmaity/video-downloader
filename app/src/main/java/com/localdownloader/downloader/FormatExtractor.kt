@@ -28,16 +28,7 @@ class FormatExtractor @Inject constructor(
             logger.i("FormatExtractor", "Starting yt-dlp analyze for URL: $url")
 
             val isYoutube = isYoutubeUrl(url)
-            val extractorCandidates = if (isYoutube) {
-                listOf(
-                    null,
-                    "youtube:player_client=android,web,ios,tv",
-                    "youtube:player_client=web",
-                    "youtube:player_client=android",
-                )
-            } else {
-                listOf<String?>(null)
-            }
+            val extractorCandidates = listOf<String?>(null)
 
             var best: AnalyzeCandidate? = null
             extractorCandidates.forEachIndexed { index, extractorArgs ->

@@ -266,13 +266,25 @@ class FormatViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { current -> current.copy(isQueueing = true, errorMessage = null, infoMessage = null) }
 
-            val isAudioOnly = state.selectedStreamType == StreamType.AUDIO_ONLY
             val selectedChoice = findChoice(state, state.selectedFormatSelector)
-            val formatSelector = selectedChoice?.selector ?: buildFormatSelector(
-                quality = state.selectedQuality,
-                streamType = state.selectedStreamType,
-                container = state.selectedContainer,
-            )
+            val formatSelector = if (selectedChoice != null) {
+                selectedChoice.selector
+            } else if (isYoutubeUrl(info.webpageUrl)) {
+                val h = "[height<=360]"
+                val st = state.selectedStreamType
+                when (st) {
+                    StreamType.AUDIO_ONLY -> "bestaudio/best"
+                    StreamType.VIDEO_ONLY -> "bestvideo$h/bestvideo"
+                    StreamType.VIDEO_AUDIO -> "bestvideo$h+bestaudio/best$h/best"
+                }
+            } else {
+                buildFormatSelector(
+                    quality = state.selectedQuality,
+                    streamType = state.selectedStreamType,
+                    container = state.selectedContainer,
+                )
+            }
+            val isAudioOnly = state.selectedStreamType == StreamType.AUDIO_ONLY
             val mergeContainer = selectedChoice?.takeIf { it.isMerged }?.container
             val (downloadExtractorArgs, fallbackExtractorArgs) = resolveDownloadExtractorArgs(info)
 
