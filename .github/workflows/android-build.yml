@@ -37,6 +37,34 @@ jobs:
           VERSION=$(grep '^APP_VERSION_NAME=' gradle.properties | cut -d'=' -f2)
           echo "version_name=${VERSION}" >> "$GITHUB_OUTPUT"
 
+      - name: Prepare signing files
+        shell: bash
+        env:
+          INTERNAL_DEBUG_KEYSTORE_BASE64: ${{ secrets.INTERNAL_DEBUG_KEYSTORE_BASE64 }}
+          INTERNAL_DEBUG_STORE_PASSWORD: ${{ secrets.INTERNAL_DEBUG_STORE_PASSWORD }}
+          INTERNAL_DEBUG_KEY_ALIAS: ${{ secrets.INTERNAL_DEBUG_KEY_ALIAS }}
+          INTERNAL_DEBUG_KEY_PASSWORD: ${{ secrets.INTERNAL_DEBUG_KEY_PASSWORD }}
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          if [ -n "$INTERNAL_DEBUG_KEYSTORE_BASE64" ]; then
+            echo "$INTERNAL_DEBUG_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/internal-debug.jks"
+            echo "INTERNAL_DEBUG_STORE_FILE=$RUNNER_TEMP/internal-debug.jks" >> "$GITHUB_ENV"
+            echo "INTERNAL_DEBUG_STORE_PASSWORD=$INTERNAL_DEBUG_STORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "INTERNAL_DEBUG_KEY_ALIAS=$INTERNAL_DEBUG_KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "INTERNAL_DEBUG_KEY_PASSWORD=$INTERNAL_DEBUG_KEY_PASSWORD" >> "$GITHUB_ENV"
+          fi
+
+          if [ -n "$RELEASE_KEYSTORE_BASE64" ]; then
+            echo "$RELEASE_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
+            echo "RELEASE_STORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+            echo "RELEASE_STORE_PASSWORD=$RELEASE_STORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "RELEASE_KEY_ALIAS=$RELEASE_KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "RELEASE_KEY_PASSWORD=$RELEASE_KEY_PASSWORD" >> "$GITHUB_ENV"
+          fi
+
       - name: Verify bundled yt-dlp and ffmpeg binaries exist (blocking)
         run: |
           required_ytdlp="app/src/main/assets/yt-dlp/arm64-v8a/yt-dlp"
@@ -123,6 +151,25 @@ jobs:
         run: |
           VERSION=$(grep '^APP_VERSION_NAME=' gradle.properties | cut -d'=' -f2)
           echo "version_name=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare release signing files
+        shell: bash
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          if [ -z "$RELEASE_KEYSTORE_BASE64" ]; then
+            echo "::error::Missing release signing secrets. Tagged releases must use the stable release keystore."
+            exit 1
+          fi
+
+          echo "$RELEASE_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
+          echo "RELEASE_STORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+          echo "RELEASE_STORE_PASSWORD=$RELEASE_STORE_PASSWORD" >> "$GITHUB_ENV"
+          echo "RELEASE_KEY_ALIAS=$RELEASE_KEY_ALIAS" >> "$GITHUB_ENV"
+          echo "RELEASE_KEY_PASSWORD=$RELEASE_KEY_PASSWORD" >> "$GITHUB_ENV"
 
       - name: Build release APK
         run: gradle :app:assembleRelease
