@@ -58,7 +58,11 @@ fun VideoCard(
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Text(
-                    text = "Formats: ${info.formats.size}",
+                    text = if (info.isPlaylist) {
+                        "Playlist items: ${info.playlistCount ?: info.playlistEntries.size}"
+                    } else {
+                        "Formats: ${info.formats.size}"
+                    },
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
