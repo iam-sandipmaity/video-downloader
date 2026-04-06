@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -79,6 +80,9 @@ fun UrlInput(
                 }
             },
         )
+        if (isAnalyzing) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        }
         Button(
             onClick = onAnalyzeClicked,
             enabled = !isAnalyzing,
