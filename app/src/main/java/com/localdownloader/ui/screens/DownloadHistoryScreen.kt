@@ -15,7 +15,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.Card
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -34,6 +38,7 @@ import java.util.Locale
 @Composable
 fun DownloadHistoryScreen(
     tasks: List<DownloadTask>,
+    onBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val historyItems = tasks.filter {
@@ -48,33 +53,47 @@ fun DownloadHistoryScreen(
             color = MaterialTheme.colorScheme.primaryContainer,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Column(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
+                    .padding(horizontal = 12.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = "History",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-                if (historyItems.isNotEmpty()) {
-                    val doneCount = historyItems.count { it.status == DownloadStatus.COMPLETED }
-                    val failedCount = historyItems.count { it.status == DownloadStatus.FAILED }
-                    val subtitle = buildString {
-                        if (doneCount > 0) append("$doneCount completed")
-                        if (failedCount > 0) {
-                            if (isNotEmpty()) append("  \u00b7  ")
-                            append("$failedCount failed")
-                        }
-                    }
-                    if (subtitle.isNotBlank()) {
-                        Text(
-                            text = subtitle,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f),
+                if (onBack != null) {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                            contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
+                    }
+                }
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Text(
+                        text = "History",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                    if (historyItems.isNotEmpty()) {
+                        val doneCount = historyItems.count { it.status == DownloadStatus.COMPLETED }
+                        val failedCount = historyItems.count { it.status == DownloadStatus.FAILED }
+                        val subtitle = buildString {
+                            if (doneCount > 0) append("$doneCount completed")
+                            if (failedCount > 0) {
+                                if (isNotEmpty()) append("  \u00b7  ")
+                                append("$failedCount failed")
+                            }
+                        }
+                        if (subtitle.isNotBlank()) {
+                            Text(
+                                text = subtitle,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f),
+                            )
+                        }
                     }
                 }
             }
