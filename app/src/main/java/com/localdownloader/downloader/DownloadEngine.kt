@@ -54,6 +54,10 @@ class DownloadEngine @Inject constructor(
             args += "--no-playlist"
         }
 
+        options.playlistItemIndex?.let { index ->
+            args += listOf("--playlist-items", index.toString())
+        }
+
         options.mergeOutputFormat?.let {
             args += listOf("--merge-output-format", it)
         }
