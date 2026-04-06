@@ -14,16 +14,21 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
@@ -55,6 +60,7 @@ fun ConvertScreen(
     onVideoBitrateChanged: (String) -> Unit,
     onConvertClicked: () -> Unit,
     onBrowseFile: () -> Unit,
+    onBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -67,22 +73,34 @@ fun ConvertScreen(
             color = MaterialTheme.colorScheme.secondaryContainer,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Column(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
+                    .padding(horizontal = 12.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = "Convert",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                )
-                Text(
-                    text = "Change the format of any local media file via FFmpeg",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.75f),
-                )
+                if (onBack != null) {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                            contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                        )
+                    }
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = "Convert",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                    Text(
+                        text = "Change the format of any local media file via FFmpeg",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.75f),
+                    )
+                }
             }
         }
 
@@ -145,7 +163,7 @@ fun ConvertScreen(
                                 .menuAnchor(MenuAnchorType.PrimaryNotEditable)
                                 .fillMaxWidth(),
                         )
-                        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                             Text(
                                 "— Video —",
                                 style = MaterialTheme.typography.labelSmall,
