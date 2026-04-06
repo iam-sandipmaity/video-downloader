@@ -1,6 +1,7 @@
 package com.localdownloader.downloader
 
 import com.localdownloader.domain.models.MediaFormat
+import com.localdownloader.domain.models.PlaylistEntry
 import com.localdownloader.domain.models.VideoInfo
 import com.localdownloader.utils.Logger
 import kotlinx.serialization.json.Json
@@ -27,13 +28,14 @@ class FormatExtractor @Inject constructor(
         return runCatching {
             logger.i("FormatExtractor", "Starting yt-dlp analyze for URL: $url")
 
-            val isYoutube = isYoutubeUrl(url)
             val extractorCandidates = listOf<String?>(null)
 
             var best: AnalyzeCandidate? = null
+            var lastFailureMessage: String? = null
             extractorCandidates.forEachIndexed { index, extractorArgs ->
                 if (best != null && !shouldTryMoreCandidates(best?.stats)) return@forEachIndexed
-                val candidate = analyzeWithExtractor(url = url, extractorArgs = extractorArgs)
+                val attempt = analyzeWithExtractor(url = url, extractorArgs = extractorArgs)
+                val candidate = attempt.candidate
                 if (candidate != null) {
                     val stats = candidate.stats
                     val descriptor = extractorArgs ?: "(default)"
@@ -45,10 +47,12 @@ class FormatExtractor @Inject constructor(
                         best = candidate
                     }
                     if (stats.hasAdaptiveVideo) return@forEachIndexed
+                } else if (!attempt.errorMessage.isNullOrBlank()) {
+                    lastFailureMessage = attempt.errorMessage
                 }
             }
 
-            val resolved = best ?: throw IllegalStateException("yt-dlp analyze failed")
+            val resolved = best ?: throw IllegalStateException(lastFailureMessage ?: "yt-dlp analyze failed")
             mapVideoInfo(root = resolved.root, fallbackUrl = url, extractorArgs = resolved.extractorArgs).also { info ->
                 logger.i(
                     "FormatExtractor",
@@ -80,23 +84,60 @@ class FormatExtractor @Inject constructor(
     }
 
     private fun mapVideoInfo(root: JsonObject, fallbackUrl: String, extractorArgs: String?): VideoInfo {
-        val formats = parseFormats(root["formats"] as? JsonArray ?: JsonArray(emptyList()))
+        val playlistEntries = parsePlaylistEntries(root["entries"] as? JsonArray)
+        val rootFormats = parseFormats(root["formats"] as? JsonArray ?: JsonArray(emptyList()))
+        val fallbackFormats = firstEntryWithFormats(root["entries"] as? JsonArray)
+            ?.let(::parseFormats)
+            .orEmpty()
+        val formats = rootFormats.ifEmpty { fallbackFormats }
         val type = root["\u005ftype"]?.jsonPrimitive?.contentOrNull
         return VideoInfo(
             id = root["id"]?.jsonPrimitive?.contentOrNull.orEmpty(),
             title = root["title"]?.jsonPrimitive?.contentOrNull ?: "Untitled",
             uploader = root["uploader"]?.jsonPrimitive?.contentOrNull,
             durationSeconds = root["duration"]?.jsonPrimitive?.longOrNull,
-            thumbnailUrl = root["thumbnail"]?.jsonPrimitive?.contentOrNull,
+            thumbnailUrl = root["thumbnail"]?.jsonPrimitive?.contentOrNull
+                ?: playlistEntries.firstOrNull()?.thumbnailUrl,
             webpageUrl = root["webpage_url"]?.jsonPrimitive?.contentOrNull ?: fallbackUrl,
             formats = formats,
             extractorArgs = extractorArgs,
             isPlaylist = type == "playlist",
-            playlistCount = root["playlist_count"]?.jsonPrimitive?.intOrNull,
+            playlistCount = root["playlist_count"]?.jsonPrimitive?.intOrNull ?: playlistEntries.size.takeIf { it > 0 },
+            playlistEntries = playlistEntries,
         )
     }
 
-    private suspend fun analyzeWithExtractor(url: String, extractorArgs: String?): AnalyzeCandidate? {
+    private fun parsePlaylistEntries(entries: JsonArray?): List<PlaylistEntry> {
+        return entries.orEmpty().mapIndexedNotNull { index, element ->
+            val item = element as? JsonObject ?: return@mapIndexedNotNull null
+            val id = item["id"]?.jsonPrimitive?.contentOrNull.orEmpty()
+            val title = item["title"]?.jsonPrimitive?.contentOrNull.orEmpty()
+            val webpageUrl = item["webpage_url"]?.jsonPrimitive?.contentOrNull
+                ?: item["original_url"]?.jsonPrimitive?.contentOrNull
+                ?: item["url"]?.jsonPrimitive?.contentOrNull
+                ?: return@mapIndexedNotNull null
+            if (title.isBlank() && id.isBlank()) return@mapIndexedNotNull null
+            PlaylistEntry(
+                playlistItemIndex = index + 1,
+                id = id,
+                title = title.ifBlank { "Item ${index + 1}" },
+                webpageUrl = webpageUrl,
+                uploader = item["uploader"]?.jsonPrimitive?.contentOrNull,
+                durationSeconds = item["duration"]?.jsonPrimitive?.longOrNull,
+                thumbnailUrl = item["thumbnail"]?.jsonPrimitive?.contentOrNull,
+            )
+        }
+    }
+
+    private fun firstEntryWithFormats(entries: JsonArray?): JsonArray? {
+        return entries.orEmpty()
+            .asSequence()
+            .mapNotNull { it as? JsonObject }
+            .mapNotNull { it["formats"] as? JsonArray }
+            .firstOrNull { it.isNotEmpty() }
+    }
+
+    private suspend fun analyzeWithExtractor(url: String, extractorArgs: String?): AnalyzeAttempt {
         val args = buildList {
             add("-J")
             add("--skip-download")
@@ -116,17 +157,43 @@ class FormatExtractor @Inject constructor(
         )
         if (!result.isSuccess) {
             logger.w("FormatExtractor", "Analyze failed stderr=${result.stderr.take(1000)}")
-            return null
+            return AnalyzeAttempt(
+                candidate = null,
+                errorMessage = extractAnalyzeFailureMessage(result.stderr, result.stdout),
+            )
         }
 
-        val root = json.parseToJsonElement(result.stdout).jsonObject
-        val formats = parseFormats(root["formats"] as? JsonArray ?: JsonArray(emptyList()))
-        return AnalyzeCandidate(
-            root = root,
-            formats = formats,
-            extractorArgs = extractorArgs,
-            stats = FormatStats.from(formats),
-        )
+        return runCatching {
+            val root = json.parseToJsonElement(result.stdout).jsonObject
+            val formats = parseFormats(root["formats"] as? JsonArray ?: JsonArray(emptyList()))
+            AnalyzeAttempt(
+                candidate = AnalyzeCandidate(
+                    root = root,
+                    formats = formats,
+                    extractorArgs = extractorArgs,
+                    stats = FormatStats.from(formats),
+                ),
+                errorMessage = null,
+            )
+        }.getOrElse { error ->
+            logger.w("FormatExtractor", "Analyze JSON parse failed", error)
+            AnalyzeAttempt(
+                candidate = null,
+                errorMessage = error.message?.takeIf { it.isNotBlank() } ?: "yt-dlp returned unreadable analyze output",
+            )
+        }
+    }
+
+    private fun extractAnalyzeFailureMessage(stderr: String, stdout: String): String {
+        val stderrLine = stderr.lineSequence()
+            .map { it.trim() }
+            .firstOrNull { it.isNotBlank() }
+        val stdoutLine = stdout.lineSequence()
+            .map { it.trim() }
+            .firstOrNull { it.isNotBlank() }
+        return (stderrLine ?: stdoutLine ?: "yt-dlp analyze failed")
+            .removePrefix("ERROR: ")
+            .take(240)
     }
 
     private fun parseFormats(elements: JsonArray): List<MediaFormat> {
@@ -186,6 +253,11 @@ class FormatExtractor @Inject constructor(
         val stats: FormatStats,
     )
 
+    private data class AnalyzeAttempt(
+        val candidate: AnalyzeCandidate?,
+        val errorMessage: String?,
+    )
+
     private data class FormatStats(
         val total: Int,
         val videoOnly: Int,
@@ -231,3 +303,4 @@ class FormatExtractor @Inject constructor(
         return true
     }
 }
+
