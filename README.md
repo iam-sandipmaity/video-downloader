@@ -235,3 +235,4 @@ The app now writes persistent logs to internal storage:
 - mirrored external crash file (if available): `/storage/emulated/0/Android/data/<applicationId>/files/logs/crash.log`
 
 Logs include activity lifecycle, analyze flow, yt-dlp command execution, worker progress, and failures.
+

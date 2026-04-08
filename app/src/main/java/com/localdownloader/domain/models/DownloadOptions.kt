@@ -50,3 +50,21 @@ data class CompressionRequest(
     val targetAudioBitrateKbps: Int?,
     val maxHeight: Int?,
 )
+
+/**
+ * Result of a compression operation with before/after file size.
+ */
+data class CompressionResult(
+    val outputPath: String,
+    val sourceSizeBytes: Long,
+    val compressedSizeBytes: Long,
+)
+
+/**
+ * Result of a format conversion operation with before/after file size.
+ */
+data class ConversionResult(
+    val outputPath: String,
+    val sourceSizeBytes: Long,
+    val convertedSizeBytes: Long,
+)

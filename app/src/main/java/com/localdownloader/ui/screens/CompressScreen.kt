@@ -21,28 +21,42 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.localdownloader.viewmodel.AUDIO_BITRATE_PRESETS
+import com.localdownloader.viewmodel.RESOLUTION_PRESETS
+import com.localdownloader.viewmodel.VIDEO_BITRATE_PRESETS
 import com.localdownloader.viewmodel.MediaToolsUiState
+import com.localdownloader.viewmodel.formatFileSize
 import kotlin.math.roundToInt
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun CompressScreen(
     uiState: MediaToolsUiState,
     onInputPathChanged: (String) -> Unit,
+    onResolutionPresetSelected: (Int) -> Unit,
+    onVideoBitratePresetSelected: (Int) -> Unit,
+    onAudioBitratePresetSelected: (Int) -> Unit,
     onMaxHeightChanged: (String) -> Unit,
     onVideoBitrateChanged: (String) -> Unit,
     onAudioBitrateChanged: (String) -> Unit,
@@ -51,6 +65,8 @@ fun CompressScreen(
     onBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
+    var showAdvanced by remember { mutableStateOf(false) }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -99,34 +115,7 @@ fun CompressScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // ── Input file ────────────────────────────────────────────
-            CompressSectionLabel("Input file")
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        OutlinedTextField(
-                            value = uiState.compressInputPath,
-                            onValueChange = onInputPathChanged,
-                            label = { Text("File path") },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true,
-                        )
-                        OutlinedButton(onClick = onBrowseFile) {
-                            Text("Browse")
-                        }
-                    }
-                }
-            }
-
-            // ── Resolution ────────────────────────────────────────────
-            CompressSectionLabel("Max resolution")
+            CompressSectionLabel("Choose file")
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier
@@ -134,82 +123,128 @@ fun CompressScreen(
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    val heightVal = uiState.compressMaxHeight.toIntOrNull() ?: 720
-                    val steps = listOf(360, 480, 720, 1080, 1440, 2160)
-                    val labelMap = mapOf(360 to "360p", 480 to "480p", 720 to "720p HD", 1080 to "1080p FHD", 1440 to "1440p QHD", 2160 to "4K")
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("Max height", style = MaterialTheme.typography.bodyLarge)
-                        Text(
-                            text = labelMap[heightVal] ?: "${heightVal}p",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
+                        OutlinedButton(
+                            onClick = onBrowseFile,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("Select video file from device")
+                        }
                     }
-                    Slider(
-                        value = steps.indexOf(steps.minByOrNull { kotlin.math.abs(it - heightVal) }).toFloat(),
-                        onValueChange = { idx -> onMaxHeightChanged(steps[idx.roundToInt()].toString()) },
-                        valueRange = 0f..(steps.size - 1).toFloat(),
-                        steps = steps.size - 2,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text("360p", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("4K", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    // File info card
+                    uiState.compressInputFileInfo?.let { info ->
+                        Surface(
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Text(
+                                    text = info.name,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Text(
+                                    text = "Size: ${formatFileSize(info.sizeBytes)}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
                     }
-                    Text(
-                        "Width is scaled automatically. Aspect ratio is preserved.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
                 }
             }
 
-            // ── Bitrates ──────────────────────────────────────────────
-            CompressSectionLabel("Bitrates")
+            // ── Resolution preset ─────────────────────────────────────
+            CompressSectionLabel("Resolution — choose a preset")
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Row(
+                    DropdownField(
+                        label = "Target quality",
+                        options = RESOLUTION_PRESETS.map { it.label },
+                        selectedIndex = uiState.compressResolutionPresetIndex.coerceIn(0, RESOLUTION_PRESETS.lastIndex),
+                        onSelected = onResolutionPresetSelected,
+                        supportingText = "Higher = larger file, better quality. For WhatsApp use 360p or 480p.",
+                    )
+                    // Manual override
+                    OutlinedTextField(
+                        value = uiState.compressMaxHeight,
+                        onValueChange = onMaxHeightChanged,
+                        label = { Text("Custom max height (px)") },
+                        placeholder = { Text("e.g. 720") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        OutlinedTextField(
-                            value = uiState.compressVideoBitrate,
-                            onValueChange = onVideoBitrateChanged,
-                            label = { Text("Video kbps") },
-                            placeholder = { Text("1000") },
-                            supportingText = { Text("~1000 = good quality") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.weight(1f),
-                            singleLine = true,
-                        )
-                        OutlinedTextField(
-                            value = uiState.compressAudioBitrate,
-                            onValueChange = onAudioBitrateChanged,
-                            label = { Text("Audio kbps") },
-                            placeholder = { Text("128") },
-                            supportingText = { Text("128 = standard") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.weight(1f),
-                            singleLine = true,
-                        )
-                    }
-                    QuickPresetRow(
-                        onSelected = { vbr, abr, h ->
-                            onVideoBitrateChanged(vbr)
-                            onAudioBitrateChanged(abr)
-                            onMaxHeightChanged(h)
-                        },
+                        singleLine = true,
+                        supportingText = { Text("Leave as preset value, or type any height you want.") },
+                    )
+                }
+            }
+
+            // ── Video bitrate preset ──────────────────────────────────
+            CompressSectionLabel("Video bitrate")
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    DropdownField(
+                        label = "Video quality",
+                        options = VIDEO_BITRATE_PRESETS.map { it.label },
+                        selectedIndex = uiState.compressVideoBitratePresetIndex.coerceIn(0, VIDEO_BITRATE_PRESETS.lastIndex),
+                        onSelected = onVideoBitratePresetSelected,
+                        supportingText = "\"Auto\" lets FFmpeg decide based on source quality.",
+                    )
+                    // Manual override
+                    OutlinedTextField(
+                        value = uiState.compressVideoBitrate,
+                        onValueChange = onVideoBitrateChanged,
+                        label = { Text("Custom video bitrate (kbps)") },
+                        placeholder = { Text("e.g. 1000") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                    )
+                }
+            }
+
+            // ── Audio bitrate preset ──────────────────────────────────
+            CompressSectionLabel("Audio bitrate")
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    DropdownField(
+                        label = "Audio quality",
+                        options = AUDIO_BITRATE_PRESETS.map { it.label },
+                        selectedIndex = uiState.compressAudioBitratePresetIndex.coerceIn(0, AUDIO_BITRATE_PRESETS.lastIndex),
+                        onSelected = onAudioBitratePresetSelected,
+                        supportingText = "128kbps is fine for most speech/music. 96kbps for voice.",
+                    )
+                    OutlinedTextField(
+                        value = uiState.compressAudioBitrate,
+                        onValueChange = onAudioBitrateChanged,
+                        label = { Text("Custom audio bitrate (kbps)") },
+                        placeholder = { Text("e.g. 128") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
                     )
                 }
             }
@@ -232,6 +267,7 @@ fun CompressScreen(
                     Text("Compress file", style = MaterialTheme.typography.labelLarge)
                 }
             }
+
             // ── Progress ─────────────────────────────────────────────
             if (uiState.isCompressing) {
                 Column(
@@ -254,6 +290,7 @@ fun CompressScreen(
                     }
                 }
             }
+
             // ── Result / error ────────────────────────────────────────
             uiState.compressResult?.let { msg ->
                 Surface(
@@ -261,12 +298,29 @@ fun CompressScreen(
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text(
-                        text = msg,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                    Column(
                         modifier = Modifier.padding(12.dp),
-                    )
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Text(
+                            text = msg,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                        )
+                        val srcSize = uiState.compressSourceSizeBytes
+                        val resSize = uiState.compressResultSizeBytes
+                        if (srcSize != null && resSize != null) {
+                            val saved = srcSize - resSize
+                            val pct = if (srcSize > 0) {
+                                (saved.toDouble() / srcSize * 100).roundToInt()
+                            } else 0
+                            Text(
+                                text = "Before: ${formatFileSize(srcSize)}  ->  After: ${formatFileSize(resSize)}  (${if (pct > 0) "-$pct%" else "+${-pct}%"})",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            )
+                        }
+                    }
                 }
             }
             uiState.compressError?.let { msg ->
@@ -315,32 +369,51 @@ fun CompressScreen(
     }
 }
 
+@androidx.compose.material3.ExperimentalMaterial3Api
 @Composable
-private fun QuickPresetRow(
-    onSelected: (vbr: String, abr: String, height: String) -> Unit,
+private fun DropdownField(
+    label: String,
+    options: List<String>,
+    selectedIndex: Int,
+    onSelected: (Int) -> Unit,
+    supportingText: String,
+    modifier: Modifier = Modifier,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text("Quick presets", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            PresetChip("Small", onClick = { onSelected("500", "96", "480") })
-            PresetChip("Medium", onClick = { onSelected("1000", "128", "720") })
-            PresetChip("High", onClick = { onSelected("2500", "192", "1080") })
+    var expanded by remember { mutableStateOf(false) }
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(text = label, style = MaterialTheme.typography.bodyMedium)
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = it },
+        ) {
+            OutlinedTextField(
+                value = options.getOrElse(selectedIndex) { options.first() },
+                onValueChange = {},
+                readOnly = true,
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+            )
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+            ) {
+                options.forEachIndexed { index, option ->
+                    DropdownMenuItem(
+                        text = { Text(option) },
+                        onClick = {
+                            onSelected(index)
+                            expanded = false
+                        },
+                    )
+                }
+            }
         }
-    }
-}
-
-@Composable
-private fun PresetChip(label: String, onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        shape = RoundedCornerShape(50),
-    ) {
         Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSecondaryContainer,
-            modifier = androidx.compose.ui.Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+            text = supportingText,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -348,9 +421,9 @@ private fun PresetChip(label: String, onClick: () -> Unit) {
 @Composable
 private fun CompressSectionLabel(title: String) {
     Text(
-        text = title.uppercase(),
-        style = MaterialTheme.typography.labelSmall,
+        text = title,
+        style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.primary,
-        modifier = androidx.compose.ui.Modifier.padding(horizontal = 4.dp),
+        modifier = Modifier.padding(horizontal = 4.dp),
     )
 }

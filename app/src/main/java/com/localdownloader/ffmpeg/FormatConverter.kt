@@ -1,8 +1,92 @@
 package com.localdownloader.ffmpeg
 
 import com.localdownloader.domain.models.ConversionRequest
+import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
+
+/**
+ * Maps file extension to its expected content type.
+ */
+enum class MediaContentType { VIDEO, AUDIO, UNKNOWN }
+
+fun String.guessContentType(): MediaContentType {
+    val ext = substringAfterLast('.', "").lowercase()
+    return when (ext) {
+        "mp3", "m4a", "aac", "wav", "flac", "ogg", "opus" -> MediaContentType.AUDIO
+        "mp4", "mkv", "mov", "avi", "webm", "flv", "wmv" -> MediaContentType.VIDEO
+        else -> MediaContentType.UNKNOWN
+    }
+}
+
+/**
+ * Video-friendly output formats (limited to what the bundled FFmpeg supports).
+ * The bundled FFmpeg doesn't have VP8/VP9 encoders, so webm can't produce video.
+ */
+val VIDEO_OUTPUT_FORMATS = listOf("mp4", "mkv", "avi", "flv", "mov")
+
+/**
+ * Audio-friendly output formats.
+ */
+val AUDIO_OUTPUT_FORMATS = listOf("mp3", "m4a", "aac", "wav", "opus", "flac", "ogg")
+
+/**
+ * Purpose-driven presets for conversion.
+ */
+data class ConversionPreset(
+    val label: String,
+    val description: String,
+    val format: String,
+    val videoBitrateKbps: Int? = null,
+    val audioBitrateKbps: Int? = null,
+)
+
+val CONVERSION_PRESETS = listOf(
+    // Video presets
+    ConversionPreset(
+        label = "High quality video",
+        description = "MP4, good for archiving",
+        format = "mp4",
+        videoBitrateKbps = 2500,
+        audioBitrateKbps = 192,
+    ),
+    ConversionPreset(
+        label = "Best compatibility",
+        description = "Standard quality MP4, works everywhere",
+        format = "mp4",
+        videoBitrateKbps = 1000,
+        audioBitrateKbps = 128,
+    ),
+    ConversionPreset(
+        label = "Small file",
+        description = "MPEG-4, best for messaging / sharing",
+        format = "mp4",
+        videoBitrateKbps = 500,
+        audioBitrateKbps = 96,
+    ),
+    // Audio-only presets
+    ConversionPreset(
+        label = "Audio (MP3)",
+        description = "Common audio format, good compatibility",
+        format = "mp3",
+        videoBitrateKbps = null,
+        audioBitrateKbps = 192,
+    ),
+    ConversionPreset(
+        label = "Lossless audio (FLAC)",
+        description = "No quality loss, larger file size",
+        format = "flac",
+        videoBitrateKbps = null,
+        audioBitrateKbps = null,
+    ),
+    ConversionPreset(
+        label = "Audio (Opus)",
+        description = "Modern efficient audio codec",
+        format = "opus",
+        videoBitrateKbps = null,
+        audioBitrateKbps = 128,
+    ),
+)
 
 @Singleton
 class FormatConverter @Inject constructor(
@@ -12,48 +96,57 @@ class FormatConverter @Inject constructor(
         request: ConversionRequest,
         onProgress: ((Float) -> Unit)? = null,
     ): Result<String> {
-        val args = mutableListOf(
-            "-i",
-            request.inputFilePath,
-        )
+        val inputFile = File(request.inputFilePath)
+        if (!inputFile.exists()) {
+            return Result.failure(IllegalArgumentException("Source file does not exist: ${request.inputFilePath}"))
+        }
 
-        request.videoBitrateKbps?.let { args += listOf("-b:v", "${it}k") }
+        val outputExt = request.outputFilePath.substringAfterLast('.', "").lowercase().ifBlank { "mp4" }
+        val isAudioOnlyOut = outputExt in listOf("mp3", "m4a", "aac", "wav", "flac", "ogg", "opus")
+
+        val args = mutableListOf("-i", request.inputFilePath)
+
+        if (isAudioOnlyOut) {
+            // Strip video, keep only audio.
+            args += listOf("-vn")
+        } else {
+            // Video output: use mpeg4 encoder (bundled FFmpeg doesn't have libx264).
+            // If source is audio-only, produce a static poster video.
+            args += listOf("-c:v", "mpeg4")
+            val sourceType = request.inputFilePath.guessContentType()
+            if (sourceType == MediaContentType.AUDIO) {
+                args += listOf(
+                    "-loop", "1",
+                    "-vf", "scale=1280:720",
+                    "-shortest",
+                )
+            }
+            request.videoBitrateKbps?.let { args += listOf("-b:v", "${it}k") }
+        }
+
         request.audioBitrateKbps?.let { args += listOf("-b:a", "${it}k") }
 
-        // Allow ffmpeg to infer muxer from output extension.
         args += listOf("-y", request.outputFilePath)
 
-        var totalSec = 0.0
+        val parser = FfmpegProgressParser
         val result = ffmpegExecutor.execute(
             args = args,
             onStderrLine = { line ->
-                if (totalSec == 0.0) parseFfmpegDuration(line)?.let { totalSec = it }
-                if (totalSec > 0.0) {
-                    parseFfmpegTime(line)?.let { cur ->
+                parser.parseDuration(line)?.let { totalSec ->
+                    parser.parseTime(line)?.let { cur ->
                         onProgress?.invoke((cur / totalSec).toFloat().coerceIn(0f, 1f))
                     }
                 }
             },
         )
         return if (result.isSuccess) {
-            Result.success(request.outputFilePath)
+            if (File(request.outputFilePath).exists()) {
+                Result.success(request.outputFilePath)
+            } else {
+                Result.failure(IllegalStateException("Conversion completed but output file was not found"))
+            }
         } else {
             Result.failure(IllegalStateException(result.stderr.ifBlank { "FFmpeg conversion failed" }))
         }
     }
-}
-
-private val durationPattern = Regex("""Duration:\s*(\d+):(\d+):(\d+\.?\d*)""")
-private val timePattern = Regex("""time=\s*(\d+):(\d+):(\d+\.?\d*)""")
-
-private fun parseFfmpegDuration(line: String): Double? {
-    val m = durationPattern.find(line) ?: return null
-    val (h, min, s) = m.destructured
-    return h.toDouble() * 3600 + min.toDouble() * 60 + s.toDouble()
-}
-
-private fun parseFfmpegTime(line: String): Double? {
-    val m = timePattern.find(line) ?: return null
-    val (h, min, s) = m.destructured
-    return h.toDouble() * 3600 + min.toDouble() * 60 + s.toDouble()
 }

@@ -267,6 +267,7 @@ fun DownloaderApp(
                     onVideoBitrateChanged = mediaToolsViewModel::onConvertVideoBitrateChanged,
                     onConvertClicked = mediaToolsViewModel::startConvert,
                     onBrowseFile = { convertFilePicker.launch(arrayOf("*/*")) },
+                    onConversionPresetSelected = mediaToolsViewModel::applyConversionPreset,
                     onBack = { navController.popBackStack() },
                 )
             }
@@ -274,6 +275,9 @@ fun DownloaderApp(
                 CompressScreen(
                     uiState = mediaToolsState,
                     onInputPathChanged = mediaToolsViewModel::onCompressInputPathChanged,
+                    onResolutionPresetSelected = mediaToolsViewModel::onCompressResolutionPresetSelected,
+                    onVideoBitratePresetSelected = mediaToolsViewModel::onCompressVideoBitratePresetSelected,
+                    onAudioBitratePresetSelected = mediaToolsViewModel::onCompressAudioBitratePresetSelected,
                     onMaxHeightChanged = mediaToolsViewModel::onCompressMaxHeightChanged,
                     onVideoBitrateChanged = mediaToolsViewModel::onCompressVideoBitrateChanged,
                     onAudioBitrateChanged = mediaToolsViewModel::onCompressAudioBitrateChanged,
