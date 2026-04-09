@@ -229,7 +229,7 @@ class FileUtils @Inject constructor(
             "mp4", "mkv", "webm", "mov" -> "video/$ext"
             "mp3" -> "audio/mpeg"
             "aac", "m4a" -> "audio/$ext"
-            "opus", "ogg", "ogg" -> "audio/ogg"
+            "opus", "ogg" -> "audio/ogg"
             "wav" -> "audio/wav"
             "flac" -> "audio/flac"
             "jpg", "jpeg" -> "image/jpeg"
@@ -242,6 +242,47 @@ class FileUtils @Inject constructor(
         context.sendBroadcast(
             android.content.Intent(android.content.Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, uri),
         )
+    }
+
+    /**
+     * Clears the app's cache directory.
+     * Returns the number of bytes freed.
+     */
+    fun clearCache(): Long {
+        val cacheDir = context.cacheDir
+        var freedBytes = 0L
+        cacheDir.listFiles()?.forEach { file ->
+            freedBytes += deleteRecursively(file)
+        }
+        return freedBytes
+    }
+
+    /**
+     * Gets the current cache size in bytes.
+     */
+    fun getCacheSize(): Long {
+        return calculateDirSize(context.cacheDir)
+    }
+
+    private fun calculateDirSize(dir: File): Long {
+        var size = 0L
+        dir.listFiles()?.forEach { file ->
+            size += if (file.isDirectory) {
+                calculateDirSize(file)
+            } else {
+                file.length()
+            }
+        }
+        return size
+    }
+
+    private fun deleteRecursively(file: File): Long {
+        val size = if (file.isDirectory) {
+            file.listFiles()?.sumOf { deleteRecursively(it) } ?: 0L
+        } else {
+            file.length()
+        }
+        return if (file.delete()) size else 0L
     }
 
     private fun ensureInternalDir(name: String): File {
@@ -269,9 +310,15 @@ class FileUtils @Inject constructor(
                 context.contentResolver.openInputStream(uri)?.use { input ->
                     dest.outputStream().use { output -> input.copyTo(output) }
                 }
-                dest.absolutePath
-            } catch (_: Exception) {
-                null
+                if (dest.exists() && dest.length() > 0) {
+                    dest.absolutePath
+                } else {
+                    // Fallback: return the URI string itself for SAF access
+                    uri.toString()
+                }
+            } catch (e: Exception) {
+                // Return the URI string as fallback for SAF access
+                uri.toString()
             }
         }
 
