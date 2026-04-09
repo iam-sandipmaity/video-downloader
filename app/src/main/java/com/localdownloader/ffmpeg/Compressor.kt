@@ -33,7 +33,8 @@ class Compressor @Inject constructor(
             request.inputFilePath,
         )
 
-        val inputExt = request.inputFilePath.substringAfterLast('.', "").lowercase()
+        val inputExt = request.inputFilePath.substringAfterLast('.').lowercase()
+        val outputExt = request.outputFilePath.substringAfterLast('.').lowercase()
         val isAudioOnlyInput = inputExt in listOf("mp3", "m4a", "aac", "wav", "flac", "ogg", "opus")
 
         if (!isAudioOnlyInput) {
@@ -59,25 +60,35 @@ class Compressor @Inject constructor(
 
         request.targetAudioBitrateKbps?.let { args += listOf("-b:a", "${it}k") }
 
-        if (isAudioOnlyInput) {
-            args += listOf("-y", request.outputFilePath)
+        // Determine output codec based on extension
+        val finalArgs = if (isAudioOnlyInput) {
+            args + listOf("-y", request.outputFilePath)
         } else {
-            args += listOf("-c:a", "aac", "-movflags", "+faststart", "-y", request.outputFilePath)
+            val audioCodec = when (outputExt) {
+                "mp4", "mov", "mkv" -> listOf("-c:a", "aac", "-movflags", "+faststart")
+                "avi", "flv" -> listOf("-c:a", "mp3")
+                else -> listOf("-c:a", "aac")
+            }
+            args + audioCodec + listOf("-y", request.outputFilePath)
         }
 
         val parser = FfmpegProgressParser
+        var lastProgress = 0f
         val result = ffmpegExecutor.execute(
-            args = args,
+            args = finalArgs,
             onStderrLine = { line ->
-                if (parser.parseDuration(line)?.let { totalSec ->
-                        parser.parseTime(line)?.let { cur ->
-                            onProgress?.invoke((cur / totalSec).toFloat().coerceIn(0f, 1f))
-                        }
-                    } != null) {
-                    // progress handled above
+                val totalSec = parser.parseDuration(line)
+                val cur = parser.parseTime(line)
+                if (totalSec != null && cur != null) {
+                    lastProgress = (cur / totalSec).toFloat().coerceIn(0f, 1f)
+                    onProgress?.invoke(lastProgress)
                 }
             },
         )
+        // Ensure we report completion even if parser didn't catch it
+        if (lastProgress < 1f && result.isSuccess) {
+            onProgress?.invoke(1f)
+        }
         return if (result.isSuccess) {
             // Ensure the output file actually exists.
             if (File(request.outputFilePath).exists()) {

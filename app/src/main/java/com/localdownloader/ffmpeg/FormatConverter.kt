@@ -129,16 +129,22 @@ class FormatConverter @Inject constructor(
         args += listOf("-y", request.outputFilePath)
 
         val parser = FfmpegProgressParser
+        var lastProgress = 0f
         val result = ffmpegExecutor.execute(
             args = args,
             onStderrLine = { line ->
-                parser.parseDuration(line)?.let { totalSec ->
-                    parser.parseTime(line)?.let { cur ->
-                        onProgress?.invoke((cur / totalSec).toFloat().coerceIn(0f, 1f))
-                    }
+                val totalSec = parser.parseDuration(line)
+                val cur = parser.parseTime(line)
+                if (totalSec != null && cur != null) {
+                    lastProgress = (cur / totalSec).toFloat().coerceIn(0f, 1f)
+                    onProgress?.invoke(lastProgress)
                 }
             },
         )
+        // Ensure we report completion even if parser didn't catch it
+        if (lastProgress < 1f && result.isSuccess) {
+            onProgress?.invoke(1f)
+        }
         return if (result.isSuccess) {
             if (File(request.outputFilePath).exists()) {
                 Result.success(request.outputFilePath)
