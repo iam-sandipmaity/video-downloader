@@ -16,7 +16,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.layout.padding
@@ -57,6 +59,7 @@ fun DownloaderApp(
     val mediaToolsViewModel: MediaToolsViewModel = hiltViewModel()
     val context = LocalContext.current
     val fileUtils = remember(context) { FileUtils(context) }
+    var cacheSize by remember { mutableStateOf(0L) }
     val localJson = remember {
         Json {
             ignoreUnknownKeys = true
@@ -147,6 +150,11 @@ fun DownloaderApp(
         onDarkThemeUpdated?.invoke(formatState.isDarkTheme)
     }
 
+    // Update cache size periodically
+    LaunchedEffect(currentRoute) {
+        cacheSize = fileUtils.getCacheSize()
+    }
+
     val primaryDestinations = remember {
         listOf(
             PrimaryDestination(
@@ -232,6 +240,7 @@ fun DownloaderApp(
                         formatViewModel.toggleDarkTheme(enabled)
                         onDarkThemeChanged?.invoke(enabled)
                     },
+                    isDownloadButtonEnabled = formatViewModel.isDownloadButtonEnabled(),
                 )
             }
             composable(Routes.Progress) {
@@ -304,6 +313,11 @@ fun DownloaderApp(
                     onYoutubeCookiesPathChanged = formatViewModel::onYoutubeCookiesPathChanged,
                     onPickYoutubeCookies = { youtubeCookiesPicker.launch(arrayOf("text/plain", "*/*")) },
                     onPickYoutubeAuthBundle = { youtubeAuthBundlePicker.launch(arrayOf("application/json", "text/plain", "*/*")) },
+                    onClearCache = {
+                        fileUtils.clearCache()
+                        cacheSize = 0L
+                    },
+                    cacheSize = cacheSize,
                     onBack = { navController.popBackStack() },
                 )
             }
