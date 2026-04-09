@@ -142,7 +142,13 @@ fun VideoScreen(
                     }
                 } else {
                     activeAudioTaskId = item.task.id
-                    audioPlayer.setMediaItem(MediaItem.fromUri(Uri.fromFile(targetFile)))
+                    // Use content URI for Android 10+ (scoped storage) compatibility
+                    val contentUri = androidx.core.content.FileProvider.getUriForFile(
+                        context,
+                        "${context.packageName}.fileprovider",
+                        targetFile,
+                    )
+                    audioPlayer.setMediaItem(MediaItem.fromUri(contentUri))
                     audioPlayer.prepare()
                     audioPlayer.playWhenReady = true
                 }

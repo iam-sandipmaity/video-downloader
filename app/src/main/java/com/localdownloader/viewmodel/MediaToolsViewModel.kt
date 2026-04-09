@@ -162,13 +162,20 @@ class MediaToolsViewModel @Inject constructor(
             _uiState.update { it.copy(convertError = "Input file path is required") }
             return
         }
+
+        val downloadsDir = runCatching { fileUtils.ensureDownloadsDir() }
+            .getOrElse {
+                _uiState.update { it.copy(convertError = "Cannot access downloads directory") }
+                return
+            }
+
         val ext = s.convertOutputFormat.trim().lowercase()
         val baseName = s.convertInputPath.trim()
             .substringAfterLast('/')
             .substringAfterLast('\\')
             .let { if ('.' in it) it.substringBeforeLast('.') else it }
-        val outputPath = fileUtils.ensureDownloadsDir().absolutePath +
-            "/" + fileUtils.sanitizeFileName(baseName) + "." + ext
+        val outputPath = downloadsDir.absolutePath + "/" + fileUtils.sanitizeFileName(baseName) + "." + ext
+        
         val request = ConversionRequest(
             inputFilePath = s.convertInputPath.trim(),
             outputFilePath = outputPath,
@@ -180,13 +187,17 @@ class MediaToolsViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isConverting = true, convertResult = null, convertError = null, convertProgress = 0f) }
             val result = repository.convertMedia(request) { progress ->
-                _uiState.value = _uiState.value.copy(convertProgress = progress)
+                _uiState.update { it.copy(convertProgress = progress) }
+            }
+            // Copy to public Downloads folder so user can find it
+            val publicPath = result.getOrNull()?.let { path ->
+                runCatching { fileUtils.copyToPublicDownloads(File(path), null) }.getOrNull()
             }
             _uiState.update {
                 it.copy(
                     isConverting = false,
                     convertProgress = null,
-                    convertResult = result.getOrNull()?.let { path -> "Saved to: $path" },
+                    convertResult = result.getOrNull()?.let { path -> "Saved to: ${publicPath ?: path}" },
                     convertResultSizeBytes = result.getOrNull()?.let { path -> File(path).length() },
                     convertSourceSizeBytes = sourceSize,
                     convertError = result.exceptionOrNull()?.message,
@@ -266,13 +277,19 @@ class MediaToolsViewModel @Inject constructor(
             _uiState.update { it.copy(compressError = "Input file path is required") }
             return
         }
+
+        val downloadsDir = runCatching { fileUtils.ensureDownloadsDir() }
+            .getOrElse {
+                _uiState.update { it.copy(compressError = "Cannot access downloads directory") }
+                return
+            }
+
         val inputExt = s.compressInputPath.trim().substringAfterLast('.').lowercase().ifBlank { "mp4" }
         val baseName = s.compressInputPath.trim()
             .substringAfterLast('/')
             .substringAfterLast('\\')
             .let { if ('.' in it) it.substringBeforeLast('.') else it }
-        val outputPath = fileUtils.ensureDownloadsDir().absolutePath +
-            "/" + fileUtils.sanitizeFileName("${baseName}_compressed") + "." + inputExt
+        val outputPath = downloadsDir.absolutePath + "/" + fileUtils.sanitizeFileName("${baseName}_compressed") + "." + inputExt
         val request = CompressionRequest(
             inputFilePath = s.compressInputPath.trim(),
             outputFilePath = outputPath,
@@ -284,13 +301,17 @@ class MediaToolsViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isCompressing = true, compressResult = null, compressError = null, compressProgress = 0f) }
             val result = repository.compressMedia(request) { progress ->
-                _uiState.value = _uiState.value.copy(compressProgress = progress)
+                _uiState.update { it.copy(compressProgress = progress) }
+            }
+            // Copy to public Downloads folder so user can find it
+            val publicPath = result.getOrNull()?.let { path ->
+                runCatching { fileUtils.copyToPublicDownloads(File(path), null) }.getOrNull()
             }
             _uiState.update {
                 it.copy(
                     isCompressing = false,
                     compressProgress = null,
-                    compressResult = result.getOrNull()?.let { path -> "Saved to: $path" },
+                    compressResult = result.getOrNull()?.let { path -> "Saved to: ${publicPath ?: path}" },
                     compressResultSizeBytes = result.getOrNull()?.let { path -> File(path).length() },
                     compressSourceSizeBytes = sourceSize,
                     compressError = result.exceptionOrNull()?.message,
@@ -300,8 +321,4 @@ class MediaToolsViewModel @Inject constructor(
     }
 
     fun dismissCompressResult() = _uiState.update { it.copy(compressResult = null, compressError = null, compressResultSizeBytes = null) }
-}
-
-private fun <T> MutableStateFlow<T>.update(transform: (T) -> T) {
-    value = transform(value)
 }
