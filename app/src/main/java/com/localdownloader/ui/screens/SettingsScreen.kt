@@ -32,6 +32,7 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.Web
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -80,6 +81,8 @@ fun SettingsScreen(
     onPickYoutubeCookies: () -> Unit,
     onPickYoutubeAuthBundle: () -> Unit,
     onSaveClicked: () -> Unit,
+    onClearCache: () -> Unit,
+    cacheSize: Long = 0L,
     onBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -231,6 +234,12 @@ fun SettingsScreen(
                     onLinkedIn = { openUrl("https://linkedin.com/in/iam-sandipmaity") },
                 )
             }
+
+            // ── Storage ───────────────────────────────────────────────────
+            CacheCard(
+                cacheSize = cacheSize,
+                onClearCache = onClearCache,
+            )
 
             // ── About ─────────────────────────────────────────────────
             AboutCard(onDeveloperProfile = { openUrl("https://profile.sandipmaity.me") })
@@ -501,6 +510,58 @@ private fun LinkRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+    }
+}
+
+// ── Cache ───────────────────────────────────────────────────────────────
+
+@Composable
+private fun CacheCard(
+    cacheSize: Long,
+    onClearCache: () -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column {
+                    Text(
+                        text = "Cache",
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        text = "Temporary files: ${formatFileSize(cacheSize)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                TextButton(onClick = onClearCache) {
+                    Icon(
+                        imageVector = Icons.Outlined.Delete,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text("Clear", modifier = Modifier.padding(start = 4.dp))
+                }
+            }
+        }
+    }
+}
+
+private fun formatFileSize(bytes: Long): String {
+    return when {
+        bytes < 1024 -> "$bytes B"
+        bytes < 1024 * 1024 -> "${bytes / 1024} KB"
+        bytes < 1024 * 1024 * 1024 -> "${bytes / (1024 * 1024)} MB"
+        else -> String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))
     }
 }
 
