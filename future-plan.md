@@ -8,115 +8,43 @@
 - Download engine: `DownloadEngine`, `ProcessRunner`, `YtDlpExecutor` — no changes
 - Backend architecture: Room DB, WorkManager, Hilt DI, DataStore — no changes
 - Package name: `com.localdownloader` — maintain update compatibility
-- YouTube logic: 360p hardcoded, no fallback chain (current v1.3.0 behavior)
 - No WebView anywhere — all download logic stays as-is
 
 ---
 
-## Phase 1: UI Overhaul — 3 Bottom Tabs Layout (HIGH PRIORITY)
+## Phase 1: UI Overhaul — 3 Bottom Tabs Layout (COMPLETED in v1.4.0)
 
-**Design reference:** 3-tab Android app layout (Browser / Progress / Video)
+### ✅ Completed Features
 
-### 1.1 Bottom Navigation Bar — 3 Tabs
-
-Three tabs, always visible at the bottom:
-
-| Tab | Icon | Purpose |
-|---|---|---|
-| **Browser** | Tab/group icon | Main page — URL input bar, quick site shortcut buttons |
-| **Progress** | Download icon | Active/queued download tasks with progress bars |
-| **Video** | Video library icon | Completed downloads list with thumbnails, file size, play/share/delete |
-
-**Technical approach (Compose):**
-- `NavigationBar` + `NavigationBarItem` from Material3
-- `NavHost` switching between 3 screens
-- Existing `DownloadManagerScreen` becomes the **Progress** tab
-- New `VideoScreen` becomes the **Video** tab (completed downloads + internal player)
-- Existing `HomeScreen` becomes **Browser** tab (renamed, restructured layout)
-
-### 1.2 Browser Tab (Home Screen)
-
-This is the main landing screen. The download logic is exactly what we already have
-(URL input → analyze → format select → download) — just laid out differently.
-
-#### Top Bar
-- App title / logo on the left
-- 3-dot overflow menu on the right
-
-#### Overflow Menu Items (dropdown)
-- **History** — opens `DownloadHistoryScreen`
-- **Compressor** — opens `CompressScreen` (already exists)
-- **Converter** — opens `ConvertScreen` (already exists)
-- **Settings** — opens existing `SettingsScreen`
-- **Help** — opens FAQ/info screen
-- **Dark Mode** — toggle (checkbox), switches theme
-
-These are all existing screens that currently live elsewhere in the app — the overflow
-menu just acts as a unified navigation hub.
-
-#### URL / Search Bar
-- OutlinedTextField: `"Search or enter URL"`
-- Paste button (clipboard icon)
-- Analyze button
-- Linear progress bar shown while analyzing
-
-#### Quick Shortcut Buttons
-- Horizontal scrollable row of site chips/pills (YouTube, Instagram, TikTok, Twitter/X,
-  Facebook, Dailymotion, Vimeo, Pinterest, Twitch)
-- Tapping one fills the URL bar with that site's domain or opens YouTube search
-  (tapping "YouTube" → `https://youtube.com`, tapping "TikTok" → `https://tiktok.com`, etc.)
-- User then pastes or types the full URL — existing analyze flow kicks in
-
-**Technical approach:**
-- `LazyRow` of chip buttons or icon grid
-- No WebView — no in-app browsing
-- The existing `HomeScreen` URL input + analyze logic stays as-is
-- Just reorganized into a cleaner layout matching the 3-tab pattern
-
-### 1.3 Progress Tab
-
-**What exists now:** `DownloadManagerScreen` + download queue
-**What to improve:**
-- Rounded cards with thumbnail, filename, progress bar, speed/ETA, 3-dot overflow menu
-- 3-dot menu options: Cancel, Pause, Resume, Stop and Save
-- Active downloads at top, queued below
-- Badge count on tab icon when background downloads are running
-
-**No change to backend** — just new `DownloadCard` component with the card layout.
-
-### 1.4 Video Tab (Completed Downloads)
-
-**What it is:** NEW screen — completed download history with file management
-
-**Layout:**
-- `LazyColumn` of cards with:
-  - Thumbnail
-  - Filename + file size
-  - 3-dot menu: Play, Share, Delete, Rename
-
-**Play functionality:**
-- Tap the file → opens internal video player (ExoPlayer)
-- Basic controls: play/pause, seek bar, fullscreen toggle
-
-**Technical approach:**
-- New `VideoScreen` composable
-- New `PlayerScreen` composable with ExoPlayer
-- Reuse existing `DownloadHistoryScreen` data where possible
-
-### 1.5 Material Design Cleanup
-
-**What exists now:** Current Compose theme with dark mode
-**What to add:**
-- Dark/light toggle in overflow menu AND settings
-- Consistent elevation and surface colors across all screens
-- Rounded card style everywhere (progress cards, video cards)
-- Bottom navigation with proper active/inactive highlight (filled/tonal distinction)
+| Feature | Status |
+|---|---|
+| 3 Bottom Tabs (Browser, Progress, Video) | ✅ Complete |
+| Browser Tab with URL bar + quick shortcuts | ✅ Complete |
+| Progress Tab with active downloads | ✅ Complete |
+| Video Tab with completed downloads + player | ✅ Complete |
+| Overflow menu (History, Compressor, Converter, Settings, Help, Dark Mode) | ✅ Complete |
+| Dark/Light theme toggle | ✅ Complete |
 
 ---
 
-## Phase 2: YouTube Download Logic Enhancement (MEDIUM PRIORITY — Long-term)
+## Phase 2: YouTube Download Enhancement (MEDIUM PRIORITY)
 
-### 2.1 Auto-update yt-dlp
+### 2.1 YouTube DASH Video+Audio for Higher Resolution
+
+**Problem:** Currently YouTube downloads without manual selection are capped at 360p. Users want higher resolutions (720p, 1080p, etc.).
+
+**Solution:**
+- Enable proper DASH format selection via `bestvideo[height<=X]+bestaudio` selector
+- Add resolution picker in format selection UI (360p, 480p, 720p, 1080p, 1440p, 4K)
+- Parse available DASH formats from yt-dlp analysis response
+- Display available resolutions based on video's actual available formats
+
+**Technical approach:**
+- Modify `FormatViewModel` to parse height information from video formats
+- Add resolution dropdown in `BrowserScreen` options sheet
+- Use yt-dlp format selector: `bestvideo[height<=720]+bestaudio/best[height<=720]`
+
+### 2.2 Auto-update yt-dlp
 **What it does:**
 - Check GitHub for latest yt-dlp on app start (periodically)
 - Download + replace the yt-dlp binary in app data dir
@@ -126,66 +54,188 @@ menu just acts as a unified navigation hub.
 - `downloader/YtDlpUpdater.kt` — new component
 - GitHub API: fetches latest release, downloads updated Python binary
 
-### 2.2 Enhanced PO Token Support
+### 2.3 Enhanced PO Token Support
 **What exists:** Has PO token + cookies path + context hint input
 **What to improve:**
 - Per-player-client PO tokens (android, web, ios, tv)
 - Let user assign different tokens to different clients
 
-### 2.3 Cookie Management via WebView
+### 2.4 Cookie Management via WebView
 **What it does:**
 - User logs into YouTube via a small embedded WebView (settings screen only)
 - Cookies extracted and saved as Netscape format
 - yt-dlp uses them for authenticated downloads
 
-### 2.4 Extractor Client Selection
-**What it does:**
-- Settings to pick preferred YouTube player client
-- Default to `android` (least likely blocked)
+---
+
+## Phase 3: Embedded Terminal Feature (NEW - HIGH PRIORITY)
+
+### 3.1 Embedded Terminal for Downloads
+
+**Problem:** Users want more control over downloads with custom yt-dlp commands.
+
+**Solution:**
+- Add embedded terminal in app where users can run yt-dlp commands directly
+- Pre-filled command templates for common operations
+- Real-time output streaming
+- Command history
+
+**Features:**
+```
+Terminal Commands:
+- ytdlp <url>                           # Download with default options
+- ytdlp <url> -f bestvideo[height<=1080]+bestaudio  # 1080p
+- ytdlp <url> --cookies-from-browser chrome        # Use browser cookies
+- ytdlp <url> -x --audio-format mp3                # Extract audio as MP3
+- ytdlp -U                               # Update yt-dlp to latest
+```
+
+**Technical approach:**
+- New `TerminalScreen.kt` composable
+- Use same `ProcessRunner` as downloads for command execution
+- Output displayed in scrollable terminal-style view
+- Pre-built command templates as quick-action buttons
 
 ---
 
-## Implementation File Map
+## Phase 4: Compressor & Converter Improvements (MEDIUM PRIORITY)
 
-| New File | Tab/Feature | Description |
+### 4.1 Compressor Enhancements
+
+**Current state:** Basic compression with resolution/bitrate sliders
+
+**Improvements needed:**
+- Add compression presets (Small, Medium, Large, Custom)
+- Show estimated output size before compression
+- Add more resolution options (144p, 240p, 360p, 480p, 720p, 1080p)
+- Add audio quality options (64kbps, 128kbps, 192kbps, 320kbps)
+- Show before/after file size comparison
+- Add cancel button during compression
+
+### 4.2 Converter Enhancements
+
+**Current state:** Basic format conversion
+
+**Improvements needed:**
+- Add format presets for common conversions
+- Show estimated output size
+- Support more output formats
+- Batch conversion capability
+
+---
+
+## Phase 5: Bug Fixes & Stability (ONGOING)
+
+### 5.1 Known Issues to Fix
+
+| Priority | Issue | Status |
 |---|---|---|
-| `MainActivity.kt` (modify) | Navigation | Bottom navigation setup, NavHost for 3 tabs |
-| `ui/BrowserScreen.kt` (new) | Browser tab | URL bar, quick site shortcuts, overflow menu |
-| `ui/components/QuickLinksRow.kt` (new) | Browser tab | Horizontal site shortcut chips |
-| `ui/ProgressScreen.kt` (new) | Progress tab | Active download cards list (replaces DownloadManagerScreen) |
-| `ui/VideoScreen.kt` (new) | Video tab | Completed downloads list |
-| `ui/PlayerScreen.kt` (new) | Video tab | Internal video player (ExoPlayer) |
-| `ui/components/DownloadCard.kt` (new) | Progress tab | Single download progress card UI |
-| `ui/components/VideoCard.kt` (modify) | Video tab | Add file size, play/share actions |
-| `ui/components/BrowserToolbar.kt` (new) | Browser tab | Top BarLayout with 3-dot overflow menu |
-| `ui/screens/SettingsScreen.kt` (modify) | Shared | Compressor/Converter moved to overflow menu, help section |
-| `ui/screens/HelpScreen.kt` (new) | Overflow menu | FAQ / about screen |
-| `downloader/YtDlpUpdater.kt` (new) | Phase 2 | Auto-update yt-dlp binary |
+| HIGH | Cookie auth - cookies not applied without PO token | ✅ Fixed v1.4.0 |
+| HIGH | Download button - confusing state during download | ✅ Fixed v1.4.0 |
+| MEDIUM | Converter output not visible in file manager | ✅ Fixed v1.4.0 |
+| MEDIUM | Compressor output not visible in file manager | ✅ Fixed v1.4.0 |
+| MEDIUM | No FFmpeg operation cancellation | ⚠️ Partial |
+| MEDIUM | Unbounded cache growth from URI import | ⚠️ Partial |
+| LOW | Help page needs more information | ✅ Fixed v1.4.0 |
+| LOW | Settings missing cache clearing | ✅ Fixed v1.4.0 |
 
-### Existing Files to Keep (Backend — No Changes)
-- `DownloadEngine.kt`, `ProcessRunner.kt`, `YtDlpExecutor.kt`
-- `DownloadWorker.kt` (WorkManager)
-- `DownloadRepositoryImpl.kt`, `DownloadTaskStore.kt`
-- Room: `DownloadTaskEntity`, `DownloadTaskDao`, `AppDatabase`
-- `BinaryInstaller.kt`, `FormatExtractor.kt`, `FormatViewModel.kt`
-- All domain models
+---
 
-### Existing Files to Delete/Replace (Old UI Only)
-- `ui/screens/HomeScreen.kt` — replaced by `BrowserScreen.kt`
-- `ui/screens/DownloadManagerScreen.kt` — replaced by `ProgressScreen.kt`
-- `ui/DownloaderApp.kt` — modify nav structure
-- `ui/screens/DownloadHistoryScreen.kt` — merge into `VideoScreen.kt`
+## Phase 6: App Size Optimization (LONG-TERM)
+
+### 6.1 Current APK Size Issues
+
+The app includes:
+- yt-dlp Python binary (~15MB)
+- FFmpeg binary (~25MB)
+- Python runtime (~8MB)
+- Extras (~5MB)
+
+**Total: ~50MB+ in native libraries**
+
+### 6.2 Optimization Strategies
+
+| Strategy | Potential Savings |
+|---|---|
+| Strip unused Python modules | 3-5MB |
+| Use yt-dlp minimal build | 5-8MB |
+| Compress FFmpeg binary | 2-3MB |
+| Remove unused ABIs (keep only arm64-v8a) | 10-15MB |
+| Enable R8 aggressive minification | 2-3MB |
+| Use App Bundle (split APKs) | User downloads less |
+
+**Target:** Reduce from ~50MB to ~30MB APK
+
+---
+
+## Phase 7: Help & Documentation (ONGOING)
+
+### 7.1 Help Screen Improvements (v1.4.0 - COMPLETED)
+
+Added comprehensive sections:
+- ✅ Downloads: How downloads work, where files are saved
+- ✅ Converter: How to convert, supported formats
+- ✅ Compressor: How to compress, settings explained
+- ✅ Navigation: Browser, Progress, Video tabs
+- ✅ Settings: Dark mode, YouTube auth, download location
+- ✅ Troubleshooting: Common issues and solutions
+- ✅ About: Credits to yt-dlp and FFmpeg
+
+### 7.2 Future Help Improvements
+
+- Video tutorials for common tasks
+- In-app tooltip explanations
+- FAQ expandable sections
+- Error code reference guide
 
 ---
 
 ## Priority Summary
 
-| Priority | What | Phase |
+| Priority | What | Phase | Status |
+|---|---|---|---|
+| **P0** | 3 bottom tabs layout | Phase 1 | ✅ Complete |
+| **P0** | YouTube DASH higher resolution downloads | Phase 2 | 🔄 In Progress |
+| **P1** | Embedded terminal for yt-dlp commands | Phase 3 | 📋 Planned |
+| **P1** | Compressor improvements | Phase 4 | 📋 Planned |
+| **P1** | Converter improvements | Phase 4 | 📋 Planned |
+| **P2** | App size optimization | Phase 6 | 📋 Planned |
+| **P2** | Auto-update yt-dlp | Phase 2 | 📋 Planned |
+| **P3** | Cookie management via WebView | Phase 2 | 📋 Planned |
+
+---
+
+## Implementation File Map
+
+### New Files to Create
+
+| File | Phase | Description |
 |---|---|---|
-| **P0** | 3 bottom tabs (Browser, Progress, Video) | Phase 1 |
-| **P0** | Browser tab: URL bar + quick site shortcuts + 3-dot menu | Phase 1 |
-| **P0** | Overflow menu: History, Compressor, Converter, Settings, Help, Dark Mode | Phase 1 |
-| **P1** | Video tab: completed downloads list + internal player | Phase 1 |
-| **P1** | Progress tab card redesign (rounded cards with 3-dot menu) | Phase 1 |
-| **P2** | YouTube: auto-update yt-dlp, PO tokens per client | Phase 2 |
-| **P3** | Cookie management via WebView (settings only) | Phase 2 |
+| `ui/screens/TerminalScreen.kt` | Phase 3 | Embedded terminal for yt-dlp commands |
+| `ui/components/TerminalOutput.kt` | Phase 3 | Terminal output display component |
+| `downloader/YtDlpUpdater.kt` | Phase 2 | Auto-update yt-dlp binary |
+| `ui/components/CompressionPresetCard.kt` | Phase 4 | Compression preset selection |
+| `ui/components/FormatPresetCard.kt` | Phase 4 | Converter format presets |
+
+### Files to Modify
+
+| File | Changes |
+|---|---|
+| `FormatViewModel.kt` | Add resolution picker, DASH format selection |
+| `BrowserScreen.kt` | Add resolution dropdown in options |
+| `CompressScreen.kt` | Add presets, estimated size, cancel button |
+| `ConvertScreen.kt` | Add format presets, estimated size |
+| `DownloaderApp.kt` | Add Terminal tab/screen navigation |
+
+### Completed Files (v1.4.0)
+
+- `BrowserScreen.kt` ✅
+- `ProgressScreen.kt` ✅
+- `VideoScreen.kt` ✅
+- `PlayerScreen.kt` ✅
+- `HelpScreen.kt` ✅
+- `SettingsScreen.kt` ✅
+- `MediaToolsViewModel.kt` ✅
+- `FormatViewModel.kt` ✅
+- `DownloadEngine.kt` ✅
+- `FileUtils.kt` ✅

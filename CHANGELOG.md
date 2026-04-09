@@ -6,6 +6,51 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ---
 
+## [1.4.0] — 2026-04-09
+
+### Added
+- **Download button state management** — button disables after click to prevent duplicate downloads, shows "Please wait..." with faded appearance, re-enables when user changes format/quality/type/container/audio settings, auto-re-enables after 6-second timeout
+- **Cache management in Settings** — displays current cache size with clear button to free up storage
+- **Enhanced Help Screen** — comprehensive documentation covering Downloads, Converter, Compressor, Navigation tabs, Settings, Troubleshooting, and About sections
+- **YouTube DASH video+audio download support** — improved format selection for higher resolution downloads
+- **Artifact cleanup workflow** — GitHub Actions workflow automatically deletes artifacts older than 2 days
+
+### Changed
+- **YouTube cookie authentication** — cookies are now applied when YouTube auth is enabled OR PO token is provided (previously only worked with PO token)
+- **Converter output location** — converted files now copied to public Downloads/LocalDownloader folder for easy access
+- **Compressor output location** — compressed files now copied to public Downloads/LocalDownloader folder for easy access
+- **Help page** — completely rewritten with much more detailed information
+
+### Fixed
+- **Cookie auth bug** — cookies were not being applied for age-gated YouTube content without PO tokens
+- **Output file visibility** — converted and compressed files were stored in app-private directory; now accessible via file managers
+- **Download state clarity** — users can now clearly see when download button is disabled vs enabled
+- **FFmpeg progress parsing** — removed duplicate code, now uses shared FfmpegProgressParser
+
+### Technical
+- Added `isDownloadButtonDisabled`, `downloadButtonDisabledAt`, and tracking fields in FormatUiState
+- Added `clearCache()` and `getCacheSize()` methods in FileUtils
+- Added CacheCard composable in SettingsScreen
+- Created new .github/workflows/cleanup.yml for artifact management
+- Updated future-plan.md with embedded terminal, YouTube DASH, and app size optimization roadmap
+
+---
+
+## [1.3.0] — 2026-04-06
+
+### Added
+- **Progress indicator during URL analysis** — a `LinearProgressIndicator` bar appears while yt-dlp fetches video info so users get visual feedback that something is happening
+- **Stable signing architecture hooks** — Gradle and GitHub Actions can now consume persistent debug/release keystores so APKs can continue installing as updates instead of conflicting with existing installs
+
+### Changed
+- **YouTube download quality locked to 360p** — YouTube downloads without a manual format selection are capped at 360p, skipping the previous multi-resolution fallback chain that always ended up at 360p anyway
+- **YouTube extraction simplified** — removed the 4-client extractor retry loop (default → android,web,ios,tv → web → android). A single default yt-dlp call is used instead, cutting down unnecessary network retries
+
+### Fixed
+- **APK update conflict** — same `applicationId` (`com.localdownloader`) retained across builds with incremented `versionCode` so new APKs install over old ones without requiring manual uninstall first
+
+---
+
 ## [1.2.0] — 2026-04-05
 
 ### Added
@@ -34,21 +79,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - Added `DownloadTaskEntity`, `DownloadTaskDao`, `AppDatabase` Room components
 - Updated `DownloadTaskStore` to hybrid in-memory + Room async-backing pattern
 - `DownloadWorker` now triggers `copyToPublicDownloads` on successful completion for Android 11+ visibility
-
----
-
-## [1.3.0] — 2026-04-06
-
-### Added
-- **Progress indicator during URL analysis** — a `LinearProgressIndicator` bar appears while yt-dlp fetches video info so users get visual feedback that something is happening
-- **Stable signing architecture hooks** — Gradle and GitHub Actions can now consume persistent debug/release keystores so APKs can continue installing as updates instead of conflicting with existing installs
-
-### Changed
-- **YouTube download quality locked to 360p** — YouTube downloads without a manual format selection are capped at 360p, skipping the previous multi-resolution fallback chain that always ended up at 360p anyway
-- **YouTube extraction simplified** — removed the 4-client extractor retry loop (default → android,web,ios,tv → web → android). A single default yt-dlp call is used instead, cutting down unnecessary network retries
-
-### Fixed
-- **APK update conflict** — same `applicationId` (`com.localdownloader`) retained across builds with incremented `versionCode` so new APKs install over old ones without requiring manual uninstall first
 
 ---
 
