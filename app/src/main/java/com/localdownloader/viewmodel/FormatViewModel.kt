@@ -123,17 +123,39 @@ class FormatViewModel @Inject constructor(
     }
 
     fun onQualityChanged(quality: VideoQuality) {
-        _uiState.update { state -> state.copy(selectedQuality = quality) }
+        val currentState = uiState.value
+        val shouldReenable = currentState.isDownloadButtonDisabled && currentState.lastQueuedQuality != quality
+        _uiState.update { state -> 
+            state.copy(
+                selectedQuality = quality,
+                isDownloadButtonDisabled = if (shouldReenable) false else state.isDownloadButtonDisabled,
+                downloadButtonDisabledAt = if (shouldReenable) 0L else state.downloadButtonDisabledAt
+            )
+        }
     }
 
     fun onStreamTypeChanged(streamType: StreamType) {
+        val currentState = uiState.value
+        // Check if this change should re-enable the download button
+        val shouldReenable = currentState.isDownloadButtonDisabled && 
+            (currentState.lastQueuedStreamType != streamType ||
+             currentState.lastQueuedContainer != currentState.selectedContainer ||
+             currentState.lastQueuedAudioFormat != currentState.selectedAudioFormat ||
+             currentState.lastQueuedAudioBitrate != currentState.audioBitrateKbps ||
+             currentState.lastQueuedQuality != currentState.selectedQuality)
+        
         _uiState.update { state ->
             val selector = when (streamType) {
                 StreamType.VIDEO_AUDIO -> state.availableVideoAudioChoices.firstOrNull()?.selector
                 StreamType.VIDEO_ONLY -> state.availableVideoOnlyChoices.firstOrNull()?.selector
                 StreamType.AUDIO_ONLY -> state.availableAudioOnlyChoices.firstOrNull()?.selector
             }
-            state.copy(selectedStreamType = streamType, selectedFormatSelector = selector)
+            state.copy(
+                selectedStreamType = streamType, 
+                selectedFormatSelector = selector,
+                isDownloadButtonDisabled = if (shouldReenable) false else state.isDownloadButtonDisabled,
+                downloadButtonDisabledAt = if (shouldReenable) 0L else state.downloadButtonDisabledAt
+            )
         }
     }
 
@@ -142,15 +164,39 @@ class FormatViewModel @Inject constructor(
     }
 
     fun onContainerChanged(container: String) {
-        _uiState.update { state -> state.copy(selectedContainer = container.lowercase()) }
+        val currentState = uiState.value
+        val shouldReenable = currentState.isDownloadButtonDisabled && currentState.lastQueuedContainer != container.lowercase()
+        _uiState.update { state -> 
+            state.copy(
+                selectedContainer = container.lowercase(),
+                isDownloadButtonDisabled = if (shouldReenable) false else state.isDownloadButtonDisabled,
+                downloadButtonDisabledAt = if (shouldReenable) 0L else state.downloadButtonDisabledAt
+            )
+        }
     }
 
     fun onAudioFormatChanged(value: String) {
-        _uiState.update { state -> state.copy(selectedAudioFormat = value.lowercase()) }
+        val currentState = uiState.value
+        val shouldReenable = currentState.isDownloadButtonDisabled && currentState.lastQueuedAudioFormat != value.lowercase()
+        _uiState.update { state -> 
+            state.copy(
+                selectedAudioFormat = value.lowercase(),
+                isDownloadButtonDisabled = if (shouldReenable) false else state.isDownloadButtonDisabled,
+                downloadButtonDisabledAt = if (shouldReenable) 0L else state.downloadButtonDisabledAt
+            )
+        }
     }
 
     fun onAudioBitrateChanged(value: Int) {
-        _uiState.update { state -> state.copy(audioBitrateKbps = value.coerceAtLeast(64)) }
+        val currentState = uiState.value
+        val shouldReenable = currentState.isDownloadButtonDisabled && currentState.lastQueuedAudioBitrate != value.coerceAtLeast(64)
+        _uiState.update { state -> 
+            state.copy(
+                audioBitrateKbps = value.coerceAtLeast(64),
+                isDownloadButtonDisabled = if (shouldReenable) false else state.isDownloadButtonDisabled,
+                downloadButtonDisabledAt = if (shouldReenable) 0L else state.downloadButtonDisabledAt
+            )
+        }
     }
 
     fun onDownloadSubtitlesChanged(value: Boolean) {
@@ -347,6 +393,15 @@ class FormatViewModel @Inject constructor(
                             current.copy(
                                 isQueueing = false,
                                 infoMessage = "Queued ${taskIds.size} playlist items in order.",
+                                // Store current settings and disable button for 6 seconds
+                                lastQueuedStreamType = current.selectedStreamType,
+                                lastQueuedFormatSelector = current.selectedFormatSelector,
+                                lastQueuedContainer = current.selectedContainer,
+                                lastQueuedAudioFormat = current.selectedAudioFormat,
+                                lastQueuedAudioBitrate = current.audioBitrateKbps,
+                                lastQueuedQuality = current.selectedQuality,
+                                isDownloadButtonDisabled = true,
+                                downloadButtonDisabledAt = System.currentTimeMillis(),
                             )
                         }
                     },
@@ -375,6 +430,15 @@ class FormatViewModel @Inject constructor(
                         current.copy(
                             isQueueing = false,
                             infoMessage = "Added to queue. Task: $taskId",
+                            // Store current settings and disable button for 6 seconds
+                            lastQueuedStreamType = current.selectedStreamType,
+                            lastQueuedFormatSelector = current.selectedFormatSelector,
+                            lastQueuedContainer = current.selectedContainer,
+                            lastQueuedAudioFormat = current.selectedAudioFormat,
+                            lastQueuedAudioBitrate = current.audioBitrateKbps,
+                            lastQueuedQuality = current.selectedQuality,
+                            isDownloadButtonDisabled = true,
+                            downloadButtonDisabledAt = System.currentTimeMillis(),
                         )
                     }
                 },
@@ -393,6 +457,28 @@ class FormatViewModel @Inject constructor(
 
     fun dismissMessage() {
         _uiState.update { state -> state.copy(errorMessage = null, infoMessage = null) }
+    }
+
+    /**
+     * Check if download button should be enabled.
+     * Disabled if:
+     * 1. Already disabled AND 6 seconds haven't passed yet
+     * 2. Currently queueing
+     */
+    fun isDownloadButtonEnabled(): Boolean {
+        val state = uiState.value
+        if (state.isQueueing) return false
+        
+        if (state.isDownloadButtonDisabled) {
+            val elapsed = System.currentTimeMillis() - state.downloadButtonDisabledAt
+            if (elapsed < 6000) { // 6 seconds
+                return false
+            } else {
+                // Timeout expired, re-enable
+                _uiState.update { it.copy(isDownloadButtonDisabled = false, downloadButtonDisabledAt = 0L) }
+            }
+        }
+        return true
     }
 
     fun toggleDarkTheme(enabled: Boolean) {

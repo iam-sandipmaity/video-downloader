@@ -108,6 +108,7 @@ fun BrowserScreen(
     onOpenSettings: () -> Unit,
     onOpenHelp: () -> Unit,
     onDarkThemeChanged: (Boolean) -> Unit,
+    isDownloadButtonEnabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     val clipboardManager = LocalClipboardManager.current
@@ -366,10 +367,15 @@ fun BrowserScreen(
                         }
                         TextButton(
                             onClick = onQueueDownloadClicked,
-                            enabled = !uiState.isQueueing,
+                            enabled = !uiState.isQueueing && isDownloadButtonEnabled,
                             modifier = Modifier.weight(1f),
                         ) {
-                            Text(if (uiState.isQueueing) "Queueing..." else "Quick download")
+                            val buttonText = when {
+                                uiState.isQueueing -> "Queueing..."
+                                !isDownloadButtonEnabled -> "Please wait..."
+                                else -> "Quick download"
+                            }
+                            Text(buttonText)
                         }
                     }
                 }
@@ -480,11 +486,16 @@ fun BrowserScreen(
 
                 Button(
                     onClick = onQueueDownloadClicked,
-                    enabled = !uiState.isQueueing,
+                    enabled = !uiState.isQueueing && isDownloadButtonEnabled,
                     modifier = Modifier.fillMaxWidth(),
                     contentPadding = PaddingValues(vertical = 14.dp),
                 ) {
-                    Text(if (uiState.isQueueing) "Queueing..." else "Download")
+                    val buttonText = when {
+                        uiState.isQueueing -> "Queueing..."
+                        !isDownloadButtonEnabled -> "Please wait..."
+                        else -> "Download"
+                    }
+                    Text(buttonText)
                 }
             }
         }

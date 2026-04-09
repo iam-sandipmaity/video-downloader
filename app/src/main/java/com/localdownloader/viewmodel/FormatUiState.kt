@@ -36,4 +36,14 @@ data class FormatUiState(
     val infoMessage: String? = null,
     val errorMessage: String? = null,
     val isDarkTheme: Boolean = false,
+    // Download button state management
+    val isDownloadButtonDisabled: Boolean = false,
+    val downloadButtonDisabledAt: Long = 0L,
+    // Track last queued settings to detect changes
+    val lastQueuedStreamType: StreamType? = null,
+    val lastQueuedFormatSelector: String? = null,
+    val lastQueuedContainer: String? = null,
+    val lastQueuedAudioFormat: String? = null,
+    val lastQueuedAudioBitrate: Int? = null,
+    val lastQueuedQuality: VideoQuality? = null,
 )
