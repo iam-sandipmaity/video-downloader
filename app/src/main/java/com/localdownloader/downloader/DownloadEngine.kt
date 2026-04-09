@@ -43,9 +43,12 @@ class DownloadEngine @Inject constructor(
             args += listOf("--extractor-args", options.extractorArgs)
         }
 
-        val usesYoutubeAuthExtractor = options.extractorArgs?.contains("po_token=") == true
+        // Apply cookies if:
+        // 1. YouTube auth is enabled AND cookies path exists (for age-gated content)
+        // 2. OR PO token is provided (for YouTube restricted videos)
+        val hasYoutubeAuth = options.youtubeAuthEnabled || !options.youtubePoToken.isNullOrBlank()
         options.youtubeCookiesPath
-            ?.takeIf { usesYoutubeAuthExtractor && it.isNotBlank() && File(it).exists() }
+            ?.takeIf { hasYoutubeAuth && it.isNotBlank() && File(it).exists() }
             ?.let { args += listOf("--cookies", it) }
 
         if (options.isPlaylistEnabled) {
