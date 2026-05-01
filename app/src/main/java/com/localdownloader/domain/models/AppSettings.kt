@@ -8,6 +8,8 @@ data class AppSettings(
     val defaultMergeContainer: String = "mp4",
     val autoEmbedMetadata: Boolean = true,
     val autoEmbedThumbnail: Boolean = false,
+    val autoRemoveMissingFilesFromLibrary: Boolean = true,
+    val deleteFromStorageWhenRemovedInApp: Boolean = true,
     val youtubeAuthEnabled: Boolean = false,
     val youtubeCookiesPath: String = "",
     val youtubePoToken: String = "",
