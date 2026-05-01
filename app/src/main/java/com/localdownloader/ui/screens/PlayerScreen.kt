@@ -1,19 +1,23 @@
 package com.localdownloader.ui.screens
 
 import android.app.Activity
+import android.media.AudioManager
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
+import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -69,6 +73,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.awaitFirstDown
+import androidx.compose.ui.input.pointer.awaitPointerEvent
+import androidx.compose.ui.input.pointer.consume
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -94,6 +101,7 @@ import com.localdownloader.viewmodel.PlayerViewModel
 import kotlinx.coroutines.delay
 import java.io.File
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 @Composable
 fun PlayerScreen(
@@ -114,6 +122,8 @@ fun PlayerScreen(
     var isFullscreen by rememberSaveable { mutableStateOf(false) }
     var controlsVisible by rememberSaveable { mutableStateOf(true) }
     var gestureFeedback by rememberSaveable { mutableStateOf<String?>(null) }
+    var swipeHintVisible by rememberSaveable { mutableStateOf(true) }
+    var swipeAdjustmentOverlay by remember { mutableStateOf<SwipeAdjustmentOverlay?>(null) }
     var playerWidthPx by rememberSaveable { mutableStateOf(0) }
     var playerHeightPx by rememberSaveable { mutableStateOf(0) }
     var isScrubbing by rememberSaveable { mutableStateOf(false) }
@@ -122,6 +132,12 @@ fun PlayerScreen(
     var zoomScale by rememberSaveable { mutableFloatStateOf(1f) }
     var panOffsetX by rememberSaveable { mutableFloatStateOf(0f) }
     var panOffsetY by rememberSaveable { mutableFloatStateOf(0f) }
+    val swipeAdjustmentController = remember(activity, context) {
+        PlayerSwipeAdjustmentController(
+            context = context,
+            activity = activity,
+        )
+    }
     val activePanel = remember(activePanelName) {
         runCatching { PlayerPanel.valueOf(activePanelName) }.getOrDefault(PlayerPanel.NONE)
     }
@@ -178,6 +194,24 @@ fun PlayerScreen(
         if (gestureFeedback != null) {
             delay(GESTURE_FEEDBACK_MS)
             gestureFeedback = null
+        }
+    }
+
+    LaunchedEffect(playablePath) {
+        swipeHintVisible = playablePath != null
+        if (playablePath != null) {
+            delay(SWIPE_HINT_MS)
+            swipeHintVisible = false
+        }
+    }
+
+    LaunchedEffect(swipeAdjustmentOverlay) {
+        val overlay = swipeAdjustmentOverlay ?: return@LaunchedEffect
+        if (!overlay.isActive) {
+            delay(GESTURE_FEEDBACK_MS)
+            if (swipeAdjustmentOverlay == overlay) {
+                swipeAdjustmentOverlay = null
+            }
         }
     }
 
@@ -287,6 +321,23 @@ fun PlayerScreen(
                         activePanelName = PlayerPanel.NONE.name
                     },
                     playerWidthPx = playerWidthPx,
+                    playerHeightPx = playerHeightPx,
+                    onAdjustmentStart = { side ->
+                        swipeHintVisible = false
+                        gestureFeedback = null
+                        controlsVisible = false
+                        activePanelName = PlayerPanel.NONE.name
+                        swipeAdjustmentOverlay = swipeAdjustmentController.start(side)
+                    },
+                    onAdjustmentChange = { side, fractionDelta ->
+                        swipeAdjustmentOverlay = swipeAdjustmentController.adjust(
+                            side = side,
+                            deltaFraction = fractionDelta,
+                        )
+                    },
+                    onAdjustmentEnd = {
+                        swipeAdjustmentOverlay = swipeAdjustmentOverlay?.copy(isActive = false)
+                    },
                 )
             }
 
@@ -335,6 +386,22 @@ fun PlayerScreen(
                         color = Color.White,
                     )
                 }
+            }
+
+            swipeAdjustmentOverlay?.let { overlay ->
+                SwipeAdjustmentHud(
+                    overlay = overlay,
+                )
+            }
+
+            AnimatedVisibility(
+                visible = swipeHintVisible && !uiState.isLocked && swipeAdjustmentOverlay == null,
+                enter = fadeIn(),
+                exit = fadeOut(),
+            ) {
+                SwipeGestureHint(
+                    controlsVisible = controlsVisible,
+                )
             }
 
             if (uiState.isLocked) {
@@ -490,10 +557,58 @@ private fun BoxScope.GestureLayer(
     onSeekBack: () -> Unit,
     onSeekForward: () -> Unit,
     playerWidthPx: Int,
+    playerHeightPx: Int,
+    onAdjustmentStart: (SwipeAdjustmentSide) -> Unit,
+    onAdjustmentChange: (SwipeAdjustmentSide, Float) -> Unit,
+    onAdjustmentEnd: () -> Unit,
 ) {
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .pointerInput(playerWidthPx, playerHeightPx) {
+                if (playerWidthPx == 0 || playerHeightPx == 0) return@pointerInput
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val startSide = if (down.position.x < playerWidthPx / 2f) {
+                        SwipeAdjustmentSide.LEFT
+                    } else {
+                        SwipeAdjustmentSide.RIGHT
+                    }
+                    var adjustmentActive = false
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        if (event.changes.size > 1) break
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        if (!change.pressed) break
+
+                        val totalDeltaX = change.position.x - down.position.x
+                        val totalDeltaY = change.position.y - down.position.y
+                        val absDeltaX = abs(totalDeltaX)
+                        val absDeltaY = abs(totalDeltaY)
+
+                        if (
+                            !adjustmentActive &&
+                            absDeltaY > viewConfiguration.touchSlop &&
+                            absDeltaY > absDeltaX * VERTICAL_SWIPE_DOMINANCE_RATIO
+                        ) {
+                            adjustmentActive = true
+                            onAdjustmentStart(startSide)
+                        }
+
+                        if (adjustmentActive) {
+                            change.consume()
+                            onAdjustmentChange(
+                                startSide,
+                                (-totalDeltaY / playerHeightPx.toFloat()).coerceIn(-1f, 1f),
+                            )
+                        }
+                    }
+
+                    if (adjustmentActive) {
+                        onAdjustmentEnd()
+                    }
+                }
+            }
             .pointerInput(playerWidthPx) {
                 detectTapGestures(
                     onTap = { onToggleControls() },
@@ -508,6 +623,77 @@ private fun BoxScope.GestureLayer(
                 )
             },
     )
+}
+
+@Composable
+private fun BoxScope.SwipeAdjustmentHud(
+    overlay: SwipeAdjustmentOverlay,
+) {
+    val alignment = if (overlay.type == SwipeAdjustmentType.BRIGHTNESS) {
+        Alignment.CenterStart
+    } else {
+        Alignment.CenterEnd
+    }
+    Surface(
+        modifier = Modifier
+            .align(alignment)
+            .padding(horizontal = 20.dp),
+        color = Color.Black.copy(alpha = 0.72f),
+        shape = RoundedCornerShape(28.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 18.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = overlay.type.label,
+                style = MaterialTheme.typography.labelLarge,
+                color = Color.White.copy(alpha = 0.82f),
+            )
+            Box(
+                modifier = Modifier
+                    .size(width = 16.dp, height = 132.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.16f)),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .fillMaxHeight(fraction = overlay.level.coerceIn(0f, 1f))
+                        .background(Color.White),
+                )
+            }
+            Text(
+                text = "${overlay.percentText}%",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White,
+            )
+        }
+    }
+}
+
+@Composable
+private fun BoxScope.SwipeGestureHint(
+    controlsVisible: Boolean,
+) {
+    Surface(
+        modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .navigationBarsPadding()
+            .padding(bottom = if (controlsVisible) 120.dp else 28.dp),
+        color = Color.Black.copy(alpha = 0.68f),
+        shape = RoundedCornerShape(22.dp),
+    ) {
+        Text(
+            text = "Swipe up or down. Left adjusts brightness, right adjusts volume.",
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+            style = MaterialTheme.typography.bodySmall,
+            color = Color.White,
+        )
+    }
 }
 
 @Composable
@@ -1042,11 +1228,128 @@ private fun formatSpeed(speed: Float): String {
     }
 }
 
+private enum class SwipeAdjustmentSide {
+    LEFT,
+    RIGHT,
+}
+
+private enum class SwipeAdjustmentType(val label: String) {
+    BRIGHTNESS("Brightness"),
+    VOLUME("Volume"),
+}
+
+private data class SwipeAdjustmentOverlay(
+    val type: SwipeAdjustmentType,
+    val level: Float,
+    val isActive: Boolean,
+) {
+    val percentText: Int
+        get() = (level.coerceIn(0f, 1f) * 100f).roundToInt()
+}
+
 private data class ResizeOption(
     val resizeMode: Int,
     val label: String,
     val subtitle: String,
 )
+
+private class PlayerSwipeAdjustmentController(
+    private val context: Context,
+    private val activity: Activity?,
+) {
+    private val audioManager =
+        context.applicationContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+
+    private var startingBrightness = DEFAULT_GESTURE_LEVEL
+    private var startingVolume = DEFAULT_GESTURE_LEVEL
+
+    fun start(side: SwipeAdjustmentSide): SwipeAdjustmentOverlay {
+        return when (side) {
+            SwipeAdjustmentSide.LEFT -> {
+                startingBrightness = currentBrightness()
+                SwipeAdjustmentOverlay(
+                    type = SwipeAdjustmentType.BRIGHTNESS,
+                    level = startingBrightness,
+                    isActive = true,
+                )
+            }
+
+            SwipeAdjustmentSide.RIGHT -> {
+                startingVolume = currentVolume()
+                SwipeAdjustmentOverlay(
+                    type = SwipeAdjustmentType.VOLUME,
+                    level = startingVolume,
+                    isActive = true,
+                )
+            }
+        }
+    }
+
+    fun adjust(
+        side: SwipeAdjustmentSide,
+        deltaFraction: Float,
+    ): SwipeAdjustmentOverlay {
+        return when (side) {
+            SwipeAdjustmentSide.LEFT -> {
+                val updatedBrightness = (startingBrightness + deltaFraction)
+                    .coerceIn(MIN_BRIGHTNESS_LEVEL, 1f)
+                applyBrightness(updatedBrightness)
+                SwipeAdjustmentOverlay(
+                    type = SwipeAdjustmentType.BRIGHTNESS,
+                    level = updatedBrightness,
+                    isActive = true,
+                )
+            }
+
+            SwipeAdjustmentSide.RIGHT -> {
+                val updatedVolume = (startingVolume + deltaFraction).coerceIn(0f, 1f)
+                applyVolume(updatedVolume)
+                SwipeAdjustmentOverlay(
+                    type = SwipeAdjustmentType.VOLUME,
+                    level = updatedVolume,
+                    isActive = true,
+                )
+            }
+        }
+    }
+
+    private fun currentBrightness(): Float {
+        val windowBrightness = activity?.window?.attributes?.screenBrightness
+        if (windowBrightness != null && windowBrightness in 0f..1f) {
+            return windowBrightness.coerceIn(MIN_BRIGHTNESS_LEVEL, 1f)
+        }
+        val systemBrightness = runCatching {
+            Settings.System.getInt(
+                context.contentResolver,
+                Settings.System.SCREEN_BRIGHTNESS,
+            ) / 255f
+        }.getOrDefault(DEFAULT_GESTURE_LEVEL)
+        return systemBrightness.coerceIn(MIN_BRIGHTNESS_LEVEL, 1f)
+    }
+
+    private fun applyBrightness(level: Float) {
+        val window = activity?.window ?: return
+        val attributes = window.attributes
+        attributes.screenBrightness = level.coerceIn(MIN_BRIGHTNESS_LEVEL, 1f)
+        window.attributes = attributes
+    }
+
+    private fun currentVolume(): Float {
+        val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+        val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+        return currentVolume.toFloat() / maxVolume.toFloat()
+    }
+
+    private fun applyVolume(level: Float) {
+        val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+        val targetVolume = (level.coerceIn(0f, 1f) * maxVolume.toFloat()).roundToInt()
+        audioManager.setStreamVolume(
+            AudioManager.STREAM_MUSIC,
+            targetVolume.coerceIn(0, maxVolume),
+            0,
+        )
+    }
+}
 
 private enum class PlayerPanel(val title: String) {
     NONE(""),
@@ -1089,5 +1392,9 @@ private val RESIZE_OPTIONS = listOf(
 private const val SEEK_INCREMENT_MS = 10_000L
 private const val CONTROLS_AUTO_HIDE_MS = 3_000L
 private const val GESTURE_FEEDBACK_MS = 900L
+private const val SWIPE_HINT_MS = 5_000L
 private const val MIN_PINCH_SCALE = 1f
 private const val MAX_PINCH_SCALE = 3f
+private const val DEFAULT_GESTURE_LEVEL = 0.5f
+private const val MIN_BRIGHTNESS_LEVEL = 0.05f
+private const val VERTICAL_SWIPE_DOMINANCE_RATIO = 1.2f

@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.1] â€” 2026-05-02
+
+### Added
+- **Modern player swipe controls** â€” swipe up or down on the left side of the player to adjust brightness, or on the right side to adjust volume, with an on-screen hint and level indicator so the gesture stays easy to discover
+
+### Changed
+- **App version bump** â€” release metadata updated to `1.5.1`
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
