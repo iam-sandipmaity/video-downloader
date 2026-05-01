@@ -31,6 +31,8 @@ class SettingsStore @Inject constructor(
         val mergeContainer = stringPreferencesKey("merge_container")
         val autoEmbedMetadata = booleanPreferencesKey("auto_embed_metadata")
         val autoEmbedThumbnail = booleanPreferencesKey("auto_embed_thumbnail")
+        val autoRemoveMissingFilesFromLibrary = booleanPreferencesKey("auto_remove_missing_files_from_library")
+        val deleteFromStorageWhenRemovedInApp = booleanPreferencesKey("delete_from_storage_when_removed_in_app")
         val youtubeAuthEnabled = booleanPreferencesKey("youtube_auth_enabled")
         val youtubeCookiesPath = stringPreferencesKey("youtube_cookies_path")
         val youtubePoToken = stringPreferencesKey("youtube_po_token")
@@ -54,6 +56,8 @@ class SettingsStore @Inject constructor(
                     defaultMergeContainer = prefs[Keys.mergeContainer] ?: "mp4",
                     autoEmbedMetadata = prefs[Keys.autoEmbedMetadata] ?: true,
                     autoEmbedThumbnail = prefs[Keys.autoEmbedThumbnail] ?: false,
+                    autoRemoveMissingFilesFromLibrary = prefs[Keys.autoRemoveMissingFilesFromLibrary] ?: true,
+                    deleteFromStorageWhenRemovedInApp = prefs[Keys.deleteFromStorageWhenRemovedInApp] ?: true,
                     youtubeAuthEnabled = prefs[Keys.youtubeAuthEnabled] ?: false,
                     youtubeCookiesPath = prefs[Keys.youtubeCookiesPath] ?: "",
                     youtubePoToken = prefs[Keys.youtubePoToken] ?: "",
@@ -70,6 +74,8 @@ class SettingsStore @Inject constructor(
             prefs[Keys.mergeContainer] = settings.defaultMergeContainer
             prefs[Keys.autoEmbedMetadata] = settings.autoEmbedMetadata
             prefs[Keys.autoEmbedThumbnail] = settings.autoEmbedThumbnail
+            prefs[Keys.autoRemoveMissingFilesFromLibrary] = settings.autoRemoveMissingFilesFromLibrary
+            prefs[Keys.deleteFromStorageWhenRemovedInApp] = settings.deleteFromStorageWhenRemovedInApp
             prefs[Keys.youtubeAuthEnabled] = settings.youtubeAuthEnabled
             prefs[Keys.youtubeCookiesPath] = settings.youtubeCookiesPath
             prefs[Keys.youtubePoToken] = settings.youtubePoToken
