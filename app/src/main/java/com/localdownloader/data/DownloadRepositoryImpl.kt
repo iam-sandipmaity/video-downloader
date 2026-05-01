@@ -596,7 +596,7 @@ class DownloadRepositoryImpl @Inject constructor(
                             updatedAtEpochMs = System.currentTimeMillis(),
                         )
 
-                        DownloadStatus.CANCELED -> task.copy(
+                        task.status == DownloadStatus.CANCELED -> task.copy(
                             activeWorkId = null,
                             debugTrace = appendDebugLine(task.debugTrace, "Worker stopped after cancel request"),
                             pauseExpiresAtEpochMs = null,
