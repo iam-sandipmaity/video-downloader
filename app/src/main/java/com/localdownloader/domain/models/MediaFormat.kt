@@ -15,11 +15,20 @@ data class MediaFormat(
     val fps: Double?,
     val note: String?,
 ) {
+    val normalizedExtension: String
+        get() = extension.trim().lowercase()
+
+    val normalizedContainer: String
+        get() = container.trim().lowercase()
+
     val isAudioOnly: Boolean
         get() = videoCodec == "none" && audioCodec != "none"
 
     val isVideoOnly: Boolean
         get() = videoCodec != "none" && audioCodec == "none"
+
+    val isImageLike: Boolean
+        get() = normalizedExtension in IMAGE_LIKE_EXTENSIONS || normalizedContainer in IMAGE_LIKE_EXTENSIONS
 
     fun asReadableLabel(): String {
         val qualityPart = resolution ?: if (isAudioOnly) "audio" else "unknown"
@@ -27,5 +36,18 @@ data class MediaFormat(
         return listOf(formatId, extension, qualityPart, bitratePart, note.orEmpty())
             .filter { it.isNotBlank() }
             .joinToString(" | ")
+    }
+
+    private companion object {
+        private val IMAGE_LIKE_EXTENSIONS = setOf(
+            "apng",
+            "avif",
+            "bmp",
+            "gif",
+            "jpeg",
+            "jpg",
+            "png",
+            "webp",
+        )
     }
 }
