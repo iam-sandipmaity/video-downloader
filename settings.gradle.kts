@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "android-downloader"
 include(":app")
+include(":playerapp")
