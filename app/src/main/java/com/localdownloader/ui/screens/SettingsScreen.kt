@@ -69,11 +69,19 @@ import com.localdownloader.viewmodel.FormatUiState
 @Composable
 fun SettingsScreen(
     uiState: FormatUiState,
+    savedItemsCount: Int = 0,
+    mediaInfoMessage: String? = null,
+    mediaErrorMessage: String? = null,
+    onDismissMediaLibraryMessage: () -> Unit = {},
     onDarkThemeChanged: ((Boolean) -> Unit)? = null,
     onOutputTemplateChanged: (String) -> Unit,
     onContainerChanged: (String) -> Unit,
     onEmbedMetadataChanged: (Boolean) -> Unit,
     onEmbedThumbnailChanged: (Boolean) -> Unit,
+    onAutoRemoveMissingFilesFromLibraryChanged: (Boolean) -> Unit,
+    onDeleteFromStorageWhenRemovedInAppChanged: (Boolean) -> Unit,
+    onClearVideoTabEntries: () -> Unit,
+    onDeleteAllSavedMedia: () -> Unit,
     onYoutubeAuthEnabledChanged: (Boolean) -> Unit,
     onYoutubePoTokenChanged: (String) -> Unit,
     onYoutubePoTokenClientHintChanged: (String) -> Unit,
@@ -88,6 +96,8 @@ fun SettingsScreen(
 ) {
     val showAuthSection = remember { mutableStateOf(false) }
     val showReportDialog = remember { mutableStateOf(false) }
+    val showLibraryClearDialog = remember { mutableStateOf(false) }
+    val showDeleteAllMediaDialog = remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     fun openUrl(url: String) {
@@ -100,6 +110,94 @@ fun SettingsScreen(
             onOpenIssues = {
                 openUrl("https://github.com/iam-sandipmaity/video-downloader/issues")
                 showReportDialog.value = false
+            },
+        )
+    }
+
+    if (showLibraryClearDialog.value) {
+        AlertDialog(
+            onDismissRequest = { showLibraryClearDialog.value = false },
+            title = { Text("Remove items from Video tab") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("This removes all saved entries from the app's Video tab only.")
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        shape = RoundedCornerShape(10.dp),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Text("Files stay in your device file manager.", style = MaterialTheme.typography.bodySmall)
+                            Text("Playback history inside the app may be lost.", style = MaterialTheme.typography.bodySmall)
+                            Text("This action affects $savedItemsCount saved item(s).", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onClearVideoTabEntries()
+                        showLibraryClearDialog.value = false
+                    },
+                ) {
+                    Text("Remove from app")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLibraryClearDialog.value = false }) { Text("Cancel") }
+            },
+        )
+    }
+
+    if (showDeleteAllMediaDialog.value) {
+        AlertDialog(
+            onDismissRequest = { showDeleteAllMediaDialog.value = false },
+            title = { Text("Delete all saved media") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("This permanently deletes saved media files from both the app and your device storage.")
+                    Surface(
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        shape = RoundedCornerShape(10.dp),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Text(
+                                "Data may be lost and cannot be recovered from inside the app.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                            )
+                            Text(
+                                "Playlist folders and exported downloads may also be removed.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                            )
+                            Text(
+                                "This action affects $savedItemsCount saved item(s).",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onDeleteAllSavedMedia()
+                        showDeleteAllMediaDialog.value = false
+                    },
+                ) {
+                    Text("Delete permanently")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteAllMediaDialog.value = false }) { Text("Cancel") }
             },
         )
     }
@@ -169,6 +267,56 @@ fun SettingsScreen(
                 }
             }
 
+            SettingsIconCard(
+                icon = Icons.Outlined.Settings,
+                title = "Media Library",
+                subtitle = "Keep saved items aligned with device storage",
+            ) {
+                ToggleRow(
+                    title = "Auto-remove missing files",
+                    subtitle = "Clean up library entries when the real file was deleted elsewhere",
+                    checked = uiState.autoRemoveMissingFilesFromLibrary,
+                    onCheckedChange = onAutoRemoveMissingFilesFromLibraryChanged,
+                )
+                ToggleRow(
+                    title = "Delete from storage when removed",
+                    subtitle = "When removing media in the app, also delete the real device file",
+                    checked = uiState.deleteFromStorageWhenRemovedInApp,
+                    onCheckedChange = onDeleteFromStorageWhenRemovedInAppChanged,
+                )
+                HorizontalDivider()
+                Text(
+                    text = "$savedItemsCount saved item(s) currently listed in the Video tab",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Button(
+                        onClick = { showLibraryClearDialog.value = true },
+                        modifier = Modifier.weight(1f),
+                        enabled = savedItemsCount > 0,
+                        shape = RoundedCornerShape(10.dp),
+                    ) {
+                        Text("Remove from app")
+                    }
+                    TextButton(
+                        onClick = { showDeleteAllMediaDialog.value = true },
+                        modifier = Modifier.weight(1f),
+                        enabled = savedItemsCount > 0,
+                    ) {
+                        Text("Delete all media")
+                    }
+                }
+                Text(
+                    text = "Bulk cleanup lives here so accidental taps inside the Video tab are less likely.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
             // ── YouTube Auth ──────────────────────────────────────────
             SettingsIconCard(
                 icon = Icons.Outlined.Visibility,
@@ -208,6 +356,20 @@ fun SettingsScreen(
             }
             uiState.errorMessage?.let { msg ->
                 InfoBanner(msg, isError = true)
+            }
+            mediaInfoMessage?.let { msg ->
+                DismissibleInfoBanner(
+                    message = msg,
+                    isError = false,
+                    onDismiss = onDismissMediaLibraryMessage,
+                )
+            }
+            mediaErrorMessage?.let { msg ->
+                DismissibleInfoBanner(
+                    message = msg,
+                    isError = true,
+                    onDismiss = onDismissMediaLibraryMessage,
+                )
             }
 
             // ── Support ───────────────────────────────────────────────
@@ -741,5 +903,34 @@ private fun InfoBanner(message: String, isError: Boolean) {
             color = if (isError) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onTertiaryContainer,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
         )
+    }
+}
+
+@Composable
+private fun DismissibleInfoBanner(
+    message: String,
+    isError: Boolean,
+    onDismiss: () -> Unit,
+) {
+    Surface(
+        color = if (isError) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer,
+        shape = RoundedCornerShape(8.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = message,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodySmall,
+                color = if (isError) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        }
     }
 }
