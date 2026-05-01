@@ -31,24 +31,33 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.localdownloader.domain.models.DownloadStatus
 import com.localdownloader.domain.models.YoutubeAuthBundle
 import com.localdownloader.ui.screens.BrowserScreen
 import com.localdownloader.ui.screens.CompressScreen
 import com.localdownloader.ui.screens.ConvertScreen
 import com.localdownloader.ui.screens.DownloadHistoryScreen
+import com.localdownloader.ui.screens.ExternalPreviewMode
+import com.localdownloader.ui.screens.ExternalPreviewScreen
 import com.localdownloader.ui.screens.HelpScreen
 import com.localdownloader.ui.screens.PlayerScreen
 import com.localdownloader.ui.screens.ProgressScreen
 import com.localdownloader.ui.screens.SettingsScreen
 import com.localdownloader.ui.screens.VideoScreen
+import com.localdownloader.ui.model.ExternalOpenRequest
 import com.localdownloader.utils.FileUtils
 import com.localdownloader.viewmodel.DownloadViewModel
 import com.localdownloader.viewmodel.FormatViewModel
 import com.localdownloader.viewmodel.MediaToolsViewModel
+import com.localdownloader.viewmodel.PlayerViewModel
 import kotlinx.serialization.json.Json
 
 @Composable
 fun DownloaderApp(
+    externalOpenRequest: ExternalOpenRequest? = null,
+    onExternalOpenHandled: (() -> Unit)? = null,
+    sharedUrlRequest: String? = null,
+    onSharedUrlHandled: (() -> Unit)? = null,
     onDarkThemeChanged: ((Boolean) -> Unit)? = null,
     onDarkThemeUpdated: ((Boolean) -> Unit)? = null,
     modifier: Modifier = Modifier,
@@ -60,6 +69,7 @@ fun DownloaderApp(
     val context = LocalContext.current
     val fileUtils = remember(context) { FileUtils(context) }
     var cacheSize by remember { mutableStateOf(0L) }
+    var activeExternalOpenRequest by remember { mutableStateOf<ExternalOpenRequest?>(externalOpenRequest) }
     val localJson = remember {
         Json {
             ignoreUnknownKeys = true
@@ -150,6 +160,28 @@ fun DownloaderApp(
         onDarkThemeUpdated?.invoke(formatState.isDarkTheme)
     }
 
+    LaunchedEffect(externalOpenRequest) {
+        if (externalOpenRequest != null) {
+            activeExternalOpenRequest = externalOpenRequest
+            navController.navigate(Routes.ExternalOpen) {
+                launchSingleTop = true
+            }
+            onExternalOpenHandled?.invoke()
+        }
+    }
+
+    LaunchedEffect(sharedUrlRequest) {
+        val sharedUrl = sharedUrlRequest?.trim().orEmpty()
+        if (sharedUrl.isNotBlank()) {
+            formatViewModel.onUrlChanged(sharedUrl)
+            navController.navigate(Routes.Browser) {
+                launchSingleTop = true
+            }
+            formatViewModel.analyzeUrl()
+            onSharedUrlHandled?.invoke()
+        }
+    }
+
     // Update cache size periodically
     LaunchedEffect(currentRoute) {
         cacheSize = fileUtils.getCacheSize()
@@ -230,6 +262,8 @@ fun DownloaderApp(
                     onWriteThumbnailChanged = formatViewModel::onWriteThumbnailChanged,
                     onPlaylistEnabledChanged = formatViewModel::onPlaylistEnabledChanged,
                     onOutputTemplateChanged = formatViewModel::onOutputTemplateChanged,
+                    onClearBrowserState = formatViewModel::clearBrowserState,
+                    onClearAnalyzedResult = formatViewModel::clearAnalyzedResult,
                     onQueueDownloadClicked = formatViewModel::queueDownload,
                     onOpenHistory = { navController.navigate(Routes.History) },
                     onOpenCompress = { navController.navigate(Routes.Compress) },
@@ -298,6 +332,10 @@ fun DownloaderApp(
             composable(Routes.Settings) {
                 SettingsScreen(
                     uiState = formatState,
+                    savedItemsCount = downloadState.tasks.count { it.status == com.localdownloader.domain.models.DownloadStatus.COMPLETED },
+                    mediaInfoMessage = downloadState.infoMessage,
+                    mediaErrorMessage = downloadState.errorMessage,
+                    onDismissMediaLibraryMessage = downloadViewModel::dismissMessage,
                     onDarkThemeChanged = { enabled ->
                         formatViewModel.toggleDarkTheme(enabled)
                         onDarkThemeChanged?.invoke(enabled)
@@ -306,6 +344,10 @@ fun DownloaderApp(
                     onContainerChanged = formatViewModel::onContainerChanged,
                     onEmbedMetadataChanged = formatViewModel::onEmbedMetadataChanged,
                     onEmbedThumbnailChanged = formatViewModel::onEmbedThumbnailChanged,
+                    onAutoRemoveMissingFilesFromLibraryChanged = formatViewModel::onAutoRemoveMissingFilesFromLibraryChanged,
+                    onDeleteFromStorageWhenRemovedInAppChanged = formatViewModel::onDeleteFromStorageWhenRemovedInAppChanged,
+                    onClearVideoTabEntries = downloadViewModel::clearCompletedLibraryEntries,
+                    onDeleteAllSavedMedia = downloadViewModel::deleteAllCompletedMedia,
                     onSaveClicked = formatViewModel::saveSettings,
                     onYoutubeAuthEnabledChanged = formatViewModel::onYoutubeAuthEnabledChanged,
                     onYoutubePoTokenChanged = formatViewModel::onYoutubePoTokenChanged,
@@ -330,10 +372,48 @@ fun DownloaderApp(
             ) { backStackEntry ->
                 val taskId = backStackEntry.arguments?.getString("taskId")
                 val task = downloadState.tasks.firstOrNull { it.id == taskId }
+                val playerViewModel: PlayerViewModel = hiltViewModel(backStackEntry)
                 PlayerScreen(
                     task = task,
+                    playerViewModel = playerViewModel,
                     onBack = { navController.popBackStack() },
                 )
+            }
+            composable(Routes.ExternalOpen) { backStackEntry ->
+                val request = activeExternalOpenRequest
+                if (request == null) {
+                    LaunchedEffect(Unit) {
+                        navController.popBackStack()
+                    }
+                } else if (isPlayableMediaRequest(request)) {
+                    val playerViewModel: PlayerViewModel = hiltViewModel(backStackEntry)
+                    PlayerScreen(
+                        task = com.localdownloader.domain.models.DownloadTask(
+                            id = "external:${request.path}",
+                            url = request.path,
+                            title = request.displayName,
+                            status = DownloadStatus.COMPLETED,
+                            outputPath = request.path,
+                        ),
+                        playerViewModel = playerViewModel,
+                        onBack = {
+                            activeExternalOpenRequest = null
+                            navController.popBackStack()
+                        },
+                    )
+                } else {
+                    ExternalPreviewScreen(
+                        request = request,
+                        mode = when {
+                            isWebPreviewRequest(request) -> ExternalPreviewMode.WEB
+                            else -> ExternalPreviewMode.IMAGE
+                        },
+                        onBack = {
+                            activeExternalOpenRequest = null
+                            navController.popBackStack()
+                        },
+                    )
+                }
             }
         }
     }
@@ -349,11 +429,30 @@ private object Routes {
     const val Settings = "settings"
     const val Help = "help"
     const val Player = "player"
+    const val ExternalOpen = "external_open"
 }
 
 private data class PrimaryDestination(
     val route: String,
     val label: String,
     val icon: @Composable () -> Unit,
+)
+
+private fun isPlayableMediaRequest(request: ExternalOpenRequest): Boolean {
+    val mime = request.mimeType?.lowercase().orEmpty()
+    if (mime.startsWith("video/") || mime.startsWith("audio/")) return true
+    val extension = request.path.substringAfterLast('.', "").lowercase()
+    return extension in PLAYABLE_MEDIA_EXTENSIONS
+}
+
+private fun isWebPreviewRequest(request: ExternalOpenRequest): Boolean {
+    val mime = request.mimeType?.lowercase().orEmpty()
+    val extension = request.path.substringAfterLast('.', "").lowercase()
+    return mime.contains("html") || mime.contains("multipart/related") || extension in setOf("html", "htm", "mhtml", "mht")
+}
+
+private val PLAYABLE_MEDIA_EXTENSIONS = setOf(
+    "mp4", "mkv", "webm", "mov", "avi", "m4v", "3gp", "ts", "m2ts", "mpeg", "mpg",
+    "mp3", "m4a", "aac", "opus", "ogg", "wav", "flac", "amr",
 )
 
