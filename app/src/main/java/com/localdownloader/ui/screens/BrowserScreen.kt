@@ -101,6 +101,8 @@ fun BrowserScreen(
     onWriteThumbnailChanged: (Boolean) -> Unit,
     onPlaylistEnabledChanged: (Boolean) -> Unit,
     onOutputTemplateChanged: (String) -> Unit,
+    onClearBrowserState: () -> Unit,
+    onClearAnalyzedResult: () -> Unit,
     onQueueDownloadClicked: () -> Unit,
     onOpenHistory: () -> Unit,
     onOpenCompress: () -> Unit,
@@ -266,12 +268,15 @@ fun BrowserScreen(
                                 )
                             }
                             IconButton(
-                                onClick = { onUrlChanged("") },
-                                enabled = uiState.urlInput.isNotBlank(),
+                                onClick = {
+                                    showOptionsSheet = false
+                                    if (uiState.videoInfo != null) onClearBrowserState() else onUrlChanged("")
+                                },
+                                enabled = uiState.urlInput.isNotBlank() || uiState.videoInfo != null,
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.Clear,
-                                    contentDescription = "Clear URL",
+                                    contentDescription = "Clear browser state",
                                 )
                             }
                             IconButton(onClick = onAnalyzeClicked, enabled = !uiState.isAnalyzing) {
@@ -352,11 +357,28 @@ fun BrowserScreen(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Text(
-                        text = "Ready to download",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "Ready to download",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        IconButton(
+                            onClick = {
+                                showOptionsSheet = false
+                                onClearAnalyzedResult()
+                            },
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Clear,
+                                contentDescription = "Dismiss ready download",
+                            )
+                        }
+                    }
                     VideoCard(info = info)
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Button(
@@ -396,15 +418,33 @@ fun BrowserScreen(
                     .padding(bottom = 18.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                Text(
-                    text = "Download options",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold,
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Download options",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    IconButton(
+                        onClick = {
+                            showOptionsSheet = false
+                            onClearAnalyzedResult()
+                        },
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Clear,
+                            contentDescription = "Clear ready download",
+                        )
+                    }
+                }
                 VideoCard(info = uiState.videoInfo)
 
                 val choices = when (uiState.selectedStreamType) {
                     StreamType.VIDEO_AUDIO -> uiState.availableVideoAudioChoices
+                        .ifEmpty { uiState.availableVideoOnlyChoices }
                     StreamType.VIDEO_ONLY -> uiState.availableVideoOnlyChoices
                     StreamType.AUDIO_ONLY -> uiState.availableAudioOnlyChoices
                 }
