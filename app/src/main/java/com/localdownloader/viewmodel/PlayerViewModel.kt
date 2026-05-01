@@ -63,6 +63,7 @@ class PlayerViewModel @Inject constructor(
     private var currentPlaybackSpeed: Float = savedStateHandle[STATE_PLAYBACK_SPEED] ?: 1.0f
     private var currentResizeMode: Int = savedStateHandle[STATE_RESIZE_MODE] ?: AspectRatioFrameLayout.RESIZE_MODE_FIT
     private var isLocked: Boolean = savedStateHandle[STATE_IS_LOCKED] ?: false
+    private var audioDisabled: Boolean = savedStateHandle[STATE_AUDIO_DISABLED] ?: false
     private var subtitlesDisabled: Boolean = savedStateHandle[STATE_SUBTITLES_DISABLED] ?: false
 
     private val playerListener = object : Player.Listener {
@@ -115,6 +116,7 @@ class PlayerViewModel @Inject constructor(
             playbackSpeed = currentPlaybackSpeed,
             resizeMode = currentResizeMode,
             isLocked = isLocked,
+            audioDisabled = audioDisabled,
             subtitlesDisabled = subtitlesDisabled,
         )
         startProgressUpdates()
@@ -150,6 +152,7 @@ class PlayerViewModel @Inject constructor(
                     bufferedPositionMs = 0L,
                     playbackSpeed = currentPlaybackSpeed,
                     resizeMode = currentResizeMode,
+                    audioDisabled = audioDisabled,
                     subtitlesDisabled = subtitlesDisabled,
                     audioTracks = emptyList(),
                     subtitleTracks = emptyList(),
@@ -167,6 +170,7 @@ class PlayerViewModel @Inject constructor(
                     playbackSpeed = currentPlaybackSpeed,
                     resizeMode = currentResizeMode,
                     isLocked = isLocked,
+                    audioDisabled = audioDisabled,
                     subtitlesDisabled = subtitlesDisabled,
                 )
             }
@@ -220,6 +224,7 @@ class PlayerViewModel @Inject constructor(
                 bufferedPositionMs = savedPosition,
                 playbackSpeed = currentPlaybackSpeed,
                 resizeMode = currentResizeMode,
+                audioDisabled = audioDisabled,
                 subtitlesDisabled = subtitlesDisabled,
                 errorMessage = null,
             )
@@ -286,7 +291,20 @@ class PlayerViewModel @Inject constructor(
                 TrackSelectionOverride(option.trackGroup, option.trackIndex),
             )
         }
+        audioDisabled = false
+        savedStateHandle[STATE_AUDIO_DISABLED] = false
         player.trackSelectionParameters = builder.build()
+        updateTrackOptions(player.currentTracks)
+    }
+
+    fun disableAudio() {
+        audioDisabled = true
+        savedStateHandle[STATE_AUDIO_DISABLED] = true
+        player.trackSelectionParameters = player.trackSelectionParameters
+            .buildUpon()
+            .clearOverridesOfType(C.TRACK_TYPE_AUDIO)
+            .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, true)
+            .build()
         updateTrackOptions(player.currentTracks)
     }
 
@@ -417,6 +435,7 @@ class PlayerViewModel @Inject constructor(
         _uiState.update { state ->
             state.copy(
                 audioTracks = audioTracks,
+                audioDisabled = audioDisabled,
                 subtitleTracks = subtitleTracks,
                 subtitlesDisabled = subtitlesDisabled,
             )
@@ -462,6 +481,7 @@ class PlayerViewModel @Inject constructor(
         private const val STATE_PLAYBACK_SPEED = "player_playback_speed"
         private const val STATE_RESIZE_MODE = "player_resize_mode"
         private const val STATE_IS_LOCKED = "player_is_locked"
+        private const val STATE_AUDIO_DISABLED = "player_audio_disabled"
         private const val STATE_SUBTITLES_DISABLED = "player_subtitles_disabled"
         private const val PROGRESS_UPDATE_MS = 500L
     }
@@ -479,6 +499,7 @@ data class PlayerUiState(
     val bufferedPositionMs: Long = 0L,
     val playbackSpeed: Float = 1.0f,
     val resizeMode: Int = AspectRatioFrameLayout.RESIZE_MODE_FIT,
+    val audioDisabled: Boolean = false,
     val subtitlesDisabled: Boolean = false,
     val audioTracks: List<PlayerTrackOption> = emptyList(),
     val subtitleTracks: List<PlayerTrackOption> = emptyList(),

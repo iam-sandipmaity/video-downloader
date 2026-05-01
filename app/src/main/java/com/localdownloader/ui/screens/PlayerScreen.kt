@@ -322,20 +322,24 @@ fun PlayerScreen(
                         activePanelName = PlayerPanel.NONE.name
                     }
                 },
-                onSeekBack = {
-                    val appliedMs = playerViewModel.seekBy(-SEEK_INCREMENT_MS)
-                    if (appliedMs != 0L) {
-                        gestureFeedback = "-${abs(appliedMs / 1000)}s"
-                    }
-                    controlsVisible = true
-                    activePanelName = PlayerPanel.NONE.name
-                },
-                onSeekForward = {
-                    val appliedMs = playerViewModel.seekBy(SEEK_INCREMENT_MS)
-                    if (appliedMs != 0L) {
-                        gestureFeedback = "+${abs(appliedMs / 1000)}s"
-                    }
-                    controlsVisible = true
+                    onSeekBack = {
+                        val appliedMs = playerViewModel.seekBy(-SEEK_INCREMENT_MS)
+                        if (appliedMs != 0L) {
+                            gestureFeedback = "-${abs(appliedMs / 1000)}s"
+                        }
+                        activePanelName = PlayerPanel.NONE.name
+                    },
+                    onSeekForward = {
+                        val appliedMs = playerViewModel.seekBy(SEEK_INCREMENT_MS)
+                        if (appliedMs != 0L) {
+                            gestureFeedback = "+${abs(appliedMs / 1000)}s"
+                        }
+                        activePanelName = PlayerPanel.NONE.name
+                    },
+                onDoubleTapCenter = {
+                    val wasPlaying = uiState.isPlaying
+                    playerViewModel.togglePlayback()
+                    gestureFeedback = if (wasPlaying) "Paused" else "Playing"
                     activePanelName = PlayerPanel.NONE.name
                 },
                 playerWidthPx = playerWidthPx,
@@ -478,7 +482,11 @@ fun PlayerScreen(
                 controlsVisible = controlsVisible || uiState.isBuffering,
                 activePanel = activePanel,
                 currentPositionMs = if (isScrubbing) scrubPositionMs.toLong() else uiState.positionMs,
-                selectedAudioLabel = selectedAudioTrack?.title ?: "Auto",
+                selectedAudioLabel = when {
+                    uiState.audioDisabled -> "None"
+                    selectedAudioTrack != null -> selectedAudioTrack.title
+                    else -> "Auto"
+                },
                 selectedSubtitleLabel = when {
                     uiState.subtitlesDisabled -> "None"
                     selectedSubtitleTrack != null -> selectedSubtitleTrack.title
@@ -553,6 +561,14 @@ fun PlayerScreen(
                         playerViewModel.selectAudioTrack(it)
                         activePanelName = PlayerPanel.NONE.name
                     },
+                    onDisableAudio = {
+                        playerViewModel.disableAudio()
+                        activePanelName = PlayerPanel.NONE.name
+                    },
+                    onEnableAudioAuto = {
+                        playerViewModel.selectAudioTrack(null)
+                        activePanelName = PlayerPanel.NONE.name
+                    },
                     onDisableSubtitles = {
                         playerViewModel.disableSubtitles()
                         activePanelName = PlayerPanel.NONE.name
@@ -617,6 +633,7 @@ private fun BoxScope.GestureLayer(
     onToggleControls: () -> Unit,
     onSeekBack: () -> Unit,
     onSeekForward: () -> Unit,
+    onDoubleTapCenter: () -> Unit,
     playerWidthPx: Int,
     playerHeightPx: Int,
     onAdjustmentStart: (SwipeAdjustmentSide) -> Unit,
@@ -729,10 +746,20 @@ private fun BoxScope.GestureLayer(
                     onTap = { onToggleControls() },
                     onDoubleTap = { offset ->
                         if (playerWidthPx == 0) return@detectTapGestures
-                        if (offset.x < playerWidthPx / 2f) {
+                        val leftZoneEnd = playerWidthPx * DOUBLE_TAP_LEFT_ZONE_FRACTION
+                        val rightZoneStart = playerWidthPx * DOUBLE_TAP_RIGHT_ZONE_FRACTION
+                        when {
+                            offset.x < leftZoneEnd -> {
                             onSeekBack()
-                        } else {
-                            onSeekForward()
+                            }
+
+                            offset.x > rightZoneStart -> {
+                                onSeekForward()
+                            }
+
+                            else -> {
+                                onDoubleTapCenter()
+                            }
                         }
                     },
                 )
@@ -1143,6 +1170,8 @@ private fun PlayerOptionPanel(
     onDismiss: () -> Unit,
     onSelectSpeed: (Float) -> Unit,
     onSelectAudioTrack: (PlayerTrackOption?) -> Unit,
+    onDisableAudio: () -> Unit,
+    onEnableAudioAuto: () -> Unit,
     onDisableSubtitles: () -> Unit,
     onEnableSubtitlesAuto: () -> Unit,
     onSelectSubtitleTrack: (PlayerTrackOption?) -> Unit,
@@ -1193,6 +1222,18 @@ private fun PlayerOptionPanel(
                 }
 
                 PlayerPanel.AUDIO -> {
+                    PanelOptionRow(
+                        title = "None",
+                        subtitle = "Mute this file in the player",
+                        selected = uiState.audioDisabled,
+                        onClick = onDisableAudio,
+                    )
+                    PanelOptionRow(
+                        title = "Auto",
+                        subtitle = "Let player choose",
+                        selected = !uiState.audioDisabled && uiState.audioTracks.none { it.isSelected },
+                        onClick = onEnableAudioAuto,
+                    )
                     if (uiState.audioTracks.isEmpty()) {
                         EmptyPanelMessage("No alternate audio tracks detected.")
                     } else {
@@ -1200,7 +1241,7 @@ private fun PlayerOptionPanel(
                             PanelOptionRow(
                                 title = track.title,
                                 subtitle = track.subtitle,
-                                selected = track.isSelected,
+                                selected = !uiState.audioDisabled && track.isSelected,
                                 onClick = { onSelectAudioTrack(track) },
                             )
                         }
@@ -1583,3 +1624,5 @@ private const val SEEK_SWIPE_CURVE_POWER = 1.15f
 private const val MIN_SWIPE_SEEK_SECONDS = 10f
 private const val MAX_SWIPE_SEEK_SECONDS = 180f
 private const val DEFAULT_MAX_SWIPE_SEEK_SECONDS = 90f
+private const val DOUBLE_TAP_LEFT_ZONE_FRACTION = 0.35f
+private const val DOUBLE_TAP_RIGHT_ZONE_FRACTION = 0.65f

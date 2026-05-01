@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.5.4] - 2026-05-02
+
+### Added
+- **Audio disable option** - the player audio panel now includes `None` and `Auto` options, similar to subtitles, so audio playback can be disabled directly from the player
+
+### Fixed
+- **Double-tap seek UI friction** - left and right double-tap seek no longer force the full player chrome to pop up, which removes the brief stopped-feeling interruption during skipping
+- **Center double-tap action** - double-tapping the middle zone now toggles play and pause instead of being treated like a left or right seek tap
+
+### Changed
+- **App version bump** - release metadata updated to `1.5.4`
+
 ## [1.5.3] - 2026-05-02
 
 ### Fixed
