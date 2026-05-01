@@ -26,4 +26,5 @@ object WorkerKeys {
     const val PROGRESS_PERCENT = "progress_percent"
     const val ERROR_MESSAGE = "error_message"
     const val OUTPUT_PATH = "output_path"
+    const val TERMINAL_STATUS = "terminal_status"
 }
