@@ -1,13 +1,5 @@
 # Changelog
 
-## [1.5.7] - 2026-05-02
-
-### Added
-- **Standalone player app module** - added a separate `:playerapp` Android application module that reuses the modern player experience with swipe seek, brightness and volume gestures, track selection, fullscreen, PiP, and background audio support without changing the existing downloader app flow
-
-### Changed
-- **App version bump** - release metadata updated to `1.5.7`
-
 ## [1.5.6] - 2026-05-02
 
 ### Fixed
