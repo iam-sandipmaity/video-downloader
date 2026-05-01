@@ -36,6 +36,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -300,6 +302,10 @@ private fun LogViewerDialog(
     logText: String,
     onDismiss: () -> Unit,
 ) {
+    val clipboardManager = LocalClipboardManager.current
+    val resolvedLogText = logText.ifBlank { "No log captured for this task." }
+    var copied by remember { mutableStateOf(false) }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -323,7 +329,7 @@ private fun LogViewerDialog(
                 shape = RoundedCornerShape(16.dp),
             ) {
                 Text(
-                    text = logText.ifBlank { "No log captured for this task." },
+                    text = resolvedLogText,
                     modifier = Modifier
                         .heightIn(min = 120.dp, max = 360.dp)
                         .verticalScroll(rememberScrollState())
@@ -334,6 +340,16 @@ private fun LogViewerDialog(
             }
         },
         confirmButton = {
+            TextButton(
+                onClick = {
+                    clipboardManager.setText(AnnotatedString(resolvedLogText))
+                    copied = true
+                },
+            ) {
+                Text(if (copied) "Copied" else "Copy log")
+            }
+        },
+        dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text("Close")
             }
