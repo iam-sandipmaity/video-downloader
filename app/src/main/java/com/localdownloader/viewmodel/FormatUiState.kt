@@ -26,6 +26,8 @@ data class FormatUiState(
     val embedMetadata: Boolean = true,
     val embedThumbnail: Boolean = false,
     val writeThumbnail: Boolean = false,
+    val autoRemoveMissingFilesFromLibrary: Boolean = true,
+    val deleteFromStorageWhenRemovedInApp: Boolean = true,
     val enablePlaylist: Boolean = false,
     val outputTemplate: String = "%(title)s [%(id)s].%(ext)s",
     val youtubeAuthEnabled: Boolean = false,
