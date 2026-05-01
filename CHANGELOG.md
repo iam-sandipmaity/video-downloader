@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.5.3] - 2026-05-02
+
+### Fixed
+- **Rotation lock behavior** - the player lock now only locks screen rotation instead of blocking playback controls, gestures, panels, and other player actions
+
+### Added
+- **Background audio playback** - music and other audio-first files can continue playing when the app moves to the background
+
+### Changed
+- **App version bump** - release metadata updated to `1.5.3`
+
 ## [1.5.2] - 2026-05-02
 
 ### Added

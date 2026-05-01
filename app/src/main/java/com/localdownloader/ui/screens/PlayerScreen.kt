@@ -42,7 +42,6 @@ import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material.icons.outlined.FullscreenExit
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.LockOpen
 import androidx.compose.material.icons.outlined.PauseCircle
 import androidx.compose.material.icons.outlined.PictureInPictureAlt
 import androidx.compose.material.icons.outlined.PlayCircle
@@ -113,6 +112,9 @@ fun PlayerScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     val activity = context.findActivity()
     val playablePath = task?.outputPath?.takeIf { path -> path.isNotBlank() && File(path).exists() }
+    val allowBackgroundPlayback = remember(playablePath) {
+        isLikelyAudioFile(playablePath)
+    }
     val uiState by playerViewModel.uiState.collectAsStateWithLifecycle()
     val selectedAudioTrack = uiState.audioTracks.firstOrNull { it.isSelected }
     val selectedSubtitleTrack = uiState.subtitleTracks.firstOrNull { it.isSelected }
@@ -146,11 +148,13 @@ fun PlayerScreen(
         playerViewModel.bindTask(task)
     }
 
-    DisposableEffect(lifecycleOwner, playerViewModel) {
+    DisposableEffect(lifecycleOwner, playerViewModel, allowBackgroundPlayback, activity) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_START -> playerViewModel.onAppForegrounded()
-                Lifecycle.Event.ON_STOP -> playerViewModel.onAppBackgrounded()
+                Lifecycle.Event.ON_STOP -> playerViewModel.onAppBackgrounded(
+                    allowBackgroundPlayback = allowBackgroundPlayback || (activity as? MainActivity)?.isInPictureInPictureMode == true,
+                )
                 else -> Unit
             }
         }
@@ -165,14 +169,12 @@ fun PlayerScreen(
         controlsVisible,
         uiState.isBuffering,
         isScrubbing,
-        uiState.isLocked,
         activePanel,
     ) {
         if (
             controlsVisible &&
             !uiState.isBuffering &&
             !isScrubbing &&
-            !uiState.isLocked &&
             activePanel == PlayerPanel.NONE
         ) {
             delay(CONTROLS_AUTO_HIDE_MS)
@@ -231,7 +233,7 @@ fun PlayerScreen(
         panOffsetY = 0f
     }
 
-    DisposableEffect(activity, view, isFullscreen) {
+    DisposableEffect(activity, view, isFullscreen, uiState.isLocked) {
         val window = activity?.window
         val controller = window?.let { WindowInsetsControllerCompat(it, view) }
         if (window != null && controller != null) {
@@ -240,10 +242,18 @@ fun PlayerScreen(
                 controller.hide(WindowInsetsCompat.Type.systemBars())
                 controller.systemBarsBehavior =
                     WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                activity.requestedOrientation = if (uiState.isLocked) {
+                    ActivityInfo.SCREEN_ORIENTATION_LOCKED
+                } else {
+                    ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                }
             } else {
                 controller.show(WindowInsetsCompat.Type.systemBars())
-                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                activity.requestedOrientation = if (uiState.isLocked) {
+                    ActivityInfo.SCREEN_ORIENTATION_LOCKED
+                } else {
+                    ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                }
             }
         }
 
@@ -277,8 +287,7 @@ fun PlayerScreen(
                         playerWidthPx = it.width
                         playerHeightPx = it.height
                     }
-                    .pointerInput(uiState.isLocked, playerWidthPx, playerHeightPx) {
-                        if (uiState.isLocked) return@pointerInput
+                    .pointerInput(playerWidthPx, playerHeightPx) {
                         detectTransformGestures { _, pan, zoom, _ ->
                             val nextScale = (zoomScale * zoom).coerceIn(MIN_PINCH_SCALE, MAX_PINCH_SCALE)
                             val maxPanX = ((playerWidthPx * (nextScale - 1f)) / 2f).coerceAtLeast(0f)
@@ -306,94 +315,92 @@ fun PlayerScreen(
                 },
             )
 
-            if (!uiState.isLocked) {
-                GestureLayer(
-                    onToggleControls = {
-                        controlsVisible = !controlsVisible
-                        if (!controlsVisible) {
-                            activePanelName = PlayerPanel.NONE.name
-                        }
-                    },
-                    onSeekBack = {
-                        val appliedMs = playerViewModel.seekBy(-SEEK_INCREMENT_MS)
-                        if (appliedMs != 0L) {
-                            gestureFeedback = "-${abs(appliedMs / 1000)}s"
-                        }
-                        controlsVisible = true
+            GestureLayer(
+                onToggleControls = {
+                    controlsVisible = !controlsVisible
+                    if (!controlsVisible) {
                         activePanelName = PlayerPanel.NONE.name
-                    },
-                    onSeekForward = {
-                        val appliedMs = playerViewModel.seekBy(SEEK_INCREMENT_MS)
-                        if (appliedMs != 0L) {
-                            gestureFeedback = "+${abs(appliedMs / 1000)}s"
-                        }
-                        controlsVisible = true
-                        activePanelName = PlayerPanel.NONE.name
-                    },
-                    playerWidthPx = playerWidthPx,
-                    playerHeightPx = playerHeightPx,
-                    onAdjustmentStart = { side ->
-                        swipeHintVisible = false
-                        gestureFeedback = null
-                        swipeSeekOverlay = null
-                        controlsVisible = false
-                        activePanelName = PlayerPanel.NONE.name
-                        swipeAdjustmentOverlay = swipeAdjustmentController.start(side)
-                    },
-                    onAdjustmentChange = { side, fractionDelta ->
-                        swipeAdjustmentOverlay = swipeAdjustmentController.adjust(
-                            side = side,
-                            deltaFraction = fractionDelta,
-                        )
-                    },
-                    onAdjustmentEnd = {
-                        swipeAdjustmentOverlay = swipeAdjustmentOverlay?.copy(isActive = false)
-                    },
-                    onSeekSwipeStart = {
-                        swipeHintVisible = false
-                        gestureFeedback = null
-                        swipeAdjustmentOverlay = null
-                        controlsVisible = false
-                        activePanelName = PlayerPanel.NONE.name
-                        swipeSeekStartPositionMs = uiState.positionMs
-                        swipeSeekOverlay = SwipeSeekOverlay(
-                            deltaMs = 0L,
-                            targetPositionMs = uiState.positionMs,
-                            isActive = true,
-                        )
-                    },
-                    onSeekSwipeChange = { distanceFraction ->
-                        val deltaMs = calculateSwipeSeekDeltaMs(
-                            distanceFraction = distanceFraction,
-                            durationMs = uiState.durationMs,
-                        )
-                        swipeSeekOverlay = SwipeSeekOverlay(
-                            deltaMs = deltaMs,
-                            targetPositionMs = (swipeSeekStartPositionMs + deltaMs)
+                    }
+                },
+                onSeekBack = {
+                    val appliedMs = playerViewModel.seekBy(-SEEK_INCREMENT_MS)
+                    if (appliedMs != 0L) {
+                        gestureFeedback = "-${abs(appliedMs / 1000)}s"
+                    }
+                    controlsVisible = true
+                    activePanelName = PlayerPanel.NONE.name
+                },
+                onSeekForward = {
+                    val appliedMs = playerViewModel.seekBy(SEEK_INCREMENT_MS)
+                    if (appliedMs != 0L) {
+                        gestureFeedback = "+${abs(appliedMs / 1000)}s"
+                    }
+                    controlsVisible = true
+                    activePanelName = PlayerPanel.NONE.name
+                },
+                playerWidthPx = playerWidthPx,
+                playerHeightPx = playerHeightPx,
+                onAdjustmentStart = { side ->
+                    swipeHintVisible = false
+                    gestureFeedback = null
+                    swipeSeekOverlay = null
+                    controlsVisible = false
+                    activePanelName = PlayerPanel.NONE.name
+                    swipeAdjustmentOverlay = swipeAdjustmentController.start(side)
+                },
+                onAdjustmentChange = { side, fractionDelta ->
+                    swipeAdjustmentOverlay = swipeAdjustmentController.adjust(
+                        side = side,
+                        deltaFraction = fractionDelta,
+                    )
+                },
+                onAdjustmentEnd = {
+                    swipeAdjustmentOverlay = swipeAdjustmentOverlay?.copy(isActive = false)
+                },
+                onSeekSwipeStart = {
+                    swipeHintVisible = false
+                    gestureFeedback = null
+                    swipeAdjustmentOverlay = null
+                    controlsVisible = false
+                    activePanelName = PlayerPanel.NONE.name
+                    swipeSeekStartPositionMs = uiState.positionMs
+                    swipeSeekOverlay = SwipeSeekOverlay(
+                        deltaMs = 0L,
+                        targetPositionMs = uiState.positionMs,
+                        isActive = true,
+                    )
+                },
+                onSeekSwipeChange = { distanceFraction ->
+                    val deltaMs = calculateSwipeSeekDeltaMs(
+                        distanceFraction = distanceFraction,
+                        durationMs = uiState.durationMs,
+                    )
+                    swipeSeekOverlay = SwipeSeekOverlay(
+                        deltaMs = deltaMs,
+                        targetPositionMs = (swipeSeekStartPositionMs + deltaMs)
+                            .coerceIn(0L, uiState.durationMs.takeIf { it > 0 } ?: Long.MAX_VALUE),
+                        isActive = true,
+                    )
+                },
+                onSeekSwipeEnd = {
+                    val pendingOverlay = swipeSeekOverlay
+                    val requestedDeltaMs = pendingOverlay?.deltaMs ?: 0L
+                    if (requestedDeltaMs != 0L) {
+                        val appliedDeltaMs = playerViewModel.seekBy(requestedDeltaMs)
+                        swipeSeekOverlay = pendingOverlay?.copy(
+                            deltaMs = appliedDeltaMs,
+                            targetPositionMs = (swipeSeekStartPositionMs + appliedDeltaMs)
                                 .coerceIn(0L, uiState.durationMs.takeIf { it > 0 } ?: Long.MAX_VALUE),
-                            isActive = true,
+                            isActive = false,
                         )
-                    },
-                    onSeekSwipeEnd = {
-                        val pendingOverlay = swipeSeekOverlay
-                        val requestedDeltaMs = pendingOverlay?.deltaMs ?: 0L
-                        if (requestedDeltaMs != 0L) {
-                            val appliedDeltaMs = playerViewModel.seekBy(requestedDeltaMs)
-                            swipeSeekOverlay = pendingOverlay?.copy(
-                                deltaMs = appliedDeltaMs,
-                                targetPositionMs = (swipeSeekStartPositionMs + appliedDeltaMs)
-                                    .coerceIn(0L, uiState.durationMs.takeIf { it > 0 } ?: Long.MAX_VALUE),
-                                isActive = false,
-                            )
-                        } else {
-                            swipeSeekOverlay = null
-                        }
-                    },
-                    onSeekSwipeCancel = {
+                    } else {
                         swipeSeekOverlay = null
-                    },
-                )
-            }
+                    }
+                },
+                onSeekSwipeCancel = {
+                    swipeSeekOverlay = null
+                },
+            )
 
             if (uiState.isBuffering) {
                 Surface(
@@ -421,7 +428,7 @@ fun PlayerScreen(
             }
 
             AnimatedVisibility(
-                visible = gestureFeedback != null && !uiState.isLocked,
+                visible = gestureFeedback != null,
                 enter = fadeIn(),
                 exit = fadeOut(),
             ) {
@@ -455,7 +462,7 @@ fun PlayerScreen(
             }
 
             AnimatedVisibility(
-                visible = swipeHintVisible && !uiState.isLocked && swipeAdjustmentOverlay == null && swipeSeekOverlay == null,
+                visible = swipeHintVisible && swipeAdjustmentOverlay == null && swipeSeekOverlay == null,
                 enter = fadeIn(),
                 exit = fadeOut(),
             ) {
@@ -464,118 +471,112 @@ fun PlayerScreen(
                 )
             }
 
-            if (uiState.isLocked) {
-                LockedOverlay(
-                    onUnlock = {
-                        playerViewModel.toggleLock()
-                        controlsVisible = true
-                    },
-                )
-            } else {
-                PlayerChrome(
+            PlayerChrome(
+                uiState = uiState,
+                title = uiState.title.ifBlank { task?.title.orEmpty() },
+                isFullscreen = isFullscreen,
+                controlsVisible = controlsVisible || uiState.isBuffering,
+                activePanel = activePanel,
+                currentPositionMs = if (isScrubbing) scrubPositionMs.toLong() else uiState.positionMs,
+                selectedAudioLabel = selectedAudioTrack?.title ?: "Auto",
+                selectedSubtitleLabel = when {
+                    uiState.subtitlesDisabled -> "None"
+                    selectedSubtitleTrack != null -> selectedSubtitleTrack.title
+                    else -> "Auto"
+                },
+                canEnterPictureInPicture = uiState.isAvailable && isLikelyVideoFile(playablePath),
+                isRotationLocked = uiState.isLocked,
+                onBack = {
+                    playerViewModel.persistPlaybackState()
+                    onBack()
+                },
+                onPlayPause = {
+                    playerViewModel.togglePlayback()
+                    controlsVisible = true
+                },
+                onFullscreenToggle = {
+                    isFullscreen = !isFullscreen
+                    controlsVisible = true
+                },
+                onEnterPictureInPicture = {
+                    (activity as? MainActivity)?.enterPictureInPictureIfPossible()
+                },
+                onSeekChanged = { value ->
+                    isScrubbing = true
+                    scrubPositionMs = value
+                    controlsVisible = true
+                },
+                onSeekFinished = {
+                    playerViewModel.seekTo(scrubPositionMs.toLong())
+                    isScrubbing = false
+                    controlsVisible = true
+                },
+                onTogglePanel = { panel ->
+                    controlsVisible = true
+                    activePanelName = if (activePanel == panel) PlayerPanel.NONE.name else panel.name
+                },
+                isZoomed = zoomScale > 1.02f,
+                onLockClick = {
+                    val willLockRotation = !uiState.isLocked
+                    playerViewModel.toggleLock()
+                    activePanelName = PlayerPanel.NONE.name
+                    controlsVisible = true
+                    gestureFeedback = if (willLockRotation) "Rotation locked" else "Rotation unlocked"
+                },
+                onResetZoom = {
+                    zoomScale = 1f
+                    panOffsetX = 0f
+                    panOffsetY = 0f
+                    controlsVisible = true
+                },
+            )
+
+            AnimatedVisibility(
+                visible = (controlsVisible || activePanel != PlayerPanel.NONE) && activePanel != PlayerPanel.NONE,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .navigationBarsPadding()
+                    .padding(end = 18.dp, bottom = 108.dp),
+            ) {
+                PlayerOptionPanel(
+                    panel = activePanel,
                     uiState = uiState,
-                    title = uiState.title.ifBlank { task?.title.orEmpty() },
-                    isFullscreen = isFullscreen,
-                    controlsVisible = controlsVisible || uiState.isBuffering,
-                    activePanel = activePanel,
-                    currentPositionMs = if (isScrubbing) scrubPositionMs.toLong() else uiState.positionMs,
-                    selectedAudioLabel = selectedAudioTrack?.title ?: "Auto",
-                    selectedSubtitleLabel = when {
-                        uiState.subtitlesDisabled -> "None"
-                        selectedSubtitleTrack != null -> selectedSubtitleTrack.title
-                        else -> "Auto"
+                    selectedSubtitleTrack = selectedSubtitleTrack,
+                    onDismiss = { activePanelName = PlayerPanel.NONE.name },
+                    onSelectSpeed = {
+                        playerViewModel.setPlaybackSpeed(it)
+                        activePanelName = PlayerPanel.NONE.name
                     },
-                    onBack = {
-                        playerViewModel.persistPlaybackState()
-                        onBack()
+                    onSelectAudioTrack = {
+                        playerViewModel.selectAudioTrack(it)
+                        activePanelName = PlayerPanel.NONE.name
                     },
-                    onPlayPause = {
-                        playerViewModel.togglePlayback()
-                        controlsVisible = true
+                    onDisableSubtitles = {
+                        playerViewModel.disableSubtitles()
+                        activePanelName = PlayerPanel.NONE.name
                     },
-                    onFullscreenToggle = {
-                        isFullscreen = !isFullscreen
-                        controlsVisible = true
+                    onEnableSubtitlesAuto = {
+                        playerViewModel.enableSubtitlesAuto()
+                        activePanelName = PlayerPanel.NONE.name
                     },
-                    canEnterPictureInPicture = uiState.isAvailable && isLikelyVideoFile(playablePath),
-                    onEnterPictureInPicture = {
-                        (activity as? MainActivity)?.enterPictureInPictureIfPossible()
+                    onSelectSubtitleTrack = {
+                        playerViewModel.selectSubtitleTrack(it)
+                        activePanelName = PlayerPanel.NONE.name
                     },
-                    onSeekChanged = { value ->
-                        isScrubbing = true
-                        scrubPositionMs = value
-                        controlsVisible = true
-                    },
-                    onSeekFinished = {
-                        playerViewModel.seekTo(scrubPositionMs.toLong())
-                        isScrubbing = false
-                        controlsVisible = true
-                    },
-                    onTogglePanel = { panel ->
-                        controlsVisible = true
-                        activePanelName = if (activePanel == panel) PlayerPanel.NONE.name else panel.name
+                    onSelectResizeMode = {
+                        playerViewModel.setResizeMode(it)
+                        activePanelName = PlayerPanel.NONE.name
                     },
                     isZoomed = zoomScale > 1.02f,
-                    onLockClick = {
-                        playerViewModel.toggleLock()
-                        activePanelName = PlayerPanel.NONE.name
-                        controlsVisible = false
-                    },
                     onResetZoom = {
                         zoomScale = 1f
                         panOffsetX = 0f
                         panOffsetY = 0f
-                        controlsVisible = true
+                        activePanelName = PlayerPanel.NONE.name
                     },
                 )
-
-                AnimatedVisibility(
-                    visible = (controlsVisible || activePanel != PlayerPanel.NONE) && activePanel != PlayerPanel.NONE,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .navigationBarsPadding()
-                        .padding(end = 18.dp, bottom = 108.dp),
-                ) {
-                    PlayerOptionPanel(
-                        panel = activePanel,
-                        uiState = uiState,
-                        selectedSubtitleTrack = selectedSubtitleTrack,
-                        onDismiss = { activePanelName = PlayerPanel.NONE.name },
-                        onSelectSpeed = {
-                            playerViewModel.setPlaybackSpeed(it)
-                            activePanelName = PlayerPanel.NONE.name
-                        },
-                        onSelectAudioTrack = {
-                            playerViewModel.selectAudioTrack(it)
-                            activePanelName = PlayerPanel.NONE.name
-                        },
-                        onDisableSubtitles = {
-                            playerViewModel.disableSubtitles()
-                            activePanelName = PlayerPanel.NONE.name
-                        },
-                        onEnableSubtitlesAuto = {
-                            playerViewModel.enableSubtitlesAuto()
-                            activePanelName = PlayerPanel.NONE.name
-                        },
-                        onSelectSubtitleTrack = {
-                            playerViewModel.selectSubtitleTrack(it)
-                            activePanelName = PlayerPanel.NONE.name
-                        },
-                        onSelectResizeMode = {
-                            playerViewModel.setResizeMode(it)
-                            activePanelName = PlayerPanel.NONE.name
-                        },
-                        isZoomed = zoomScale > 1.02f,
-                        onResetZoom = {
-                            zoomScale = 1f
-                            panOffsetX = 0f
-                            panOffsetY = 0f
-                            activePanelName = PlayerPanel.NONE.name
-                        },
-                    )
-                }
             }
 
             uiState.errorMessage?.takeIf { it.isNotBlank() }?.let { message ->
@@ -847,32 +848,6 @@ private fun BoxScope.SwipeSeekHud(
 }
 
 @Composable
-private fun BoxScope.LockedOverlay(
-    onUnlock: () -> Unit,
-) {
-    Surface(
-        modifier = Modifier
-            .align(Alignment.CenterEnd)
-            .padding(end = 18.dp),
-        color = Color.Black.copy(alpha = 0.76f),
-        shape = RoundedCornerShape(30.dp),
-    ) {
-        TextButton(onClick = onUnlock, modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp)) {
-            Icon(
-                imageVector = Icons.Outlined.LockOpen,
-                contentDescription = "Unlock controls",
-                tint = Color.White,
-            )
-            Text(
-                text = "Unlock",
-                modifier = Modifier.padding(start = 8.dp),
-                color = Color.White,
-            )
-        }
-    }
-}
-
-@Composable
 private fun BoxScope.PlayerChrome(
     uiState: PlayerUiState,
     title: String,
@@ -882,10 +857,11 @@ private fun BoxScope.PlayerChrome(
     currentPositionMs: Long,
     selectedAudioLabel: String,
     selectedSubtitleLabel: String,
+    canEnterPictureInPicture: Boolean,
+    isRotationLocked: Boolean,
     onBack: () -> Unit,
     onPlayPause: () -> Unit,
     onFullscreenToggle: () -> Unit,
-    canEnterPictureInPicture: Boolean,
     onEnterPictureInPicture: () -> Unit,
     onSeekChanged: (Float) -> Unit,
     onSeekFinished: () -> Unit,
@@ -988,6 +964,7 @@ private fun BoxScope.PlayerChrome(
                         audioLabel = selectedAudioLabel,
                         isFullscreen = isFullscreen,
                         canEnterPictureInPicture = canEnterPictureInPicture,
+                        isRotationLocked = isRotationLocked,
                         isZoomed = isZoomed,
                         onResizeClick = { onTogglePanel(PlayerPanel.RESIZE) },
                         onSubtitleClick = { onTogglePanel(PlayerPanel.SUBTITLES) },
@@ -1061,6 +1038,7 @@ private fun DockStrip(
     audioLabel: String,
     isFullscreen: Boolean,
     canEnterPictureInPicture: Boolean,
+    isRotationLocked: Boolean,
     isZoomed: Boolean,
     onResizeClick: () -> Unit,
     onSubtitleClick: () -> Unit,
@@ -1122,8 +1100,8 @@ private fun DockStrip(
             }
             DockButton(
                 icon = Icons.Outlined.Lock,
-                contentDescription = "Lock controls",
-                selected = false,
+                contentDescription = if (isRotationLocked) "Unlock rotation" else "Lock rotation",
+                selected = isRotationLocked,
                 onClick = onLockClick,
             )
             DockButton(
@@ -1368,6 +1346,11 @@ private fun formatPlaybackTime(timeMs: Long): String {
 private fun isLikelyVideoFile(path: String?): Boolean {
     val extension = path?.substringAfterLast('.', "")?.lowercase().orEmpty()
     return extension in setOf("mp4", "mkv", "webm", "mov", "avi", "m4v", "3gp", "ts", "m2ts", "mpeg", "mpg")
+}
+
+private fun isLikelyAudioFile(path: String?): Boolean {
+    val extension = path?.substringAfterLast('.', "")?.lowercase().orEmpty()
+    return extension in setOf("mp3", "m4a", "aac", "wav", "flac", "ogg", "opus", "amr", "3ga", "wma")
 }
 
 private fun formatSpeed(speed: Float): String {

@@ -337,10 +337,10 @@ class PlayerViewModel @Inject constructor(
         snapshotPlaybackState()
     }
 
-    fun onAppBackgrounded() {
-        shouldResumeOnForeground = player.isPlaying
+    fun onAppBackgrounded(allowBackgroundPlayback: Boolean) {
+        shouldResumeOnForeground = !allowBackgroundPlayback && player.isPlaying
         persistPlaybackState(forcePlayWhenReady = player.isPlaying)
-        if (player.isPlaying) {
+        if (!allowBackgroundPlayback && player.isPlaying) {
             player.pause()
         }
     }
