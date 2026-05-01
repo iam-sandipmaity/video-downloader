@@ -11,9 +11,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -73,9 +73,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.awaitFirstDown
-import androidx.compose.ui.input.pointer.awaitPointerEvent
-import androidx.compose.ui.input.pointer.consume
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -567,47 +564,41 @@ private fun BoxScope.GestureLayer(
             .fillMaxSize()
             .pointerInput(playerWidthPx, playerHeightPx) {
                 if (playerWidthPx == 0 || playerHeightPx == 0) return@pointerInput
-                awaitEachGesture {
-                    val down = awaitFirstDown(requireUnconsumed = false)
-                    val startSide = if (down.position.x < playerWidthPx / 2f) {
-                        SwipeAdjustmentSide.LEFT
-                    } else {
-                        SwipeAdjustmentSide.RIGHT
-                    }
-                    var adjustmentActive = false
-                    while (true) {
-                        val event = awaitPointerEvent()
-                        if (event.changes.size > 1) break
-                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                        if (!change.pressed) break
-
-                        val totalDeltaX = change.position.x - down.position.x
-                        val totalDeltaY = change.position.y - down.position.y
-                        val absDeltaX = abs(totalDeltaX)
-                        val absDeltaY = abs(totalDeltaY)
-
-                        if (
-                            !adjustmentActive &&
-                            absDeltaY > viewConfiguration.touchSlop &&
-                            absDeltaY > absDeltaX * VERTICAL_SWIPE_DOMINANCE_RATIO
-                        ) {
-                            adjustmentActive = true
-                            onAdjustmentStart(startSide)
+                var activeSide: SwipeAdjustmentSide? = null
+                var totalVerticalDrag = 0f
+                detectVerticalDragGestures(
+                    onDragStart = { offset ->
+                        activeSide = if (offset.x < playerWidthPx / 2f) {
+                            SwipeAdjustmentSide.LEFT
+                        } else {
+                            SwipeAdjustmentSide.RIGHT
                         }
-
-                        if (adjustmentActive) {
-                            change.consume()
-                            onAdjustmentChange(
-                                startSide,
-                                (-totalDeltaY / playerHeightPx.toFloat()).coerceIn(-1f, 1f),
-                            )
+                        totalVerticalDrag = 0f
+                        activeSide?.let(onAdjustmentStart)
+                    },
+                    onVerticalDrag = { _, dragAmount ->
+                        val side = activeSide ?: return@detectVerticalDragGestures
+                        totalVerticalDrag += dragAmount
+                        onAdjustmentChange(
+                            side,
+                            (-totalVerticalDrag / playerHeightPx.toFloat()).coerceIn(-1f, 1f),
+                        )
+                    },
+                    onDragEnd = {
+                        if (activeSide != null) {
+                            onAdjustmentEnd()
                         }
-                    }
-
-                    if (adjustmentActive) {
-                        onAdjustmentEnd()
-                    }
-                }
+                        activeSide = null
+                        totalVerticalDrag = 0f
+                    },
+                    onDragCancel = {
+                        if (activeSide != null) {
+                            onAdjustmentEnd()
+                        }
+                        activeSide = null
+                        totalVerticalDrag = 0f
+                    },
+                )
             }
             .pointerInput(playerWidthPx) {
                 detectTapGestures(
@@ -1397,4 +1388,3 @@ private const val MIN_PINCH_SCALE = 1f
 private const val MAX_PINCH_SCALE = 3f
 private const val DEFAULT_GESTURE_LEVEL = 0.5f
 private const val MIN_BRIGHTNESS_LEVEL = 0.05f
-private const val VERTICAL_SWIPE_DOMINANCE_RATIO = 1.2f
