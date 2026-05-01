@@ -1,6 +1,8 @@
 package com.localdownloader.data
 
 import androidx.work.BackoffPolicy
+import androidx.work.Constraints
+import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequest
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
@@ -13,6 +15,7 @@ import com.localdownloader.domain.models.ConversionRequest
 import com.localdownloader.domain.models.DownloadOptions
 import com.localdownloader.domain.models.DownloadStatus
 import com.localdownloader.domain.models.DownloadTask
+import com.localdownloader.domain.models.MediaSyncResult
 import com.localdownloader.domain.models.PlaylistEntry
 import com.localdownloader.domain.models.VideoInfo
 import com.localdownloader.domain.repositories.DownloaderRepository
@@ -26,6 +29,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -174,7 +178,7 @@ class DownloadRepositoryImpl @Inject constructor(
                 ?: error("No task found with ID $taskId")
             val outputPath = task.outputPath?.takeIf { it.isNotBlank() }
                 ?: error("This task does not have a saved output file.")
-            val sourceFile = File(outputPath)
+            val sourceFile = File(fileUtils.normalizeLibraryOutputPath(outputPath))
             if (!sourceFile.exists()) {
                 error("The saved file could not be found.")
             }
@@ -190,14 +194,15 @@ class DownloadRepositoryImpl @Inject constructor(
             require(!targetFile.exists()) {
                 "A file with that name already exists."
             }
-            require(sourceFile.renameTo(targetFile)) {
-                "Unable to rename the saved file."
-            }
+            val renamedPath = fileUtils.renameManagedFile(
+                path = sourceFile.absolutePath,
+                targetFileName = normalizedName,
+            ) ?: error("Unable to rename the saved file.")
 
             downloadTaskStore.update(taskId) { current ->
                 current.copy(
-                    title = targetFile.name,
-                    outputPath = targetFile.absolutePath,
+                    title = File(renamedPath).name,
+                    outputPath = renamedPath,
                     updatedAtEpochMs = System.currentTimeMillis(),
                 )
             }
@@ -207,19 +212,110 @@ class DownloadRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteDownloadedFile(taskId: String): Result<Unit> {
+        return deleteDownloadedFiles(listOf(taskId))
+            .map { Unit }
+            .onFailure { error ->
+                logger.e("DownloadRepository", "deleteDownloadedFile failed taskId=$taskId", error)
+            }
+    }
+
+    override suspend fun deleteDownloadedFiles(taskIds: List<String>): Result<Int> {
         return runCatching {
-            val task = downloadTaskStore.getTask(taskId)
-                ?: error("No task found with ID $taskId")
-            val outputPath = task.outputPath?.takeIf { it.isNotBlank() }
-            if (outputPath != null) {
-                val file = File(outputPath)
-                if (file.exists() && !file.delete()) {
-                    error("Unable to delete the saved file.")
+            val ids = taskIds.map { it.trim() }.filter { it.isNotBlank() }.distinct()
+            require(ids.isNotEmpty()) { "Select at least one saved item." }
+
+            val deleteFromStorage = settingsStore.observeSettings().first().deleteFromStorageWhenRemovedInApp
+            removeDownloadedTasks(ids, deleteFromStorage)
+        }.onFailure { error ->
+            logger.e("DownloadRepository", "deleteDownloadedFiles failed taskIds=${taskIds.size}", error)
+        }
+    }
+
+    override suspend fun clearCompletedDownloads(): Result<Int> {
+        return runCatching {
+            val completedIds = downloadTaskStore.getAllTasks()
+                .filter { it.status == DownloadStatus.COMPLETED }
+                .map { it.id }
+
+            if (completedIds.isEmpty()) {
+                0
+            } else {
+                val deleteFromStorage = settingsStore.observeSettings().first().deleteFromStorageWhenRemovedInApp
+                removeDownloadedTasks(completedIds, deleteFromStorage)
+            }
+        }.onFailure { error ->
+            logger.e("DownloadRepository", "clearCompletedDownloads failed", error)
+        }
+    }
+
+    override suspend fun clearCompletedLibraryEntries(): Result<Int> {
+        return runCatching {
+            val completedIds = downloadTaskStore.getAllTasks()
+                .filter { it.status == DownloadStatus.COMPLETED }
+                .map { it.id }
+
+            if (completedIds.isEmpty()) {
+                0
+            } else {
+                removeDownloadedTasks(completedIds, deleteFromStorage = false)
+            }
+        }.onFailure { error ->
+            logger.e("DownloadRepository", "clearCompletedLibraryEntries failed", error)
+        }
+    }
+
+    override suspend fun deleteAllCompletedMedia(): Result<Int> {
+        return runCatching {
+            val completedIds = downloadTaskStore.getAllTasks()
+                .filter { it.status == DownloadStatus.COMPLETED }
+                .map { it.id }
+
+            if (completedIds.isEmpty()) {
+                0
+            } else {
+                removeDownloadedTasks(completedIds, deleteFromStorage = true)
+            }
+        }.onFailure { error ->
+            logger.e("DownloadRepository", "deleteAllCompletedMedia failed", error)
+        }
+    }
+
+    override suspend fun syncDownloadedMedia(removeMissingEntries: Boolean?): Result<MediaSyncResult> {
+        return runCatching {
+            val settings = settingsStore.observeSettings().first()
+            val shouldRemoveMissing = removeMissingEntries ?: settings.autoRemoveMissingFilesFromLibrary
+            val completedTasks = downloadTaskStore.getAllTasks()
+                .filter { it.status == DownloadStatus.COMPLETED }
+
+            completedTasks.forEach { task ->
+                val outputPath = task.outputPath?.takeIf { it.isNotBlank() } ?: return@forEach
+                val normalizedPath = fileUtils.normalizeLibraryOutputPath(outputPath)
+                if (normalizedPath != outputPath) {
+                    downloadTaskStore.update(task.id) { current ->
+                        current.copy(
+                            outputPath = normalizedPath,
+                            updatedAtEpochMs = System.currentTimeMillis(),
+                        )
+                    }
                 }
             }
-            downloadTaskStore.remove(taskId)
+
+            val missingTasks = completedTasks.filter { task ->
+                val outputPath = task.outputPath?.takeIf { it.isNotBlank() } ?: return@filter true
+                !File(fileUtils.normalizeLibraryOutputPath(outputPath)).exists()
+            }
+
+            if (shouldRemoveMissing && missingTasks.isNotEmpty()) {
+                downloadTaskStore.removeMany(missingTasks.map { it.id })
+            }
+
+            MediaSyncResult(
+                checkedItems = completedTasks.size,
+                missingItems = missingTasks.size,
+                removedEntries = if (shouldRemoveMissing) missingTasks.size else 0,
+            )
         }.onFailure { error ->
-            logger.e("DownloadRepository", "deleteDownloadedFile failed taskId=$taskId", error)
+            logger.e("DownloadRepository", "syncDownloadedMedia failed", error)
         }
     }
 
@@ -270,6 +366,11 @@ class DownloadRepositoryImpl @Inject constructor(
                     WorkerKeys.PLAYLIST_ITEM_INDEX to (options.playlistItemIndex ?: -1),
                     WorkerKeys.PLAYLIST_FOLDER_NAME to (options.playlistFolderName ?: ""),
                 ),
+            )
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build(),
             )
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10, TimeUnit.SECONDS)
             .build()
@@ -338,15 +439,33 @@ class DownloadRepositoryImpl @Inject constructor(
             }
 
             WorkInfo.State.SUCCEEDED -> {
+                val terminalStatus = info.outputData.getString(WorkerKeys.TERMINAL_STATUS)
                 val outputPath = info.outputData.getString(WorkerKeys.OUTPUT_PATH)
-                downloadTaskStore.update(taskId) { task ->
-                    if (task.status == DownloadStatus.COMPLETED) task
-                    else task.copy(
-                        status = DownloadStatus.COMPLETED,
-                        progressPercent = task.progressPercent.coerceAtLeast(100),
-                        outputPath = outputPath ?: task.outputPath,
-                        updatedAtEpochMs = System.currentTimeMillis(),
-                    )
+                if (terminalStatus == DownloadStatus.FAILED.name) {
+                    val failureMessage = info.outputData.getString(WorkerKeys.ERROR_MESSAGE)
+                        ?.takeIf { it.isNotBlank() }
+                        ?: "Playlist item failed"
+                    downloadTaskStore.update(taskId) { task ->
+                        task.copy(
+                            status = DownloadStatus.FAILED,
+                            errorMessage = failureMessage,
+                            debugTrace = appendDebugLine(
+                                task.debugTrace,
+                                "Worker finished with logical failure so playlist queue could continue: $failureMessage",
+                            ),
+                            updatedAtEpochMs = System.currentTimeMillis(),
+                        )
+                    }
+                } else {
+                    downloadTaskStore.update(taskId) { task ->
+                        if (task.status == DownloadStatus.COMPLETED) task
+                        else task.copy(
+                            status = DownloadStatus.COMPLETED,
+                            progressPercent = task.progressPercent.coerceAtLeast(100),
+                            outputPath = outputPath ?: task.outputPath,
+                            updatedAtEpochMs = System.currentTimeMillis(),
+                        )
+                    }
                 }
             }
 
@@ -404,6 +523,42 @@ class DownloadRepositoryImpl @Inject constructor(
             return sanitized
         }
         return "$sanitized.$currentExtension"
+    }
+
+    private fun removeDownloadedTasks(taskIds: List<String>, deleteFromStorage: Boolean): Int {
+        val removedIds = mutableListOf<String>()
+        val failedIds = mutableListOf<String>()
+
+        taskIds.forEach { taskId ->
+            val task = downloadTaskStore.getTask(taskId) ?: return@forEach
+            val outputPath = task.outputPath?.takeIf { it.isNotBlank() }
+            val normalizedPath = outputPath?.let(fileUtils::normalizeLibraryOutputPath)
+            val deletedOrMissing = when {
+                !deleteFromStorage -> true
+                normalizedPath == null -> true
+                else -> {
+                    val deletedPrimary = fileUtils.deleteManagedFile(normalizedPath)
+                    val deletedLegacyPrivateCopy = if (outputPath != normalizedPath && outputPath != null) {
+                        fileUtils.deleteManagedFile(outputPath)
+                    } else {
+                        true
+                    }
+                    deletedPrimary && deletedLegacyPrivateCopy
+                }
+            }
+            if (deletedOrMissing) {
+                removedIds += taskId
+            } else {
+                failedIds += taskId
+            }
+        }
+
+        downloadTaskStore.removeMany(removedIds)
+
+        if (failedIds.isNotEmpty()) {
+            error("Unable to delete ${failedIds.size} saved file(s) from device storage.")
+        }
+        return removedIds.size
     }
 
     private companion object {
