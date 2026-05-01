@@ -42,6 +42,8 @@ class DownloadTaskStore @Inject constructor(
         }
     }
 
+    fun getAllTasks(): List<DownloadTask> = tasks.value.values.toList()
+
     fun getTask(taskId: String): DownloadTask? = tasks.value[taskId]
 
     fun upsert(task: DownloadTask, optionsJson: String? = null) {
@@ -74,6 +76,20 @@ class DownloadTaskStore @Inject constructor(
     fun remove(taskId: String) {
         tasks.update { taskMap -> taskMap - taskId }
         scope.launch { dao.deleteById(taskId) }
+    }
+
+    fun removeMany(taskIds: Collection<String>) {
+        if (taskIds.isEmpty()) return
+        val ids = taskIds.toSet()
+        tasks.update { taskMap -> taskMap - ids }
+        scope.launch {
+            ids.forEach { dao.deleteById(it) }
+        }
+    }
+
+    fun clearAll() {
+        tasks.update { emptyMap() }
+        scope.launch { dao.deleteAll() }
     }
 
     suspend fun getCachedOptions(taskId: String): String? {
