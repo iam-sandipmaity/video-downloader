@@ -27,6 +27,7 @@ import com.localdownloader.utils.Logger
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import androidx.hilt.work.HiltWorker
+import kotlinx.coroutines.CancellationException
 
 @HiltWorker
 class DownloadWorker @AssistedInject constructor(
@@ -77,6 +78,7 @@ class DownloadWorker @AssistedInject constructor(
             playlistFolderName = inputData.getString(WorkerKeys.PLAYLIST_FOLDER_NAME).orEmpty().ifBlank { null },
         )
         logger.d("DownloadWorker", "DownloadOptions: $options")
+        val shouldContinuePlaylistQueue = options.isPlaylistEnabled && options.playlistItemIndex != null
 
         val runningTitle = titleHint.ifBlank { "Downloading..." }
         ensureTaskRunning(
@@ -186,6 +188,9 @@ class DownloadWorker @AssistedInject constructor(
             } else {
                 runDownloadAttempt(options)
             }
+        } catch (cancelled: CancellationException) {
+            appendDebugTrace(taskId, "Worker cancelled while download was in progress")
+            throw cancelled
         } catch (throwable: Throwable) {
             val failureMessage = buildFailureMessage(
                 throwable = throwable,
@@ -201,7 +206,10 @@ class DownloadWorker @AssistedInject constructor(
                 )
             }
             logger.e("DownloadWorker", "Task failed due to exception taskId=$taskId message=${throwable.message}")
-            return Result.failure(workDataOf(WorkerKeys.ERROR_MESSAGE to failureMessage))
+            return finishFailureResult(
+                shouldContinuePlaylistQueue = shouldContinuePlaylistQueue,
+                failureMessage = failureMessage,
+            )
         }
 
         if (!result.isSuccess && shouldRetryWithFallbackExtractor(options, result.stderr)) {
@@ -258,6 +266,14 @@ class DownloadWorker @AssistedInject constructor(
             }
         }
 
+        if (!result.isSuccess && shouldRetryTransientFailure(result.stderr) && runAttemptCount < MAX_TRANSIENT_RETRY_ATTEMPTS) {
+            appendDebugTrace(
+                taskId,
+                "Transient failure detected; scheduling WorkManager retry ${runAttemptCount + 1}/$MAX_TRANSIENT_RETRY_ATTEMPTS",
+            )
+            return Result.retry()
+        }
+
         if (result.isSuccess) {
             logger.i("DownloadWorker", "Task completed taskId=$taskId outputPath=$outputPath")
             appendDebugTrace(taskId, "Task completed successfully")
@@ -272,6 +288,9 @@ class DownloadWorker @AssistedInject constructor(
                     )?.let { destPath ->
                         publicPath = destPath
                         appendDebugTrace(taskId, "Copied to public Downloads: $destPath")
+                        if (destPath != file.absolutePath && file.delete()) {
+                            appendDebugTrace(taskId, "Removed private staging copy after public export")
+                        }
                     }
                 }
                 appendDebugTrace(taskId, "Saved file: $path")
@@ -312,7 +331,10 @@ class DownloadWorker @AssistedInject constructor(
                 updatedAtEpochMs = System.currentTimeMillis(),
             )
         }
-        return Result.failure(workDataOf(WorkerKeys.ERROR_MESSAGE to failureMessage))
+        return finishFailureResult(
+            shouldContinuePlaylistQueue = shouldContinuePlaylistQueue,
+            failureMessage = failureMessage,
+        )
     }
 
     private fun shouldRetryWithMp4Fallback(options: DownloadOptions, stderr: String): Boolean {
@@ -662,13 +684,6 @@ class DownloadWorker @AssistedInject constructor(
     }
 
     private suspend fun startForegroundIfPossible(title: String, progress: Int, taskId: String): Boolean {
-        if (!canPostNotifications()) {
-            logger.w(
-                "DownloadWorker",
-                "Notification permission denied; continuing without foreground notification. taskId=$taskId",
-            )
-            return false
-        }
         try {
             ensureNotificationChannel()
             setForeground(createForegroundInfo(title = title, progress = progress))
@@ -677,7 +692,7 @@ class DownloadWorker @AssistedInject constructor(
         } catch (error: Throwable) {
             logger.e(
                 "DownloadWorker",
-                "Failed to start foreground notification; continuing download taskId=$taskId",
+                "Failed to start foreground notification; continuing download taskId=$taskId permissionGranted=${canPostNotifications()}",
                 error,
             )
             return false
@@ -685,16 +700,49 @@ class DownloadWorker @AssistedInject constructor(
     }
 
     private fun updateForegroundIfPossible(title: String, progress: Int, taskId: String) {
-        if (!canPostNotifications()) return
         runCatching {
             setForegroundAsync(createForegroundInfo(title = title, progress = progress))
         }.onFailure { error ->
             logger.e(
                 "DownloadWorker",
-                "Failed to update foreground notification taskId=$taskId progress=$progress",
+                "Failed to update foreground notification taskId=$taskId progress=$progress permissionGranted=${canPostNotifications()}",
                 error,
             )
         }
+    }
+
+    private fun shouldRetryTransientFailure(stderr: String): Boolean {
+        val lower = stderr.lowercase()
+        return lower.contains("unable to download api json") ||
+            lower.contains("no address associated with hostname") ||
+            lower.contains("temporary failure in name resolution") ||
+            lower.contains("failed to resolve") ||
+            lower.contains("network is unreachable") ||
+            lower.contains("connection reset") ||
+            lower.contains("connection aborted") ||
+            lower.contains("connection timed out") ||
+            lower.contains("read timed out") ||
+            lower.contains("timed out") ||
+            lower.contains("i/o timeout") ||
+            lower.contains("transport endpoint is not connected")
+    }
+
+    private fun finishFailureResult(
+        shouldContinuePlaylistQueue: Boolean,
+        failureMessage: String,
+    ): Result {
+        val outputData = workDataOf(
+            WorkerKeys.ERROR_MESSAGE to failureMessage,
+            WorkerKeys.TERMINAL_STATUS to DownloadStatus.FAILED.name,
+        )
+        if (!shouldContinuePlaylistQueue) {
+            return Result.failure(outputData)
+        }
+        appendDebugTrace(
+            id.toString(),
+            "Playlist item failed but worker is returning success so the remaining queue can continue",
+        )
+        return Result.success(outputData)
     }
 
     private fun canPostNotifications(): Boolean {
@@ -739,6 +787,7 @@ class DownloadWorker @AssistedInject constructor(
         const val MAX_DEBUG_TRACE_CHARS = 10_000
         const val MAX_ERROR_MESSAGE_CHARS = 800
         const val MAX_OUTPUT_TRACE_LINE_LENGTH = 240
+        const val MAX_TRANSIENT_RETRY_ATTEMPTS = 3
     }
 
     private fun Long.toReadableSize(): String {
