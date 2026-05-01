@@ -43,6 +43,39 @@ class FormatViewModel @Inject constructor(
         }
     }
 
+    fun clearBrowserState() {
+        _uiState.update { state ->
+            state.copy(
+                urlInput = "",
+                isAnalyzing = false,
+                isQueueing = false,
+                videoInfo = null,
+                availableVideoAudioChoices = emptyList(),
+                availableVideoOnlyChoices = emptyList(),
+                availableAudioOnlyChoices = emptyList(),
+                selectedFormatSelector = null,
+                infoMessage = null,
+                errorMessage = null,
+            )
+        }
+    }
+
+    fun clearAnalyzedResult() {
+        _uiState.update { state ->
+            state.copy(
+                isAnalyzing = false,
+                isQueueing = false,
+                videoInfo = null,
+                availableVideoAudioChoices = emptyList(),
+                availableVideoOnlyChoices = emptyList(),
+                availableAudioOnlyChoices = emptyList(),
+                selectedFormatSelector = null,
+                infoMessage = null,
+                errorMessage = null,
+            )
+        }
+    }
+
     fun analyzeUrl() {
         val url = uiState.value.urlInput.trim()
         logger.i("FormatViewModel", "Analyze requested for URL: $url")
@@ -79,11 +112,12 @@ class FormatViewModel @Inject constructor(
                         "Analyze success for URL: $url, title='${info.title}', formats=${info.formats.size}",
                     )
                     val choiceBundle = buildChoices(info)
-                    val selectedSelector = when (uiState.value.selectedStreamType) {
-                        StreamType.VIDEO_AUDIO -> choiceBundle.videoAudioChoices.firstOrNull()?.selector
-                        StreamType.VIDEO_ONLY -> choiceBundle.videoOnlyChoices.firstOrNull()?.selector
-                        StreamType.AUDIO_ONLY -> choiceBundle.audioOnlyChoices.firstOrNull()?.selector
-                    }
+                    val selectedSelector = firstSelectorForStreamType(
+                        streamType = uiState.value.selectedStreamType,
+                        videoAudioChoices = choiceBundle.videoAudioChoices,
+                        videoOnlyChoices = choiceBundle.videoOnlyChoices,
+                        audioOnlyChoices = choiceBundle.audioOnlyChoices,
+                    )
                     _uiState.update { state ->
                         state.copy(
                             isAnalyzing = false,
@@ -145,11 +179,12 @@ class FormatViewModel @Inject constructor(
              currentState.lastQueuedQuality != currentState.selectedQuality)
         
         _uiState.update { state ->
-            val selector = when (streamType) {
-                StreamType.VIDEO_AUDIO -> state.availableVideoAudioChoices.firstOrNull()?.selector
-                StreamType.VIDEO_ONLY -> state.availableVideoOnlyChoices.firstOrNull()?.selector
-                StreamType.AUDIO_ONLY -> state.availableAudioOnlyChoices.firstOrNull()?.selector
-            }
+            val selector = firstSelectorForStreamType(
+                streamType = streamType,
+                videoAudioChoices = state.availableVideoAudioChoices,
+                videoOnlyChoices = state.availableVideoOnlyChoices,
+                audioOnlyChoices = state.availableAudioOnlyChoices,
+            )
             state.copy(
                 selectedStreamType = streamType, 
                 selectedFormatSelector = selector,
@@ -213,6 +248,14 @@ class FormatViewModel @Inject constructor(
 
     fun onWriteThumbnailChanged(value: Boolean) {
         _uiState.update { state -> state.copy(writeThumbnail = value) }
+    }
+
+    fun onAutoRemoveMissingFilesFromLibraryChanged(value: Boolean) {
+        _uiState.update { state -> state.copy(autoRemoveMissingFilesFromLibrary = value) }
+    }
+
+    fun onDeleteFromStorageWhenRemovedInAppChanged(value: Boolean) {
+        _uiState.update { state -> state.copy(deleteFromStorageWhenRemovedInApp = value) }
     }
 
     fun onPlaylistEnabledChanged(value: Boolean) {
@@ -288,6 +331,8 @@ class FormatViewModel @Inject constructor(
                 defaultMergeContainer = state.selectedContainer,
                 autoEmbedMetadata = state.embedMetadata,
                 autoEmbedThumbnail = state.embedThumbnail,
+                autoRemoveMissingFilesFromLibrary = state.autoRemoveMissingFilesFromLibrary,
+                deleteFromStorageWhenRemovedInApp = state.deleteFromStorageWhenRemovedInApp,
                 youtubeAuthEnabled = state.youtubeAuthEnabled,
                 youtubeCookiesPath = state.youtubeCookiesPath,
                 youtubePoToken = state.youtubePoToken,
@@ -322,7 +367,7 @@ class FormatViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { current -> current.copy(isQueueing = true, errorMessage = null, infoMessage = null) }
 
-            val selectedChoice = findChoice(state, state.selectedFormatSelector)
+            val selectedChoice = resolveSelectedChoice(state)
             val formatSelector = if (info.isPlaylist) {
                 buildFormatSelector(
                     quality = state.selectedQuality,
@@ -347,7 +392,13 @@ class FormatViewModel @Inject constructor(
                 )
             }
             val isAudioOnly = state.selectedStreamType == StreamType.AUDIO_ONLY
-            val mergeContainer = selectedChoice?.takeIf { it.isMerged }?.container
+            val shouldBypassMediaPostProcessing = !info.isPlaylist && selectedChoice?.isImageLike == true
+            val mergeContainer = when {
+                isAudioOnly -> null
+                selectedChoice == null -> state.selectedContainer.ifBlank { null }
+                selectedChoice.isMerged -> selectedChoice.container.ifBlank { state.selectedContainer.ifBlank { null } }
+                else -> null
+            }
             val (downloadExtractorArgs, fallbackExtractorArgs) = resolveDownloadExtractorArgs(info)
 
             val options = DownloadOptions(
@@ -360,11 +411,11 @@ class FormatViewModel @Inject constructor(
                 youtubeCookiesPath = state.youtubeCookiesPath.ifBlank { null },
                 youtubePoToken = state.youtubePoToken.ifBlank { null },
                 youtubePoTokenClientHint = normalizePoTokenClientHint(state.youtubePoTokenClientHint),
-                mergeOutputFormat = if (!isAudioOnly) mergeContainer ?: state.selectedContainer.ifBlank { null } else null,
+                mergeOutputFormat = mergeContainer,
                 isPlaylistEnabled = info.isPlaylist || state.enablePlaylist,
                 shouldDownloadSubtitles = state.downloadSubtitles,
-                shouldEmbedMetadata = state.embedMetadata,
-                shouldEmbedThumbnail = state.embedThumbnail,
+                shouldEmbedMetadata = state.embedMetadata && !shouldBypassMediaPostProcessing,
+                shouldEmbedThumbnail = state.embedThumbnail && !shouldBypassMediaPostProcessing,
                 shouldWriteThumbnail = state.writeThumbnail,
                 extractAudio = isAudioOnly,
                 audioFormat = if (isAudioOnly) state.selectedAudioFormat.ifBlank { null } else null,
@@ -524,6 +575,32 @@ class FormatViewModel @Inject constructor(
         return choices.firstOrNull { it.selector == selector }
     }
 
+    private fun resolveSelectedChoice(state: FormatUiState): FormatChoice? {
+        val explicitChoice = findChoice(state, state.selectedFormatSelector)
+        if (explicitChoice != null) return explicitChoice
+
+        return when (state.selectedStreamType) {
+            StreamType.VIDEO_AUDIO -> state.availableVideoAudioChoices.firstOrNull()
+                ?: state.availableVideoOnlyChoices.firstOrNull()
+            StreamType.VIDEO_ONLY -> state.availableVideoOnlyChoices.firstOrNull()
+            StreamType.AUDIO_ONLY -> state.availableAudioOnlyChoices.firstOrNull()
+        }
+    }
+
+    private fun firstSelectorForStreamType(
+        streamType: StreamType,
+        videoAudioChoices: List<FormatChoice>,
+        videoOnlyChoices: List<FormatChoice>,
+        audioOnlyChoices: List<FormatChoice>,
+    ): String? {
+        return when (streamType) {
+            StreamType.VIDEO_AUDIO -> videoAudioChoices.firstOrNull()?.selector
+                ?: videoOnlyChoices.firstOrNull()?.selector
+            StreamType.VIDEO_ONLY -> videoOnlyChoices.firstOrNull()?.selector
+            StreamType.AUDIO_ONLY -> audioOnlyChoices.firstOrNull()?.selector
+        }
+    }
+
     private data class ChoiceBundle(
         val videoAudioChoices: List<FormatChoice>,
         val videoOnlyChoices: List<FormatChoice>,
@@ -555,6 +632,7 @@ class FormatViewModel @Inject constructor(
                 container = audio.extension,
                 height = null,
                 isMerged = false,
+                isImageLike = false,
             )
         }.sortedByDescending { extractBitrate(it.label) }
 
@@ -571,6 +649,7 @@ class FormatViewModel @Inject constructor(
                 container = video.extension,
                 height = parseHeight(video.resolution),
                 isMerged = false,
+                isImageLike = video.isImageLike,
             )
         }.sortedWith(compareByDescending<FormatChoice> { it.height ?: 0 }.thenByDescending { extractBitrate(it.label) })
 
@@ -599,6 +678,7 @@ class FormatViewModel @Inject constructor(
                     container = video.extension,
                     height = parseHeight(video.resolution),
                     isMerged = true,
+                    isImageLike = false,
                 )
             }
         }
@@ -616,6 +696,7 @@ class FormatViewModel @Inject constructor(
                 container = item.extension,
                 height = parseHeight(item.resolution),
                 isMerged = false,
+                isImageLike = item.isImageLike,
             )
         }
 
@@ -676,6 +757,8 @@ class FormatViewModel @Inject constructor(
                 outputTemplate = settings.defaultOutputTemplate,
                 embedMetadata = settings.autoEmbedMetadata,
                 embedThumbnail = settings.autoEmbedThumbnail,
+                autoRemoveMissingFilesFromLibrary = settings.autoRemoveMissingFilesFromLibrary,
+                deleteFromStorageWhenRemovedInApp = settings.deleteFromStorageWhenRemovedInApp,
                 youtubeAuthEnabled = settings.youtubeAuthEnabled,
                 youtubeCookiesPath = settings.youtubeCookiesPath,
                 youtubePoToken = settings.youtubePoToken,
