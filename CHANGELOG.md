@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.5.6] - 2026-05-02
+
+### Fixed
+- **Pause interruption handling** - worker shutdown during a user pause no longer gets misreported as a real download failure when yt-dlp streams are closed mid-read
+- **Playlist pause stability** - pausing one running playlist item now pauses the remaining playlist queue instead of letting downstream items fall into canceled states
+- **Pause state reconciliation** - WorkManager terminal events now preserve the pause window cleanly so paused downloads stay resumable until the 10-minute expiry
+
+### Changed
+- **App version bump** - release metadata updated to `1.5.6`
+
 ## [1.5.5] - 2026-05-02
 
 ### Fixed

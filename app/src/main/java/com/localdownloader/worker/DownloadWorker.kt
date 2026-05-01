@@ -192,6 +192,10 @@ class DownloadWorker @AssistedInject constructor(
             appendDebugTrace(taskId, "Worker cancelled while download was in progress")
             throw cancelled
         } catch (throwable: Throwable) {
+            if (shouldKeepPausedState(taskId = taskId, throwable = throwable, stderr = null)) {
+                appendDebugTrace(taskId, "Pause request intercepted worker shutdown before failure handling")
+                return finishPausedResult()
+            }
             val failureMessage = buildFailureMessage(
                 throwable = throwable,
                 stderr = null,
@@ -323,6 +327,10 @@ class DownloadWorker @AssistedInject constructor(
             throwable = null,
             stderr = result.stderr,
         )
+        if (shouldKeepPausedState(taskId = taskId, throwable = null, stderr = result.stderr)) {
+            appendDebugTrace(taskId, "Pause request preserved paused state after command interruption")
+            return finishPausedResult()
+        }
         appendDebugTrace(taskId, "Task failed: $failureMessage")
         downloadTaskStore.update(taskId) { task ->
             task.copy(
@@ -744,6 +752,38 @@ class DownloadWorker @AssistedInject constructor(
             "Playlist item failed but worker is returning success so the remaining queue can continue",
         )
         return Result.success(outputData)
+    }
+
+    private fun finishPausedResult(): Result {
+        return Result.success(
+            workDataOf(
+                WorkerKeys.TERMINAL_STATUS to DownloadStatus.PAUSED.name,
+            ),
+        )
+    }
+
+    private fun shouldKeepPausedState(
+        taskId: String,
+        throwable: Throwable?,
+        stderr: String?,
+    ): Boolean {
+        val task = downloadTaskStore.getTask(taskId) ?: return false
+        if (task.status != DownloadStatus.PAUSED) return false
+
+        val detail = sequenceOf(
+            throwable?.message?.trim(),
+            stderr?.trim(),
+        ).filterNotNull()
+            .firstOrNull { it.isNotBlank() }
+            .orEmpty()
+            .lowercase()
+
+        return detail.contains("interrupted by close") ||
+            detail.contains("stream closed") ||
+            detail.contains("broken pipe") ||
+            detail.contains("cancelled") ||
+            detail.contains("canceled") ||
+            detail.contains("interrupted")
     }
 
     private fun canPostNotifications(): Boolean {

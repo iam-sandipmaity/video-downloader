@@ -4,6 +4,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -35,19 +37,27 @@ class ProcessRunner @Inject constructor() {
         try {
             coroutineScope {
                 val stdoutJob = async {
-                    process.inputStream.bufferedReader().useLines { lines ->
-                        lines.forEach { line ->
-                            stdoutBuilder.appendLine(line)
-                            onStdoutLine?.invoke(line)
+                    try {
+                        process.inputStream.bufferedReader().useLines { lines ->
+                            lines.forEach { line ->
+                                stdoutBuilder.appendLine(line)
+                                onStdoutLine?.invoke(line)
+                            }
                         }
+                    } catch (error: Throwable) {
+                        if (!shouldIgnoreInterruptedRead(process, error)) throw error
                     }
                 }
                 val stderrJob = async {
-                    process.errorStream.bufferedReader().useLines { lines ->
-                        lines.forEach { line ->
-                            stderrBuilder.appendLine(line)
-                            onStderrLine?.invoke(line)
+                    try {
+                        process.errorStream.bufferedReader().useLines { lines ->
+                            lines.forEach { line ->
+                                stderrBuilder.appendLine(line)
+                                onStderrLine?.invoke(line)
+                            }
                         }
+                    } catch (error: Throwable) {
+                        if (!shouldIgnoreInterruptedRead(process, error)) throw error
                     }
                 }
 
@@ -70,5 +80,14 @@ class ProcessRunner @Inject constructor() {
             if (process.isAlive) process.destroyForcibly()
             throw e
         }
+    }
+
+    private suspend fun shouldIgnoreInterruptedRead(process: Process, error: Throwable): Boolean {
+        if (error is CancellationException) return true
+        val detail = error.message.orEmpty().lowercase()
+        val looksLikeClosedStream = detail.contains("interrupted by close") ||
+            detail.contains("stream closed") ||
+            detail.contains("closed")
+        return looksLikeClosedStream && (!currentCoroutineContext().isActive || !process.isAlive)
     }
 }
