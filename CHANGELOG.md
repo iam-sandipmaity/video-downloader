@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.5.2] - 2026-05-02
+
+### Added
+- **Horizontal swipe seek** - swipe left or right across the player to preview and jump backward or forward when you release, with skip distance based on swipe length and video duration
+
+### Changed
+- **Player gesture guidance** - the in-player hint now explains both horizontal seek and vertical brightness and volume swipes
+- **App version bump** - release metadata updated to `1.5.2`
+
 ## [1.5.1] â€” 2026-05-02
 
 ### Added

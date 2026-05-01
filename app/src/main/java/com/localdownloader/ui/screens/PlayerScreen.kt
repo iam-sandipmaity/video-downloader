@@ -11,9 +11,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -98,6 +98,7 @@ import com.localdownloader.viewmodel.PlayerViewModel
 import kotlinx.coroutines.delay
 import java.io.File
 import kotlin.math.abs
+import kotlin.math.pow
 import kotlin.math.roundToInt
 
 @Composable
@@ -121,6 +122,7 @@ fun PlayerScreen(
     var gestureFeedback by rememberSaveable { mutableStateOf<String?>(null) }
     var swipeHintVisible by rememberSaveable { mutableStateOf(true) }
     var swipeAdjustmentOverlay by remember { mutableStateOf<SwipeAdjustmentOverlay?>(null) }
+    var swipeSeekOverlay by remember { mutableStateOf<SwipeSeekOverlay?>(null) }
     var playerWidthPx by rememberSaveable { mutableStateOf(0) }
     var playerHeightPx by rememberSaveable { mutableStateOf(0) }
     var isScrubbing by rememberSaveable { mutableStateOf(false) }
@@ -129,6 +131,7 @@ fun PlayerScreen(
     var zoomScale by rememberSaveable { mutableFloatStateOf(1f) }
     var panOffsetX by rememberSaveable { mutableFloatStateOf(0f) }
     var panOffsetY by rememberSaveable { mutableFloatStateOf(0f) }
+    var swipeSeekStartPositionMs by rememberSaveable { mutableStateOf(0L) }
     val swipeAdjustmentController = remember(activity, context) {
         PlayerSwipeAdjustmentController(
             context = context,
@@ -208,6 +211,16 @@ fun PlayerScreen(
             delay(GESTURE_FEEDBACK_MS)
             if (swipeAdjustmentOverlay == overlay) {
                 swipeAdjustmentOverlay = null
+            }
+        }
+    }
+
+    LaunchedEffect(swipeSeekOverlay) {
+        val overlay = swipeSeekOverlay ?: return@LaunchedEffect
+        if (!overlay.isActive) {
+            delay(GESTURE_FEEDBACK_MS)
+            if (swipeSeekOverlay == overlay) {
+                swipeSeekOverlay = null
             }
         }
     }
@@ -322,6 +335,7 @@ fun PlayerScreen(
                     onAdjustmentStart = { side ->
                         swipeHintVisible = false
                         gestureFeedback = null
+                        swipeSeekOverlay = null
                         controlsVisible = false
                         activePanelName = PlayerPanel.NONE.name
                         swipeAdjustmentOverlay = swipeAdjustmentController.start(side)
@@ -334,6 +348,49 @@ fun PlayerScreen(
                     },
                     onAdjustmentEnd = {
                         swipeAdjustmentOverlay = swipeAdjustmentOverlay?.copy(isActive = false)
+                    },
+                    onSeekSwipeStart = {
+                        swipeHintVisible = false
+                        gestureFeedback = null
+                        swipeAdjustmentOverlay = null
+                        controlsVisible = false
+                        activePanelName = PlayerPanel.NONE.name
+                        swipeSeekStartPositionMs = uiState.positionMs
+                        swipeSeekOverlay = SwipeSeekOverlay(
+                            deltaMs = 0L,
+                            targetPositionMs = uiState.positionMs,
+                            isActive = true,
+                        )
+                    },
+                    onSeekSwipeChange = { distanceFraction ->
+                        val deltaMs = calculateSwipeSeekDeltaMs(
+                            distanceFraction = distanceFraction,
+                            durationMs = uiState.durationMs,
+                        )
+                        swipeSeekOverlay = SwipeSeekOverlay(
+                            deltaMs = deltaMs,
+                            targetPositionMs = (swipeSeekStartPositionMs + deltaMs)
+                                .coerceIn(0L, uiState.durationMs.takeIf { it > 0 } ?: Long.MAX_VALUE),
+                            isActive = true,
+                        )
+                    },
+                    onSeekSwipeEnd = {
+                        val pendingOverlay = swipeSeekOverlay
+                        val requestedDeltaMs = pendingOverlay?.deltaMs ?: 0L
+                        if (requestedDeltaMs != 0L) {
+                            val appliedDeltaMs = playerViewModel.seekBy(requestedDeltaMs)
+                            swipeSeekOverlay = pendingOverlay?.copy(
+                                deltaMs = appliedDeltaMs,
+                                targetPositionMs = (swipeSeekStartPositionMs + appliedDeltaMs)
+                                    .coerceIn(0L, uiState.durationMs.takeIf { it > 0 } ?: Long.MAX_VALUE),
+                                isActive = false,
+                            )
+                        } else {
+                            swipeSeekOverlay = null
+                        }
+                    },
+                    onSeekSwipeCancel = {
+                        swipeSeekOverlay = null
                     },
                 )
             }
@@ -391,8 +448,14 @@ fun PlayerScreen(
                 )
             }
 
+            swipeSeekOverlay?.let { overlay ->
+                SwipeSeekHud(
+                    overlay = overlay,
+                )
+            }
+
             AnimatedVisibility(
-                visible = swipeHintVisible && !uiState.isLocked && swipeAdjustmentOverlay == null,
+                visible = swipeHintVisible && !uiState.isLocked && swipeAdjustmentOverlay == null && swipeSeekOverlay == null,
                 enter = fadeIn(),
                 exit = fadeOut(),
             ) {
@@ -558,44 +621,104 @@ private fun BoxScope.GestureLayer(
     onAdjustmentStart: (SwipeAdjustmentSide) -> Unit,
     onAdjustmentChange: (SwipeAdjustmentSide, Float) -> Unit,
     onAdjustmentEnd: () -> Unit,
+    onSeekSwipeStart: () -> Unit,
+    onSeekSwipeChange: (Float) -> Unit,
+    onSeekSwipeEnd: () -> Unit,
+    onSeekSwipeCancel: () -> Unit,
 ) {
     Box(
         modifier = Modifier
             .fillMaxSize()
             .pointerInput(playerWidthPx, playerHeightPx) {
                 if (playerWidthPx == 0 || playerHeightPx == 0) return@pointerInput
+                var activeMode = SwipeGestureMode.NONE
                 var activeSide: SwipeAdjustmentSide? = null
+                var totalHorizontalDrag = 0f
                 var totalVerticalDrag = 0f
-                detectVerticalDragGestures(
+                detectDragGestures(
                     onDragStart = { offset ->
+                        activeMode = SwipeGestureMode.PENDING
                         activeSide = if (offset.x < playerWidthPx / 2f) {
                             SwipeAdjustmentSide.LEFT
                         } else {
                             SwipeAdjustmentSide.RIGHT
                         }
+                        totalHorizontalDrag = 0f
                         totalVerticalDrag = 0f
-                        activeSide?.let(onAdjustmentStart)
                     },
-                    onVerticalDrag = { _, dragAmount ->
-                        val side = activeSide ?: return@detectVerticalDragGestures
-                        totalVerticalDrag += dragAmount
-                        onAdjustmentChange(
-                            side,
-                            (-totalVerticalDrag / playerHeightPx.toFloat()).coerceIn(-1f, 1f),
-                        )
+                    onDrag = { _, dragAmount ->
+                        totalHorizontalDrag += dragAmount.x
+                        totalVerticalDrag += dragAmount.y
+
+                        if (activeMode == SwipeGestureMode.PENDING) {
+                            val absHorizontalDrag = abs(totalHorizontalDrag)
+                            val absVerticalDrag = abs(totalVerticalDrag)
+                            if (
+                                absHorizontalDrag < viewConfiguration.touchSlop &&
+                                absVerticalDrag < viewConfiguration.touchSlop
+                            ) {
+                                return@detectDragGestures
+                            }
+
+                            activeMode = when {
+                                absHorizontalDrag > absVerticalDrag * SWIPE_DIRECTION_LOCK_RATIO -> {
+                                    onSeekSwipeStart()
+                                    SwipeGestureMode.HORIZONTAL
+                                }
+
+                                absVerticalDrag > absHorizontalDrag * SWIPE_DIRECTION_LOCK_RATIO -> {
+                                    activeSide?.let(onAdjustmentStart)
+                                    SwipeGestureMode.VERTICAL
+                                }
+
+                                else -> return@detectDragGestures
+                            }
+                        }
+
+                        when (activeMode) {
+                            SwipeGestureMode.HORIZONTAL -> {
+                                onSeekSwipeChange(
+                                    (totalHorizontalDrag / playerWidthPx.toFloat()).coerceIn(-1f, 1f),
+                                )
+                            }
+
+                            SwipeGestureMode.VERTICAL -> {
+                                val side = activeSide ?: return@detectDragGestures
+                                onAdjustmentChange(
+                                    side,
+                                    (-totalVerticalDrag / playerHeightPx.toFloat()).coerceIn(-1f, 1f),
+                                )
+                            }
+
+                            SwipeGestureMode.NONE,
+                            SwipeGestureMode.PENDING,
+                            -> Unit
+                        }
                     },
                     onDragEnd = {
-                        if (activeSide != null) {
-                            onAdjustmentEnd()
+                        when (activeMode) {
+                            SwipeGestureMode.HORIZONTAL -> onSeekSwipeEnd()
+                            SwipeGestureMode.VERTICAL -> onAdjustmentEnd()
+                            SwipeGestureMode.NONE,
+                            SwipeGestureMode.PENDING,
+                            -> Unit
                         }
+                        activeMode = SwipeGestureMode.NONE
                         activeSide = null
+                        totalHorizontalDrag = 0f
                         totalVerticalDrag = 0f
                     },
                     onDragCancel = {
-                        if (activeSide != null) {
-                            onAdjustmentEnd()
+                        when (activeMode) {
+                            SwipeGestureMode.HORIZONTAL -> onSeekSwipeCancel()
+                            SwipeGestureMode.VERTICAL -> onAdjustmentEnd()
+                            SwipeGestureMode.NONE,
+                            SwipeGestureMode.PENDING,
+                            -> Unit
                         }
+                        activeMode = SwipeGestureMode.NONE
                         activeSide = null
+                        totalHorizontalDrag = 0f
                         totalVerticalDrag = 0f
                     },
                 )
@@ -679,11 +802,47 @@ private fun BoxScope.SwipeGestureHint(
         shape = RoundedCornerShape(22.dp),
     ) {
         Text(
-            text = "Swipe up or down. Left adjusts brightness, right adjusts volume.",
+            text = "Swipe left or right to seek. Swipe up or down: left brightness, right volume.",
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
             style = MaterialTheme.typography.bodySmall,
             color = Color.White,
         )
+    }
+}
+
+@Composable
+private fun BoxScope.SwipeSeekHud(
+    overlay: SwipeSeekOverlay,
+) {
+    Surface(
+        modifier = Modifier
+            .align(Alignment.Center)
+            .offset(y = (-86).dp),
+        color = Color.Black.copy(alpha = 0.74f),
+        shape = RoundedCornerShape(28.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                text = if (overlay.isActive) "Seek" else "Jumped",
+                style = MaterialTheme.typography.labelLarge,
+                color = Color.White.copy(alpha = 0.78f),
+            )
+            Text(
+                text = formatSignedSeekDelta(overlay.deltaMs),
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White,
+            )
+            Text(
+                text = "To ${formatPlaybackTime(overlay.targetPositionMs)}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White.copy(alpha = 0.84f),
+            )
+        }
     }
 }
 
@@ -1219,9 +1378,50 @@ private fun formatSpeed(speed: Float): String {
     }
 }
 
+private fun formatSignedSeekDelta(deltaMs: Long): String {
+    val sign = when {
+        deltaMs > 0L -> "+"
+        deltaMs < 0L -> "-"
+        else -> ""
+    }
+    val seconds = (abs(deltaMs) / 1000L).coerceAtLeast(0L)
+    return "$sign${seconds}s"
+}
+
+private fun calculateSwipeSeekDeltaMs(
+    distanceFraction: Float,
+    durationMs: Long,
+): Long {
+    if (distanceFraction == 0f) return 0L
+    val maxSeekSeconds = if (durationMs > 0L) {
+        (durationMs / 1000f * SEEK_SWIPE_DURATION_FRACTION)
+            .coerceIn(MIN_SWIPE_SEEK_SECONDS, MAX_SWIPE_SEEK_SECONDS)
+    } else {
+        DEFAULT_MAX_SWIPE_SEEK_SECONDS
+    }
+    val scaledSeconds = maxSeekSeconds * abs(distanceFraction).coerceIn(0f, 1f).pow(SEEK_SWIPE_CURVE_POWER)
+    val roundedSeconds = scaledSeconds.roundToInt().coerceAtLeast(1)
+    return roundedSeconds * 1000L * distanceFraction.signAsLong()
+}
+
+private fun Float.signAsLong(): Long {
+    return when {
+        this > 0f -> 1L
+        this < 0f -> -1L
+        else -> 0L
+    }
+}
+
 private enum class SwipeAdjustmentSide {
     LEFT,
     RIGHT,
+}
+
+private enum class SwipeGestureMode {
+    NONE,
+    PENDING,
+    HORIZONTAL,
+    VERTICAL,
 }
 
 private enum class SwipeAdjustmentType(val label: String) {
@@ -1237,6 +1437,12 @@ private data class SwipeAdjustmentOverlay(
     val percentText: Int
         get() = (level.coerceIn(0f, 1f) * 100f).roundToInt()
 }
+
+private data class SwipeSeekOverlay(
+    val deltaMs: Long,
+    val targetPositionMs: Long,
+    val isActive: Boolean,
+)
 
 private data class ResizeOption(
     val resizeMode: Int,
@@ -1388,3 +1594,9 @@ private const val MIN_PINCH_SCALE = 1f
 private const val MAX_PINCH_SCALE = 3f
 private const val DEFAULT_GESTURE_LEVEL = 0.5f
 private const val MIN_BRIGHTNESS_LEVEL = 0.05f
+private const val SWIPE_DIRECTION_LOCK_RATIO = 1.2f
+private const val SEEK_SWIPE_DURATION_FRACTION = 0.12f
+private const val SEEK_SWIPE_CURVE_POWER = 1.15f
+private const val MIN_SWIPE_SEEK_SECONDS = 10f
+private const val MAX_SWIPE_SEEK_SECONDS = 180f
+private const val DEFAULT_MAX_SWIPE_SEEK_SECONDS = 90f
