@@ -192,7 +192,13 @@ fun VideoScreen(
             onDismissRequest = { deleteTarget = null },
             title = { Text("Delete file") },
             text = {
-                Text("This removes the saved media item from the library and deletes the local file when it still exists.")
+                Text(
+                    if (uiState.deleteFromStorageWhenRemovedInApp) {
+                        "This removes the saved media item from the library and deletes the device file when it still exists."
+                    } else {
+                        "This removes the saved media item from the app library but leaves the real device file untouched."
+                    },
+                )
             },
             confirmButton = {
                 TextButton(
