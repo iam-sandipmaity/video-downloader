@@ -6,6 +6,8 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import android.provider.OpenableColumns
+import android.webkit.MimeTypeMap
+import com.localdownloader.ui.model.ExternalOpenRequest
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import javax.inject.Inject
@@ -184,16 +186,59 @@ class FileUtils @Inject constructor(
             values.clear()
             values.put(MediaStore.MediaColumns.IS_PENDING, 0)
             context.contentResolver.update(uri, values, null, null)
-            sourceFile.absolutePath
+            destFile.absolutePath
         } catch (e: Exception) {
             try {
                 sourceFile.copyTo(destFile, overwrite = false)
                 triggerMediaScan(Uri.fromFile(destFile))
-                sourceFile.absolutePath
+                destFile.absolutePath
             } catch (_: Exception) {
                 null
             }
         }
+    }
+
+    fun deleteManagedFile(path: String): Boolean {
+        val targetFile = File(path)
+        if (!targetFile.exists()) return true
+        if (targetFile.delete()) return true
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            deleteFromMediaStore(targetFile)?.let { deleted ->
+                if (deleted) return true
+            }
+        }
+        return false
+    }
+
+    fun renameManagedFile(path: String, targetFileName: String): String? {
+        val sourceFile = File(path)
+        if (!sourceFile.exists()) return null
+
+        val targetFile = File(sourceFile.parentFile, targetFileName)
+        if (sourceFile.absolutePath == targetFile.absolutePath) return sourceFile.absolutePath
+        if (targetFile.exists()) return null
+        if (sourceFile.renameTo(targetFile)) return targetFile.absolutePath
+
+        return runCatching {
+            sourceFile.copyTo(targetFile, overwrite = false)
+            if (!deleteManagedFile(sourceFile.absolutePath)) {
+                targetFile.delete()
+                null
+            } else {
+                triggerMediaScan(Uri.fromFile(targetFile))
+                targetFile.absolutePath
+            }
+        }.getOrNull()
+    }
+
+    fun normalizeLibraryOutputPath(path: String): String {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return path
+
+        val relativePath = relativePathWithinDownloadsRoot(File(path)) ?: return path
+        val publicDownloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        val publicFile = File(publicDownloads, "LocalDownloader/$relativePath")
+        return if (publicFile.exists()) publicFile.absolutePath else path
     }
 
     private fun relativePathWithinDownloadsRoot(sourceFile: File): String? {
@@ -242,6 +287,49 @@ class FileUtils @Inject constructor(
         context.sendBroadcast(
             android.content.Intent(android.content.Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, uri),
         )
+    }
+
+    private fun deleteFromMediaStore(file: File): Boolean? {
+        val downloadsRoot = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            .absoluteFile
+            .normalize()
+        val normalizedFile = file.absoluteFile.normalize()
+        val rootPath = downloadsRoot.path
+        val filePath = normalizedFile.path
+        if (!filePath.startsWith(rootPath)) return null
+
+        val relativePath = file.parentFile
+            ?.absoluteFile
+            ?.normalize()
+            ?.path
+            ?.removePrefix(rootPath)
+            ?.trimStart(File.separatorChar)
+            ?.replace(File.separatorChar, '/')
+            .orEmpty()
+        val mediaStoreRelativePath = buildString {
+            append("Download/")
+            if (relativePath.isNotBlank()) {
+                append(relativePath.trim('/'))
+                append('/')
+            }
+        }
+
+        val projection = arrayOf(android.provider.BaseColumns._ID)
+        val selection = "${MediaStore.MediaColumns.DISPLAY_NAME}=? AND ${MediaStore.MediaColumns.RELATIVE_PATH}=?"
+        val selectionArgs = arrayOf(file.name, mediaStoreRelativePath)
+        val contentUri = MediaStore.Downloads.EXTERNAL_CONTENT_URI
+        val itemId = context.contentResolver.query(
+            contentUri,
+            projection,
+            selection,
+            selectionArgs,
+            null,
+        )?.use { cursor ->
+            if (cursor.moveToFirst()) cursor.getLong(0) else null
+        } ?: return false
+
+        val itemUri = android.content.ContentUris.withAppendedId(contentUri, itemId)
+        return context.contentResolver.delete(itemUri, null, null) > 0
     }
 
     /**
@@ -299,6 +387,37 @@ class FileUtils @Inject constructor(
         return dir
     }
 
+    fun importSharedOpenRequest(uri: Uri, mimeTypeHint: String? = null): ExternalOpenRequest {
+        val displayName = queryDisplayName(context, uri)
+            ?: buildFallbackSharedName(uri = uri, mimeTypeHint = mimeTypeHint)
+        val resolvedMimeType = mimeTypeHint
+            ?: context.contentResolver.getType(uri)
+            ?: displayName.substringAfterLast('.', "").lowercase().takeIf { it.isNotBlank() }
+                ?.let { MimeTypeMap.getSingleton().getMimeTypeFromExtension(it) }
+
+        if (uri.scheme == "file") {
+            val directPath = uri.path ?: error("Unable to open shared file path.")
+            return ExternalOpenRequest(
+                path = directPath,
+                displayName = displayName,
+                mimeType = resolvedMimeType,
+            )
+        }
+
+        val targetDir = ensureInternalDir("opened")
+        val sanitizedName = sanitizeFileName(displayName)
+        val targetFile = File(targetDir, sanitizedName)
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            targetFile.outputStream().use { output -> input.copyTo(output) }
+        } ?: error("Unable to open shared file.")
+
+        return ExternalOpenRequest(
+            path = targetFile.absolutePath,
+            displayName = targetFile.name,
+            mimeType = resolvedMimeType,
+        )
+    }
+
     companion object {
         fun getRealPathFromUri(context: Context, uri: Uri): String? {
             if (uri.scheme == "file") return uri.path
@@ -328,5 +447,21 @@ class FileUtils @Inject constructor(
             )?.use { cursor ->
                 if (cursor.moveToFirst()) cursor.getString(0) else null
             }
+
+        private fun buildFallbackSharedName(uri: Uri, mimeTypeHint: String?): String {
+            val extension = mimeTypeHint
+                ?.let { MimeTypeMap.getSingleton().getExtensionFromMimeType(it) }
+                ?.takeIf { it.isNotBlank() }
+                ?: uri.lastPathSegment?.substringAfterLast('.', "")
+                    ?.takeIf { it.isNotBlank() }
+            return buildString {
+                append("shared_")
+                append(System.currentTimeMillis())
+                if (!extension.isNullOrBlank()) {
+                    append('.')
+                    append(extension)
+                }
+            }
+        }
     }
 }
