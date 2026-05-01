@@ -10,4 +10,5 @@ data class FormatChoice(
     val container: String,
     val height: Int?,
     val isMerged: Boolean,
+    val isImageLike: Boolean,
 )
