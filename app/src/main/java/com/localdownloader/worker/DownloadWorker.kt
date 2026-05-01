@@ -41,7 +41,7 @@ class DownloadWorker @AssistedInject constructor(
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
-        val taskId = id.toString()
+        val taskId = inputData.getString(WorkerKeys.TASK_ID) ?: id.toString()
         logger.i("DownloadWorker", "doWork started taskId=$taskId")
         val url = inputData.getString(WorkerKeys.URL)
             ?: return Result.failure(workDataOf(WorkerKeys.ERROR_MESSAGE to "Missing URL"))
@@ -632,6 +632,7 @@ class DownloadWorker @AssistedInject constructor(
                 url = url,
                 title = title,
                 status = DownloadStatus.RUNNING,
+                activeWorkId = id.toString(),
                 progressPercent = 0,
                 debugTrace = "Task created by worker",
             ),

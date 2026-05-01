@@ -1,6 +1,7 @@
 package com.localdownloader.worker
 
 object WorkerKeys {
+    const val TASK_ID = "task_id"
     const val URL = "url"
     const val FORMAT_ID = "format_id"
     const val OUTPUT_TEMPLATE = "output_template"

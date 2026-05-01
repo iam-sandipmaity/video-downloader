@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.5.5] - 2026-05-02
+
+### Fixed
+- **True pause behavior** - pausing a download now stops the active worker without turning the task into an immediate cancel, keeps the same task entry for resume, and preserves partial progress for up to 10 minutes
+- **Pause expiry cleanup** - paused downloads now expire after 10 minutes, show a clear expiry message, and automatically remove cached partial download artifacts
+
+### Changed
+- **Progress tab cleanup** - logs are no longer shown in the Progress page, which now focuses on queue state, resume timing, and primary actions
+- **History log viewer** - full task logs are now available from History through a cleaner dedicated log dialog
+- **App version bump** - release metadata updated to `1.5.5`
+
 ## [1.5.4] - 2026-05-02
 
 ### Added

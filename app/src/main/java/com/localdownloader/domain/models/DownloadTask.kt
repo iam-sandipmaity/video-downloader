@@ -8,6 +8,7 @@ data class DownloadTask(
     val url: String,
     val title: String,
     val status: DownloadStatus,
+    val activeWorkId: String? = null,
     val progressPercent: Int = 0,
     val speed: String? = null,
     val eta: String? = null,
@@ -16,6 +17,7 @@ data class DownloadTask(
     val totalSizeStr: String? = null,
     val errorMessage: String? = null,
     val debugTrace: String? = null,
+    val pauseExpiresAtEpochMs: Long? = null,
     val createdAtEpochMs: Long = System.currentTimeMillis(),
     val updatedAtEpochMs: Long = System.currentTimeMillis(),
 )

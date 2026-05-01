@@ -125,6 +125,26 @@ class FileUtils @Inject constructor(
         return File(ensureConversionDir(), fileName).absolutePath
     }
 
+    fun deleteDownloadArtifacts(outputTemplate: String): Int {
+        val templateFile = File(outputTemplate)
+        val parentDir = templateFile.parentFile ?: return 0
+        if (!parentDir.exists()) return 0
+
+        val templateName = templateFile.name
+        val stem = templateName.substringBefore(".%(ext)s", templateName)
+        val deletedFiles = parentDir.listFiles()
+            ?.filter { candidate ->
+                candidate.isFile && (
+                    candidate.name.startsWith(stem) ||
+                        candidate.name.startsWith("$stem.")
+                    )
+            }
+            .orEmpty()
+            .count { candidate -> deleteManagedFile(candidate.absolutePath) }
+
+        return deletedFiles
+    }
+
     fun sanitizeFileName(value: String): String {
         return value
             .replace(Regex("""[\\/:*?"<>|]"""), "_")

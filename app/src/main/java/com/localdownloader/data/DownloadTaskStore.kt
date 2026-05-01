@@ -73,6 +73,14 @@ class DownloadTaskStore @Inject constructor(
         }
     }
 
+    fun clearCachedOptions(taskId: String) {
+        scope.launch {
+            dao.getById(taskId)?.let { entity ->
+                dao.upsert(entity.copy(optionsJson = null))
+            }
+        }
+    }
+
     fun remove(taskId: String) {
         tasks.update { taskMap -> taskMap - taskId }
         scope.launch { dao.deleteById(taskId) }
@@ -103,6 +111,7 @@ private fun DownloadTask.toEntity(optionsJson: String? = null): DownloadTaskEnti
         url = url,
         title = title,
         status = status.name,
+        activeWorkId = activeWorkId,
         progressPercent = progressPercent,
         speed = speed,
         eta = eta,
@@ -112,6 +121,7 @@ private fun DownloadTask.toEntity(optionsJson: String? = null): DownloadTaskEnti
         errorMessage = errorMessage,
         debugTrace = debugTrace,
         optionsJson = optionsJson,
+        pauseExpiresAtEpochMs = pauseExpiresAtEpochMs,
         createdAtEpochMs = createdAtEpochMs,
         updatedAtEpochMs = updatedAtEpochMs,
     )
@@ -124,6 +134,7 @@ private fun DownloadTaskEntity.toDomainTask(): DownloadTask? {
             url = url,
             title = title,
             status = DownloadStatus.valueOf(status),
+            activeWorkId = activeWorkId,
             progressPercent = progressPercent,
             speed = speed,
             eta = eta,
@@ -132,6 +143,7 @@ private fun DownloadTaskEntity.toDomainTask(): DownloadTask? {
             totalSizeStr = totalSizeStr,
             errorMessage = errorMessage,
             debugTrace = debugTrace,
+            pauseExpiresAtEpochMs = pauseExpiresAtEpochMs,
             createdAtEpochMs = createdAtEpochMs,
             updatedAtEpochMs = updatedAtEpochMs,
         )

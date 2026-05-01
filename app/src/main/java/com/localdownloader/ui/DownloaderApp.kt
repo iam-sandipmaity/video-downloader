@@ -283,7 +283,6 @@ fun DownloaderApp(
                     onPause = downloadViewModel::pause,
                     onResume = downloadViewModel::resume,
                     onCancel = downloadViewModel::cancel,
-                    onToggleDebug = downloadViewModel::toggleDebug,
                 )
             }
             composable(Routes.Video) {

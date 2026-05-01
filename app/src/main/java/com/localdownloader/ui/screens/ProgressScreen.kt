@@ -1,8 +1,5 @@
 package com.localdownloader.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,18 +27,18 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -55,9 +52,14 @@ fun ProgressScreen(
     onPause: (String) -> Unit,
     onResume: (String) -> Unit,
     onCancel: (String) -> Unit,
-    onToggleDebug: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val currentTimeMs by produceState(initialValue = System.currentTimeMillis()) {
+        while (true) {
+            value = System.currentTimeMillis()
+            kotlinx.coroutines.delay(1_000L)
+        }
+    }
     val progressTasks = uiState.tasks.filter {
         it.status == DownloadStatus.RUNNING ||
             it.status == DownloadStatus.QUEUED ||
@@ -113,11 +115,10 @@ fun ProgressScreen(
                 items(progressTasks, key = { it.id }) { task ->
                     ProgressTaskCard(
                         task = task,
-                        showDebug = task.id in uiState.expandedDebugTaskIds,
+                        currentTimeMs = currentTimeMs,
                         onPause = onPause,
                         onResume = onResume,
                         onCancel = onCancel,
-                        onToggleDebug = onToggleDebug,
                     )
                 }
             }
@@ -128,17 +129,22 @@ fun ProgressScreen(
 @Composable
 private fun ProgressTaskCard(
     task: DownloadTask,
-    showDebug: Boolean,
+    currentTimeMs: Long,
     onPause: (String) -> Unit,
     onResume: (String) -> Unit,
     onCancel: (String) -> Unit,
-    onToggleDebug: (String) -> Unit,
 ) {
     var showMenu by remember { mutableStateOf(false) }
     val accent = when (task.status) {
         DownloadStatus.RUNNING -> MaterialTheme.colorScheme.tertiary
         DownloadStatus.PAUSED -> MaterialTheme.colorScheme.secondary
         else -> MaterialTheme.colorScheme.outline
+    }
+    val pauseExpiryLabel = task.pauseExpiresAtEpochMs?.let { pauseExpiresAt ->
+        buildPauseExpiryLabel(
+            pauseExpiresAtEpochMs = pauseExpiresAt,
+            currentTimeMs = currentTimeMs,
+        )
     }
 
     Card(
@@ -176,12 +182,20 @@ private fun ProgressTaskCard(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                     Text(
                         text = task.title,
                         style = MaterialTheme.typography.titleLarge,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
                     )
+                        ProgressStatusChip(task = task, accent = accent)
+                    }
                     Text(
                         text = buildProgressMeta(task),
                         style = MaterialTheme.typography.bodyLarge,
@@ -255,51 +269,79 @@ private fun ProgressTaskCard(
 
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = when (task.status) {
-                        DownloadStatus.QUEUED -> "Waiting in queue..."
-                        DownloadStatus.PAUSED -> "${buildProgressMeta(task)} - paused"
-                        else -> "${buildProgressMeta(task)} - downloading"
-                    },
+                    text = buildProgressHeadline(task),
                     style = MaterialTheme.typography.bodyLarge,
                 )
-                val debugLine = task.debugTrace?.lineSequence()?.lastOrNull()?.takeIf { it.isNotBlank() }
-                if (debugLine != null) {
+                pauseExpiryLabel?.let { label ->
+                    AssistChip(
+                        onClick = {},
+                        enabled = false,
+                        label = { Text(label) },
+                    )
+                }
+                task.errorMessage?.takeIf { it.isNotBlank() }?.let { message ->
                     Text(
-                        text = debugLine,
+                        text = message,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
+                        maxLines = 3,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
-
-            if (!task.debugTrace.isNullOrBlank()) {
-                TextButton(
-                    onClick = { onToggleDebug(task.id) },
-                    modifier = Modifier.align(Alignment.End),
-                ) {
-                    Text(if (showDebug) "Hide logs" else "Show logs")
-                }
-            }
-
-            AnimatedVisibility(
-                visible = showDebug,
-                enter = expandVertically(),
-                exit = shrinkVertically(),
-            ) {
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(18.dp),
-                ) {
-                    Text(
-                        text = task.debugTrace.orEmpty(),
-                        modifier = Modifier.padding(12.dp),
-                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                    )
-                }
-            }
         }
+    }
+}
+
+@Composable
+private fun ProgressStatusChip(
+    task: DownloadTask,
+    accent: androidx.compose.ui.graphics.Color,
+) {
+    val label = when (task.status) {
+        DownloadStatus.RUNNING -> "Running"
+        DownloadStatus.PAUSED -> "Paused"
+        DownloadStatus.QUEUED -> "Queued"
+        DownloadStatus.COMPLETED -> "Done"
+        DownloadStatus.FAILED -> "Failed"
+        DownloadStatus.CANCELED -> "Canceled"
+    }
+    Surface(
+        color = accent.copy(alpha = 0.14f),
+        shape = RoundedCornerShape(14.dp),
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            style = MaterialTheme.typography.labelMedium,
+            color = accent,
+        )
+    }
+}
+
+private fun buildProgressHeadline(task: DownloadTask): String {
+    return when (task.status) {
+        DownloadStatus.QUEUED -> "Waiting in queue"
+        DownloadStatus.PAUSED -> "Paused. Resume will continue from saved partial data."
+        DownloadStatus.RUNNING -> "Downloading now"
+        DownloadStatus.COMPLETED -> "Completed"
+        DownloadStatus.FAILED -> "Failed"
+        DownloadStatus.CANCELED -> "Canceled"
+    }
+}
+
+private fun buildPauseExpiryLabel(
+    pauseExpiresAtEpochMs: Long,
+    currentTimeMs: Long,
+): String {
+    val remainingMs = (pauseExpiresAtEpochMs - currentTimeMs).coerceAtLeast(0L)
+    val totalSeconds = remainingMs / 1_000L
+    val minutes = totalSeconds / 60L
+    val seconds = totalSeconds % 60L
+    return if (remainingMs == 0L) {
+        "Resume window expired"
+    } else {
+        "Resume within %02d:%02d".format(minutes, seconds)
     }
 }
 
