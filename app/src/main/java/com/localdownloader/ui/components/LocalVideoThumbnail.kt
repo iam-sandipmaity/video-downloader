@@ -1,6 +1,7 @@
 package com.localdownloader.ui.components
 
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -35,6 +36,9 @@ fun LocalVideoThumbnail(
                     try {
                         retriever.setDataSource(filePath)
                         retriever.frameAtTime
+                            ?: retriever.embeddedPicture?.let { bytes ->
+                                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                            }
                     } finally {
                         retriever.release()
                     }
