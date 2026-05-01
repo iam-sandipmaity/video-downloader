@@ -62,7 +62,7 @@ fun ProgressScreen(
         it.status == DownloadStatus.RUNNING ||
             it.status == DownloadStatus.QUEUED ||
             it.status == DownloadStatus.PAUSED
-    }
+    }.sortedBy { it.createdAtEpochMs }
 
     Column(
         modifier = modifier
