@@ -82,28 +82,20 @@ jobs:
             exit 1
           fi
 
-      - name: Build debug APKs
-        run: gradle :app:assembleDebug :playerapp:assembleDebug
+      - name: Build debug APK
+        run: gradle :app:assembleDebug
 
-      - name: Rename debug APKs
+      - name: Rename APK
         run: |
           VERSION="${{ steps.version.outputs.version_name }}"
           mv app/build/outputs/apk/debug/app-debug.apk \
              app/build/outputs/apk/debug/video-downloader-v${VERSION}-debug.apk
-          mv playerapp/build/outputs/apk/debug/playerapp-debug.apk \
-             playerapp/build/outputs/apk/debug/standalone-player-v${VERSION}-debug.apk
 
-      - name: Upload downloader debug APK artifact
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: video-downloader-v${{ steps.version.outputs.version_name }}-debug
           path: app/build/outputs/apk/debug/video-downloader-*.apk
-
-      - name: Upload standalone player debug APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: standalone-player-v${{ steps.version.outputs.version_name }}-debug
-          path: playerapp/build/outputs/apk/debug/standalone-player-*.apk
 
   release-nightly:
     if: github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/')
@@ -117,12 +109,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: video-downloader-v${{ needs.build.outputs.version_name }}-debug
-          path: dist
-
-      - name: Download standalone player debug APK artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: standalone-player-v${{ needs.build.outputs.version_name }}-debug
           path: dist
 
       - name: Create nightly GitHub prerelease
@@ -185,26 +171,20 @@ jobs:
           echo "RELEASE_KEY_ALIAS=$RELEASE_KEY_ALIAS" >> "$GITHUB_ENV"
           echo "RELEASE_KEY_PASSWORD=$RELEASE_KEY_PASSWORD" >> "$GITHUB_ENV"
 
-      - name: Build release APKs
-        run: gradle :app:assembleRelease :playerapp:assembleRelease
+      - name: Build release APK
+        run: gradle :app:assembleRelease
 
-      - name: Rename release APKs
+      - name: Rename release APK
         run: |
           VERSION="${{ steps.version.outputs.version_name }}"
           mv app/build/outputs/apk/release/app-release-unsigned.apk \
              app/build/outputs/apk/release/video-downloader-v${VERSION}.apk 2>/dev/null || \
           mv app/build/outputs/apk/release/app-release.apk \
              app/build/outputs/apk/release/video-downloader-v${VERSION}.apk 2>/dev/null || true
-          mv playerapp/build/outputs/apk/release/playerapp-release-unsigned.apk \
-             playerapp/build/outputs/apk/release/standalone-player-v${VERSION}.apk 2>/dev/null || \
-          mv playerapp/build/outputs/apk/release/playerapp-release.apk \
-             playerapp/build/outputs/apk/release/standalone-player-v${VERSION}.apk 2>/dev/null || true
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
           name: "Video Downloader v${{ steps.version.outputs.version_name }}"
           generate_release_notes: true
-          files: |
-            app/build/outputs/apk/release/video-downloader-*.apk
-            playerapp/build/outputs/apk/release/standalone-player-*.apk
+          files: app/build/outputs/apk/release/video-downloader-*.apk
