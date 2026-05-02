@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -30,7 +32,7 @@ class DownloadTaskStore @Inject constructor(
     init {
         scope.launch {
             dao.observeAll().collect { entities ->
-                val map = entities.mapNotNull { it.toDomainTask() }.associateBy { it.id }
+                val map = entities.mapNotNull { it.toDomainTask(json) }.associateBy { it.id }
                 tasks.update { map }
             }
         }
@@ -48,7 +50,7 @@ class DownloadTaskStore @Inject constructor(
 
     fun upsert(task: DownloadTask, optionsJson: String? = null) {
         tasks.update { taskMap -> taskMap + (task.id to task) }
-        scope.launch { dao.upsert(task.toEntity(optionsJson = optionsJson)) }
+        scope.launch { dao.upsert(task.toEntity(json = json, optionsJson = optionsJson)) }
     }
 
     fun update(taskId: String, reducer: (DownloadTask) -> DownloadTask) {
@@ -57,7 +59,7 @@ class DownloadTaskStore @Inject constructor(
             val updated = reducer(current)
             scope.launch {
                 val existingOptionsJson = dao.getById(taskId)?.optionsJson
-                dao.upsert(updated.toEntity(optionsJson = existingOptionsJson))
+                dao.upsert(updated.toEntity(json = json, optionsJson = existingOptionsJson))
             }
             taskMap + (taskId to updated)
         }
@@ -105,7 +107,7 @@ class DownloadTaskStore @Inject constructor(
     }
 }
 
-private fun DownloadTask.toEntity(optionsJson: String? = null): DownloadTaskEntity {
+private fun DownloadTask.toEntity(json: Json, optionsJson: String? = null): DownloadTaskEntity {
     return DownloadTaskEntity(
         id = id,
         url = url,
@@ -116,6 +118,7 @@ private fun DownloadTask.toEntity(optionsJson: String? = null): DownloadTaskEnti
         speed = speed,
         eta = eta,
         outputPath = outputPath,
+        subtitlePathsJson = json.encodeToString(subtitlePaths),
         downloadedStr = downloadedStr,
         totalSizeStr = totalSizeStr,
         errorMessage = errorMessage,
@@ -127,7 +130,7 @@ private fun DownloadTask.toEntity(optionsJson: String? = null): DownloadTaskEnti
     )
 }
 
-private fun DownloadTaskEntity.toDomainTask(): DownloadTask? {
+private fun DownloadTaskEntity.toDomainTask(json: Json): DownloadTask? {
     return runCatching {
         DownloadTask(
             id = id,
@@ -139,6 +142,10 @@ private fun DownloadTaskEntity.toDomainTask(): DownloadTask? {
             speed = speed,
             eta = eta,
             outputPath = outputPath,
+            subtitlePaths = subtitlePathsJson
+                ?.takeIf { it.isNotBlank() }
+                ?.let { json.decodeFromString<List<String>>(it) }
+                .orEmpty(),
             downloadedStr = downloadedStr,
             totalSizeStr = totalSizeStr,
             errorMessage = errorMessage,

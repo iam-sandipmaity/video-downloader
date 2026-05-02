@@ -179,9 +179,10 @@ class FileUtils @Inject constructor(
         }
         if (!publicDir.exists()) publicDir.mkdirs()
 
-        val displayName = targetFileName
+        val requestedFileName = targetFileName
             ?.takeIf { it.isNotBlank() }
-            ?: resolveUniqueFileName(publicDir, sourceFile.name)
+            ?: sourceFile.name
+        val displayName = resolveUniqueFileName(publicDir, requestedFileName)
         val destFile = File(publicDir, displayName)
 
         return try {

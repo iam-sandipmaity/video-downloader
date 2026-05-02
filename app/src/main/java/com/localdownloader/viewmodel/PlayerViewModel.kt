@@ -202,8 +202,16 @@ class PlayerViewModel @Inject constructor(
             ?: restoredSavedStatePlayWhenReady
             ?: true
 
-        logger.i("PlayerViewModel", "Loading media for playback sessionKey=$sessionKey path=$playablePath")
-        player.setMediaItem(buildMediaItem(File(playablePath)))
+        logger.i(
+            "PlayerViewModel",
+            "Loading media for playback sessionKey=$sessionKey path=$playablePath subtitles=${task.subtitlePaths.size}",
+        )
+        player.setMediaItem(
+            buildMediaItem(
+                playableFile = File(playablePath),
+                explicitSubtitlePaths = task.subtitlePaths,
+            ),
+        )
         player.prepare()
         if (savedPosition > 0L) {
             player.seekTo(savedPosition)
@@ -465,18 +473,30 @@ class PlayerViewModel @Inject constructor(
         return parts.takeIf { it.isNotEmpty() }?.joinToString(" | ")
     }
 
-    private fun buildMediaItem(playableFile: File): MediaItem {
-        val subtitleConfigurations = discoverLocalSubtitleConfigurations(playableFile)
+    private fun buildMediaItem(
+        playableFile: File,
+        explicitSubtitlePaths: List<String>,
+    ): MediaItem {
+        val subtitleConfigurations = discoverLocalSubtitleConfigurations(
+            playableFile = playableFile,
+            explicitSubtitlePaths = explicitSubtitlePaths,
+        )
         return MediaItem.Builder()
             .setUri(Uri.fromFile(playableFile))
             .setSubtitleConfigurations(subtitleConfigurations)
             .build()
     }
 
-    private fun discoverLocalSubtitleConfigurations(playableFile: File): List<MediaItem.SubtitleConfiguration> {
+    private fun discoverLocalSubtitleConfigurations(
+        playableFile: File,
+        explicitSubtitlePaths: List<String>,
+    ): List<MediaItem.SubtitleConfiguration> {
         val parentDir = playableFile.parentFile ?: return emptyList()
         val stem = playableFile.nameWithoutExtension
-        return parentDir.listFiles()
+        val explicitFiles = explicitSubtitlePaths
+            .map(::File)
+            .filter { it.exists() }
+        val fallbackFiles = parentDir.listFiles()
             ?.asSequence()
             ?.filter { candidate ->
                 candidate.isFile &&
@@ -484,16 +504,21 @@ class PlayerViewModel @Inject constructor(
                     candidate.name != playableFile.name
             }
             ?.sortedBy { it.name }
-            ?.mapNotNull { subtitleFile ->
+            ?.toList()
+            .orEmpty()
+
+        return (explicitFiles + fallbackFiles)
+            .distinctBy { it.absolutePath }
+            .mapNotNull { subtitleFile ->
                 val mimeType = resolveSubtitleMimeType(subtitleFile.extension) ?: return@mapNotNull null
                 MediaItem.SubtitleConfiguration.Builder(Uri.fromFile(subtitleFile))
                     .setMimeType(mimeType)
                     .setLabel(buildSubtitleLabel(stem, subtitleFile))
                     .setLanguage(extractSubtitleLanguage(stem, subtitleFile))
+                    .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
+                    .setRoleFlags(C.ROLE_FLAG_SUBTITLE)
                     .build()
             }
-            ?.toList()
-            .orEmpty()
     }
 
     private fun resolveSubtitleMimeType(extension: String): String? {

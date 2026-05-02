@@ -272,11 +272,16 @@ class DownloadRepositoryImpl @Inject constructor(
                 path = sourceFile.absolutePath,
                 targetFileName = normalizedName,
             ) ?: error("Unable to rename the saved file.")
+            val renamedSubtitlePaths = fileUtils.resolveManagedMediaBundle(renamedPath)
+                .map { it.absolutePath }
+                .filter { it != renamedPath }
+                .filter(::isSupportedSubtitlePath)
 
             downloadTaskStore.update(taskId) { current ->
                 current.copy(
                     title = File(renamedPath).name,
                     outputPath = renamedPath,
+                    subtitlePaths = renamedSubtitlePaths,
                     updatedAtEpochMs = System.currentTimeMillis(),
                 )
             }
@@ -364,10 +369,14 @@ class DownloadRepositoryImpl @Inject constructor(
             completedTasks.forEach { task ->
                 val outputPath = task.outputPath?.takeIf { it.isNotBlank() } ?: return@forEach
                 val normalizedPath = fileUtils.normalizeLibraryOutputPath(outputPath)
-                if (normalizedPath != outputPath) {
+                val normalizedSubtitlePaths = task.subtitlePaths
+                    .map(fileUtils::normalizeLibraryOutputPath)
+                    .distinct()
+                if (normalizedPath != outputPath || normalizedSubtitlePaths != task.subtitlePaths) {
                     downloadTaskStore.update(task.id) { current ->
                         current.copy(
                             outputPath = normalizedPath,
+                            subtitlePaths = normalizedSubtitlePaths,
                             updatedAtEpochMs = System.currentTimeMillis(),
                         )
                     }
@@ -825,6 +834,13 @@ class DownloadRepositoryImpl @Inject constructor(
     private companion object {
         const val MAX_DEBUG_TRACE_CHARS = 10_000
         const val PAUSE_RESUME_WINDOW_MS = 10 * 60 * 1000L
+    }
+
+    private fun isSupportedSubtitlePath(path: String): Boolean {
+        return when (File(path).extension.lowercase()) {
+            "srt", "vtt", "webvtt", "ass", "ssa", "ttml", "dfxp", "xml" -> true
+            else -> false
+        }
     }
 
     private data class PreparedDownload(

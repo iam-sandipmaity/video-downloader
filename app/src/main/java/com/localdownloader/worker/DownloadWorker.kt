@@ -285,13 +285,17 @@ class DownloadWorker @AssistedInject constructor(
             logger.i("DownloadWorker", "Task completed taskId=$taskId outputPath=$outputPath")
             appendDebugTrace(taskId, "Task completed successfully")
 
-            val finalPath = outputPath?.let { path ->
+            val exportedBundle = outputPath?.let { path ->
                 exportManagedMediaBundle(
                     primaryPath = path,
                     playlistFolderName = options.playlistFolderName,
                     taskId = taskId,
                 )
-            } ?: outputPath
+            } ?: ExportedMediaBundle(
+                primaryPath = outputPath,
+                subtitlePaths = emptyList(),
+            )
+            val finalPath = exportedBundle.primaryPath
             val finalSizeLabel = finalPath
                 ?.let(::File)
                 ?.takeIf { it.exists() }
@@ -303,6 +307,7 @@ class DownloadWorker @AssistedInject constructor(
                     status = DownloadStatus.COMPLETED,
                     progressPercent = 100,
                     outputPath = finalPath,
+                    subtitlePaths = exportedBundle.subtitlePaths,
                     downloadedStr = finalSizeLabel ?: task.downloadedStr.takeMeaningfulSizeLabel(),
                     totalSizeStr = finalSizeLabel ?: task.totalSizeStr.takeMeaningfulSizeLabel(),
                     updatedAtEpochMs = System.currentTimeMillis(),
@@ -436,6 +441,7 @@ class DownloadWorker @AssistedInject constructor(
 
     private fun shouldTryExplicitSplitDownload(options: DownloadOptions): Boolean {
         if (options.extractAudio) return false
+        if (options.shouldDownloadSubtitles) return false
         if (!isYoutubeUrl(options.url)) return false
         if (options.formatId.contains("/")) return false
         return options.formatId.contains("+")
@@ -624,14 +630,19 @@ class DownloadWorker @AssistedInject constructor(
         primaryPath: String,
         playlistFolderName: String?,
         taskId: String,
-    ): String {
+    ): ExportedMediaBundle {
         val primaryFile = File(primaryPath)
-        if (!primaryFile.exists()) return primaryPath
+        if (!primaryFile.exists()) {
+            return ExportedMediaBundle(primaryPath = primaryPath, subtitlePaths = emptyList())
+        }
 
         val bundleFiles = fileUtils.resolveManagedMediaBundle(primaryPath)
-        if (bundleFiles.isEmpty()) return primaryPath
+        if (bundleFiles.isEmpty()) {
+            return ExportedMediaBundle(primaryPath = primaryPath, subtitlePaths = emptyList())
+        }
 
         var finalPrimaryPath = primaryPath
+        val finalSubtitlePaths = mutableListOf<String>()
         val sidecars = bundleFiles.filter { it.absolutePath != primaryFile.absolutePath }
         val exportedPrimaryPath = fileUtils.copyToPublicDownloads(
             sourceFile = primaryFile,
@@ -662,13 +673,28 @@ class DownloadWorker @AssistedInject constructor(
             )
             if (exportedPath != null) {
                 appendDebugTrace(taskId, "Copied to public Downloads: $exportedPath")
+                if (isSupportedSubtitlePath(exportedPath)) {
+                    finalSubtitlePaths += exportedPath
+                }
                 if (exportedPath != artifact.absolutePath && artifact.delete()) {
                     appendDebugTrace(taskId, "Removed private staging copy after public export: ${artifact.name}")
                 }
+            } else if (isSupportedSubtitlePath(artifact.absolutePath)) {
+                finalSubtitlePaths += artifact.absolutePath
             }
         }
         appendDebugTrace(taskId, "Saved file: $finalPrimaryPath")
-        return finalPrimaryPath
+        return ExportedMediaBundle(
+            primaryPath = finalPrimaryPath,
+            subtitlePaths = finalSubtitlePaths.distinct(),
+        )
+    }
+
+    private fun isSupportedSubtitlePath(path: String): Boolean {
+        return when (File(path).extension.lowercase()) {
+            "srt", "vtt", "webvtt", "ass", "ssa", "ttml", "dfxp", "xml" -> true
+            else -> false
+        }
     }
 
     private fun parseOutputPath(line: String): String? {
@@ -945,6 +971,11 @@ class DownloadWorker @AssistedInject constructor(
             )
         }
     }
+
+    private data class ExportedMediaBundle(
+        val primaryPath: String?,
+        val subtitlePaths: List<String>,
+    )
 
     private data class SafeModeAttempt(
         val label: String,

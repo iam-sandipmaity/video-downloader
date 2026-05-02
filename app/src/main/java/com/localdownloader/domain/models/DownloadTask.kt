@@ -13,6 +13,7 @@ data class DownloadTask(
     val speed: String? = null,
     val eta: String? = null,
     val outputPath: String? = null,
+    val subtitlePaths: List<String> = emptyList(),
     val downloadedStr: String? = null,
     val totalSizeStr: String? = null,
     val errorMessage: String? = null,

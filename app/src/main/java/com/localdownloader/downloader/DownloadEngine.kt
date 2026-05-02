@@ -66,7 +66,7 @@ class DownloadEngine @Inject constructor(
         }
 
         if (options.shouldDownloadSubtitles) {
-            args += subtitleArgs()
+            args += subtitleArgs(embedSubtitles = !options.extractAudio)
         }
         if (options.shouldEmbedMetadata) {
             args += "--embed-metadata"
@@ -148,7 +148,7 @@ class DownloadEngine @Inject constructor(
             args += listOf("--playlist-items", index.toString())
         }
 
-        args += subtitleArgs()
+        args += subtitleArgs(embedSubtitles = false)
         args += options.url
 
         logger.i(
@@ -175,15 +175,18 @@ class DownloadEngine @Inject constructor(
         }
     }
 
-    private fun subtitleArgs(): List<String> {
-        return listOf(
-            "--write-subs",
-            "--write-auto-subs",
-            "--sub-langs",
-            "all,-live_chat",
-            "--convert-subs",
-            "srt",
-        )
+    private fun subtitleArgs(embedSubtitles: Boolean): List<String> {
+        return buildList {
+            add("--write-subs")
+            add("--write-auto-subs")
+            add("--sub-langs")
+            add("all,-live_chat")
+            add("--convert-subs")
+            add("srt")
+            if (embedSubtitles) {
+                add("--embed-subs")
+            }
+        }
     }
 
     // Keep URL helpers local to FormatExtractor; download should honor analysis selection.
