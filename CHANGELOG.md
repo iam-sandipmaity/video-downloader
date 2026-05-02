@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.6.1-beta] - 2026-05-02
+
+### Fixed
+- **Subtitle download reliability** - subtitle-enabled downloads now request both standard and auto-generated captions, then convert saved subtitle files to `srt` for broader device and player compatibility
+- **Subtitle file visibility** - downloaded subtitle sidecars are now exported to the public `Downloads/LocalDownloader` folder alongside the main media file instead of being left behind in app-private storage
+- **Local subtitle playback** - the in-app player now attaches subtitle files stored next to the video so downloaded captions appear as playable subtitle tracks for offline media too
+- **Split-download subtitle support** - when a video has to be downloaded as separate video/audio streams and merged locally, subtitle sidecars are now fetched for the merged output as a follow-up step
+
+### Changed
+- **App version bump** - release metadata updated to `1.6.1-beta`
+
 ## [1.6.0] - 2026-05-02
 
 ### Changed

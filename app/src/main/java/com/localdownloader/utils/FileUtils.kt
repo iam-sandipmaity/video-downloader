@@ -157,7 +157,11 @@ class FileUtils @Inject constructor(
      * Downloads folder via MediaStore so it becomes visible in file managers.
      * Returns the public path, or null on Android 10 and below (file is already public).
      */
-    fun copyToPublicDownloads(sourceFile: File, playlistFolderName: String? = null): String? {
+    fun copyToPublicDownloads(
+        sourceFile: File,
+        playlistFolderName: String? = null,
+        targetFileName: String? = null,
+    ): String? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
 
         val publicDownloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
@@ -175,7 +179,9 @@ class FileUtils @Inject constructor(
         }
         if (!publicDir.exists()) publicDir.mkdirs()
 
-        val displayName = resolveUniqueFileName(publicDir, sourceFile.name)
+        val displayName = targetFileName
+            ?.takeIf { it.isNotBlank() }
+            ?: resolveUniqueFileName(publicDir, sourceFile.name)
         val destFile = File(publicDir, displayName)
 
         return try {
@@ -218,6 +224,17 @@ class FileUtils @Inject constructor(
         }
     }
 
+    fun resolveManagedMediaBundle(path: String): List<File> {
+        val primaryFile = File(path)
+        return resolveManagedMediaBundle(primaryFile)
+    }
+
+    fun deleteManagedMediaBundle(path: String): Boolean {
+        val bundleFiles = resolveManagedMediaBundle(path)
+        if (bundleFiles.isEmpty()) return true
+        return bundleFiles.all { candidate -> deleteManagedFile(candidate.absolutePath) }
+    }
+
     fun deleteManagedFile(path: String): Boolean {
         val targetFile = File(path)
         if (!targetFile.exists()) return true
@@ -250,6 +267,49 @@ class FileUtils @Inject constructor(
                 targetFile.absolutePath
             }
         }.getOrNull()
+    }
+
+    fun renameManagedMediaBundle(path: String, targetFileName: String): String? {
+        val sourceFile = File(path)
+        if (!sourceFile.exists()) return null
+
+        val targetPrimary = File(sourceFile.parentFile, targetFileName)
+        if (sourceFile.absolutePath == targetPrimary.absolutePath) return sourceFile.absolutePath
+
+        val bundleFiles = resolveManagedMediaBundle(sourceFile)
+        if (bundleFiles.isEmpty()) return null
+
+        val sourceStem = sourceFile.nameWithoutExtension
+        val targetStem = targetPrimary.nameWithoutExtension
+        val sourcePaths = bundleFiles.map { it.absolutePath }.toSet()
+        val renamePlan = bundleFiles.associateWith { currentFile ->
+            if (currentFile.absolutePath == sourceFile.absolutePath) {
+                targetPrimary
+            } else {
+                val suffix = currentFile.name.removePrefix(sourceStem)
+                File(sourceFile.parentFile, "$targetStem$suffix")
+            }
+        }
+
+        if (renamePlan.values.any { target ->
+                target.exists() && target.absolutePath !in sourcePaths
+            }
+        ) {
+            return null
+        }
+
+        val movedPairs = mutableListOf<Pair<File, File>>()
+        renamePlan.forEach { (from, to) ->
+            if (from.absolutePath == to.absolutePath) return@forEach
+            if (!moveManagedFile(from, to)) {
+                movedPairs.asReversed().forEach { (movedTo, originalPath) ->
+                    moveManagedFile(movedTo, originalPath)
+                }
+                return null
+            }
+            movedPairs += to to from
+        }
+        return targetPrimary.absolutePath
     }
 
     fun normalizeLibraryOutputPath(path: String): String {
@@ -299,14 +359,63 @@ class FileUtils @Inject constructor(
             "flac" -> "audio/flac"
             "jpg", "jpeg" -> "image/jpeg"
             "png" -> "image/png"
+            "srt" -> "application/x-subrip"
+            "vtt", "webvtt" -> "text/vtt"
+            "ass", "ssa" -> "text/x-ssa"
+            "ttml", "dfxp", "xml" -> "application/ttml+xml"
             else -> "application/octet-stream"
         }
+    }
+
+    private fun resolveManagedMediaBundle(primaryFile: File): List<File> {
+        val parentDir = primaryFile.parentFile ?: return listOf(primaryFile).filter { it.exists() }
+        val stem = primaryFile.nameWithoutExtension
+        val sidecars = parentDir.listFiles()
+            ?.filter { candidate ->
+                candidate.isFile &&
+                    candidate.name != primaryFile.name &&
+                    candidate.name.startsWith("$stem.") &&
+                    !isTemporaryDownloadArtifact(candidate.name)
+            }
+            ?.sortedBy { it.name }
+            .orEmpty()
+        return buildList {
+            if (primaryFile.exists()) add(primaryFile)
+            addAll(sidecars)
+        }
+    }
+
+    private fun isTemporaryDownloadArtifact(fileName: String): Boolean {
+        val lower = fileName.lowercase()
+        return lower.endsWith(".part") ||
+            lower.endsWith(".ytdl") ||
+            lower.endsWith(".temp")
     }
 
     private fun triggerMediaScan(uri: Uri) {
         context.sendBroadcast(
             android.content.Intent(android.content.Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, uri),
         )
+    }
+
+    private fun moveManagedFile(sourceFile: File, targetFile: File): Boolean {
+        if (sourceFile.absolutePath == targetFile.absolutePath) return true
+        if (targetFile.exists()) return false
+        if (sourceFile.renameTo(targetFile)) {
+            triggerMediaScan(Uri.fromFile(targetFile))
+            return true
+        }
+
+        return runCatching {
+            sourceFile.copyTo(targetFile, overwrite = false)
+            if (!deleteManagedFile(sourceFile.absolutePath)) {
+                targetFile.delete()
+                false
+            } else {
+                triggerMediaScan(Uri.fromFile(targetFile))
+                true
+            }
+        }.getOrDefault(false)
     }
 
     private fun deleteFromMediaStore(file: File): Boolean? {

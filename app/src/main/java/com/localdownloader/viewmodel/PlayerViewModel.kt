@@ -203,7 +203,7 @@ class PlayerViewModel @Inject constructor(
             ?: true
 
         logger.i("PlayerViewModel", "Loading media for playback sessionKey=$sessionKey path=$playablePath")
-        player.setMediaItem(MediaItem.fromUri(Uri.fromFile(File(playablePath))))
+        player.setMediaItem(buildMediaItem(File(playablePath)))
         player.prepare()
         if (savedPosition > 0L) {
             player.seekTo(savedPosition)
@@ -463,6 +463,70 @@ class PlayerViewModel @Inject constructor(
                 ?.let { add(it) }
         }
         return parts.takeIf { it.isNotEmpty() }?.joinToString(" | ")
+    }
+
+    private fun buildMediaItem(playableFile: File): MediaItem {
+        val subtitleConfigurations = discoverLocalSubtitleConfigurations(playableFile)
+        return MediaItem.Builder()
+            .setUri(Uri.fromFile(playableFile))
+            .setSubtitleConfigurations(subtitleConfigurations)
+            .build()
+    }
+
+    private fun discoverLocalSubtitleConfigurations(playableFile: File): List<MediaItem.SubtitleConfiguration> {
+        val parentDir = playableFile.parentFile ?: return emptyList()
+        val stem = playableFile.nameWithoutExtension
+        return parentDir.listFiles()
+            ?.asSequence()
+            ?.filter { candidate ->
+                candidate.isFile &&
+                    candidate.name.startsWith("$stem.") &&
+                    candidate.name != playableFile.name
+            }
+            ?.sortedBy { it.name }
+            ?.mapNotNull { subtitleFile ->
+                val mimeType = resolveSubtitleMimeType(subtitleFile.extension) ?: return@mapNotNull null
+                MediaItem.SubtitleConfiguration.Builder(Uri.fromFile(subtitleFile))
+                    .setMimeType(mimeType)
+                    .setLabel(buildSubtitleLabel(stem, subtitleFile))
+                    .setLanguage(extractSubtitleLanguage(stem, subtitleFile))
+                    .build()
+            }
+            ?.toList()
+            .orEmpty()
+    }
+
+    private fun resolveSubtitleMimeType(extension: String): String? {
+        return when (extension.lowercase()) {
+            "srt" -> "application/x-subrip"
+            "vtt", "webvtt" -> "text/vtt"
+            "ssa", "ass" -> "text/x-ssa"
+            "ttml", "dfxp", "xml" -> "application/ttml+xml"
+            else -> null
+        }
+    }
+
+    private fun buildSubtitleLabel(stem: String, subtitleFile: File): String {
+        val suffix = subtitleFile.name
+            .removePrefix(stem)
+            .substringBeforeLast('.', "")
+            .trim('.', '-', '_', ' ')
+        return suffix
+            .replace('.', ' ')
+            .replace('_', ' ')
+            .ifBlank { subtitleFile.extension.uppercase() }
+    }
+
+    private fun extractSubtitleLanguage(stem: String, subtitleFile: File): String? {
+        val suffix = subtitleFile.name
+            .removePrefix(stem)
+            .substringBeforeLast('.', "")
+            .trim('.', '-', '_', ' ')
+        return suffix
+            .split('.', '_', '-')
+            .firstOrNull()
+            ?.lowercase()
+            ?.takeIf { token -> token.length in 2..8 && token.all { it.isLetter() || it == '_' } }
     }
 
     override fun onCleared() {

@@ -268,7 +268,7 @@ class DownloadRepositoryImpl @Inject constructor(
             require(!targetFile.exists()) {
                 "A file with that name already exists."
             }
-            val renamedPath = fileUtils.renameManagedFile(
+            val renamedPath = fileUtils.renameManagedMediaBundle(
                 path = sourceFile.absolutePath,
                 targetFileName = normalizedName,
             ) ?: error("Unable to rename the saved file.")
@@ -798,9 +798,9 @@ class DownloadRepositoryImpl @Inject constructor(
                 !deleteFromStorage -> true
                 normalizedPath == null -> true
                 else -> {
-                    val deletedPrimary = fileUtils.deleteManagedFile(normalizedPath)
+                    val deletedPrimary = fileUtils.deleteManagedMediaBundle(normalizedPath)
                     val deletedLegacyPrivateCopy = if (outputPath != normalizedPath && outputPath != null) {
-                        fileUtils.deleteManagedFile(outputPath)
+                        fileUtils.deleteManagedMediaBundle(outputPath)
                     } else {
                         true
                     }

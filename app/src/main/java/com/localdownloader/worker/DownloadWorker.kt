@@ -279,27 +279,19 @@ class DownloadWorker @AssistedInject constructor(
         }
 
         if (result.isSuccess) {
+            if (outputPath == null) {
+                outputPath = inferDownloadedPath(outputTemplate)
+            }
             logger.i("DownloadWorker", "Task completed taskId=$taskId outputPath=$outputPath")
             appendDebugTrace(taskId, "Task completed successfully")
 
-            var publicPath: String? = null
-            outputPath?.let { path ->
-                val file = File(path)
-                if (file.exists()) {
-                    fileUtils.copyToPublicDownloads(
-                        sourceFile = file,
-                        playlistFolderName = options.playlistFolderName,
-                    )?.let { destPath ->
-                        publicPath = destPath
-                        appendDebugTrace(taskId, "Copied to public Downloads: $destPath")
-                        if (destPath != file.absolutePath && file.delete()) {
-                            appendDebugTrace(taskId, "Removed private staging copy after public export")
-                        }
-                    }
-                }
-                appendDebugTrace(taskId, "Saved file: $path")
-            }
-            val finalPath = publicPath ?: outputPath
+            val finalPath = outputPath?.let { path ->
+                exportManagedMediaBundle(
+                    primaryPath = path,
+                    playlistFolderName = options.playlistFolderName,
+                    taskId = taskId,
+                )
+            } ?: outputPath
             val finalSizeLabel = finalPath
                 ?.let(::File)
                 ?.takeIf { it.exists() }
@@ -532,6 +524,24 @@ class DownloadWorker @AssistedInject constructor(
             return SplitDownloadResult.failure(mergeResult.stderr.ifBlank { "FFmpeg merge failed" })
         }
 
+        if (options.shouldDownloadSubtitles) {
+            val subtitleTemplate = buildOutputTemplateForExistingFile(mergedOutputPath)
+            appendDebugTrace(taskId, "Downloading subtitle sidecars for merged output")
+            val subtitleResult = downloadEngine.runSubtitleDownload(
+                options = options.copy(outputTemplate = subtitleTemplate),
+                outputTemplate = subtitleTemplate,
+                onOutputLine = { line ->
+                    appendDebugTrace(taskId, "yt-dlp subtitles: ${line.take(MAX_OUTPUT_TRACE_LINE_LENGTH)}")
+                },
+            )
+            if (!subtitleResult.isSuccess) {
+                appendDebugTrace(
+                    taskId,
+                    "Subtitle sidecar download failed: ${subtitleResult.stderr.take(MAX_OUTPUT_TRACE_LINE_LENGTH).ifBlank { "unknown error" }}",
+                )
+            }
+        }
+
         safeDelete(videoPath)
         safeDelete(audioPath)
         return SplitDownloadResult.success(mergedOutputPath)
@@ -567,7 +577,8 @@ class DownloadWorker @AssistedInject constructor(
             ?.filter { it.isFile && it.name.startsWith(stem) }
             ?.sortedByDescending { it.lastModified() }
             .orEmpty()
-        return matches.firstOrNull()?.absolutePath
+        return matches.firstOrNull { it.nameWithoutExtension == stem }?.absolutePath
+            ?: matches.firstOrNull()?.absolutePath
     }
 
     private fun buildSplitOutputTemplate(outputTemplate: String, suffix: String): String {
@@ -586,6 +597,12 @@ class DownloadWorker @AssistedInject constructor(
         return File(videoFile.parentFile, "$baseName.$ext").absolutePath
     }
 
+    private fun buildOutputTemplateForExistingFile(path: String): String {
+        val file = File(path)
+        val baseName = file.nameWithoutExtension
+        return File(file.parentFile, "$baseName.%(ext)s").absolutePath
+    }
+
     private fun splitFormatSelector(selector: String): SplitSelectors? {
         val separatorIndex = selector.indexOf('+')
         if (separatorIndex <= 0 || separatorIndex >= selector.lastIndex) return null
@@ -601,6 +618,57 @@ class DownloadWorker @AssistedInject constructor(
     private fun safeDelete(path: String?) {
         if (path.isNullOrBlank()) return
         runCatching { File(path).delete() }
+    }
+
+    private fun exportManagedMediaBundle(
+        primaryPath: String,
+        playlistFolderName: String?,
+        taskId: String,
+    ): String {
+        val primaryFile = File(primaryPath)
+        if (!primaryFile.exists()) return primaryPath
+
+        val bundleFiles = fileUtils.resolveManagedMediaBundle(primaryPath)
+        if (bundleFiles.isEmpty()) return primaryPath
+
+        var finalPrimaryPath = primaryPath
+        val sidecars = bundleFiles.filter { it.absolutePath != primaryFile.absolutePath }
+        val exportedPrimaryPath = fileUtils.copyToPublicDownloads(
+            sourceFile = primaryFile,
+            playlistFolderName = playlistFolderName,
+        )
+        if (exportedPrimaryPath != null) {
+            appendDebugTrace(taskId, "Copied to public Downloads: $exportedPrimaryPath")
+            finalPrimaryPath = exportedPrimaryPath
+            if (exportedPrimaryPath != primaryFile.absolutePath && primaryFile.delete()) {
+                appendDebugTrace(taskId, "Removed private staging copy after public export: ${primaryFile.name}")
+            }
+        }
+
+        val sourceStem = primaryFile.nameWithoutExtension
+        val exportedPrimaryFile = File(finalPrimaryPath)
+        val targetStem = exportedPrimaryFile.nameWithoutExtension
+        sidecars.forEach { artifact ->
+            val targetFileName = if (exportedPrimaryPath != null) {
+                val suffix = artifact.name.removePrefix(sourceStem)
+                "$targetStem$suffix"
+            } else {
+                null
+            }
+            val exportedPath = fileUtils.copyToPublicDownloads(
+                sourceFile = artifact,
+                playlistFolderName = playlistFolderName,
+                targetFileName = targetFileName,
+            )
+            if (exportedPath != null) {
+                appendDebugTrace(taskId, "Copied to public Downloads: $exportedPath")
+                if (exportedPath != artifact.absolutePath && artifact.delete()) {
+                    appendDebugTrace(taskId, "Removed private staging copy after public export: ${artifact.name}")
+                }
+            }
+        }
+        appendDebugTrace(taskId, "Saved file: $finalPrimaryPath")
+        return finalPrimaryPath
     }
 
     private fun parseOutputPath(line: String): String? {

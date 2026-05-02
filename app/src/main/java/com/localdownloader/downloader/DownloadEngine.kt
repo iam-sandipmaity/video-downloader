@@ -66,7 +66,7 @@ class DownloadEngine @Inject constructor(
         }
 
         if (options.shouldDownloadSubtitles) {
-            args += listOf("--write-subs", "--sub-langs", "all,-live_chat")
+            args += subtitleArgs()
         }
         if (options.shouldEmbedMetadata) {
             args += "--embed-metadata"
@@ -109,6 +109,81 @@ class DownloadEngine @Inject constructor(
             "Download command finished exitCode=${result.exitCode}, stderrLen=${result.stderr.length}",
         )
         return result
+    }
+
+    suspend fun runSubtitleDownload(
+        options: DownloadOptions,
+        outputTemplate: String,
+        onOutputLine: (String) -> Unit,
+    ): CommandResult {
+        if (!options.shouldDownloadSubtitles) {
+            return CommandResult(exitCode = 0, stdout = "", stderr = "")
+        }
+
+        val args = mutableListOf(
+            "--newline",
+            "--ignore-config",
+            "--no-warnings",
+            "--skip-download",
+            "-o",
+            outputTemplate,
+        )
+
+        if (!options.extractorArgs.isNullOrBlank()) {
+            args += listOf("--extractor-args", options.extractorArgs)
+        }
+
+        val hasYoutubeAuth = options.youtubeAuthEnabled || !options.youtubePoToken.isNullOrBlank()
+        options.youtubeCookiesPath
+            ?.takeIf { hasYoutubeAuth && it.isNotBlank() && File(it).exists() }
+            ?.let { args += listOf("--cookies", it) }
+
+        if (options.isPlaylistEnabled) {
+            args += "--yes-playlist"
+        } else {
+            args += "--no-playlist"
+        }
+
+        options.playlistItemIndex?.let { index ->
+            args += listOf("--playlist-items", index.toString())
+        }
+
+        args += subtitleArgs()
+        args += options.url
+
+        logger.i(
+            "DownloadEngine",
+            "Starting subtitle-only download URL=${options.url}, outputTemplate=$outputTemplate",
+        )
+        logger.d("DownloadEngine", "yt-dlp subtitle args: ${args.joinToString(" ")}")
+
+        return ytDlpExecutor.execute(
+            args = args,
+            onStdoutLine = { line ->
+                logger.d("DownloadEngine/stdout", line)
+                onOutputLine(line)
+            },
+            onStderrLine = { line ->
+                logger.d("DownloadEngine/stderr", line)
+                onOutputLine(line)
+            },
+        ).also { result ->
+            logger.i(
+                "DownloadEngine",
+                "Subtitle command finished exitCode=${result.exitCode}, stderrLen=${result.stderr.length}",
+            )
+        }
+    }
+
+    private fun subtitleArgs(): List<String> {
+        return listOf(
+            "--write-subs",
+            "--write-auto-subs",
+            "--sub-langs",
+            "all,-live_chat",
+            "--convert-subs",
+            "srt",
+        )
     }
 
     // Keep URL helpers local to FormatExtractor; download should honor analysis selection.
