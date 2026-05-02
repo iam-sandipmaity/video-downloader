@@ -26,13 +26,6 @@ class BinaryInstaller @Inject constructor(
 ) {
     private val cleanupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    suspend fun ensureYtDlpBinary(preferNative: Boolean = true): File = ensureBinary(
-        toolFolder = "yt-dlp",
-        binaryName = "yt-dlp",
-        nativeLibraryCandidates = listOf("libyt_dlp.so", "libyt-dlp.so"),
-        preferNative = preferNative,
-    )
-
     suspend fun ensureFfmpegBinary(preferNative: Boolean = true): File = ensureBinary(
         toolFolder = "ffmpeg",
         binaryName = "ffmpeg",
@@ -92,22 +85,16 @@ class BinaryInstaller @Inject constructor(
 
     private suspend fun cleanupRedundantArtifacts() {
         withContext(Dispatchers.IO) {
-            val ytDlpNative = resolveNativeLibraryBinary(listOf("libyt_dlp.so", "libyt-dlp.so"))
             val ffmpegNative = resolveNativeLibraryBinary(listOf("libffmpeg_exec.so", "libffmpeg.so"))
-            if (ytDlpNative == null && ffmpegNative == null) {
+            if (ffmpegNative == null) {
                 logger.i("BinaryInstaller", "Skipping runtime cleanup because packaged native binaries are unavailable")
                 return@withContext
             }
 
             var freedBytes = 0L
 
-            if (ytDlpNative != null) {
-                freedBytes += deleteRecursively(File(File(context.filesDir, "bin"), "yt-dlp"))
-            }
-
-            if (ffmpegNative != null) {
-                freedBytes += deleteRecursively(File(File(context.filesDir, "bin"), "ffmpeg"))
-            }
+            freedBytes += deleteRecursively(File(File(context.filesDir, "bin"), "yt-dlp"))
+            freedBytes += deleteRecursively(File(File(context.filesDir, "bin"), "ffmpeg"))
 
             if (freedBytes > 0L) {
                 logger.i(

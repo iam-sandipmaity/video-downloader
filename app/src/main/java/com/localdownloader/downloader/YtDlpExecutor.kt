@@ -8,14 +8,12 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class YtDlpExecutor @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val binaryInstaller: BinaryInstaller,
     private val processRunner: ProcessRunner,
     private val logger: Logger,
 ) {
@@ -26,69 +24,6 @@ class YtDlpExecutor @Inject constructor(
         args: List<String>,
         onStdoutLine: ((String) -> Unit)? = null,
         onStderrLine: ((String) -> Unit)? = null,
-    ): CommandResult {
-        return try {
-            runStandaloneCommand(
-                args = args,
-                preferNative = true,
-                onStdoutLine = onStdoutLine,
-                onStderrLine = onStderrLine,
-            )
-        } catch (error: IOException) {
-            logger.w(
-                "YtDlpExecutor",
-                "Standalone yt-dlp launch failed; falling back to embedded runtime",
-                error,
-            )
-            runEmbeddedRuntimeCommand(args, onStdoutLine, onStderrLine)
-        }
-    }
-
-    private suspend fun runStandaloneCommand(
-        args: List<String>,
-        preferNative: Boolean,
-        onStdoutLine: ((String) -> Unit)?,
-        onStderrLine: ((String) -> Unit)?,
-    ): CommandResult {
-        val ytDlpBinary = binaryInstaller.ensureYtDlpBinary(preferNative = preferNative)
-        val ffmpegBinary = runCatching {
-            binaryInstaller.ensureFfmpegBinary(preferNative = preferNative)
-        }.getOrNull()
-
-        val normalizedArgs = normalizeArgsForStandalone(args = args, ffmpegPath = ffmpegBinary?.absolutePath)
-        val command = listOf(ytDlpBinary.absolutePath) + normalizedArgs
-        logger.d(
-            "YtDlpExecutor",
-            "Executing standalone yt-dlp (${if (preferNative) "native" else "asset"}): ${command.joinToString(" ")}",
-        )
-
-        return try {
-            runProcess(
-                command = command,
-                environment = emptyMap(),
-                onStdoutLine = onStdoutLine,
-                onStderrLine = onStderrLine,
-            )
-        } catch (error: IOException) {
-            if (!preferNative || !shouldRetryWithAssetBinary(error)) throw error
-            logger.w(
-                "YtDlpExecutor",
-                "Native-library yt-dlp launch failed; retrying with asset-installed binary",
-                error,
-            )
-            runStandaloneCommand(
-                args = args,
-                preferNative = false,
-                onStdoutLine = onStdoutLine,
-                onStderrLine = onStderrLine,
-            )
-        }
-    }
-
-    private suspend fun runEmbeddedRuntimeCommand(
-        args: List<String>,
-        onStdoutLine: ((String) -> Unit)?,
-        onStderrLine: ((String) -> Unit)?,
     ): CommandResult {
         ensureRuntimeInitialized()
 
@@ -219,41 +154,6 @@ class YtDlpExecutor @Inject constructor(
         }
 
         return normalized
-    }
-
-    private fun normalizeArgsForStandalone(args: List<String>, ffmpegPath: String?): List<String> {
-        val normalized = args.toMutableList()
-        var insertionIndex = normalized.indexOfFirst {
-            it.startsWith("http://", ignoreCase = true) || it.startsWith("https://", ignoreCase = true)
-        }.let { if (it >= 0) it else normalized.size }
-
-        val hasCacheDir = normalized.any { it == "--cache-dir" }
-        if (!hasCacheDir) {
-            normalized.add(insertionIndex, "--no-cache-dir")
-            insertionIndex += 1
-        }
-
-        if (!ffmpegPath.isNullOrBlank() && !normalized.contains("--ffmpeg-location")) {
-            normalized.addAll(insertionIndex, listOf("--ffmpeg-location", ffmpegPath))
-        }
-
-        return normalized
-    }
-
-    private fun shouldRetryWithAssetBinary(error: IOException): Boolean {
-        val detail = buildString {
-            append(error.message.orEmpty())
-            val causeMessage = error.cause?.message.orEmpty()
-            if (causeMessage.isNotBlank()) {
-                append(" ")
-                append(causeMessage)
-            }
-        }.lowercase()
-
-        return detail.contains("no such file") ||
-            detail.contains("error=2") ||
-            detail.contains("permission denied") ||
-            detail.contains("exec format error")
     }
 
     private data class YtDlpRuntime(

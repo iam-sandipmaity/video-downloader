@@ -52,7 +52,10 @@ Install any "Device Info" app from the Play Store and look for "CPU ABI".
 
 ## How the Binary System Works
 
-When you open the app, the following resolution chain runs **automatically** for both `yt-dlp` and `ffmpeg`:
+When you open the app:
+
+- `yt-dlp` runs through the embedded `youtubedl-android` runtime
+- `ffmpeg` follows the bundled binary resolution chain below
 
 ```
 Step 1: Check nativeLibraryDir
@@ -85,16 +88,7 @@ cd video-downloader
 
 ### Step 2 — Obtain compatible binaries
 
-You need two binaries compiled for your target ABI: `yt-dlp` and `ffmpeg`.
-
-#### yt-dlp
-
-| ABI | Download source |
-|---|---|
-| x86_64 | [yt-dlp releases](https://github.com/yt-dlp/yt-dlp/releases) — look for `yt-dlp_linux` (Intel/AMD Linux binary) or build from source targeting Android x86_64 |
-| armeabi-v7a | Build yt-dlp from source targeting Android ARM 32-bit |
-
-> **Note:** yt-dlp's standard Linux binary is x86_64. For Android ARM targets you need a cross-compiled version.
+You need an `ffmpeg` binary compiled for your target ABI.
 
 #### ffmpeg
 
@@ -103,7 +97,7 @@ You need two binaries compiled for your target ABI: `yt-dlp` and `ffmpeg`.
 | x86_64 | [ffmpeg-android-maker](https://github.com/Javernaut/ffmpeg-android-maker) or [termux packages](https://packages.termux.dev/apt/termux-main/binary-x86_64/) |
 | armeabi-v7a | Same sources, pick `arm` flavour |
 
-Make sure the binaries are **statically linked** (no shared lib dependencies) and have **execute permission**.
+Make sure the binary is **statically linked** (no shared lib dependencies) and has **execute permission**.
 
 ### Step 3 — Place the binaries
 
@@ -112,24 +106,18 @@ Depending on your ABI, place files in the following paths:
 #### For x86_64
 
 ```
-app/src/main/assets/yt-dlp/x86_64/yt-dlp
 app/src/main/assets/ffmpeg/x86_64/ffmpeg
 
-app/src/main/jniLibs/x86_64/libyt_dlp.so       ← rename yt-dlp → libyt_dlp.so
 app/src/main/jniLibs/x86_64/libffmpeg_exec.so   ← rename ffmpeg → libffmpeg_exec.so
 ```
 
 #### For armeabi-v7a
 
 ```
-app/src/main/assets/yt-dlp/armeabi-v7a/yt-dlp
 app/src/main/assets/ffmpeg/armeabi-v7a/ffmpeg
 
-app/src/main/jniLibs/armeabi-v7a/libyt_dlp.so
 app/src/main/jniLibs/armeabi-v7a/libffmpeg_exec.so
 ```
-
-> **Tip:** If you only have the asset fallback files (not the `.so`), the app will still work — it copies them from assets and marks them executable at runtime.
 
 ---
 

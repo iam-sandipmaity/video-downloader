@@ -73,8 +73,8 @@ Compose UI  ──→  ViewModel  ──→  Repository
                           │
               ┌───────────┴───────────┐
               ▼                       ▼
-          yt-dlp binary          ffmpeg binary
-         (local asset)           (local asset)
+       embedded yt-dlp          ffmpeg binary
+           runtime               (local asset)
               │
               ▼
      /sdcard/Download/LocalDownloader/
@@ -104,11 +104,9 @@ app/src/main/
 │   ├── utils/                # FileUtils, Logger, UrlValidator
 │   └── di/                   # Hilt modules
 ├── assets/
-│   ├── yt-dlp/arm64-v8a/yt-dlp     ← fallback binary
 │   └── ffmpeg/arm64-v8a/ffmpeg     ← fallback binary
 └── jniLibs/
     └── arm64-v8a/
-        ├── libyt_dlp.so             ← primary binary (preferred)
         └── libffmpeg_exec.so        ← primary binary (preferred)
 ```
 
@@ -116,7 +114,7 @@ app/src/main/
 
 ## ⚙️ Binary integration
 
-The app resolves binaries in this order:
+The app uses the embedded `youtubedl-android` runtime for `yt-dlp`, and resolves bundled `ffmpeg` in this order:
 
 1. **`jniLibs/`** — `.so` files packaged as native libraries (faster, always executable)
 2. **`assets/`** — raw binaries copied to app internal storage on first run
@@ -125,9 +123,7 @@ Default shipped ABIs:
 
 | File | Location |
 |---|---|
-| `libyt_dlp.so` | `jniLibs/arm64-v8a/` |
 | `libffmpeg_exec.so` | `jniLibs/arm64-v8a/` |
-| `yt-dlp` (fallback) | `assets/yt-dlp/arm64-v8a/` |
 | `ffmpeg` (fallback) | `assets/ffmpeg/arm64-v8a/` |
 
 > Need a different architecture? See [COMPATIBILITY.md](COMPATIBILITY.md) for step-by-step instructions.

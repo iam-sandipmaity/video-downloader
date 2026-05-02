@@ -65,18 +65,14 @@ jobs:
             echo "RELEASE_KEY_PASSWORD=$RELEASE_KEY_PASSWORD" >> "$GITHUB_ENV"
           fi
 
-      - name: Verify bundled yt-dlp and ffmpeg binaries exist (blocking)
+      - name: Verify bundled ffmpeg binary exists (blocking)
         run: |
-          required_ytdlp="app/src/main/assets/yt-dlp/arm64-v8a/yt-dlp"
           required_ffmpeg="app/src/main/assets/ffmpeg/arm64-v8a/ffmpeg"
 
-          if [ ! -f "$required_ytdlp" ] || [ ! -f "$required_ffmpeg" ]; then
-            echo "::error::Missing required bundled binaries."
+          if [ ! -f "$required_ffmpeg" ]; then
+            echo "::error::Missing required bundled ffmpeg binary."
             echo "Required files:"
-            echo "  $required_ytdlp"
             echo "  $required_ffmpeg"
-            echo "Detected files under app/src/main/assets/yt-dlp:"
-            find app/src/main/assets/yt-dlp -type f 2>/dev/null || true
             echo "Detected files under app/src/main/assets/ffmpeg:"
             find app/src/main/assets/ffmpeg -type f 2>/dev/null || true
             exit 1

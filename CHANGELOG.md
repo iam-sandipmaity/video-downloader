@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.6.0] - 2026-05-02
+
+### Changed
+- **Embedded yt-dlp runtime** - downloads now rely on the built-in `youtubedl-android` runtime instead of packaging separate standalone `yt-dlp` binaries in assets and `jniLibs`
+- **FFmpeg-only bundled binary validation** - CI checks and compatibility docs now focus on the `ffmpeg` binary paths that are still shipped with the app
+- **App version bump** - release metadata updated to `1.6.0`
+
+### Removed
+- **Standalone yt-dlp artifacts** - deleted the unused asset and native-library copies of `yt-dlp` to reduce release packaging overhead
+
 ## [1.5.7-beta] - 2026-05-02
 
 ### Fixed
