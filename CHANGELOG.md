@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.5.7-beta] - 2026-05-02
+
+### Fixed
+- **yt-dlp launch fallback** - download commands now retry with the asset-installed `yt-dlp` binary when the packaged native executable cannot start, and still fall back to the embedded runtime if standalone execution fails
+- **FFmpeg launch fallback** - conversion and compression now retry with the asset-installed `ffmpeg` binary when the packaged native executable is unavailable or not executable
+
+### Changed
+- **Runtime cleanup on startup** - redundant extracted tool artifacts are now removed in the background when packaged native binaries are present
+- **ABI packaging scope** - the current beta build is now packaged for `arm64-v8a`
+- **App version bump** - release metadata updated to `1.5.7-beta`
+
 ## [1.5.6] - 2026-05-02
 
 ### Fixed

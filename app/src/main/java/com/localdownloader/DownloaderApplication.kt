@@ -10,10 +10,9 @@ import androidx.work.WorkerFactory
 import androidx.work.WorkerParameters
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
+import com.localdownloader.downloader.BinaryInstaller
 import com.localdownloader.utils.Logger
 import com.localdownloader.worker.LoggingWorkerFactory
-import com.yausername.ffmpeg.FFmpeg
-import com.yausername.youtubedl_android.YoutubeDL
 import dagger.hilt.android.HiltAndroidApp
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
@@ -28,6 +27,9 @@ class DownloaderApplication : Application() {
     @Inject
     lateinit var logger: Logger
 
+    @Inject
+    lateinit var binaryInstaller: BinaryInstaller
+
     override fun onCreate() {
         super.onCreate()
         installUncaughtExceptionLogging()
@@ -38,14 +40,7 @@ class DownloaderApplication : Application() {
             safeLogger.i("DownloaderApplication", "File logs path: ${safeLogger.logFilePath()}")
             safeLogger.i("DownloaderApplication", "Crash logs path: ${safeLogger.crashLogFilePath()}")
         }
-        runCatching {
-            YoutubeDL.getInstance().init(this)
-            FFmpeg.getInstance().init(this)
-            getLoggerSafely()?.i("DownloaderApplication", "yt-dlp runtime initialization successful")
-        }.onFailure { error ->
-            getLoggerSafely()?.e("DownloaderApplication", "Failed to initialize yt-dlp runtime", error)
-                ?: Log.e("DownloaderApplication", "Failed to initialize yt-dlp runtime", error)
-        }
+        binaryInstaller.cleanupRedundantArtifactsAsync()
     }
 
     private fun initializeWorkManager() {

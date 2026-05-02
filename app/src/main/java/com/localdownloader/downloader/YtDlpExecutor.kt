@@ -8,6 +8,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,56 +26,100 @@ class YtDlpExecutor @Inject constructor(
         args: List<String>,
         onStdoutLine: ((String) -> Unit)? = null,
         onStderrLine: ((String) -> Unit)? = null,
-    ): CommandResult = withContext(Dispatchers.IO) {
-        executeWithStandaloneBinary(args, onStdoutLine, onStderrLine)?.let { return@withContext it }
+    ): CommandResult {
+        return try {
+            runStandaloneCommand(
+                args = args,
+                preferNative = true,
+                onStdoutLine = onStdoutLine,
+                onStderrLine = onStderrLine,
+            )
+        } catch (error: IOException) {
+            logger.w(
+                "YtDlpExecutor",
+                "Standalone yt-dlp launch failed; falling back to embedded runtime",
+                error,
+            )
+            runEmbeddedRuntimeCommand(args, onStdoutLine, onStderrLine)
+        }
+    }
 
+    private suspend fun runStandaloneCommand(
+        args: List<String>,
+        preferNative: Boolean,
+        onStdoutLine: ((String) -> Unit)?,
+        onStderrLine: ((String) -> Unit)?,
+    ): CommandResult {
+        val ytDlpBinary = binaryInstaller.ensureYtDlpBinary(preferNative = preferNative)
+        val ffmpegBinary = runCatching {
+            binaryInstaller.ensureFfmpegBinary(preferNative = preferNative)
+        }.getOrNull()
+
+        val normalizedArgs = normalizeArgsForStandalone(args = args, ffmpegPath = ffmpegBinary?.absolutePath)
+        val command = listOf(ytDlpBinary.absolutePath) + normalizedArgs
+        logger.d(
+            "YtDlpExecutor",
+            "Executing standalone yt-dlp (${if (preferNative) "native" else "asset"}): ${command.joinToString(" ")}",
+        )
+
+        return try {
+            runProcess(
+                command = command,
+                environment = emptyMap(),
+                onStdoutLine = onStdoutLine,
+                onStderrLine = onStderrLine,
+            )
+        } catch (error: IOException) {
+            if (!preferNative || !shouldRetryWithAssetBinary(error)) throw error
+            logger.w(
+                "YtDlpExecutor",
+                "Native-library yt-dlp launch failed; retrying with asset-installed binary",
+                error,
+            )
+            runStandaloneCommand(
+                args = args,
+                preferNative = false,
+                onStdoutLine = onStdoutLine,
+                onStderrLine = onStderrLine,
+            )
+        }
+    }
+
+    private suspend fun runEmbeddedRuntimeCommand(
+        args: List<String>,
+        onStdoutLine: ((String) -> Unit)?,
+        onStderrLine: ((String) -> Unit)?,
+    ): CommandResult {
         ensureRuntimeInitialized()
 
         val runtime = resolveRuntime()
         val normalizedArgs = normalizeArgs(args = args, runtime = runtime)
         val command = listOf(runtime.pythonBinary.absolutePath, runtime.ytDlpScript.absolutePath) + normalizedArgs
-        logger.d("YtDlpExecutor", "Executing yt-dlp runtime command: ${command.joinToString(" ")}")
+        logger.d("YtDlpExecutor", "Executing embedded yt-dlp runtime: ${command.joinToString(" ")}")
         logger.d(
             "YtDlpExecutor",
             "Runtime paths python=${runtime.pythonBinary.absolutePath}, ytdlp=${runtime.ytDlpScript.absolutePath}, ffmpeg=${runtime.ffmpegBinary.absolutePath}, quickjs=${runtime.quickJsBinary.absolutePath}",
         )
 
-        val startMs = System.currentTimeMillis()
-        val result = processRunner.runCommand(
+        return runProcess(
             command = command,
             environment = runtime.environment,
-            onStdoutLine = { line ->
-                logger.d("YtDlpExecutor/stdout", line)
-                onStdoutLine?.invoke(line)
-            },
-            onStderrLine = { line ->
-                logger.d("YtDlpExecutor/stderr", line)
-                onStderrLine?.invoke(line)
-            },
+            onStdoutLine = onStdoutLine,
+            onStderrLine = onStderrLine,
         )
-        logger.i(
-            "YtDlpExecutor",
-            "Command finished exitCode=${result.exitCode}, durationMs=${System.currentTimeMillis() - startMs}, stdoutLen=${result.stdout.length}, stderrLen=${result.stderr.length}",
-        )
-        result
     }
 
-    private suspend fun executeWithStandaloneBinary(
-        args: List<String>,
-        onStdoutLine: ((String) -> Unit)? = null,
-        onStderrLine: ((String) -> Unit)? = null,
-    ): CommandResult? {
-        val ytDlpBinary = runCatching { binaryInstaller.ensureYtDlpBinary() }.getOrNull()
-            ?: return null
-        val ffmpegBinary = runCatching { binaryInstaller.ensureFfmpegBinary() }.getOrNull()
-
-        val normalizedArgs = normalizeArgsForStandalone(args = args, ffmpegPath = ffmpegBinary?.absolutePath)
-        val command = listOf(ytDlpBinary.absolutePath) + normalizedArgs
-        logger.d("YtDlpExecutor", "Executing standalone yt-dlp: ${command.joinToString(" ")}")
-
-        return runCatching {
-            processRunner.runCommand(
+    private suspend fun runProcess(
+        command: List<String>,
+        environment: Map<String, String>,
+        onStdoutLine: ((String) -> Unit)?,
+        onStderrLine: ((String) -> Unit)?,
+    ): CommandResult {
+        return withContext(Dispatchers.IO) {
+            val startMs = System.currentTimeMillis()
+            val result = processRunner.runCommand(
                 command = command,
+                environment = environment,
                 onStdoutLine = { line ->
                     logger.d("YtDlpExecutor/stdout", line)
                     onStdoutLine?.invoke(line)
@@ -84,9 +129,12 @@ class YtDlpExecutor @Inject constructor(
                     onStderrLine?.invoke(line)
                 },
             )
-        }.onFailure { error ->
-            logger.w("YtDlpExecutor", "Standalone yt-dlp failed; falling back to embedded runtime", error)
-        }.getOrNull()
+            logger.i(
+                "YtDlpExecutor",
+                "Command finished exitCode=${result.exitCode}, durationMs=${System.currentTimeMillis() - startMs}, stdoutLen=${result.stdout.length}, stderrLen=${result.stderr.length}",
+            )
+            result
+        }
     }
 
     private fun ensureRuntimeInitialized() {
@@ -190,6 +238,22 @@ class YtDlpExecutor @Inject constructor(
         }
 
         return normalized
+    }
+
+    private fun shouldRetryWithAssetBinary(error: IOException): Boolean {
+        val detail = buildString {
+            append(error.message.orEmpty())
+            val causeMessage = error.cause?.message.orEmpty()
+            if (causeMessage.isNotBlank()) {
+                append(" ")
+                append(causeMessage)
+            }
+        }.lowercase()
+
+        return detail.contains("no such file") ||
+            detail.contains("error=2") ||
+            detail.contains("permission denied") ||
+            detail.contains("exec format error")
     }
 
     private data class YtDlpRuntime(

@@ -4,8 +4,11 @@ import android.content.Context
 import android.os.Build
 import com.localdownloader.utils.FileUtils
 import com.localdownloader.utils.Logger
+import kotlinx.coroutines.CoroutineScope
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
@@ -21,31 +24,47 @@ class BinaryInstaller @Inject constructor(
     private val fileUtils: FileUtils,
     private val logger: Logger,
 ) {
-    suspend fun ensureYtDlpBinary(): File = ensureBinary(
+    private val cleanupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    suspend fun ensureYtDlpBinary(preferNative: Boolean = true): File = ensureBinary(
         toolFolder = "yt-dlp",
         binaryName = "yt-dlp",
         nativeLibraryCandidates = listOf("libyt_dlp.so", "libyt-dlp.so"),
+        preferNative = preferNative,
     )
 
-    suspend fun ensureFfmpegBinary(): File = ensureBinary(
+    suspend fun ensureFfmpegBinary(preferNative: Boolean = true): File = ensureBinary(
         toolFolder = "ffmpeg",
         binaryName = "ffmpeg",
         nativeLibraryCandidates = listOf("libffmpeg_exec.so", "libffmpeg.so"),
+        preferNative = preferNative,
     )
+
+    fun cleanupRedundantArtifactsAsync() {
+        cleanupScope.launch {
+            runCatching { cleanupRedundantArtifacts() }
+                .onFailure { error ->
+                    logger.w("BinaryInstaller", "Failed cleaning redundant runtime artifacts", error)
+                }
+        }
+    }
 
     private suspend fun ensureBinary(
         toolFolder: String,
         binaryName: String,
         nativeLibraryCandidates: List<String>,
+        preferNative: Boolean,
     ): File {
         return withContext(Dispatchers.IO) {
-            val nativeLibraryBinary = resolveNativeLibraryBinary(nativeLibraryCandidates)
-            if (nativeLibraryBinary != null) {
-                logger.i(
-                    "BinaryInstaller",
-                    "Using $toolFolder binary from nativeLibraryDir: ${nativeLibraryBinary.absolutePath}",
-                )
-                return@withContext nativeLibraryBinary
+            if (preferNative) {
+                val nativeLibraryBinary = resolveNativeLibraryBinary(nativeLibraryCandidates)
+                if (nativeLibraryBinary != null) {
+                    logger.i(
+                        "BinaryInstaller",
+                        "Using $toolFolder binary from nativeLibraryDir: ${nativeLibraryBinary.absolutePath}",
+                    )
+                    return@withContext nativeLibraryBinary
+                }
             }
 
             val targetFile = File(fileUtils.ensureBinDir(), binaryName)
@@ -68,6 +87,34 @@ class BinaryInstaller @Inject constructor(
             }
 
             targetFile
+        }
+    }
+
+    private suspend fun cleanupRedundantArtifacts() {
+        withContext(Dispatchers.IO) {
+            val ytDlpNative = resolveNativeLibraryBinary(listOf("libyt_dlp.so", "libyt-dlp.so"))
+            val ffmpegNative = resolveNativeLibraryBinary(listOf("libffmpeg_exec.so", "libffmpeg.so"))
+            if (ytDlpNative == null && ffmpegNative == null) {
+                logger.i("BinaryInstaller", "Skipping runtime cleanup because packaged native binaries are unavailable")
+                return@withContext
+            }
+
+            var freedBytes = 0L
+
+            if (ytDlpNative != null) {
+                freedBytes += deleteRecursively(File(File(context.filesDir, "bin"), "yt-dlp"))
+            }
+
+            if (ffmpegNative != null) {
+                freedBytes += deleteRecursively(File(File(context.filesDir, "bin"), "ffmpeg"))
+            }
+
+            if (freedBytes > 0L) {
+                logger.i(
+                    "BinaryInstaller",
+                    "Removed redundant runtime artifacts and freed approximately $freedBytes bytes",
+                )
+            }
         }
     }
 
@@ -149,5 +196,17 @@ class BinaryInstaller @Inject constructor(
             }
         }
         return null
+    }
+
+    private fun deleteRecursively(target: File): Long {
+        if (!target.exists()) return 0L
+
+        val bytes = if (target.isDirectory) {
+            target.listFiles()?.sumOf(::deleteRecursively) ?: 0L
+        } else {
+            target.length()
+        }
+
+        return if (target.delete()) bytes else 0L
     }
 }
