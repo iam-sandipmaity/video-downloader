@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.6.2] - 2026-05-18
+
+### Added
+- **Downloads workspace refresh** - added a dedicated Downloads library plus a new More section so saved media, tools, queue access, and app settings are easier to reach
+- **Built-in music player** - added an audio playback experience with queue playback, shuffle, repeat, sleep timer controls, background playback, and media-style notifications
+- **Cookie manager and YouTube access flow** - added saved site-cookie support plus a dedicated YouTube access screen for capturing browser sessions and generating PO-token-based recovery data
+
+### Changed
+- **Resilient YouTube request planning** - downloader analysis and format selection now use stronger selector-building and authenticated fallback planning for tougher media requests
+- **Notification routing and app navigation** - active, completed, failed, and canceled download notifications now deep-link back into the relevant app screens more cleanly
+- **FFmpeg runtime packaging** - ffmpeg now runs from the packaged native runtime path with bundled support files instead of relying on the older asset-binary copy
+- **App version bump** - release metadata updated to `1.6.2`
+
+### Fixed
+- **Embedded process stability** - process output handling now tolerates closed-stream shutdown races better so embedded runtime failures are reported more reliably
+- **Media tool validation** - conversion and compression now reject empty or oversized inputs earlier and verify that output files were actually created before reporting success
+- **Playback and library integration** - local downloads, external-open routing, and audio playback state now stay coordinated more reliably across the refreshed app flow
+
+### Removed
+- **Legacy ffmpeg asset copy** - deleted the obsolete bundled asset copy of `ffmpeg` now that the packaged native runtime path is the primary launch path
+
+### Technical
+- **New runtime modules** - added `AppNotifications`, `AudioPlaybackService`, `CookieTextCodec`, `YoutubePoTokenGenerator`, `FormatSelectorBuilder`, and `YoutubeRequestPlanner` to support the new media, auth, and runtime flows
+
 ## [1.6.1-beta] - 2026-05-02
 
 ### Fixed
