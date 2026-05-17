@@ -33,16 +33,17 @@ class FfmpegExecutor @Inject constructor(
         onStdoutLine: ((String) -> Unit)?,
         onStderrLine: ((String) -> Unit)?,
     ): CommandResult {
-        val binary = binaryInstaller.ensureFfmpegBinary(preferNative = preferNative)
-        val command = listOf(binary.absolutePath) + args
+        val runtime = binaryInstaller.ensureFfmpegRuntime(preferNative = preferNative)
+        val command = listOf(runtime.executable.absolutePath) + args
         logger.d(
             "FfmpegExecutor",
-            "Executing ${if (preferNative) "native" else "asset"} ffmpeg: ${command.joinToString(" ")}",
+            "Executing ${if (preferNative) "bundled" else "fallback"} ffmpeg: ${command.joinToString(" ")}",
         )
 
         return try {
             processRunner.runCommand(
                 command = command,
+                environment = runtime.environment,
                 onStdoutLine = onStdoutLine,
                 onStderrLine = onStderrLine,
             )

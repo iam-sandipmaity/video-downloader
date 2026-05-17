@@ -2,7 +2,6 @@ package com.localdownloader.downloader
 
 import android.content.Context
 import com.localdownloader.utils.Logger
-import com.yausername.ffmpeg.FFmpeg
 import com.yausername.youtubedl_android.YoutubeDL
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -14,6 +13,7 @@ import javax.inject.Singleton
 @Singleton
 class YtDlpExecutor @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val binaryInstaller: BinaryInstaller,
     private val processRunner: ProcessRunner,
     private val logger: Logger,
 ) {
@@ -27,7 +27,10 @@ class YtDlpExecutor @Inject constructor(
     ): CommandResult {
         ensureRuntimeInitialized()
 
-        val runtime = resolveRuntime()
+        val ffmpegRuntime = binaryInstaller.ensureFfmpegRuntime(preferNative = true)
+        val runtime = resolveRuntime(
+            ffmpegRuntime = ffmpegRuntime,
+        )
         val normalizedArgs = normalizeArgs(args = args, runtime = runtime)
         val command = listOf(runtime.pythonBinary.absolutePath, runtime.ytDlpScript.absolutePath) + normalizedArgs
         logger.d("YtDlpExecutor", "Executing embedded yt-dlp runtime: ${command.joinToString(" ")}")
@@ -78,33 +81,35 @@ class YtDlpExecutor @Inject constructor(
             if (isInitialized) return
             logger.i("YtDlpExecutor", "Initializing embedded yt-dlp runtime")
             YoutubeDL.getInstance().init(context)
-            FFmpeg.getInstance().init(context)
             isInitialized = true
             logger.i("YtDlpExecutor", "Embedded yt-dlp runtime initialized")
         }
     }
 
-    private fun resolveRuntime(): YtDlpRuntime {
+    private fun resolveRuntime(ffmpegRuntime: FfmpegRuntime): YtDlpRuntime {
         val nativeLibraryDir = File(context.applicationInfo.nativeLibraryDir)
         val baseDir = File(context.noBackupFilesDir, YoutubeDL.baseName)
         val packagesDir = File(baseDir, "packages")
         val pythonUsrDir = File(packagesDir, "python/usr")
-        val ffmpegUsrLibDir = File(packagesDir, "ffmpeg/usr/lib")
-        val aria2cUsrLibDir = File(packagesDir, "aria2c/usr/lib")
 
         val pythonBinary = File(nativeLibraryDir, "libpython.so")
         val quickJsBinary = File(nativeLibraryDir, "libqjs.so")
-        val ffmpegBinary = File(nativeLibraryDir, "libffmpeg.so")
         val ytDlpScript = File(
             File(baseDir, YoutubeDL.ytdlpDirName),
             YoutubeDL.ytdlpBin,
         )
 
-        val ldLibraryPath = listOf(
-            File(pythonUsrDir, "lib").absolutePath,
-            ffmpegUsrLibDir.absolutePath,
-            aria2cUsrLibDir.absolutePath,
-        ).joinToString(":")
+        val ldLibraryEntries = mutableListOf<String>()
+        ldLibraryEntries += File(pythonUsrDir, "lib").absolutePath
+        ffmpegRuntime.supportDir?.let { supportDir ->
+            val usrLib = File(supportDir, "usr/lib")
+            if (usrLib.exists()) {
+                ldLibraryEntries += usrLib.absolutePath
+            } else if (supportDir.exists()) {
+                ldLibraryEntries += supportDir.absolutePath
+            }
+        }
+        val ldLibraryPath = ldLibraryEntries.distinct().joinToString(":")
 
         val environment = mutableMapOf(
             "LD_LIBRARY_PATH" to ldLibraryPath,
@@ -114,19 +119,20 @@ class YtDlpExecutor @Inject constructor(
             "TMPDIR" to context.cacheDir.absolutePath,
             "PATH" to listOfNotNull(
                 System.getenv("PATH")?.takeIf { it.isNotBlank() },
+                ffmpegRuntime.executable.parentFile?.absolutePath,
                 nativeLibraryDir.absolutePath,
             ).joinToString(":"),
         )
 
         check(pythonBinary.exists()) { "Missing runtime binary: ${pythonBinary.absolutePath}" }
         check(quickJsBinary.exists()) { "Missing runtime binary: ${quickJsBinary.absolutePath}" }
-        check(ffmpegBinary.exists()) { "Missing runtime binary: ${ffmpegBinary.absolutePath}" }
+        check(ffmpegRuntime.executable.exists()) { "Missing runtime binary: ${ffmpegRuntime.executable.absolutePath}" }
         check(ytDlpScript.exists()) { "Missing yt-dlp script: ${ytDlpScript.absolutePath}" }
 
         return YtDlpRuntime(
             pythonBinary = pythonBinary,
             quickJsBinary = quickJsBinary,
-            ffmpegBinary = ffmpegBinary,
+            ffmpegBinary = ffmpegRuntime.executable,
             ytDlpScript = ytDlpScript,
             environment = environment,
         )
