@@ -93,6 +93,35 @@
 ### Changed
 - **App version bump** â€” release metadata updated to `1.5.1`
 
+## [1.5.0] - 2026-05-01
+
+### Added
+- **Modern in-app player upgrade** - rebuilt the fullscreen player with double-tap seek, playback speed controls, audio and subtitle track selection, resize modes, touch lock, and clearer buffering and seek feedback
+- **Playback resume support** - added stronger session-based resume handling across rotation and normal lifecycle changes with dedicated playback state management
+- **Picture-in-Picture and external open flows** - added PiP playback, direct open-with support for local video and audio files, in-app GIF and image preview, and in-app HTML/MHTML/MHT preview support
+- **Shared link handling** - the app now appears in Android's share sheet for links, opens shared URLs directly in Browser, and auto-fills plus analyzes shared links immediately
+- **Media library cleanup controls** - added missing-file sync, remove-from-app cleanup, delete-all-media cleanup, and safer storage-deletion settings
+
+### Changed
+- **Playlist background reliability** - playlist queues now survive background execution better, keep processing item by item, and no longer collapse after a single failed entry
+- **GIF and image-style download handling** - image-like downloads now avoid unnecessary post-processing so native GIF-style content finishes more safely after download
+- **Player interaction polish** - controls now fade in place, paused-state overlays dismiss correctly, and pinch-to-zoom, pan, and reset-zoom support were added for video viewing
+- **Browser and queue clarity** - analyzed media can now be cleared directly from Browser, and playlist items in Progress are ordered to match the real download flow
+- **Quick links refresh** - several platform logos were replaced with cleaner brand-matched artwork
+- **App version bump** - release metadata updated to `1.5.0`
+
+### Fixed
+- **Playlist worker failures** - fixed background playlist downloads failing while single-item downloads still worked, including cases where items failed without a clear worker error
+- **Player control issues** - fixed paused-state control fading, earlier player compile regressions, and the PiP placeholder icon
+- **GIF post-processing failures** - fixed GIF downloads breaking after 100% completion because invalid input data was still being pushed through post-processing
+- **Library and Browser cleanup bugs** - fixed deleted media staying visible in the library and made the Browser ready-to-download state easier to dismiss
+- **Link sharing visibility** - fixed the app not appearing correctly in regular Android link-sharing flows
+
+### Technical
+- **Playback architecture** - added `PlayerViewModel` and `PlaybackSessionStore` for more stable player state management
+- **External preview plumbing** - added `ExternalOpenRequest` and `ExternalPreviewScreen` for external file and link handling
+- **File and rendering support** - expanded `FileUtils` for imported external-open files and managed-file sync, added `coil-gif` for animated GIF rendering, and added manifest intent filters for share targets, web links, supported file opens, and MHTML/MHT preview
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
