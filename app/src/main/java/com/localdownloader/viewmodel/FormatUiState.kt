@@ -1,10 +1,15 @@
 package com.localdownloader.viewmodel
 
+import com.localdownloader.domain.models.AccentPreset
 import com.localdownloader.domain.models.AppSettings
+import com.localdownloader.domain.models.ContrastMode
+import com.localdownloader.domain.models.CookieProfile
 import com.localdownloader.domain.models.FormatChoice
 import com.localdownloader.domain.models.StreamType
+import com.localdownloader.domain.models.ThemeMode
 import com.localdownloader.domain.models.VideoInfo
 import com.localdownloader.domain.models.VideoQuality
+import com.localdownloader.domain.models.YoutubeAuthConfig
 
 data class FormatUiState(
     val urlInput: String = "",
@@ -26,14 +31,22 @@ data class FormatUiState(
     val embedMetadata: Boolean = true,
     val embedThumbnail: Boolean = false,
     val writeThumbnail: Boolean = false,
+    val languageTag: String = "en",
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val accentPreset: AccentPreset = AccentPreset.AMBER,
+    val contrastMode: ContrastMode = ContrastMode.STANDARD,
     val autoRemoveMissingFilesFromLibrary: Boolean = true,
     val deleteFromStorageWhenRemovedInApp: Boolean = true,
     val enablePlaylist: Boolean = false,
     val outputTemplate: String = "%(title)s [%(id)s].%(ext)s",
-    val youtubeAuthEnabled: Boolean = false,
-    val youtubeCookiesPath: String = "",
-    val youtubePoToken: String = "",
-    val youtubePoTokenClientHint: String = "web.gvs",
+    val downloadsRootFolderName: String = "LocalDownloader",
+    val videoSubfolderName: String = "Videos",
+    val audioSubfolderName: String = "Audio",
+    val otherSubfolderName: String = "Files",
+    val cookiesEnabled: Boolean = false,
+    val cookieUserAgentEnabled: Boolean = false,
+    val cookieProfiles: List<CookieProfile> = emptyList(),
+    val youtubeAuthConfig: YoutubeAuthConfig = YoutubeAuthConfig(),
     val appSettings: AppSettings = AppSettings(),
     val infoMessage: String? = null,
     val errorMessage: String? = null,

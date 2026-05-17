@@ -1,30 +1,41 @@
 package com.localdownloader.ui.screens
 
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Article
-import androidx.compose.material3.Card
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.TaskAlt
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -32,6 +43,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,6 +51,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.localdownloader.domain.models.DownloadStatus
@@ -53,306 +66,542 @@ fun DownloadHistoryScreen(
     onBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
-    val historyItems = tasks.filter {
-        it.status == DownloadStatus.COMPLETED ||
-            it.status == DownloadStatus.FAILED ||
-            it.status == DownloadStatus.CANCELED
+    val historyItems = remember(tasks) {
+        tasks.filter {
+            it.status == DownloadStatus.COMPLETED ||
+                it.status == DownloadStatus.FAILED ||
+                it.status == DownloadStatus.CANCELED
+        }.sortedByDescending { it.updatedAtEpochMs }
     }
+    var selectedFilter by rememberSaveable { mutableStateOf(HistoryFilter.All.name) }
+    var selectedTask by remember { mutableStateOf<DownloadTask?>(null) }
 
-    Column(modifier = modifier.fillMaxSize()) {
-        // Header bar
-        Surface(
-            color = MaterialTheme.colorScheme.primaryContainer,
+    val currentFilter = runCatching { HistoryFilter.valueOf(selectedFilter) }
+        .getOrDefault(HistoryFilter.All)
+    val filteredItems = historyItems.filter { currentFilter.matches(it.status) }
+    val completedCount = historyItems.count { it.status == DownloadStatus.COMPLETED }
+    val failedCount = historyItems.count { it.status == DownloadStatus.FAILED }
+    val canceledCount = historyItems.count { it.status == DownloadStatus.CANCELED }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(horizontal = 22.dp, vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
+    ) {
+        Row(
             modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (onBack != null) {
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                             contentDescription = "Back",
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
                     }
                 }
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                ) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
                         text = "History",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.SemiBold,
                     )
-                    if (historyItems.isNotEmpty()) {
-                        val doneCount = historyItems.count { it.status == DownloadStatus.COMPLETED }
-                        val failedCount = historyItems.count { it.status == DownloadStatus.FAILED }
-                        val canceledCount = historyItems.count { it.status == DownloadStatus.CANCELED }
-                        val subtitle = buildString {
-                            if (doneCount > 0) append("$doneCount completed")
-                            if (failedCount > 0) {
-                                if (isNotEmpty()) append("  \u00b7  ")
-                                append("$failedCount failed")
-                            }
-                            if (canceledCount > 0) {
-                                if (isNotEmpty()) append("  \u00b7  ")
-                                append("$canceledCount canceled")
-                            }
-                        }
-                        if (subtitle.isNotBlank()) {
-                            Text(
-                                text = subtitle,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f),
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        if (historyItems.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text("No history yet", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        text = "Completed downloads will appear here",
-                        style = MaterialTheme.typography.bodyMedium,
+                        text = if (historyItems.isEmpty()) {
+                            "Finished downloads, failures, and cancels will appear here."
+                        } else {
+                            "${historyItems.size} finished tasks saved for review"
+                        },
+                        style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
-            return@Column
         }
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+        Surface(
+            shape = RoundedCornerShape(30.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            modifier = Modifier.fillMaxWidth(),
         ) {
-            items(historyItems, key = { it.id }) { task ->
-                HistoryCard(task = task)
+            Column(
+                modifier = Modifier.padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Text(
+                    text = "Task summary",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    HistorySummaryChip(
+                        label = "Completed",
+                        value = completedCount,
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                        modifier = Modifier.weight(1f),
+                    )
+                    HistorySummaryChip(
+                        label = "Failed",
+                        value = failedCount,
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.weight(1f),
+                    )
+                    HistorySummaryChip(
+                        label = "Canceled",
+                        value = canceledCount,
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            HistoryFilter.entries.forEach { filter ->
+                FilterChip(
+                    selected = currentFilter == filter,
+                    onClick = { selectedFilter = filter.name },
+                    label = { Text(filter.label) },
+                )
+            }
+        }
+
+        if (filteredItems.isEmpty()) {
+            Surface(
+                shape = RoundedCornerShape(28.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Article,
+                        contentDescription = null,
+                        modifier = Modifier.size(42.dp),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(
+                        text = "No matching history yet",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = "Change the filter or finish a few downloads from Home and the full task history will build up here.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                items(filteredItems, key = { it.id }) { task ->
+                    HistoryCard(
+                        task = task,
+                        onOpenLog = { selectedTask = task },
+                    )
+                }
+            }
+        }
+    }
+
+    selectedTask?.let { task ->
+        HistoryLogSheet(
+            task = task,
+            onDismiss = { selectedTask = null },
+        )
+    }
+}
+
+@Composable
+private fun HistorySummaryChip(
+    label: String,
+    value: Int,
+    containerColor: Color,
+    contentColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        shape = RoundedCornerShape(22.dp),
+        color = containerColor,
+        modifier = modifier,
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = value.toString(),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = contentColor,
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = contentColor.copy(alpha = 0.86f),
+            )
         }
     }
 }
 
 @Composable
-private fun HistoryCard(task: DownloadTask) {
-    var showLogDialog by remember { mutableStateOf(false) }
-    val statusColor = when (task.status) {
-        DownloadStatus.COMPLETED -> MaterialTheme.colorScheme.tertiary
-        DownloadStatus.FAILED -> MaterialTheme.colorScheme.error
-        else -> MaterialTheme.colorScheme.outline
-    }
+private fun HistoryCard(
+    task: DownloadTask,
+    onOpenLog: () -> Unit,
+) {
+    val statusColors = statusPalette(task.status)
+    val previewLog = task.debugTrace
+        ?.lines()
+        ?.takeLast(3)
+        ?.joinToString("\n")
+        ?.trim()
+        .orEmpty()
 
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Row(modifier = Modifier.fillMaxWidth()) {
-            // Colored left accent strip
-            Box(
-                modifier = Modifier
-                    .width(4.dp)
-                    .heightIn(min = 72.dp)
-                    .fillMaxHeight()
-                    .background(statusColor),
-            )
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+    Surface(
+        shape = RoundedCornerShape(28.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top,
             ) {
-                // Title + status chip
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Top,
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     Text(
                         text = task.title,
-                        style = MaterialTheme.typography.titleSmall,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(end = 8.dp),
                     )
-                    HistoryStatusChip(status = task.status, color = statusColor)
-                }
-
-                // Timestamp
-                Text(
-                    text = formatDate(task.updatedAtEpochMs),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-
-                // File size for completed tasks
-                if (task.status == DownloadStatus.COMPLETED) {
-                    val sizeInfo = task.totalSizeStr ?: task.downloadedStr
-                    if (sizeInfo != null) {
-                        Text(
-                            text = "Size: $sizeInfo",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-
-                // Saved path
-                task.outputPath?.let { path ->
-                    Surface(
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        shape = RoundedCornerShape(6.dp),
-                    ) {
-                        Text(
-                            text = shortenPath(path),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-
-                // Error for failed tasks
-                task.errorMessage?.let { msg ->
                     Text(
-                        text = msg,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis,
+                        text = formatDate(task.updatedAtEpochMs),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                HistoryStatusBadge(
+                    text = historyStatusLabel(task.status),
+                    background = statusColors.container,
+                    foreground = statusColors.content,
+                )
+            }
 
-                task.debugTrace?.takeIf { it.isNotBlank() }?.let {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
-                    ) {
-                        TextButton(onClick = { showLogDialog = true }) {
-                            Icon(
-                                imageVector = Icons.Outlined.Article,
-                                contentDescription = null,
-                                modifier = Modifier.padding(end = 6.dp),
-                            )
-                            Text("View full log")
-                        }
-                    }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                HistoryMetaPill(
+                    label = task.totalSizeStr ?: task.downloadedStr ?: "Unknown size",
+                    icon = if (task.status == DownloadStatus.COMPLETED) {
+                        Icons.Outlined.TaskAlt
+                    } else {
+                        Icons.Outlined.ErrorOutline
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+                HistoryMetaPill(
+                    label = task.outputPath?.substringAfterLast('/') ?: "No output file",
+                    icon = Icons.Outlined.Article,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+
+            task.errorMessage?.takeIf { it.isNotBlank() }?.let { error ->
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        text = error,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                    )
+                }
+            }
+
+            if (previewLog.isNotBlank()) {
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        text = previewLog,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = task.outputPath ?: "No saved path",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                OutlinedButton(
+                    onClick = onOpenLog,
+                    enabled = !task.debugTrace.isNullOrBlank(),
+                ) {
+                    Icon(Icons.Outlined.Visibility, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Full log")
                 }
             }
         }
     }
-
-    if (showLogDialog) {
-        LogViewerDialog(
-            title = task.title,
-            logText = task.debugTrace.orEmpty(),
-            onDismiss = { showLogDialog = false },
-        )
-    }
 }
 
 @Composable
-private fun HistoryStatusChip(status: DownloadStatus, color: Color) {
-    val label = when (status) {
-        DownloadStatus.COMPLETED -> "Done \u2713"
-        DownloadStatus.FAILED -> "Failed"
-        else -> "Cancelled"
-    }
+private fun HistoryStatusBadge(
+    text: String,
+    background: Color,
+    foreground: Color,
+) {
     Surface(
-        color = color.copy(alpha = 0.15f),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(999.dp),
+        color = background,
     ) {
         Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = color,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            text = text,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+            style = MaterialTheme.typography.labelLarge,
+            color = foreground,
         )
     }
 }
 
-private fun formatDate(epochMs: Long): String {
-    val sdf = SimpleDateFormat("MMM d, yyyy \u00b7 HH:mm", Locale.getDefault())
-    return sdf.format(Date(epochMs))
-}
-
-private fun shortenPath(path: String): String {
-    val parts = path.split("/")
-    return if (parts.size > 3) "\u2026/${parts.takeLast(2).joinToString("/")}" else path
-}
-
 @Composable
-private fun LogViewerDialog(
-    title: String,
-    logText: String,
+private fun HistoryMetaPill(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surface,
+        modifier = modifier,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun HistoryLogSheet(
+    task: DownloadTask,
     onDismiss: () -> Unit,
 ) {
     val clipboardManager = LocalClipboardManager.current
-    val resolvedLogText = logText.ifBlank { "No log captured for this task." }
+    val fullTrace = task.debugTrace.orEmpty().ifBlank { "No task-specific log captured for this item." }
     var copied by remember { mutableStateOf(false) }
 
-    AlertDialog(
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        containerColor = MaterialTheme.colorScheme.surface,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
                     text = "Full log",
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodySmall,
+                    text = task.title,
+                    style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
-            }
-        },
-        text = {
-            Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = RoundedCornerShape(16.dp),
-            ) {
                 Text(
-                    text = resolvedLogText,
-                    modifier = Modifier
-                        .heightIn(min = 120.dp, max = 360.dp)
-                        .verticalScroll(rememberScrollState())
-                        .padding(14.dp),
-                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                    text = "${historyStatusLabel(task.status)} | ${formatDate(task.updatedAtEpochMs)}",
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    clipboardManager.setText(AnnotatedString(resolvedLogText))
-                    copied = true
-                },
+
+            task.outputPath?.takeIf { it.isNotBlank() }?.let { path ->
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    SelectionContainer {
+                        Text(
+                            text = path,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text(if (copied) "Copied" else "Copy log")
+                FilledTonalButton(
+                    onClick = {
+                        clipboardManager.setText(AnnotatedString(fullTrace))
+                        copied = true
+                    },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Icon(Icons.Outlined.ContentCopy, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(if (copied) "Copied" else "Copy log")
+                }
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Close")
+                }
             }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Close")
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.18f))
+
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(460.dp),
+            ) {
+                SelectionContainer {
+                    Text(
+                        text = fullTrace,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(14.dp),
+                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
-        },
-    )
+
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+    }
+}
+
+private fun formatDate(epochMs: Long): String {
+    val sdf = SimpleDateFormat("dd MMM yyyy | HH:mm", Locale.getDefault())
+    return sdf.format(Date(epochMs))
+}
+
+private fun historyStatusLabel(status: DownloadStatus): String {
+    return when (status) {
+        DownloadStatus.COMPLETED -> "Completed"
+        DownloadStatus.FAILED -> "Failed"
+        DownloadStatus.CANCELED -> "Canceled"
+        else -> status.name.lowercase().replaceFirstChar(Char::uppercase)
+    }
+}
+
+@Composable
+private fun statusPalette(status: DownloadStatus): StatusPalette {
+    return when (status) {
+        DownloadStatus.COMPLETED -> StatusPalette(
+            container = MaterialTheme.colorScheme.tertiaryContainer,
+            content = MaterialTheme.colorScheme.onTertiaryContainer,
+        )
+        DownloadStatus.FAILED -> StatusPalette(
+            container = MaterialTheme.colorScheme.errorContainer,
+            content = MaterialTheme.colorScheme.onErrorContainer,
+        )
+        else -> StatusPalette(
+            container = MaterialTheme.colorScheme.surface,
+            content = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+private data class StatusPalette(
+    val container: Color,
+    val content: Color,
+)
+
+private enum class HistoryFilter(val label: String) {
+    All("All"),
+    Completed("Completed"),
+    Failed("Failed"),
+    Canceled("Canceled");
+
+    fun matches(status: DownloadStatus): Boolean {
+        return when (this) {
+            All -> true
+            Completed -> status == DownloadStatus.COMPLETED
+            Failed -> status == DownloadStatus.FAILED
+            Canceled -> status == DownloadStatus.CANCELED
+        }
+    }
 }

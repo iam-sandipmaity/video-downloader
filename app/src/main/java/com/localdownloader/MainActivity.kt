@@ -15,6 +15,12 @@ import androidx.core.content.ContextCompat
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.localdownloader.domain.models.AccentPreset
+import com.localdownloader.domain.models.AppSettings
+import com.localdownloader.domain.models.ContrastMode
+import com.localdownloader.domain.models.ThemeMode
+import com.localdownloader.data.SettingsStore
+import com.localdownloader.notifications.AppNotifications
 import com.localdownloader.ui.DownloaderApp
 import com.localdownloader.ui.model.ExternalOpenRequest
 import com.localdownloader.ui.theme.LocalDownloaderTheme
@@ -22,6 +28,8 @@ import com.localdownloader.utils.FileUtils
 import com.localdownloader.utils.Logger
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -31,9 +39,15 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var fileUtils: FileUtils
 
-    private var darkTheme by mutableStateOf(false)
+    @Inject
+    lateinit var settingsStore: SettingsStore
+
+    private var themeMode by mutableStateOf(ThemeMode.SYSTEM)
+    private var accentPreset by mutableStateOf(AccentPreset.AMBER)
+    private var contrastMode by mutableStateOf(ContrastMode.STANDARD)
     private var externalOpenRequest by mutableStateOf<ExternalOpenRequest?>(null)
     private var sharedUrlRequest by mutableStateOf<String?>(null)
+    private var notificationOpenRequest by mutableStateOf<AppOpenRequest?>(null)
     private var pictureInPictureAllowed by mutableStateOf(false)
 
     private val notificationPermissionLauncher = registerForActivityResult(
@@ -52,24 +66,35 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         logger.i("MainActivity", "onCreate")
+        AppNotifications.ensureChannels(this)
+        val initialSettings = runCatching {
+            runBlocking { settingsStore.observeSettings().first() }
+        }.getOrDefault(AppSettings())
+        themeMode = initialSettings.themeMode
+        accentPreset = initialSettings.accentPreset
+        contrastMode = initialSettings.contrastMode
         externalOpenRequest = buildExternalOpenRequest(intent)
         sharedUrlRequest = buildSharedUrlRequest(intent)
+        notificationOpenRequest = AppLaunchRouter.fromIntent(intent)
         requestNotificationPermissionIfNeeded()
         requestStoragePermissionIfNeeded()
         setContent {
-            LocalDownloaderTheme(darkTheme = darkTheme) {
+            LocalDownloaderTheme(
+                themeMode = themeMode,
+                accentPreset = accentPreset,
+                contrastMode = contrastMode,
+            ) {
                 DownloaderApp(
                     externalOpenRequest = externalOpenRequest,
                     onExternalOpenHandled = { externalOpenRequest = null },
                     sharedUrlRequest = sharedUrlRequest,
                     onSharedUrlHandled = { sharedUrlRequest = null },
-                    onDarkThemeChanged = { enabled ->
-                        darkTheme = enabled
-                        logger.i("MainActivity", "Dark theme changed to $enabled")
-                    },
-                    onDarkThemeUpdated = { enabled ->
-                        darkTheme = enabled
-                        if (darkTheme) logger.i("MainActivity", "Applied persisted dark theme")
+                    notificationOpenRequest = notificationOpenRequest,
+                    onNotificationOpenHandled = { notificationOpenRequest = null },
+                    onAppearanceUpdated = { mode, accent, contrast ->
+                        themeMode = mode
+                        accentPreset = accent
+                        contrastMode = contrast
                     },
                 )
             }
@@ -81,6 +106,7 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
         externalOpenRequest = buildExternalOpenRequest(intent)
         sharedUrlRequest = buildSharedUrlRequest(intent)
+        notificationOpenRequest = AppLaunchRouter.fromIntent(intent)
     }
 
     override fun onStart() {

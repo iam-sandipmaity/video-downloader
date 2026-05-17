@@ -1,5 +1,14 @@
 package com.localdownloader.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -121,7 +130,6 @@ fun BrowserScreen(
             .components { add(SvgDecoder.Factory()) }
             .build()
     }
-    var showMenu by remember { mutableStateOf(false) }
     var showOptionsSheet by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(uiState.videoInfo?.webpageUrl) {
@@ -145,17 +153,23 @@ fun BrowserScreen(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .animateContentSize(
+                animationSpec = spring(
+                    dampingRatio = 0.9f,
+                    stiffness = 500f,
+                ),
+            )
             .padding(horizontal = 18.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.Start,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = "Browser",
+                    text = "Home",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -164,75 +178,6 @@ fun BrowserScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-            }
-            Box {
-                IconButton(onClick = { showMenu = true }) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "Browser menu",
-                    )
-                }
-                DropdownMenu(
-                    expanded = showMenu,
-                    onDismissRequest = { showMenu = false },
-                    shape = RoundedCornerShape(20.dp),
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("History") },
-                        leadingIcon = { Icon(Icons.Outlined.History, contentDescription = null) },
-                        onClick = {
-                            showMenu = false
-                            onOpenHistory()
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Compressor") },
-                        leadingIcon = { Icon(Icons.Outlined.Transform, contentDescription = null) },
-                        onClick = {
-                            showMenu = false
-                            onOpenCompress()
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Converter") },
-                        leadingIcon = { Icon(Icons.Outlined.SwapHoriz, contentDescription = null) },
-                        onClick = {
-                            showMenu = false
-                            onOpenConvert()
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Settings") },
-                        leadingIcon = { Icon(Icons.Outlined.Settings, contentDescription = null) },
-                        onClick = {
-                            showMenu = false
-                            onOpenSettings()
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Help") },
-                        leadingIcon = { Icon(Icons.Outlined.Info, contentDescription = null) },
-                        onClick = {
-                            showMenu = false
-                            onOpenHelp()
-                        },
-                    )
-                    HorizontalDivider()
-                    DropdownMenuItem(
-                        text = { Text("Dark mode") },
-                        leadingIcon = { Icon(Icons.Outlined.DarkMode, contentDescription = null) },
-                        trailingIcon = {
-                            Switch(
-                                checked = uiState.isDarkTheme,
-                                onCheckedChange = null,
-                            )
-                        },
-                        onClick = {
-                            showMenu = false
-                            onDarkThemeChanged(!uiState.isDarkTheme)
-                        },
-                    )
-                }
             }
         }
 
@@ -288,7 +233,13 @@ fun BrowserScreen(
                         }
                     },
                 )
-                if (uiState.isAnalyzing) {
+                AnimatedVisibility(
+                    visible = uiState.isAnalyzing,
+                    enter = fadeIn(animationSpec = tween(durationMillis = 180)) +
+                        expandVertically(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)),
+                    exit = fadeOut(animationSpec = tween(durationMillis = 140)) +
+                        shrinkVertically(animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)),
+                ) {
                     LinearProgressIndicator(
                         modifier = Modifier.fillMaxWidth(),
                         color = MaterialTheme.colorScheme.tertiary,
@@ -305,19 +256,35 @@ fun BrowserScreen(
             }
         }
 
-        uiState.errorMessage?.let { message ->
-            MessageBanner(
-                message = message,
-                containerColor = MaterialTheme.colorScheme.errorContainer,
-                contentColor = MaterialTheme.colorScheme.onErrorContainer,
-            )
+        AnimatedVisibility(
+            visible = !uiState.errorMessage.isNullOrBlank(),
+            enter = fadeIn(animationSpec = tween(durationMillis = 180)) +
+                expandVertically(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)),
+            exit = fadeOut(animationSpec = tween(durationMillis = 140)) +
+                shrinkVertically(animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)),
+        ) {
+            uiState.errorMessage?.let { message ->
+                MessageBanner(
+                    message = message,
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                )
+            }
         }
-        uiState.infoMessage?.let { message ->
-            MessageBanner(
-                message = message,
-                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-            )
+        AnimatedVisibility(
+            visible = !uiState.infoMessage.isNullOrBlank(),
+            enter = fadeIn(animationSpec = tween(durationMillis = 180)) +
+                expandVertically(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)),
+            exit = fadeOut(animationSpec = tween(durationMillis = 140)) +
+                shrinkVertically(animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)),
+        ) {
+            uiState.infoMessage?.let { message ->
+                MessageBanner(
+                    message = message,
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+            }
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -346,58 +313,72 @@ fun BrowserScreen(
             }
         }
 
-        uiState.videoInfo?.let { info ->
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { showOptionsSheet = true },
-                shape = RoundedCornerShape(26.dp),
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = "Ready to download",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
+        AnimatedVisibility(
+            visible = uiState.videoInfo != null,
+            enter = fadeIn(animationSpec = tween(durationMillis = 220)) +
+                expandVertically(animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing)),
+            exit = fadeOut(animationSpec = tween(durationMillis = 160)) +
+                shrinkVertically(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)),
+        ) {
+            uiState.videoInfo?.let { info ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .animateContentSize(
+                            animationSpec = spring(
+                                dampingRatio = 0.9f,
+                                stiffness = 500f,
+                            ),
                         )
-                        IconButton(
-                            onClick = {
-                                showOptionsSheet = false
-                                onClearAnalyzedResult()
-                            },
+                        .clickable { showOptionsSheet = true },
+                    shape = RoundedCornerShape(26.dp),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Clear,
-                                contentDescription = "Dismiss ready download",
+                            Text(
+                                text = "Ready to download",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
                             )
-                        }
-                    }
-                    VideoCard(info = info)
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Button(
-                            onClick = { showOptionsSheet = true },
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Text("Open options")
-                        }
-                        TextButton(
-                            onClick = onQueueDownloadClicked,
-                            enabled = !uiState.isQueueing && isDownloadButtonEnabled,
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            val buttonText = when {
-                                uiState.isQueueing -> "Queueing..."
-                                !isDownloadButtonEnabled -> "Please wait..."
-                                else -> "Quick download"
+                            IconButton(
+                                onClick = {
+                                    showOptionsSheet = false
+                                    onClearAnalyzedResult()
+                                },
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Clear,
+                                    contentDescription = "Dismiss ready download",
+                                )
                             }
-                            Text(buttonText)
+                        }
+                        VideoCard(info = info)
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Button(
+                                onClick = { showOptionsSheet = true },
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Text("Open options")
+                            }
+                            TextButton(
+                                onClick = onQueueDownloadClicked,
+                                enabled = !uiState.isQueueing && isDownloadButtonEnabled,
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                val buttonText = when {
+                                    uiState.isQueueing -> "Queueing..."
+                                    !isDownloadButtonEnabled -> "Please wait..."
+                                    else -> "Quick download"
+                                }
+                                Text(buttonText)
+                            }
                         }
                     }
                 }
@@ -414,6 +395,12 @@ fun BrowserScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .animateContentSize(
+                        animationSpec = spring(
+                            dampingRatio = 0.9f,
+                            stiffness = 500f,
+                        ),
+                    )
                     .padding(horizontal = 18.dp, vertical = 6.dp)
                     .padding(bottom = 18.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -551,7 +538,14 @@ private fun MessageBanner(
     Surface(
         color = containerColor,
         shape = RoundedCornerShape(20.dp),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize(
+                animationSpec = spring(
+                    dampingRatio = 0.9f,
+                    stiffness = 500f,
+                ),
+            ),
     ) {
         Text(
             text = message,

@@ -1,11 +1,19 @@
 package com.localdownloader.ui
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CloudDownload
-import androidx.compose.material.icons.outlined.PlayCircle
-import androidx.compose.material.icons.outlined.TravelExplore
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -31,26 +39,37 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.localdownloader.AppLaunchRouter
+import com.localdownloader.AppOpenRequest
+import com.localdownloader.domain.models.AccentPreset
 import com.localdownloader.domain.models.DownloadStatus
-import com.localdownloader.domain.models.YoutubeAuthBundle
+import com.localdownloader.domain.models.ContrastMode
+import com.localdownloader.domain.models.ThemeMode
+import com.localdownloader.ui.screens.CookieCaptureScreen
+import com.localdownloader.ui.screens.CookiesScreen
 import com.localdownloader.ui.screens.BrowserScreen
 import com.localdownloader.ui.screens.CompressScreen
 import com.localdownloader.ui.screens.ConvertScreen
+import com.localdownloader.ui.screens.DownloadsScreen
 import com.localdownloader.ui.screens.DownloadHistoryScreen
 import com.localdownloader.ui.screens.ExternalPreviewMode
 import com.localdownloader.ui.screens.ExternalPreviewScreen
 import com.localdownloader.ui.screens.HelpScreen
+import com.localdownloader.ui.screens.MoreScreen
+import com.localdownloader.ui.screens.MusicPlayerScreen
 import com.localdownloader.ui.screens.PlayerScreen
 import com.localdownloader.ui.screens.ProgressScreen
 import com.localdownloader.ui.screens.SettingsScreen
-import com.localdownloader.ui.screens.VideoScreen
+import com.localdownloader.ui.screens.YoutubeAuthLoginScreen
+import com.localdownloader.ui.screens.YoutubeAuthScreen
 import com.localdownloader.ui.model.ExternalOpenRequest
-import com.localdownloader.utils.FileUtils
+import com.localdownloader.ui.model.buildVideoLibraryItems
+import com.localdownloader.ui.model.toAudioQueueItems
 import com.localdownloader.viewmodel.DownloadViewModel
 import com.localdownloader.viewmodel.FormatViewModel
 import com.localdownloader.viewmodel.MediaToolsViewModel
+import com.localdownloader.viewmodel.AudioPlaybackViewModel
 import com.localdownloader.viewmodel.PlayerViewModel
-import kotlinx.serialization.json.Json
 
 @Composable
 fun DownloaderApp(
@@ -58,24 +77,23 @@ fun DownloaderApp(
     onExternalOpenHandled: (() -> Unit)? = null,
     sharedUrlRequest: String? = null,
     onSharedUrlHandled: (() -> Unit)? = null,
-    onDarkThemeChanged: ((Boolean) -> Unit)? = null,
-    onDarkThemeUpdated: ((Boolean) -> Unit)? = null,
+    notificationOpenRequest: AppOpenRequest? = null,
+    onNotificationOpenHandled: (() -> Unit)? = null,
+    onAppearanceUpdated: ((ThemeMode, AccentPreset, ContrastMode) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val navController = rememberNavController()
     val formatViewModel: FormatViewModel = hiltViewModel()
     val downloadViewModel: DownloadViewModel = hiltViewModel()
     val mediaToolsViewModel: MediaToolsViewModel = hiltViewModel()
+    val audioPlaybackViewModel: AudioPlaybackViewModel = hiltViewModel()
     val context = LocalContext.current
-    val fileUtils = remember(context) { FileUtils(context) }
+    // Use the DI-provided FileUtils from mediaToolsViewModel instead of creating a new instance.
+    val fileUtils = mediaToolsViewModel.fileUtils
     var cacheSize by remember { mutableStateOf(0L) }
     var activeExternalOpenRequest by remember { mutableStateOf<ExternalOpenRequest?>(externalOpenRequest) }
-    val localJson = remember {
-        Json {
-            ignoreUnknownKeys = true
-            isLenient = true
-        }
-    }
+    var pendingCookieCaptureUrl by remember { mutableStateOf<String?>(null) }
+    var pendingCookieCaptureProfileId by remember { mutableStateOf<String?>(null) }
 
     val convertFilePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
@@ -97,67 +115,19 @@ fun DownloaderApp(
         }
     }
 
-    val youtubeCookiesPicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument(),
-    ) { uri ->
-        uri?.let {
-            runCatching {
-                fileUtils.importDocumentToInternalFile(
-                    uri = it,
-                    subDirectoryName = "auth",
-                    targetFileName = "youtube-cookies.txt",
-                )
-            }.onSuccess { path ->
-                formatViewModel.onYoutubeCookiesImported(path)
-            }.onFailure { error ->
-                formatViewModel.onYoutubeAuthImportFailed(
-                    error.message ?: "Unable to import cookies file.",
-                )
-            }
-        }
-    }
-
-    val youtubeAuthBundlePicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument(),
-    ) { uri ->
-        uri?.let {
-            runCatching {
-                val bundleText = fileUtils.readTextFromUri(it)
-                val bundle = localJson.decodeFromString<YoutubeAuthBundle>(bundleText)
-                val cookiesContent = bundle.cookiesContent?.takeIf { content -> content.isNotBlank() }
-                    ?: throw IllegalStateException(
-                        "This auth bundle is missing inline cookies. Regenerate it with the latest desktop helper or import cookies.txt manually.",
-                    )
-                val poToken = bundle.poToken?.trim().orEmpty()
-                if (poToken.isBlank()) {
-                    throw IllegalStateException(
-                        "This auth bundle is missing the PO token. Regenerate it with the latest desktop helper or paste the token manually.",
-                    )
-                }
-                val cookiesPath = fileUtils.writeTextToInternalFile(
-                    subDirectoryName = "auth",
-                    targetFileName = "youtube-cookies.txt",
-                    content = cookiesContent,
-                )
-                bundle to cookiesPath
-            }.onSuccess { (bundle, cookiesPath) ->
-                formatViewModel.applyYoutubeAuthBundle(bundle, cookiesPath)
-            }.onFailure { error ->
-                formatViewModel.onYoutubeAuthImportFailed(
-                    error.message ?: "Unable to import YouTube auth bundle.",
-                )
-            }
-        }
-    }
-
     val formatState by formatViewModel.uiState.collectAsStateWithLifecycle()
     val downloadState by downloadViewModel.uiState.collectAsStateWithLifecycle()
     val mediaToolsState by mediaToolsViewModel.uiState.collectAsStateWithLifecycle()
+    val audioPlaybackState by audioPlaybackViewModel.uiState.collectAsStateWithLifecycle()
     val currentDestination = navController.currentBackStackEntryAsState().value?.destination
     val currentRoute = currentDestination?.route
 
-    LaunchedEffect(formatState.isDarkTheme) {
-        onDarkThemeUpdated?.invoke(formatState.isDarkTheme)
+    LaunchedEffect(formatState.themeMode, formatState.accentPreset, formatState.contrastMode) {
+        onAppearanceUpdated?.invoke(
+            formatState.themeMode,
+            formatState.accentPreset,
+            formatState.contrastMode,
+        )
     }
 
     LaunchedEffect(externalOpenRequest) {
@@ -182,6 +152,58 @@ fun DownloaderApp(
         }
     }
 
+    LaunchedEffect(notificationOpenRequest) {
+        val request = notificationOpenRequest ?: return@LaunchedEffect
+        when (request.route) {
+            Routes.Browser,
+            Routes.Downloads,
+            Routes.More,
+            -> {
+                navController.navigate(request.route) {
+                    launchSingleTop = true
+                    restoreState = true
+                    popUpTo(navController.graph.startDestinationId) { saveState = true }
+                }
+            }
+
+            Routes.DownloadQueue -> {
+                navController.navigate(Routes.DownloadQueue) {
+                    launchSingleTop = true
+                }
+            }
+
+            Routes.Music -> {
+                navController.navigate(Routes.Music) {
+                    launchSingleTop = true
+                }
+            }
+
+            Routes.Player -> {
+                val taskId = request.taskId
+                if (!taskId.isNullOrBlank()) {
+                    navController.navigate("${Routes.Player}/$taskId") {
+                        launchSingleTop = true
+                    }
+                } else {
+                    navController.navigate(Routes.Downloads) {
+                        launchSingleTop = true
+                        restoreState = true
+                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                    }
+                }
+            }
+
+            else -> {
+                navController.navigate(Routes.Downloads) {
+                    launchSingleTop = true
+                    restoreState = true
+                    popUpTo(navController.graph.startDestinationId) { saveState = true }
+                }
+            }
+        }
+        onNotificationOpenHandled?.invoke()
+    }
+
     // Update cache size periodically
     LaunchedEffect(currentRoute) {
         cacheSize = fileUtils.getCacheSize()
@@ -191,18 +213,18 @@ fun DownloaderApp(
         listOf(
             PrimaryDestination(
                 route = Routes.Browser,
-                label = "Browser",
-                icon = { Icon(Icons.Outlined.TravelExplore, contentDescription = null) },
+                label = "Home",
+                icon = { Icon(Icons.Outlined.Home, contentDescription = null) },
             ),
             PrimaryDestination(
-                route = Routes.Progress,
-                label = "Progress",
+                route = Routes.Downloads,
+                label = "Downloads",
                 icon = { Icon(Icons.Outlined.CloudDownload, contentDescription = null) },
             ),
             PrimaryDestination(
-                route = Routes.Video,
-                label = "Video",
-                icon = { Icon(Icons.Outlined.PlayCircle, contentDescription = null) },
+                route = Routes.More,
+                label = "More",
+                icon = { Icon(Icons.Outlined.MoreHoriz, contentDescription = null) },
             ),
         )
     }
@@ -212,7 +234,17 @@ fun DownloaderApp(
     Scaffold(
         modifier = modifier,
         bottomBar = {
-            if (showBottomBar) {
+            AnimatedVisibility(
+                visible = showBottomBar,
+                enter = fadeIn(animationSpec = tween(durationMillis = 220)) +
+                    slideInVertically(
+                        animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
+                    ) { fullHeight -> fullHeight / 2 },
+                exit = fadeOut(animationSpec = tween(durationMillis = 180)) +
+                    slideOutVertically(
+                        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                    ) { fullHeight -> fullHeight / 2 },
+            ) {
                 NavigationBar(
                     containerColor = MaterialTheme.colorScheme.surface,
                 ) {
@@ -244,6 +276,34 @@ fun DownloaderApp(
             navController = navController,
             startDestination = Routes.Browser,
             modifier = Modifier.padding(innerPadding),
+            enterTransition = {
+                fadeIn(animationSpec = tween(durationMillis = 220)) +
+                    slideIntoContainer(
+                        towards = navigationDirection(initialState.destination.route, targetState.destination.route),
+                        animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+                    )
+            },
+            exitTransition = {
+                fadeOut(animationSpec = tween(durationMillis = 180)) +
+                    slideOutOfContainer(
+                        towards = navigationDirection(initialState.destination.route, targetState.destination.route),
+                        animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                    )
+            },
+            popEnterTransition = {
+                fadeIn(animationSpec = tween(durationMillis = 220)) +
+                    slideIntoContainer(
+                        towards = navigationDirection(initialState.destination.route, targetState.destination.route),
+                        animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
+                    )
+            },
+            popExitTransition = {
+                fadeOut(animationSpec = tween(durationMillis = 160)) +
+                    slideOutOfContainer(
+                        towards = navigationDirection(initialState.destination.route, targetState.destination.route),
+                        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
+                    )
+            },
         ) {
             composable(Routes.Browser) {
                 BrowserScreen(
@@ -270,29 +330,129 @@ fun DownloaderApp(
                     onOpenConvert = { navController.navigate(Routes.Convert) },
                     onOpenSettings = { navController.navigate(Routes.Settings) },
                     onOpenHelp = { navController.navigate(Routes.Help) },
-                    onDarkThemeChanged = { enabled ->
-                        formatViewModel.toggleDarkTheme(enabled)
-                        onDarkThemeChanged?.invoke(enabled)
-                    },
+                    onDarkThemeChanged = formatViewModel::toggleDarkTheme,
                     isDownloadButtonEnabled = formatViewModel.isDownloadButtonEnabled(),
                 )
             }
-            composable(Routes.Progress) {
+            composable(Routes.Downloads) {
+                DownloadsScreen(
+                    uiState = downloadState,
+                    audioPlaybackState = audioPlaybackState,
+                    onOpenMusic = {
+                        navController.navigate(Routes.Music) {
+                            launchSingleTop = true
+                        }
+                    },
+                    onPlayMusic = { taskId, shuffle ->
+                        val audioQueue = buildVideoLibraryItems(downloadState.tasks).toAudioQueueItems()
+                        if (audioQueue.isNotEmpty()) {
+                            audioPlaybackViewModel.playQueue(audioQueue, taskId, shuffle)
+                        }
+                        navController.navigate(Routes.Music) {
+                            launchSingleTop = true
+                        }
+                    },
+                    onDismissAudioError = audioPlaybackViewModel::dismissError,
+                    onOpenPlayer = { taskId -> navController.navigate("${Routes.Player}/$taskId") },
+                    onRename = downloadViewModel::renameDownloadedFile,
+                    onDelete = downloadViewModel::deleteDownloadedFile,
+                    onDismissMessage = downloadViewModel::dismissMessage,
+                    onOpenQueue = { navController.navigate(Routes.DownloadQueue) },
+                    onOpenMore = {
+                        navController.navigate(Routes.More) {
+                            launchSingleTop = true
+                            restoreState = true
+                            popUpTo(navController.graph.startDestinationId) { saveState = true }
+                        }
+                    },
+                )
+            }
+            composable(Routes.DownloadQueue) {
                 ProgressScreen(
                     uiState = downloadState,
                     onPause = downloadViewModel::pause,
                     onResume = downloadViewModel::resume,
                     onCancel = downloadViewModel::cancel,
+                    onBack = { navController.popBackStack() },
                 )
             }
-            composable(Routes.Video) {
-                VideoScreen(
-                    uiState = downloadState,
-                    onOpenPlayer = { taskId -> navController.navigate("${Routes.Player}/$taskId") },
-                    onRename = downloadViewModel::renameDownloadedFile,
-                    onDelete = downloadViewModel::deleteDownloadedFile,
-                    onDismissMessage = downloadViewModel::dismissMessage,
+            composable(Routes.More) {
+                MoreScreen(
+                    onOpenQueue = { navController.navigate(Routes.DownloadQueue) },
+                    onOpenHistory = { navController.navigate(Routes.History) },
+                    onOpenCompress = { navController.navigate(Routes.Compress) },
+                    onOpenConvert = { navController.navigate(Routes.Convert) },
+                    onOpenYoutubeAccess = { navController.navigate(Routes.YoutubeAuth) },
+                    onOpenCookies = { navController.navigate(Routes.Cookies) },
+                    onOpenSettings = { navController.navigate(Routes.Settings) },
+                    onOpenHelp = { navController.navigate(Routes.Help) },
                 )
+            }
+            composable(Routes.YoutubeAuth) {
+                YoutubeAuthScreen(
+                    uiState = formatState,
+                    onBack = { navController.popBackStack() },
+                    onGenerateAccess = { navController.navigate(Routes.YoutubeAuthLogin) },
+                    onEnabledChanged = formatViewModel::setYoutubeAuthEnabled,
+                    onClear = formatViewModel::clearYoutubeAuthConfig,
+                    onDismissMessage = formatViewModel::dismissMessage,
+                )
+            }
+            composable(Routes.YoutubeAuthLogin) {
+                YoutubeAuthLoginScreen(
+                    onBack = { navController.popBackStack() },
+                    onConfirm = { cookieText, authConfig ->
+                        formatViewModel.saveYoutubeAuthSession(cookieText, authConfig)
+                        navController.popBackStack(Routes.YoutubeAuth, inclusive = false)
+                    },
+                )
+            }
+            composable(Routes.Cookies) {
+                CookiesScreen(
+                    uiState = formatState,
+                    onBack = { navController.popBackStack() },
+                    onCookiesEnabledChanged = formatViewModel::onCookiesEnabledChanged,
+                    onCookieUserAgentEnabledChanged = formatViewModel::onCookieUserAgentEnabledChanged,
+                    onSaveCookie = { profileId, url, cookiesText ->
+                        formatViewModel.saveCookieProfile(profileId, url, cookiesText)
+                    },
+                    onDeleteCookie = formatViewModel::deleteCookieProfile,
+                    onDeleteAllCookies = formatViewModel::clearAllCookieProfiles,
+                    onImportCookieText = formatViewModel::importCookieText,
+                    onOpenCookieCapture = { url, profileId ->
+                        pendingCookieCaptureUrl = url
+                        pendingCookieCaptureProfileId = profileId
+                        navController.navigate(Routes.CookieCapture)
+                    },
+                    onDismissMessage = formatViewModel::dismissMessage,
+                )
+            }
+            composable(Routes.CookieCapture) {
+                val captureUrl = pendingCookieCaptureUrl
+                if (captureUrl == null) {
+                    LaunchedEffect(Unit) {
+                        navController.popBackStack()
+                    }
+                } else {
+                    CookieCaptureScreen(
+                        url = captureUrl,
+                        onBack = {
+                            pendingCookieCaptureUrl = null
+                            pendingCookieCaptureProfileId = null
+                            navController.popBackStack()
+                        },
+                        onConfirm = { cookieText ->
+                            formatViewModel.replaceCookieFromBrowser(
+                                profileId = pendingCookieCaptureProfileId,
+                                url = captureUrl,
+                                cookieText = cookieText,
+                            )
+                            pendingCookieCaptureUrl = null
+                            pendingCookieCaptureProfileId = null
+                            navController.popBackStack()
+                        },
+                    )
+                }
             }
             composable(Routes.History) {
                 DownloadHistoryScreen(
@@ -325,6 +485,7 @@ fun DownloaderApp(
                     onAudioBitrateChanged = mediaToolsViewModel::onCompressAudioBitrateChanged,
                     onCompressClicked = mediaToolsViewModel::startCompress,
                     onBrowseFile = { compressFilePicker.launch(arrayOf("*/*")) },
+                    onCompressQuickPresetSelected = mediaToolsViewModel::onCompressQuickPresetSelected,
                     onBack = { navController.popBackStack() },
                 )
             }
@@ -335,11 +496,15 @@ fun DownloaderApp(
                     mediaInfoMessage = downloadState.infoMessage,
                     mediaErrorMessage = downloadState.errorMessage,
                     onDismissMediaLibraryMessage = downloadViewModel::dismissMessage,
-                    onDarkThemeChanged = { enabled ->
-                        formatViewModel.toggleDarkTheme(enabled)
-                        onDarkThemeChanged?.invoke(enabled)
-                    },
+                    onLanguageChanged = formatViewModel::onLanguageChanged,
+                    onThemeModeChanged = formatViewModel::onThemeModeChanged,
+                    onAccentPresetChanged = formatViewModel::onAccentPresetChanged,
+                    onContrastModeChanged = formatViewModel::onContrastModeChanged,
                     onOutputTemplateChanged = formatViewModel::onOutputTemplateChanged,
+                    onDownloadsRootFolderNameChanged = formatViewModel::onDownloadsRootFolderNameChanged,
+                    onVideoSubfolderNameChanged = formatViewModel::onVideoSubfolderNameChanged,
+                    onAudioSubfolderNameChanged = formatViewModel::onAudioSubfolderNameChanged,
+                    onOtherSubfolderNameChanged = formatViewModel::onOtherSubfolderNameChanged,
                     onContainerChanged = formatViewModel::onContainerChanged,
                     onEmbedMetadataChanged = formatViewModel::onEmbedMetadataChanged,
                     onEmbedThumbnailChanged = formatViewModel::onEmbedThumbnailChanged,
@@ -348,12 +513,7 @@ fun DownloaderApp(
                     onClearVideoTabEntries = downloadViewModel::clearCompletedLibraryEntries,
                     onDeleteAllSavedMedia = downloadViewModel::deleteAllCompletedMedia,
                     onSaveClicked = formatViewModel::saveSettings,
-                    onYoutubeAuthEnabledChanged = formatViewModel::onYoutubeAuthEnabledChanged,
-                    onYoutubePoTokenChanged = formatViewModel::onYoutubePoTokenChanged,
-                    onYoutubePoTokenClientHintChanged = formatViewModel::onYoutubePoTokenClientHintChanged,
-                    onYoutubeCookiesPathChanged = formatViewModel::onYoutubeCookiesPathChanged,
-                    onPickYoutubeCookies = { youtubeCookiesPicker.launch(arrayOf("text/plain", "*/*")) },
-                    onPickYoutubeAuthBundle = { youtubeAuthBundlePicker.launch(arrayOf("application/json", "text/plain", "*/*")) },
+                    onResetSettings = formatViewModel::resetSettingsToDefaults,
                     onClearCache = {
                         fileUtils.clearCache()
                         cacheSize = 0L
@@ -364,6 +524,24 @@ fun DownloaderApp(
             }
             composable(Routes.Help) {
                 HelpScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Routes.Music) {
+                MusicPlayerScreen(
+                    uiState = downloadState,
+                    audioPlaybackState = audioPlaybackState,
+                    onPlayAudioQueue = audioPlaybackViewModel::playQueue,
+                    onToggleAudioPlayback = audioPlaybackViewModel::togglePlayback,
+                    onSeekAudioBy = audioPlaybackViewModel::seekBy,
+                    onSeekAudioTo = audioPlaybackViewModel::seekTo,
+                    onSkipToPreviousAudio = audioPlaybackViewModel::skipPrevious,
+                    onSkipToNextAudio = audioPlaybackViewModel::skipNext,
+                    onToggleAudioShuffle = audioPlaybackViewModel::toggleShuffle,
+                    onCycleAudioRepeatMode = audioPlaybackViewModel::cycleRepeatMode,
+                    onSetAudioSleepTimer = audioPlaybackViewModel::setSleepTimer,
+                    onStopAudioPlayback = audioPlaybackViewModel::stopPlayback,
+                    onDismissAudioError = audioPlaybackViewModel::dismissError,
+                    onBack = { navController.popBackStack() },
+                )
             }
             composable(
                 route = "${Routes.Player}/{taskId}",
@@ -418,16 +596,22 @@ fun DownloaderApp(
     }
 }
 
-private object Routes {
-    const val Browser = "browser"
-    const val Progress = "progress"
-    const val Video = "video"
+object Routes {
+    const val Browser = AppLaunchRouter.ROUTE_BROWSER
+    const val Downloads = AppLaunchRouter.ROUTE_DOWNLOADS
+    const val Music = AppLaunchRouter.ROUTE_MUSIC
+    const val More = AppLaunchRouter.ROUTE_MORE
+    const val YoutubeAuth = "youtube_auth"
+    const val YoutubeAuthLogin = "youtube_auth_login"
+    const val Cookies = "cookies"
+    const val CookieCapture = "cookie_capture"
+    const val DownloadQueue = AppLaunchRouter.ROUTE_DOWNLOAD_QUEUE
     const val History = "history"
     const val Convert = "convert"
     const val Compress = "compress"
     const val Settings = "settings"
     const val Help = "help"
-    const val Player = "player"
+    const val Player = AppLaunchRouter.ROUTE_PLAYER
     const val ExternalOpen = "external_open"
 }
 
@@ -454,4 +638,27 @@ private val PLAYABLE_MEDIA_EXTENSIONS = setOf(
     "mp4", "mkv", "webm", "mov", "avi", "m4v", "3gp", "ts", "m2ts", "mpeg", "mpg",
     "mp3", "m4a", "aac", "opus", "ogg", "wav", "flac", "amr",
 )
+
+private val primaryRouteOrder = listOf(
+    Routes.Browser,
+    Routes.Downloads,
+    Routes.More,
+)
+
+private fun navigationDirection(
+    fromRoute: String?,
+    toRoute: String?,
+): AnimatedContentTransitionScope.SlideDirection {
+    val fromIndex = primaryRouteOrder.indexOf(normalizeRoute(fromRoute))
+    val toIndex = primaryRouteOrder.indexOf(normalizeRoute(toRoute))
+    return if (fromIndex != -1 && toIndex != -1 && toIndex < fromIndex) {
+        AnimatedContentTransitionScope.SlideDirection.Right
+    } else {
+        AnimatedContentTransitionScope.SlideDirection.Left
+    }
+}
+
+private fun normalizeRoute(route: String?): String? {
+    return route?.substringBefore('/')
+}
 

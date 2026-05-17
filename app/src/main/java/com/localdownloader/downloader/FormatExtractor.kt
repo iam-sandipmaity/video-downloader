@@ -1,9 +1,13 @@
 package com.localdownloader.downloader
 
+import android.content.Context
 import com.localdownloader.domain.models.MediaFormat
 import com.localdownloader.domain.models.PlaylistEntry
 import com.localdownloader.domain.models.VideoInfo
 import com.localdownloader.utils.Logger
+import dagger.hilt.android.qualifiers.ApplicationContext
+import java.io.File
+import java.util.zip.CRC32
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -20,21 +24,50 @@ import javax.inject.Singleton
 
 @Singleton
 class FormatExtractor @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val ytDlpExecutor: YtDlpExecutor,
     private val json: Json,
     private val logger: Logger,
 ) {
-    suspend fun analyze(url: String): Result<VideoInfo> {
+    suspend fun analyze(
+        url: String,
+        cookiesPath: String? = null,
+        userAgent: String? = null,
+    ): Result<VideoInfo> {
         return runCatching {
             logger.i("FormatExtractor", "Starting yt-dlp analyze for URL: $url")
 
-            val extractorCandidates = listOf<String?>(null)
+            val hasCookies = !cookiesPath.isNullOrBlank() && File(cookiesPath).exists()
+            val extractorCandidates = if (isYoutubeUrl(url)) {
+                YoutubeRequestPlanner.analyzeCandidates(cookiesAvailable = hasCookies)
+            } else {
+                listOf<String?>(null)
+            }
 
             var best: AnalyzeCandidate? = null
             var lastFailureMessage: String? = null
             extractorCandidates.forEachIndexed { index, extractorArgs ->
                 if (best != null && !shouldTryMoreCandidates(best?.stats)) return@forEachIndexed
-                val attempt = analyzeWithExtractor(url = url, extractorArgs = extractorArgs)
+                val attempt = runCatching {
+                    analyzeWithExtractor(
+                        url = url,
+                        extractorArgs = extractorArgs,
+                        cookiesPath = cookiesPath,
+                        userAgent = userAgent,
+                    )
+                }.getOrElse { error ->
+                    logger.w(
+                        "FormatExtractor",
+                        "Analyze candidate[$index] crashed for args=${extractorArgs ?: "(default)"}",
+                        error,
+                    )
+                    AnalyzeAttempt(
+                        candidate = null,
+                        errorMessage = sanitizeAnalyzeFailureMessage(
+                            error.message?.takeIf { it.isNotBlank() } ?: "yt-dlp analyze failed",
+                        ),
+                    )
+                }
                 val candidate = attempt.candidate
                 if (candidate != null) {
                     val stats = candidate.stats
@@ -53,7 +86,12 @@ class FormatExtractor @Inject constructor(
             }
 
             val resolved = best ?: throw IllegalStateException(lastFailureMessage ?: "yt-dlp analyze failed")
-            mapVideoInfo(root = resolved.root, fallbackUrl = url, extractorArgs = resolved.extractorArgs).also { info ->
+            mapVideoInfo(
+                root = resolved.root,
+                fallbackUrl = url,
+                extractorArgs = resolved.extractorArgs,
+                infoJsonPath = resolved.infoJsonPath,
+            ).also { info ->
                 logger.i(
                     "FormatExtractor",
                     "Analyze parsed successfully title='${info.title}', formats=${info.formats.size}, extractorArgs=${resolved.extractorArgs}",
@@ -83,7 +121,12 @@ class FormatExtractor @Inject constructor(
         }
     }
 
-    private fun mapVideoInfo(root: JsonObject, fallbackUrl: String, extractorArgs: String?): VideoInfo {
+    private fun mapVideoInfo(
+        root: JsonObject,
+        fallbackUrl: String,
+        extractorArgs: String?,
+        infoJsonPath: String?,
+    ): VideoInfo {
         val playlistEntries = parsePlaylistEntries(root["entries"] as? JsonArray)
         val rootFormats = parseFormats(root["formats"] as? JsonArray ?: JsonArray(emptyList()))
         val fallbackFormats = firstEntryWithFormats(root["entries"] as? JsonArray)
@@ -101,6 +144,7 @@ class FormatExtractor @Inject constructor(
             webpageUrl = root["webpage_url"]?.jsonPrimitive?.contentOrNull ?: fallbackUrl,
             formats = formats,
             extractorArgs = extractorArgs,
+            infoJsonPath = infoJsonPath,
             isPlaylist = type == "playlist",
             playlistCount = root["playlist_count"]?.jsonPrimitive?.intOrNull ?: playlistEntries.size.takeIf { it > 0 },
             playlistEntries = playlistEntries,
@@ -137,63 +181,365 @@ class FormatExtractor @Inject constructor(
             .firstOrNull { it.isNotEmpty() }
     }
 
-    private suspend fun analyzeWithExtractor(url: String, extractorArgs: String?): AnalyzeAttempt {
-        val args = buildList {
-            add("-J")
+    private suspend fun analyzeWithExtractor(
+        url: String,
+        extractorArgs: String?,
+        cookiesPath: String?,
+        userAgent: String?,
+    ): AnalyzeAttempt {
+        val capturedInfoJsonFile = createAnalyzeCaptureFile(url = url, extractorArgs = extractorArgs)
+        val primaryAttempt = executeAnalyzeAttempt(
+            url = url,
+            extractorArgs = extractorArgs,
+            cookiesPath = cookiesPath,
+            userAgent = userAgent,
+            capturedInfoJsonFile = capturedInfoJsonFile,
+            relaxCertificateChecks = false,
+            useLineJsonMode = false,
+        )
+        if (primaryAttempt.candidate != null) {
+            return primaryAttempt
+        }
+
+        if (!isYoutubeUrl(url)) {
+            val lineJsonAttempt = executeAnalyzeAttempt(
+                url = url,
+                extractorArgs = extractorArgs,
+                cookiesPath = cookiesPath,
+                userAgent = userAgent,
+                capturedInfoJsonFile = capturedInfoJsonFile,
+                relaxCertificateChecks = false,
+                useLineJsonMode = true,
+            )
+            if (lineJsonAttempt.candidate != null) {
+                return lineJsonAttempt
+            }
+
+            logger.i(
+                "FormatExtractor",
+                "Analyze retrying with relaxed certificate checks for URL: $url",
+            )
+            val relaxedAttempt = executeAnalyzeAttempt(
+                url = url,
+                extractorArgs = extractorArgs,
+                cookiesPath = cookiesPath,
+                userAgent = userAgent,
+                capturedInfoJsonFile = capturedInfoJsonFile,
+                relaxCertificateChecks = true,
+                useLineJsonMode = false,
+            )
+            if (relaxedAttempt.candidate != null) {
+                return relaxedAttempt
+            }
+
+            return executeAnalyzeAttempt(
+                url = url,
+                extractorArgs = extractorArgs,
+                cookiesPath = cookiesPath,
+                userAgent = userAgent,
+                capturedInfoJsonFile = capturedInfoJsonFile,
+                relaxCertificateChecks = true,
+                useLineJsonMode = true,
+            )
+        }
+
+        return primaryAttempt
+    }
+
+    private suspend fun executeAnalyzeAttempt(
+        url: String,
+        extractorArgs: String?,
+        cookiesPath: String?,
+        userAgent: String?,
+        capturedInfoJsonFile: File,
+        relaxCertificateChecks: Boolean,
+        useLineJsonMode: Boolean,
+    ): AnalyzeAttempt {
+        val args = buildAnalyzeArgs(
+            url = url,
+            extractorArgs = extractorArgs,
+            cookiesPath = cookiesPath,
+            userAgent = userAgent,
+            capturedInfoJsonFile = capturedInfoJsonFile,
+            relaxCertificateChecks = relaxCertificateChecks,
+            useLineJsonMode = useLineJsonMode,
+        )
+
+        capturedInfoJsonFile.delete()
+        val commandOutcome = runCatching { executeAnalyzeCommand(args) }
+        val result = commandOutcome.getOrNull()
+        val commandError = commandOutcome.exceptionOrNull()
+        if (result != null) {
+            logger.i(
+                "FormatExtractor",
+                "Analyze command finished exitCode=${result.exitCode}, stdoutLen=${result.stdout.length}, stderrLen=${result.stderr.length}, relaxedCerts=$relaxCertificateChecks, lineJson=$useLineJsonMode",
+            )
+        } else {
+            logger.w(
+                "FormatExtractor",
+                "Analyze command threw before returning a result, relaxedCerts=$relaxCertificateChecks, lineJson=$useLineJsonMode",
+                commandError,
+            )
+        }
+
+        val parsedAttempt = parseAnalyzeSuccess(
+            url = url,
+            extractorArgs = extractorArgs,
+            stdout = result?.stdout.orEmpty(),
+            capturedInfoJsonPath = capturedInfoJsonFile.absolutePath,
+        )
+        if (parsedAttempt.candidate != null) {
+            return parsedAttempt
+        }
+
+        if (commandError != null) {
+            return AnalyzeAttempt(
+                candidate = null,
+                errorMessage = sanitizeAnalyzeFailureMessage(
+                    commandError.message?.takeIf { it.isNotBlank() } ?: "yt-dlp analyze failed",
+                ),
+            )
+        }
+
+        val resolvedResult = result ?: return AnalyzeAttempt(
+            candidate = null,
+            errorMessage = "yt-dlp analyze failed",
+        )
+
+        if (!resolvedResult.isSuccess) {
+            val failureMessage = extractAnalyzeFailureMessage(resolvedResult.stderr, resolvedResult.stdout)
+            if (looksLikeClosedStreamFailure(failureMessage)) {
+                logger.w("FormatExtractor", "Analyze returned transient closed-stream failure; retrying once")
+                capturedInfoJsonFile.delete()
+                val retryResult = executeAnalyzeCommand(args)
+                logger.i(
+                    "FormatExtractor",
+                    "Analyze retry finished exitCode=${retryResult.exitCode}, stdoutLen=${retryResult.stdout.length}, stderrLen=${retryResult.stderr.length}, relaxedCerts=$relaxCertificateChecks, lineJson=$useLineJsonMode",
+                )
+                val parsedRetry = parseAnalyzeSuccess(
+                    url = url,
+                    extractorArgs = extractorArgs,
+                    stdout = retryResult.stdout,
+                    capturedInfoJsonPath = capturedInfoJsonFile.absolutePath,
+                )
+                if (parsedRetry.candidate != null) {
+                    return parsedRetry
+                }
+                logger.w("FormatExtractor", "Analyze retry failed stderr=${retryResult.stderr.take(1000)}")
+                return AnalyzeAttempt(
+                    candidate = null,
+                    errorMessage = sanitizeAnalyzeFailureMessage(
+                        extractAnalyzeFailureMessage(retryResult.stderr, retryResult.stdout),
+                    ),
+                )
+            }
+            logger.w("FormatExtractor", "Analyze failed stderr=${resolvedResult.stderr.take(1000)}")
+            return AnalyzeAttempt(
+                candidate = null,
+                errorMessage = sanitizeAnalyzeFailureMessage(failureMessage),
+            )
+        }
+
+        return parsedAttempt
+    }
+
+    private fun buildAnalyzeArgs(
+        url: String,
+        extractorArgs: String?,
+        cookiesPath: String?,
+        userAgent: String?,
+        capturedInfoJsonFile: File,
+        relaxCertificateChecks: Boolean,
+        useLineJsonMode: Boolean,
+    ): List<String> {
+        return buildList {
+            add(if (useLineJsonMode) "-j" else "-J")
             add("--skip-download")
             add("--no-warnings")
             add("--ignore-config")
+            add("--ignore-errors")
+            add("--no-clean-info-json")
+            add("--print-to-file")
+            add("video:%()j")
+            add(capturedInfoJsonFile.absolutePath)
+            add("-R")
+            add("1")
+            add("--compat-options")
+            add("manifest-filesize-approx")
+            add("--socket-timeout")
+            add("5")
+            add("-P")
+            add(File(context.cacheDir, "tmp").apply { mkdirs() }.absolutePath)
+            if (relaxCertificateChecks) {
+                add("--no-check-certificates")
+            }
+            if (!cookiesPath.isNullOrBlank() && File(cookiesPath).exists()) {
+                add("--cookies")
+                add(cookiesPath)
+            }
+            if (!userAgent.isNullOrBlank()) {
+                add("--add-header")
+                add("User-Agent:$userAgent")
+            }
             if (!extractorArgs.isNullOrBlank()) {
                 add("--extractor-args")
                 add(extractorArgs)
             }
             add(url)
         }
-
-        val result = ytDlpExecutor.execute(args = args)
-        logger.i(
-            "FormatExtractor",
-            "Analyze command finished exitCode=${result.exitCode}, stdoutLen=${result.stdout.length}, stderrLen=${result.stderr.length}",
-        )
-        if (!result.isSuccess) {
-            logger.w("FormatExtractor", "Analyze failed stderr=${result.stderr.take(1000)}")
-            return AnalyzeAttempt(
-                candidate = null,
-                errorMessage = extractAnalyzeFailureMessage(result.stderr, result.stdout),
-            )
-        }
-
-        return runCatching {
-            val root = json.parseToJsonElement(result.stdout).jsonObject
-            val formats = parseFormats(root["formats"] as? JsonArray ?: JsonArray(emptyList()))
-            AnalyzeAttempt(
-                candidate = AnalyzeCandidate(
-                    root = root,
-                    formats = formats,
-                    extractorArgs = extractorArgs,
-                    stats = FormatStats.from(formats),
-                ),
-                errorMessage = null,
-            )
-        }.getOrElse { error ->
-            logger.w("FormatExtractor", "Analyze JSON parse failed", error)
-            AnalyzeAttempt(
-                candidate = null,
-                errorMessage = error.message?.takeIf { it.isNotBlank() } ?: "yt-dlp returned unreadable analyze output",
-            )
-        }
     }
 
     private fun extractAnalyzeFailureMessage(stderr: String, stdout: String): String {
-        val stderrLine = stderr.lineSequence()
+        return preferredAnalyzeFailureLine(stderr)
+            ?: preferredAnalyzeFailureLine(stdout)
+            ?: "yt-dlp analyze failed"
+    }
+
+    private suspend fun executeAnalyzeCommand(args: List<String>): CommandResult {
+        return runCatching {
+            ytDlpExecutor.execute(args = args)
+        }.recoverCatching { error ->
+            if (error.matchesClosedStreamFailure()) {
+                logger.w("FormatExtractor", "Analyze command hit closed-stream race; retrying once", error)
+                ytDlpExecutor.execute(args = args)
+            } else {
+                throw error
+            }
+        }.getOrThrow()
+    }
+
+    private fun parseAnalyzeSuccess(
+        url: String,
+        extractorArgs: String?,
+        stdout: String,
+        capturedInfoJsonPath: String?,
+    ): AnalyzeAttempt {
+        val sources = buildList {
+            val normalizedStdout = stdout.trim().takeIf { it.isNotBlank() }
+            if (normalizedStdout != null) {
+                add(normalizedStdout)
+            }
+            val capturedJson = readCapturedAnalyzeJson(capturedInfoJsonPath)
+            if (!capturedJson.isNullOrBlank() && capturedJson != normalizedStdout) {
+                add(capturedJson)
+            }
+        }
+
+        var lastError: Throwable? = null
+        sources.forEachIndexed { index, rawJson ->
+            val parsed = runCatching {
+                val root = json.parseToJsonElement(rawJson).jsonObject
+                val formats = parseFormats(root["formats"] as? JsonArray ?: JsonArray(emptyList()))
+                val infoJsonPath = persistInfoJsonSnapshot(
+                    url = url,
+                    root = root,
+                    rawJson = rawJson,
+                )
+                AnalyzeAttempt(
+                    candidate = AnalyzeCandidate(
+                        root = root,
+                        formats = formats,
+                        extractorArgs = extractorArgs,
+                        infoJsonPath = infoJsonPath,
+                        stats = FormatStats.from(formats),
+                    ),
+                    errorMessage = null,
+                )
+            }
+            parsed.getOrNull()?.let { return it }
+            lastError = parsed.exceptionOrNull()
+            logger.w("FormatExtractor", "Analyze JSON parse failed for source[$index]", lastError)
+        }
+
+        return AnalyzeAttempt(
+            candidate = null,
+            errorMessage = sanitizeAnalyzeFailureMessage(
+                lastError?.message?.takeIf { it.isNotBlank() } ?: "yt-dlp returned unreadable analyze output",
+            ),
+        )
+    }
+
+    private fun createAnalyzeCaptureFile(url: String, extractorArgs: String?): File {
+        val key = buildString {
+            append(url)
+            append('|')
+            append(extractorArgs.orEmpty())
+        }
+        val hash = CRC32().apply { update(key.toByteArray()) }.value.toString(16)
+        val directory = File(context.cacheDir, "ytdlp-analyze").apply { mkdirs() }
+        return File(directory, "$hash-${System.currentTimeMillis()}.info.json")
+    }
+
+    private fun readCapturedAnalyzeJson(path: String?): String? {
+        if (path.isNullOrBlank()) return null
+        val file = File(path)
+        if (!file.exists()) return null
+        return runCatching { file.readText() }
+            .getOrElse { error ->
+                logger.w("FormatExtractor", "Unable to read captured analyze info-json", error)
+                null
+            }
+            ?.trim()
+            ?.ifBlank { null }
+    }
+
+    private fun isYoutubeUrl(url: String): Boolean {
+        val normalized = url.lowercase()
+        return normalized.contains("youtube.com") || normalized.contains("youtu.be")
+    }
+
+    private fun persistInfoJsonSnapshot(
+        url: String,
+        root: JsonObject,
+        rawJson: String,
+    ): String? {
+        val type = root["_type"]?.jsonPrimitive?.contentOrNull
+        if (type == "playlist") return null
+
+        val stableId = root["id"]?.jsonPrimitive?.contentOrNull?.ifBlank { null } ?: url
+        val hash = CRC32().apply { update(stableId.toByteArray()) }.value.toString(16)
+        val directory = File(context.cacheDir, "ytdlp-info").apply { mkdirs() }
+        val file = File(directory, "$hash-video.info.json")
+        return runCatching {
+            file.writeText(rawJson)
+            file.absolutePath
+        }.getOrElse { error ->
+            logger.w("FormatExtractor", "Unable to persist analyze info-json snapshot", error)
+            null
+        }
+    }
+
+    private fun preferredAnalyzeFailureLine(output: String): String? {
+        val lines = output.lineSequence()
             .map { it.trim() }
-            .firstOrNull { it.isNotBlank() }
-        val stdoutLine = stdout.lineSequence()
-            .map { it.trim() }
-            .firstOrNull { it.isNotBlank() }
-        return (stderrLine ?: stdoutLine ?: "yt-dlp analyze failed")
-            .removePrefix("ERROR: ")
-            .take(240)
+            .filter { it.isNotBlank() }
+            .map { it.removePrefix("ERROR: ") }
+            .toList()
+        return lines.firstOrNull { !looksLikeClosedStreamFailure(it) } ?: lines.firstOrNull()
+    }
+
+    private fun sanitizeAnalyzeFailureMessage(message: String): String {
+        val normalized = message.trim()
+        return if (looksLikeClosedStreamFailure(normalized)) {
+            "Link analysis was interrupted before yt-dlp returned a usable result. Please try again."
+        } else {
+            normalized.take(240)
+        }
+    }
+
+    private fun Throwable.matchesClosedStreamFailure(): Boolean {
+        return generateSequence(this) { it.cause }
+            .map { it.message.orEmpty() }
+            .any(::looksLikeClosedStreamFailure)
+    }
+
+    private fun looksLikeClosedStreamFailure(message: String): Boolean {
+        val detail = message.lowercase()
+        return detail.contains("i/o operation on closed file") ||
+            detail.contains("operation on closed file") ||
+            detail.contains("stream closed") ||
+            detail.contains("interrupted by close") ||
+            detail == "closed"
     }
 
     private fun parseFormats(elements: JsonArray): List<MediaFormat> {
@@ -241,15 +587,11 @@ class FormatExtractor @Inject constructor(
         return trimmed.substringBefore("p", trimmed).toIntOrNull()
     }
 
-    private fun isYoutubeUrl(url: String): Boolean {
-        val normalized = url.lowercase()
-        return normalized.contains("youtube.com") || normalized.contains("youtu.be")
-    }
-
     private data class AnalyzeCandidate(
         val root: JsonObject,
         val formats: List<MediaFormat>,
         val extractorArgs: String?,
+        val infoJsonPath: String?,
         val stats: FormatStats,
     )
 

@@ -5,6 +5,8 @@ import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
+private const val MAX_INPUT_FILE_SIZE = 4L * 1024 * 1024 * 1024 // 4GB safety limit
+
 /**
  * Maps file extension to its expected content type.
  */
@@ -100,9 +102,30 @@ class FormatConverter @Inject constructor(
         if (!inputFile.exists()) {
             return Result.failure(IllegalArgumentException("Source file does not exist: ${request.inputFilePath}"))
         }
+        if (inputFile.length() > MAX_INPUT_FILE_SIZE) {
+            return Result.failure(IllegalArgumentException("Input file is too large (>${MAX_INPUT_FILE_SIZE / (1024 * 1024 * 1024)}GB). This may cause performance issues."))
+        }
+        if (inputFile.length() == 0L) {
+            return Result.failure(IllegalArgumentException("Source file is empty"))
+        }
 
         val outputExt = request.outputFilePath.substringAfterLast('.', "").lowercase().ifBlank { "mp4" }
         val isAudioOnlyOut = outputExt in listOf("mp3", "m4a", "aac", "wav", "flac", "ogg", "opus")
+        val sourceType = request.inputFilePath.guessContentType()
+
+        // Validate format compatibility
+        if (sourceType == MediaContentType.AUDIO && !isAudioOnlyOut) {
+            // Converting audio-only to video will produce a static/black video.
+            // This is allowed but we should use a poster frame approach.
+        }
+        if (sourceType == MediaContentType.VIDEO && isAudioOnlyOut) {
+            // Extracting audio from video - this is fine, -vn will handle it.
+        }
+
+        val outputDir = File(request.outputFilePath).parentFile
+        if (outputDir != null && !outputDir.exists() && !outputDir.mkdirs()) {
+            return Result.failure(IllegalStateException("Cannot create output directory: ${outputDir.absolutePath}"))
+        }
 
         val args = mutableListOf("-i", request.inputFilePath)
 
@@ -113,7 +136,6 @@ class FormatConverter @Inject constructor(
             // Video output: use mpeg4 encoder (bundled FFmpeg doesn't have libx264).
             // If source is audio-only, produce a static poster video.
             args += listOf("-c:v", "mpeg4")
-            val sourceType = request.inputFilePath.guessContentType()
             if (sourceType == MediaContentType.AUDIO) {
                 args += listOf(
                     "-loop", "1",
@@ -146,10 +168,11 @@ class FormatConverter @Inject constructor(
             onProgress?.invoke(1f)
         }
         return if (result.isSuccess) {
-            if (File(request.outputFilePath).exists()) {
+            val outputFile = File(request.outputFilePath)
+            if (outputFile.exists() && outputFile.length() > 0) {
                 Result.success(request.outputFilePath)
             } else {
-                Result.failure(IllegalStateException("Conversion completed but output file was not found"))
+                Result.failure(IllegalStateException("Conversion completed but output file was not found or empty"))
             }
         } else {
             Result.failure(IllegalStateException(result.stderr.ifBlank { "FFmpeg conversion failed" }))

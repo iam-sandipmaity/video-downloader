@@ -4,6 +4,13 @@ import androidx.compose.ui.graphics.Color
 
 val Ember = Color(0xFFB55311)
 val EmberContainer = Color(0xFF5B2900)
+val Ocean = Color(0xFF1A6FB8)
+val Forest = Color(0xFF2F7A4A)
+val Rose = Color(0xFFC24A72)
+val Violet = Color(0xFF7A5AF8)
+val Gold = Color(0xFFB88800)
+val Tangerine = Color(0xFFD66A00)
+val Graphite = Color(0xFF70737C)
 val AshBackground = Color(0xFF17131C)
 val AshSurface = Color(0xFF24202C)
 val AshSurfaceVariant = Color(0xFF534D5D)

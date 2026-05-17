@@ -14,7 +14,11 @@ import kotlinx.coroutines.flow.Flow
  * Domain-level contract for all downloader and media-processing operations.
  */
 interface DownloaderRepository {
-    suspend fun analyzeUrl(url: String): Result<VideoInfo>
+    suspend fun analyzeUrl(
+        url: String,
+        cookiesPath: String? = null,
+        userAgent: String? = null,
+    ): Result<VideoInfo>
     suspend fun enqueueDownload(options: DownloadOptions, titleHint: String): Result<String>
     suspend fun enqueuePlaylistDownload(
         options: DownloadOptions,

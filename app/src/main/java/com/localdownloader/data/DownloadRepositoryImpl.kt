@@ -1,5 +1,6 @@
 package com.localdownloader.data
 
+import android.content.Context
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.NetworkType
@@ -20,11 +21,13 @@ import com.localdownloader.domain.models.PlaylistEntry
 import com.localdownloader.domain.models.VideoInfo
 import com.localdownloader.domain.repositories.DownloaderRepository
 import com.localdownloader.downloader.FormatExtractor
+import com.localdownloader.notifications.AppNotifications
 import com.localdownloader.ffmpeg.Compressor
 import com.localdownloader.ffmpeg.FormatConverter
 import com.localdownloader.utils.FileUtils
 import com.localdownloader.utils.Logger
 import com.localdownloader.worker.WorkerKeys
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -44,6 +47,7 @@ import javax.inject.Singleton
 
 @Singleton
 class DownloadRepositoryImpl @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val formatExtractor: FormatExtractor,
     private val downloadTaskStore: DownloadTaskStore,
     private val formatConverter: FormatConverter,
@@ -67,9 +71,17 @@ class DownloadRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun analyzeUrl(url: String): Result<VideoInfo> {
+    override suspend fun analyzeUrl(
+        url: String,
+        cookiesPath: String?,
+        userAgent: String?,
+    ): Result<VideoInfo> {
         logger.i("DownloadRepository", "analyzeUrl called for: $url")
-        val result = formatExtractor.analyze(url)
+        val result = formatExtractor.analyze(
+            url = url,
+            cookiesPath = cookiesPath,
+            userAgent = userAgent,
+        )
         result.onSuccess { info ->
             logger.i(
                 "DownloadRepository",
@@ -234,13 +246,21 @@ class DownloadRepositoryImpl @Inject constructor(
 
     override suspend fun cancelDownload(taskId: String) {
         logger.i("DownloadRepository", "cancelDownload taskId=$taskId")
-        val activeWorkId = downloadTaskStore.getTask(taskId)?.activeWorkId
+        val existingTask = downloadTaskStore.getTask(taskId)
+        val activeWorkId = existingTask?.activeWorkId
         downloadTaskStore.update(taskId) { task ->
             task.copy(
                 status = DownloadStatus.CANCELED,
                 pauseExpiresAtEpochMs = null,
                 debugTrace = appendDebugLine(task.debugTrace, "Cancelled by user"),
                 updatedAtEpochMs = System.currentTimeMillis(),
+            )
+        }
+        existingTask?.title?.takeIf { it.isNotBlank() }?.let { title ->
+            AppNotifications.showDownloadCanceled(
+                context = appContext,
+                taskId = taskId,
+                title = title,
             )
         }
         activeWorkId?.let { workManager.cancelWorkById(UUID.fromString(it)) }
@@ -435,11 +455,16 @@ class DownloadRepositoryImpl @Inject constructor(
                     WorkerKeys.OUTPUT_TEMPLATE to options.outputTemplate,
                     WorkerKeys.EXTRACTOR_ARGS to (options.extractorArgs ?: ""),
                     WorkerKeys.FALLBACK_EXTRACTOR_ARGS to (options.fallbackExtractorArgs ?: ""),
+                    WorkerKeys.LOAD_INFO_JSON_PATH to (options.loadInfoJsonPath ?: ""),
+                    WorkerKeys.USER_AGENT_HEADER to (options.userAgentHeader ?: ""),
                     WorkerKeys.YOUTUBE_AUTH_ENABLED to options.youtubeAuthEnabled,
                     WorkerKeys.YOUTUBE_COOKIES_PATH to (options.youtubeCookiesPath ?: ""),
                     WorkerKeys.YOUTUBE_PO_TOKEN to (options.youtubePoToken ?: ""),
                     WorkerKeys.YOUTUBE_PO_TOKEN_CLIENT_HINT to options.youtubePoTokenClientHint,
+                    WorkerKeys.YOUTUBE_DATA_SYNC_ID to (options.youtubeDataSyncId ?: ""),
                     WorkerKeys.MERGE_OUTPUT_FORMAT to (options.mergeOutputFormat ?: ""),
+                    WorkerKeys.PREFERRED_VIDEO_HEIGHT to (options.preferredVideoHeight ?: -1),
+                    WorkerKeys.DOWNLOAD_VIDEO_ONLY to options.downloadVideoOnly,
                     WorkerKeys.PLAYLIST_ENABLED to options.isPlaylistEnabled,
                     WorkerKeys.DOWNLOAD_SUBTITLES to options.shouldDownloadSubtitles,
                     WorkerKeys.EMBED_METADATA to options.shouldEmbedMetadata,
@@ -832,7 +857,7 @@ class DownloadRepositoryImpl @Inject constructor(
     }
 
     private companion object {
-        const val MAX_DEBUG_TRACE_CHARS = 10_000
+        const val MAX_DEBUG_TRACE_CHARS = 250_000
         const val PAUSE_RESUME_WINDOW_MS = 10 * 60 * 1000L
     }
 

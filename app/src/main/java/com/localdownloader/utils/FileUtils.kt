@@ -7,18 +7,42 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
+import com.localdownloader.data.SettingsStore
+import com.localdownloader.domain.models.AppSettings
 import com.localdownloader.ui.model.ExternalOpenRequest
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class FileUtils @Inject constructor(
     @ApplicationContext private val context: Context,
+    settingsStore: SettingsStore,
 ) {
     private val conversionDirName = "converted"
     private val binDirName = "bin"
+    private val settingsScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    @Volatile
+    private var latestSettings: AppSettings = AppSettings()
+
+    init {
+        settingsStore.observeSettings()
+            .onEach { latestSettings = it }
+            .launchIn(settingsScope)
+    }
+
+    enum class MediaFolderCategory {
+        VIDEO,
+        AUDIO,
+        OTHER,
+        PLAYLIST,
+    }
 
     /**
      * Returns the downloads directory for yt-dlp output.
@@ -29,19 +53,29 @@ class FileUtils @Inject constructor(
      *
      * Android 10 and below: `/sdcard/Download/LocalDownloader/`
      */
-    fun ensureDownloadsDir(): File {
+    fun ensureDownloadsDir(subDirectoryName: String? = null): File {
+        val rootFolderName = configuredRootFolderName()
+        val normalizedSubdirectory = subDirectoryName
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?.let(::sanitizeFileName)
+            ?.takeIf { it.isNotBlank() }
         // Android 10 and below: direct path to public Downloads.
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
             val publicDownloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            val appDir = File(publicDownloads, "LocalDownloader")
+            val appDir = buildPath(publicDownloads, rootFolderName, normalizedSubdirectory)
             if ((appDir.exists() || appDir.mkdirs()) && appDir.canWrite()) return appDir
         }
 
         // Android 11+: app-specific external storage.
         val extDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-        if (extDir != null && (extDir.exists() || extDir.mkdirs()) && extDir.canWrite()) return extDir
+        val appSpecificDir = extDir?.let { buildPath(it, rootFolderName, normalizedSubdirectory) }
+        if (appSpecificDir != null && (appSpecificDir.exists() || appSpecificDir.mkdirs()) && appSpecificDir.canWrite()) {
+            return appSpecificDir
+        }
 
-        return ensureInternalDir("downloads")
+        val internalKey = listOfNotNull("downloads", rootFolderName, normalizedSubdirectory).joinToString(File.separator)
+        return ensureInternalDir(internalKey)
     }
 
     fun ensureConversionDir(): File = ensureInternalDir(conversionDirName)
@@ -77,13 +111,16 @@ class FileUtils @Inject constructor(
             ?: throw IllegalStateException("Unable to read selected file")
     }
 
-    fun createOutputTemplateWithDirectory(template: String): String {
-        val outputDir = ensureDownloadsDir().absolutePath
+    fun createOutputTemplateWithDirectory(
+        template: String,
+        category: MediaFolderCategory = MediaFolderCategory.VIDEO,
+    ): String {
+        val outputDir = ensureDownloadsDir(resolveSubfolderForCategory(category)).absolutePath
         return "$outputDir/$template"
     }
 
     fun createUniquePlaylistDirectory(playlistName: String): File {
-        val root = ensureDownloadsDir()
+        val root = ensureDownloadsDir(resolveSubfolderForCategory(MediaFolderCategory.PLAYLIST))
         val baseName = sanitizeFileName(playlistName)
         var candidate = File(root, baseName)
         var counter = 2
@@ -146,10 +183,7 @@ class FileUtils @Inject constructor(
     }
 
     fun sanitizeFileName(value: String): String {
-        return value
-            .replace(Regex("""[\\/:*?"<>|]"""), "_")
-            .take(160)
-            .ifBlank { "media_${System.currentTimeMillis()}" }
+        return sanitizeFileNameStatic(value)
     }
 
     /**
@@ -165,6 +199,7 @@ class FileUtils @Inject constructor(
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
 
         val publicDownloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        val rootFolderName = configuredRootFolderName()
         val relativeParent = playlistFolderName
             ?.trim()
             ?.trim('/', '\\')
@@ -173,9 +208,9 @@ class FileUtils @Inject constructor(
                 ?.substringBeforeLast('/', "")
                 .orEmpty()
         val publicDir = if (relativeParent.isBlank()) {
-            File(publicDownloads, "LocalDownloader")
+            File(publicDownloads, rootFolderName)
         } else {
-            File(publicDownloads, "LocalDownloader/$relativeParent")
+            File(publicDownloads, "$rootFolderName/$relativeParent")
         }
         if (!publicDir.exists()) publicDir.mkdirs()
 
@@ -192,7 +227,9 @@ class FileUtils @Inject constructor(
                 put(
                     MediaStore.MediaColumns.RELATIVE_PATH,
                     buildString {
-                        append("Download/LocalDownloader/")
+                        append("Download/")
+                        append(rootFolderName.trim('/'))
+                        append('/')
                         if (relativeParent.isNotBlank()) {
                             append(relativeParent.trim('/'))
                             append('/')
@@ -318,7 +355,7 @@ class FileUtils @Inject constructor(
 
         val relativePath = relativePathWithinDownloadsRoot(File(path)) ?: return path
         val publicDownloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-        val publicFile = File(publicDownloads, "LocalDownloader/$relativePath")
+        val publicFile = File(publicDownloads, "${configuredRootFolderName()}/$relativePath")
         return if (publicFile.exists()) publicFile.absolutePath else path
     }
 
@@ -376,6 +413,7 @@ class FileUtils @Inject constructor(
                 candidate.isFile &&
                     candidate.name != primaryFile.name &&
                     candidate.name.startsWith("$stem.") &&
+                    isManagedSidecarArtifact(candidate.name) &&
                     !isTemporaryDownloadArtifact(candidate.name)
             }
             ?.sortedBy { it.name }
@@ -391,6 +429,32 @@ class FileUtils @Inject constructor(
         return lower.endsWith(".part") ||
             lower.endsWith(".ytdl") ||
             lower.endsWith(".temp")
+    }
+
+    private fun isManagedSidecarArtifact(fileName: String): Boolean {
+        val lower = fileName.lowercase()
+        if (Regex(""".*\.f\d+\..+""").matches(lower)) return false
+        if (lower.contains(".video.") || lower.contains(".audio.")) return false
+
+        return when {
+            lower.endsWith(".srt") -> true
+            lower.endsWith(".vtt") -> true
+            lower.endsWith(".webvtt") -> true
+            lower.endsWith(".ass") -> true
+            lower.endsWith(".ssa") -> true
+            lower.endsWith(".ttml") -> true
+            lower.endsWith(".dfxp") -> true
+            lower.endsWith(".xml") -> true
+            lower.endsWith(".jpg") -> true
+            lower.endsWith(".jpeg") -> true
+            lower.endsWith(".png") -> true
+            lower.endsWith(".webp") -> true
+            lower.endsWith(".gif") -> true
+            lower.endsWith(".bmp") -> true
+            lower.endsWith(".info.json") -> true
+            lower.endsWith(".description") -> true
+            else -> false
+        }
     }
 
     private fun triggerMediaScan(uri: Uri) {
@@ -460,6 +524,40 @@ class FileUtils @Inject constructor(
 
         val itemUri = android.content.ContentUris.withAppendedId(contentUri, itemId)
         return context.contentResolver.delete(itemUri, null, null) > 0
+    }
+
+    private fun configuredRootFolderName(): String {
+        return latestSettings.downloadsRootFolderName
+            .trim()
+            .ifBlank { "LocalDownloader" }
+            .let(::sanitizeFileName)
+            .ifBlank { "LocalDownloader" }
+    }
+
+    private fun resolveSubfolderForCategory(category: MediaFolderCategory): String? {
+        val raw = when (category) {
+            MediaFolderCategory.VIDEO -> latestSettings.videoSubfolderName
+            MediaFolderCategory.AUDIO -> latestSettings.audioSubfolderName
+            MediaFolderCategory.OTHER -> latestSettings.otherSubfolderName
+            MediaFolderCategory.PLAYLIST -> latestSettings.videoSubfolderName
+        }
+        return raw.trim()
+            .ifBlank { null }
+            ?.let(::sanitizeFileName)
+            ?.ifBlank { null }
+    }
+
+    private fun buildPath(
+        root: File,
+        rootFolderName: String,
+        subDirectoryName: String?,
+    ): File {
+        val rootDir = File(root, rootFolderName)
+        return if (subDirectoryName.isNullOrBlank()) {
+            rootDir
+        } else {
+            File(rootDir, subDirectoryName)
+        }
     }
 
     /**
@@ -549,13 +647,36 @@ class FileUtils @Inject constructor(
     }
 
     companion object {
+        /** Maximum size for files copied to cache (500MB). */
+        private const val MAX_CACHE_FILE_SIZE = 500L * 1024 * 1024
+
+        private fun sanitizeFileNameStatic(value: String): String {
+            return value
+                .replace(Regex("""[\\/:*?"<>|]"""), "_")
+                .take(160)
+                .ifBlank { "media_${System.currentTimeMillis()}" }
+        }
+
         fun getRealPathFromUri(context: Context, uri: Uri): String? {
             if (uri.scheme == "file") return uri.path
             if (uri.scheme != "content") return null
             return try {
                 val displayName = queryDisplayName(context, uri)
                     ?: "media_${System.currentTimeMillis()}"
-                val dest = File(context.cacheDir, displayName)
+                val dest = File(context.cacheDir, sanitizeFileNameStatic(displayName))
+
+                // Check available cache space before copying.
+                val cacheDir = context.cacheDir
+                val availableSpace = cacheDir.freeSpace
+                val contentLength = getContentLength(context, uri)
+
+                if (contentLength > MAX_CACHE_FILE_SIZE) {
+                    throw IllegalStateException("File is too large to cache (${contentLength / (1024 * 1024)}MB). Maximum allowed: ${MAX_CACHE_FILE_SIZE / (1024 * 1024)}MB")
+                }
+                if (contentLength > 0 && contentLength > availableSpace) {
+                    throw IllegalStateException("Not enough cache space. Required: ${contentLength / (1024 * 1024)}MB, Available: ${availableSpace / (1024 * 1024)}MB")
+                }
+
                 context.contentResolver.openInputStream(uri)?.use { input ->
                     dest.outputStream().use { output -> input.copyTo(output) }
                 }
@@ -568,6 +689,14 @@ class FileUtils @Inject constructor(
             } catch (e: Exception) {
                 // Return the URI string as fallback for SAF access
                 uri.toString()
+            }
+        }
+
+        private fun getContentLength(context: Context, uri: Uri): Long {
+            return try {
+                context.contentResolver.openInputStream(uri)?.available()?.toLong() ?: 0L
+            } catch (_: Exception) {
+                0L
             }
         }
 

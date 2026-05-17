@@ -12,6 +12,7 @@ data class VideoInfo(
     val webpageUrl: String,
     val formats: List<MediaFormat>,
     val extractorArgs: String?,
+    val infoJsonPath: String?,
     val isPlaylist: Boolean,
     val playlistCount: Int?,
     val playlistEntries: List<PlaylistEntry> = emptyList(),

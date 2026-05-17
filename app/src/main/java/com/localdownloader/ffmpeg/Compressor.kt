@@ -5,6 +5,8 @@ import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
+private const val MAX_INPUT_FILE_SIZE = 4L * 1024 * 1024 * 1024 // 4GB safety limit
+
 @Singleton
 class Compressor @Inject constructor(
     private val ffmpegExecutor: FfmpegExecutor,
@@ -17,6 +19,12 @@ class Compressor @Inject constructor(
         if (!inputFile.exists()) {
             return Result.failure(IllegalArgumentException("Source file does not exist: ${request.inputFilePath}"))
         }
+        if (inputFile.length() > MAX_INPUT_FILE_SIZE) {
+            return Result.failure(IllegalArgumentException("Input file is too large (>${MAX_INPUT_FILE_SIZE / (1024 * 1024 * 1024)}GB). This may cause performance issues."))
+        }
+        if (inputFile.length() == 0L) {
+            return Result.failure(IllegalArgumentException("Source file is empty"))
+        }
 
         if (request.targetVideoBitrateKbps != null && request.targetVideoBitrateKbps <= 0) {
             return Result.failure(IllegalArgumentException("Video bitrate must be positive"))
@@ -28,13 +36,23 @@ class Compressor @Inject constructor(
             return Result.failure(IllegalArgumentException("Max height must be positive"))
         }
 
+        val outputExt = request.outputFilePath.substringAfterLast('.').lowercase()
+        val validVideoExts = listOf("mp4", "mkv", "avi", "flv", "mov", "webm")
+        if (outputExt !in validVideoExts) {
+            return Result.failure(IllegalArgumentException("Unsupported output format: .$outputExt. Supported: ${validVideoExts.joinToString(", ")}"))
+        }
+
+        val outputDir = File(request.outputFilePath).parentFile
+        if (outputDir != null && !outputDir.exists() && !outputDir.mkdirs()) {
+            return Result.failure(IllegalStateException("Cannot create output directory: ${outputDir.absolutePath}"))
+        }
+
         val args = mutableListOf(
             "-i",
             request.inputFilePath,
         )
 
         val inputExt = request.inputFilePath.substringAfterLast('.').lowercase()
-        val outputExt = request.outputFilePath.substringAfterLast('.').lowercase()
         val isAudioOnlyInput = inputExt in listOf("mp3", "m4a", "aac", "wav", "flac", "ogg", "opus")
 
         if (!isAudioOnlyInput) {
@@ -91,10 +109,11 @@ class Compressor @Inject constructor(
         }
         return if (result.isSuccess) {
             // Ensure the output file actually exists.
-            if (File(request.outputFilePath).exists()) {
+            val outputFile = File(request.outputFilePath)
+            if (outputFile.exists() && outputFile.length() > 0) {
                 Result.success(request.outputFilePath)
             } else {
-                Result.failure(IllegalStateException("Compression completed but output file was not found"))
+                Result.failure(IllegalStateException("Compression completed but output file was not found or empty"))
             }
         } else {
             Result.failure(IllegalStateException(result.stderr.ifBlank { "FFmpeg compression failed" }))

@@ -102,7 +102,7 @@ data class MediaToolsUiState(
 @HiltViewModel
 class MediaToolsViewModel @Inject constructor(
     private val repository: DownloaderRepository,
-    private val fileUtils: FileUtils,
+    val fileUtils: FileUtils,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MediaToolsUiState())

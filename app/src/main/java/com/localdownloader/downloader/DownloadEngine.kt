@@ -3,6 +3,7 @@ package com.localdownloader.downloader
 import com.localdownloader.domain.models.DownloadOptions
 import com.localdownloader.utils.Logger
 import java.io.File
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -26,11 +27,12 @@ class DownloadEngine @Inject constructor(
             "--no-warnings",
             "--progress-template",
             "download:PROG|%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s|%(progress._downloaded_bytes_str)s|%(progress._total_bytes_estimate_str)s",
-            // Retry on transient CDN 403s and expired DASH segment URLs.
-            "--retries", "20",
-            "--fragment-retries", "20",
-            "--retry-sleep", "3",
-            "--retry-sleep", "fragment:3",
+            // Fail fast enough for the worker's higher-level fallback logic to take over.
+            "--retries", "6",
+            "--fragment-retries", "4",
+            "--retry-sleep", "1",
+            "--retry-sleep", "fragment:1",
+            "--abort-on-unavailable-fragments",
             // Single-threaded fragment downloads prevent aggressive rate-limiting.
             "--concurrent-fragments", "1",
             "-f",
@@ -42,14 +44,19 @@ class DownloadEngine @Inject constructor(
         if (!options.extractorArgs.isNullOrBlank()) {
             args += listOf("--extractor-args", options.extractorArgs)
         }
+        if (!options.loadInfoJsonPath.isNullOrBlank() && File(options.loadInfoJsonPath).exists()) {
+            args += listOf("--load-info-json", options.loadInfoJsonPath)
+        }
+        if (!options.userAgentHeader.isNullOrBlank()) {
+            args += listOf("--add-header", "User-Agent:${options.userAgentHeader}")
+        }
 
-        // Apply cookies if:
-        // 1. YouTube auth is enabled AND cookies path exists (for age-gated content)
-        // 2. OR PO token is provided (for YouTube restricted videos)
-        val hasYoutubeAuth = options.youtubeAuthEnabled || !options.youtubePoToken.isNullOrBlank()
-        options.youtubeCookiesPath
-            ?.takeIf { hasYoutubeAuth && it.isNotBlank() && File(it).exists() }
-            ?.let { args += listOf("--cookies", it) }
+        // Apply cookies if a valid cookies file path is available.
+        // These are used for cookie-backed site sessions, including tougher YouTube cases.
+        val cookiesPath = options.youtubeCookiesPath
+        if (!cookiesPath.isNullOrBlank() && File(cookiesPath).exists()) {
+            args += listOf("--cookies", cookiesPath)
+        }
 
         if (options.isPlaylistEnabled) {
             args += "--yes-playlist"
@@ -65,9 +72,6 @@ class DownloadEngine @Inject constructor(
             args += listOf("--merge-output-format", it)
         }
 
-        if (options.shouldDownloadSubtitles) {
-            args += subtitleArgs(embedSubtitles = !options.extractAudio)
-        }
         if (options.shouldEmbedMetadata) {
             args += "--embed-metadata"
         }
@@ -129,14 +133,21 @@ class DownloadEngine @Inject constructor(
             outputTemplate,
         )
 
-        if (!options.extractorArgs.isNullOrBlank()) {
-            args += listOf("--extractor-args", options.extractorArgs)
+        val subtitleExtractorArgs = resolveSubtitleExtractorArgs(options)
+        if (!subtitleExtractorArgs.isNullOrBlank()) {
+            args += listOf("--extractor-args", subtitleExtractorArgs)
+        }
+        if (!options.loadInfoJsonPath.isNullOrBlank() && File(options.loadInfoJsonPath).exists()) {
+            args += listOf("--load-info-json", options.loadInfoJsonPath)
+        }
+        if (!options.userAgentHeader.isNullOrBlank()) {
+            args += listOf("--add-header", "User-Agent:${options.userAgentHeader}")
         }
 
-        val hasYoutubeAuth = options.youtubeAuthEnabled || !options.youtubePoToken.isNullOrBlank()
-        options.youtubeCookiesPath
-            ?.takeIf { hasYoutubeAuth && it.isNotBlank() && File(it).exists() }
-            ?.let { args += listOf("--cookies", it) }
+        val cookiesPath = options.youtubeCookiesPath
+        if (!cookiesPath.isNullOrBlank() && File(cookiesPath).exists()) {
+            args += listOf("--cookies", cookiesPath)
+        }
 
         if (options.isPlaylistEnabled) {
             args += "--yes-playlist"
@@ -148,7 +159,10 @@ class DownloadEngine @Inject constructor(
             args += listOf("--playlist-items", index.toString())
         }
 
-        args += subtitleArgs(embedSubtitles = false)
+        args += subtitleArgs(
+            url = options.url,
+            embedSubtitles = false,
+        )
         args += options.url
 
         logger.i(
@@ -175,18 +189,64 @@ class DownloadEngine @Inject constructor(
         }
     }
 
-    private fun subtitleArgs(embedSubtitles: Boolean): List<String> {
+    private fun resolveSubtitleExtractorArgs(options: DownloadOptions): String? {
+        val configuredArgs = options.extractorArgs?.trim().orEmpty()
+        if (isYoutubeUrl(options.url) &&
+            (options.youtubePoToken.orEmpty().isNotBlank() || options.youtubeDataSyncId.orEmpty().isNotBlank()) &&
+            !configuredArgs.contains("po_token=") &&
+            !configuredArgs.contains("data_sync_id=")
+        ) {
+            return YoutubeRequestPlanner.preferredAuthenticatedExtractorArgs(
+                poToken = options.youtubePoToken,
+                preferredHint = options.youtubePoTokenClientHint,
+                dataSyncId = options.youtubeDataSyncId,
+            )
+        }
+        return configuredArgs.ifBlank { null }
+    }
+
+    private fun subtitleArgs(
+        url: String,
+        embedSubtitles: Boolean,
+    ): List<String> {
         return buildList {
             add("--write-subs")
             add("--write-auto-subs")
             add("--sub-langs")
-            add("all,-live_chat")
+            add(
+                if (isYoutubeUrl(url)) {
+                    preferredYoutubeSubtitleLanguages()
+                } else {
+                    "all,-live_chat"
+                },
+            )
             add("--convert-subs")
             add("srt")
             if (embedSubtitles) {
                 add("--embed-subs")
             }
         }
+    }
+
+    private fun preferredYoutubeSubtitleLanguages(): String {
+        val locale = Locale.getDefault()
+        val candidates = linkedSetOf<String>()
+        locale.toLanguageTag()
+            .trim()
+            .takeIf { it.isNotBlank() && !it.equals("und", ignoreCase = true) }
+            ?.let(candidates::add)
+        locale.language
+            .trim()
+            .takeIf { it.isNotBlank() && !it.equals("und", ignoreCase = true) }
+            ?.let(candidates::add)
+        candidates += "en"
+        candidates += "en-orig"
+        return candidates.joinToString(",")
+    }
+
+    private fun isYoutubeUrl(url: String): Boolean {
+        val normalized = url.lowercase()
+        return normalized.contains("youtube.com") || normalized.contains("youtu.be")
     }
 
     // Keep URL helpers local to FormatExtractor; download should honor analysis selection.
