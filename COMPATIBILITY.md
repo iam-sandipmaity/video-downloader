@@ -54,24 +54,30 @@ Install any "Device Info" app from the Play Store and look for "CPU ABI".
 
 When you open the app:
 
-- `yt-dlp` runs through the embedded `youtubedl-android` runtime
-- `ffmpeg` follows the bundled binary resolution chain below
+- `yt-dlp` runs through the embedded `youtubedl-android` runtime and can be updated in-app
+- `ffmpeg` follows the managed runtime resolution chain below
 
 ```
-Step 1: Check nativeLibraryDir
-        (/data/app/<package>/lib/<abi>/)
-        ↓ found? → use it directly (fastest, always executable)
+Step 1: Check downloaded FFmpeg overlay
+        (/data/user/0/<package>/no_backup/localdownloader_runtime/downloaded_packages/ffmpeg/)
+        ↓ found? → verify it → use it
         ↓ not found?
 
-Step 2: Check assets/<tool>/<abi>/<binary>
-        Matches device's Build.SUPPORTED_ABIS list in order
-        ↓ found? → copy to app internal storage → chmod +x → use it
+Step 2: Check packaged native runtimes in nativeLibraryDir
+        Prefer libffmpeg.so (+ optional libffmpeg.zip.so support archive)
+        Fall back to libffmpeg_exec.so
+        ↓ found? → verify it → use it directly
+        ↓ not found or launch fails?
+
+Step 3: Retry with asset fallback
+        assets/ffmpeg/<abi>/ffmpeg
+        ↓ copy to app-owned storage → chmod +x → use it
         ↓ not found?
 
-Step 3: FAIL with clear error message listing what was searched
+Step 4: FAIL with clear error message listing what was searched
 ```
 
-The `nativeLibraryDir` path (Step 1) is populated from `jniLibs/` during APK installation — Android extracts them automatically. The `assets/` fallback (Step 2) is there for cases where `.so` extraction fails or is blocked.
+The `nativeLibraryDir` path is populated from packaged runtime dependencies and `jniLibs/` during APK installation. The asset fallback is only used when native execution is unavailable or blocked on a device.
 
 ---
 
@@ -88,7 +94,7 @@ cd video-downloader
 
 ### Step 2 — Obtain compatible binaries
 
-You need an `ffmpeg` binary compiled for your target ABI.
+You need an `ffmpeg` binary compiled for your target ABI. The simplest supported custom-build layout is still a raw executable plus the asset fallback, but the app can also work with the newer embedded runtime package layout when available.
 
 #### ffmpeg
 
@@ -98,6 +104,8 @@ You need an `ffmpeg` binary compiled for your target ABI.
 | armeabi-v7a | Same sources, pick `arm` flavour |
 
 Make sure the binary is **statically linked** (no shared lib dependencies) and has **execute permission**.
+
+If you only have a single standalone binary, package it as `libffmpeg_exec.so` plus the raw `assets/ffmpeg/.../ffmpeg` fallback. That remains the easiest custom-build path.
 
 ### Step 3 — Place the binaries
 
@@ -118,6 +126,8 @@ app/src/main/assets/ffmpeg/armeabi-v7a/ffmpeg
 
 app/src/main/jniLibs/armeabi-v7a/libffmpeg_exec.so
 ```
+
+If you are packaging the newer embedded FFmpeg runtime instead of a single standalone executable, the runtime may also provide `libffmpeg.so` and `libffmpeg.zip.so` for the same ABI. The app will prefer those automatically when present.
 
 ---
 
@@ -179,6 +189,7 @@ Files are saved to:
 ```
 
 This folder is visible in the system **Files** app and any file manager.  
+The root folder and per-media subfolders can also be changed from the app's Settings screen.  
 On Android 8–9 with storage permission denied, the app falls back to:
 
 ```
