@@ -455,6 +455,9 @@ fun DownloaderApp(
                     onPause = downloadViewModel::pause,
                     onResume = downloadViewModel::resume,
                     onCancel = downloadViewModel::cancel,
+                    onPauseTasks = downloadViewModel::pauseTasks,
+                    onResumeTasks = downloadViewModel::resumeTasks,
+                    onCancelTasks = downloadViewModel::cancelTasks,
                     onBack = { navController.popBackStack() },
                 )
             }

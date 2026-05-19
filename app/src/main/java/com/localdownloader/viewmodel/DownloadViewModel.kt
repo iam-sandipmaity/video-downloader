@@ -79,6 +79,84 @@ class DownloadViewModel @Inject constructor(
         }
     }
 
+    fun pauseTasks(taskIds: List<String>) {
+        val ids = taskIds.map(String::trim).filter(String::isNotBlank).distinct()
+        if (ids.isEmpty()) return
+        logger.i("DownloadViewModel", "batch pause requested count=${ids.size}")
+        viewModelScope.launch {
+            var failure: Throwable? = null
+            ids.forEach { taskId ->
+                runCatching { repository.pauseDownload(taskId) }
+                    .onFailure { error ->
+                        if (failure == null) failure = error
+                        logger.e("DownloadViewModel", "batch pause failed taskId=$taskId", error)
+                    }
+            }
+            _uiState.update { state ->
+                state.copy(
+                    infoMessage = if (failure == null) {
+                        "Paused ${ids.size} queued item(s)."
+                    } else {
+                        state.infoMessage
+                    },
+                    errorMessage = failure?.message,
+                )
+            }
+        }
+    }
+
+    fun resumeTasks(taskIds: List<String>) {
+        val ids = taskIds.map(String::trim).filter(String::isNotBlank).distinct()
+        if (ids.isEmpty()) return
+        logger.i("DownloadViewModel", "batch resume requested count=${ids.size}")
+        viewModelScope.launch {
+            var failure: Throwable? = null
+            ids.forEach { taskId ->
+                repository.resumeDownload(taskId)
+                    .onFailure { error ->
+                        if (failure == null) failure = error
+                        logger.e("DownloadViewModel", "batch resume failed taskId=$taskId", error)
+                    }
+            }
+            _uiState.update { state ->
+                state.copy(
+                    infoMessage = if (failure == null) {
+                        "Resumed ${ids.size} scheduled item(s)."
+                    } else {
+                        state.infoMessage
+                    },
+                    errorMessage = failure?.message,
+                )
+            }
+        }
+    }
+
+    fun cancelTasks(taskIds: List<String>) {
+        val ids = taskIds.map(String::trim).filter(String::isNotBlank).distinct()
+        if (ids.isEmpty()) return
+        logger.i("DownloadViewModel", "batch cancel requested count=${ids.size}")
+        viewModelScope.launch {
+            var failure: Throwable? = null
+            ids.forEach { taskId ->
+                runCatching { repository.cancelDownload(taskId) }
+                    .onFailure { error ->
+                        if (failure == null) failure = error
+                        logger.e("DownloadViewModel", "batch cancel failed taskId=$taskId", error)
+                    }
+            }
+            _uiState.update { state ->
+                state.copy(
+                    infoMessage = if (failure == null) {
+                        "Canceled ${ids.size} queued item(s)."
+                    } else {
+                        state.infoMessage
+                    },
+                    errorMessage = failure?.message,
+                )
+            }
+        }
+    }
+
     fun renameDownloadedFile(taskId: String, newName: String) {
         logger.i("DownloadViewModel", "rename requested taskId=$taskId")
         viewModelScope.launch {

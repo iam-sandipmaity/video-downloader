@@ -84,6 +84,9 @@ fun ProgressScreen(
     onPause: (String) -> Unit,
     onResume: (String) -> Unit,
     onCancel: (String) -> Unit,
+    onPauseTasks: (List<String>) -> Unit,
+    onResumeTasks: (List<String>) -> Unit,
+    onCancelTasks: (List<String>) -> Unit,
     onBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -205,6 +208,13 @@ fun ProgressScreen(
                     failedCount = failedCount,
                     canceledCount = canceledCount,
                     onSelect = { selectedFilter = it.name },
+                )
+                QueueBatchActionRow(
+                    currentFilter = currentFilter,
+                    tasks = filteredTasks,
+                    onPauseTasks = onPauseTasks,
+                    onResumeTasks = onResumeTasks,
+                    onCancelTasks = onCancelTasks,
                 )
             } else {
                 Row(
@@ -367,6 +377,67 @@ fun ProgressScreen(
         content(PaddingValues())
     }
 }
+
+@Composable
+private fun QueueBatchActionRow(
+    currentFilter: ProgressFilter,
+    tasks: List<DownloadTask>,
+    onPauseTasks: (List<String>) -> Unit,
+    onResumeTasks: (List<String>) -> Unit,
+    onCancelTasks: (List<String>) -> Unit,
+) {
+    val taskIds = tasks.map { it.id }
+    val actions = when (currentFilter) {
+        ProgressFilter.Queue -> listOf(
+            QueueBatchAction(
+                label = "Pause All In Queue",
+                onClick = { onPauseTasks(taskIds) },
+            ),
+            QueueBatchAction(
+                label = "Cancel All In Queue",
+                onClick = { onCancelTasks(taskIds) },
+            ),
+        )
+
+        ProgressFilter.Paused -> listOf(
+            QueueBatchAction(
+                label = "Resume All Scheduled",
+                onClick = { onResumeTasks(taskIds) },
+            ),
+        )
+
+        else -> emptyList()
+    }
+    if (actions.isEmpty() || taskIds.isEmpty()) return
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        actions.forEach { action ->
+            Surface(
+                modifier = Modifier.clickable(onClick = action.onClick),
+                shape = RoundedCornerShape(18.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            ) {
+                Text(
+                    text = action.label,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
+        }
+    }
+}
+
+private data class QueueBatchAction(
+    val label: String,
+    val onClick: () -> Unit,
+)
 
 @Composable
 private fun QueueFilterRow(
