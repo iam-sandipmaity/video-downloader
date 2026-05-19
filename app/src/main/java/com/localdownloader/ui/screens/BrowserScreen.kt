@@ -79,9 +79,11 @@ import androidx.compose.ui.unit.dp
 import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.decode.SvgDecoder
+import com.localdownloader.domain.models.FormatChoice
 import com.localdownloader.domain.models.StreamType
 import com.localdownloader.domain.models.VideoQuality
 import com.localdownloader.ui.components.VideoCard
+import com.localdownloader.ui.model.toReadableSize
 import com.localdownloader.viewmodel.FormatUiState
 import kotlinx.coroutines.launch
 
@@ -453,9 +455,9 @@ fun BrowserScreen(
                 }
 
                 if (choices.isNotEmpty()) {
-                    BrowserDropdownRow(
+                    FormatChoiceDropdownRow(
                         label = "Format",
-                        options = choices.map { it.label },
+                        choices = choices,
                         selectedIndex = choices.indexOfFirst { it.selector == uiState.selectedFormatSelector }
                             .coerceAtLeast(0),
                         onSelected = { onFormatSelectorChanged(choices[it].selector) },
@@ -654,6 +656,84 @@ private fun ToggleChipRow(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+private fun FormatChoiceDropdownRow(
+    label: String,
+    choices: List<FormatChoice>,
+    selectedIndex: Int,
+    onSelected: (Int) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedChoice = choices.getOrNull(selectedIndex) ?: choices.firstOrNull() ?: return
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+    ) {
+        OutlinedTextField(
+            value = listOfNotNull(
+                selectedChoice.label,
+                formatChoiceSizeLabel(selectedChoice.fileSizeBytes),
+            ).joinToString(" | "),
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(MenuAnchorType.PrimaryNotEditable),
+        )
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            choices.forEachIndexed { index, choice ->
+                DropdownMenuItem(
+                    text = {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = choice.label,
+                                modifier = Modifier.weight(1f),
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            formatChoiceSizeLabel(choice.fileSizeBytes)?.let { sizeLabel ->
+                                Text(
+                                    text = sizeLabel,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    },
+                    onClick = {
+                        expanded = false
+                        onSelected(index)
+                    },
+                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
+                )
+            }
+        }
+    }
+}
+
+private fun formatChoiceDisplayLabel(choice: FormatChoice): String {
+    val sizeLabel = formatChoiceSizeLabel(choice.fileSizeBytes) ?: return choice.label
+    return "${choice.label} • $sizeLabel"
+}
+
+private fun formatChoiceSizeLabel(fileSizeBytes: Long?): String? {
+    return fileSizeBytes
+        ?.takeIf { it > 0L }
+        ?.toReadableSize()
+        ?.takeIf { it.isNotBlank() }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 private fun BrowserDropdownRow(
     label: String,
     options: List<String>,
@@ -693,4 +773,3 @@ private fun BrowserDropdownRow(
         }
     }
 }
-

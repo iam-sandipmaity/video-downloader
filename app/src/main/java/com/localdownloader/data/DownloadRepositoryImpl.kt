@@ -144,6 +144,7 @@ class DownloadRepositoryImpl @Inject constructor(
                     taskId = UUID.randomUUID().toString(),
                     options = options.copy(
                         outputTemplate = itemOutputTemplate,
+                        thumbnailUrl = entry.thumbnailUrl ?: options.thumbnailUrl,
                         isPlaylistEnabled = true,
                         playlistItemIndex = entry.playlistItemIndex,
                         playlistFolderName = playlistDirectory.name,
@@ -497,6 +498,7 @@ class DownloadRepositoryImpl @Inject constructor(
             speed = existingTask?.speed,
             eta = existingTask?.eta,
             outputPath = existingTask?.outputPath,
+            thumbnailUrl = existingTask?.thumbnailUrl ?: options.thumbnailUrl,
             downloadedStr = existingTask?.downloadedStr,
             totalSizeStr = existingTask?.totalSizeStr,
             errorMessage = null,

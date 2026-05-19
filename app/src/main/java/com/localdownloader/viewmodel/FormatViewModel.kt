@@ -869,6 +869,7 @@ class FormatViewModel @Inject constructor(
                 url = info.webpageUrl,
                 formatId = formatSelector,
                 outputTemplate = resolvedOutputTemplate,
+                thumbnailUrl = info.thumbnailUrl,
                 extractorArgs = downloadExtractorArgs,
                 fallbackExtractorArgs = fallbackExtractorArgs,
                 loadInfoJsonPath = null,
@@ -1126,6 +1127,7 @@ class FormatViewModel @Inject constructor(
                 height = null,
                 isMerged = false,
                 isImageLike = false,
+                fileSizeBytes = audio.fileSizeBytes,
             )
         }.sortedByDescending { extractBitrate(it.label) }
 
@@ -1143,6 +1145,7 @@ class FormatViewModel @Inject constructor(
                 height = parseHeight(video.resolution),
                 isMerged = false,
                 isImageLike = video.isImageLike,
+                fileSizeBytes = video.fileSizeBytes,
             )
         }.sortedWith(compareByDescending<FormatChoice> { it.height ?: 0 }.thenByDescending { extractBitrate(it.label) })
 
@@ -1172,6 +1175,7 @@ class FormatViewModel @Inject constructor(
                     height = parseHeight(video.resolution),
                     isMerged = true,
                     isImageLike = false,
+                    fileSizeBytes = combineFormatSizes(video.fileSizeBytes, audio.fileSizeBytes),
                 )
             }
         }
@@ -1190,6 +1194,7 @@ class FormatViewModel @Inject constructor(
                 height = parseHeight(item.resolution),
                 isMerged = false,
                 isImageLike = item.isImageLike,
+                fileSizeBytes = item.fileSizeBytes,
             )
         }
 
@@ -1220,6 +1225,13 @@ class FormatViewModel @Inject constructor(
     private fun extractBitrate(label: String): Int {
         val match = Regex("(\\d+)kbps").find(label) ?: return 0
         return match.groupValues[1].toIntOrNull() ?: 0
+    }
+
+    private fun combineFormatSizes(videoSizeBytes: Long?, audioSizeBytes: Long?): Long? {
+        return when {
+            videoSizeBytes != null && audioSizeBytes != null -> videoSizeBytes + audioSizeBytes
+            else -> videoSizeBytes ?: audioSizeBytes
+        }
     }
 
     private fun resolveDownloadExtractorArgs(

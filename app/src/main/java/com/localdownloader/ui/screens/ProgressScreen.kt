@@ -66,9 +66,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.localdownloader.domain.models.DownloadStatus
 import com.localdownloader.domain.models.DownloadTask
 import com.localdownloader.ui.components.LocalVideoThumbnail
@@ -495,11 +497,12 @@ private fun QueueTaskRow(
 
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.36f),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
         shape = RoundedCornerShape(24.dp),
+        tonalElevation = 1.dp,
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Row(
@@ -512,22 +515,12 @@ private fun QueueTaskRow(
                         .height(76.dp)
                         .clip(RoundedCornerShape(18.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentAlignment = Alignment.Center,
                 ) {
-                    if (!task.outputPath.isNullOrBlank()) {
-                        LocalVideoThumbnail(
-                            filePath = task.outputPath,
-                            contentDescription = task.title,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    } else {
-                        Icon(
-                            imageVector = statusIcon(task.status),
-                            contentDescription = null,
-                            tint = accent,
-                            modifier = Modifier.size(28.dp),
-                        )
-                    }
+                    DownloadTaskThumbnail(
+                        task = task,
+                        accent = accent,
+                        statusIcon = statusIcon(task.status),
+                    )
                 }
                 Column(
                     modifier = Modifier.weight(1f),
@@ -656,6 +649,7 @@ private fun QueueTaskRow(
             LinearProgressIndicator(
                 progress = { animatedProgress },
                 modifier = Modifier
+                    .height(6.dp)
                     .fillMaxWidth()
                     .clip(CircleShape),
                 color = progressColor,
@@ -716,6 +710,72 @@ private fun QueueMetaChip(
 }
 
 @Composable
+private fun DownloadTaskThumbnail(
+    task: DownloadTask,
+    accent: Color,
+    statusIcon: ImageVector,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        when {
+            !task.outputPath.isNullOrBlank() -> {
+                LocalVideoThumbnail(
+                    filePath = task.outputPath,
+                    contentDescription = task.title,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+
+            !task.thumbnailUrl.isNullOrBlank() -> {
+                AsyncImage(
+                    model = task.thumbnailUrl,
+                    contentDescription = task.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+
+            else -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(accent.copy(alpha = 0.14f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = statusIcon,
+                        contentDescription = null,
+                        tint = accent,
+                        modifier = Modifier.size(28.dp),
+                    )
+                }
+            }
+        }
+
+        Surface(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(8.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.82f),
+        ) {
+            Icon(
+                imageVector = statusIcon,
+                contentDescription = null,
+                tint = accent,
+                modifier = Modifier
+                    .padding(6.dp)
+                    .size(16.dp),
+            )
+        }
+    }
+}
+
+@Composable
 private fun ProgressTaskCard(
     task: DownloadTask,
     currentTimeMs: Long,
@@ -770,27 +830,11 @@ private fun ProgressTaskCard(
             ),
         ),
         thumbnail = {
-            if (!task.outputPath.isNullOrBlank()) {
-                LocalVideoThumbnail(
-                    filePath = task.outputPath,
-                    contentDescription = task.title,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(accent.copy(alpha = 0.14f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = statusIcon,
-                        contentDescription = null,
-                        tint = accent,
-                        modifier = Modifier.size(40.dp),
-                    )
-                }
-            }
+            DownloadTaskThumbnail(
+                task = task,
+                accent = accent,
+                statusIcon = statusIcon,
+            )
         },
         trailing = if (hasActions) {
             {

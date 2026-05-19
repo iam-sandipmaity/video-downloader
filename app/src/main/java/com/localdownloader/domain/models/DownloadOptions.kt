@@ -10,6 +10,7 @@ data class DownloadOptions(
     val url: String,
     val formatId: String,
     val outputTemplate: String = "%(title)s [%(id)s].%(ext)s",
+    val thumbnailUrl: String? = null,
     val extractorArgs: String? = null,
     val fallbackExtractorArgs: String? = null,
     val loadInfoJsonPath: String? = null,

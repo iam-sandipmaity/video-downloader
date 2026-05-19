@@ -118,6 +118,7 @@ private fun DownloadTask.toEntity(json: Json, optionsJson: String? = null): Down
         speed = speed,
         eta = eta,
         outputPath = outputPath,
+        thumbnailUrl = thumbnailUrl,
         subtitlePathsJson = json.encodeToString(subtitlePaths),
         downloadedStr = downloadedStr,
         totalSizeStr = totalSizeStr,
@@ -142,6 +143,7 @@ private fun DownloadTaskEntity.toDomainTask(json: Json): DownloadTask? {
             speed = speed,
             eta = eta,
             outputPath = outputPath,
+            thumbnailUrl = thumbnailUrl,
             subtitlePaths = subtitlePathsJson
                 ?.takeIf { it.isNotBlank() }
                 ?.let { json.decodeFromString<List<String>>(it) }
