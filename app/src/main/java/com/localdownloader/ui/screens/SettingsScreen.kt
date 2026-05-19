@@ -10,12 +10,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -41,12 +43,11 @@ import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Web
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -86,19 +87,26 @@ fun SettingsScreen(
     onThemeModeChanged: (ThemeMode) -> Unit,
     onAccentPresetChanged: (AccentPreset) -> Unit,
     onContrastModeChanged: (ContrastMode) -> Unit,
-    onOutputTemplateChanged: (String) -> Unit,
+    onDefaultVideoOutputTemplateChanged: (String) -> Unit,
+    onDefaultAudioOutputTemplateChanged: (String) -> Unit,
     onDownloadsRootFolderNameChanged: (String) -> Unit,
     onVideoSubfolderNameChanged: (String) -> Unit,
     onAudioSubfolderNameChanged: (String) -> Unit,
     onOtherSubfolderNameChanged: (String) -> Unit,
-    onContainerChanged: (String) -> Unit,
-    onEmbedMetadataChanged: (Boolean) -> Unit,
-    onEmbedThumbnailChanged: (Boolean) -> Unit,
+    onBrowseDownloadsRootFolder: () -> Unit,
+    onBrowseVideoFolder: () -> Unit,
+    onBrowseAudioFolder: () -> Unit,
+    onBrowseOtherFolder: () -> Unit,
+    onDefaultVideoContainerChanged: (String) -> Unit,
+    onDefaultAudioContainerChanged: (String) -> Unit,
+    onDefaultDownloadSubtitlesChanged: (Boolean) -> Unit,
+    onDefaultEmbedSubtitlesChanged: (Boolean) -> Unit,
+    onDefaultEmbedMetadataChanged: (Boolean) -> Unit,
+    onDefaultEmbedThumbnailChanged: (Boolean) -> Unit,
     onAutoRemoveMissingFilesFromLibraryChanged: (Boolean) -> Unit,
     onDeleteFromStorageWhenRemovedInAppChanged: (Boolean) -> Unit,
     onClearVideoTabEntries: () -> Unit,
     onDeleteAllSavedMedia: () -> Unit,
-    onSaveClicked: () -> Unit,
     onResetSettings: () -> Unit,
     onClearCache: () -> Unit,
     cacheSize: Long = 0L,
@@ -115,6 +123,7 @@ fun SettingsScreen(
 
     var choiceDialog by remember { mutableStateOf<ChoiceDialogState?>(null) }
     var textDialog by remember { mutableStateOf<TextDialogState?>(null) }
+    var filenameTemplateDialog by remember { mutableStateOf<FilenameTemplateDialogState?>(null) }
     var showLibraryClearDialog by remember { mutableStateOf(false) }
     var showDeleteAllMediaDialog by remember { mutableStateOf(false) }
     var showResetDialog by remember { mutableStateOf(false) }
@@ -142,6 +151,22 @@ fun SettingsScreen(
         }
     }
 
+    fun openFilenameTemplateDialog(
+        title: String,
+        currentValue: String,
+        presets: List<FilenameTemplatePreset>,
+        onConfirm: (String) -> Unit,
+    ) {
+        filenameTemplateDialog = FilenameTemplateDialogState(
+            title = title,
+            value = currentValue,
+            supporting = "Use yt-dlp placeholders. Keep %(ext)s in the template so the final file extension stays correct.",
+            presets = presets,
+            tokens = suggestedFilenameTokens(),
+            onConfirm = onConfirm,
+        )
+    }
+
     if (choiceDialog != null) {
         ChoiceDialog(
             state = choiceDialog!!,
@@ -153,6 +178,13 @@ fun SettingsScreen(
         TextEditDialog(
             state = textDialog!!,
             onDismiss = { textDialog = null },
+        )
+    }
+
+    if (filenameTemplateDialog != null) {
+        FilenameTemplateDialog(
+            state = filenameTemplateDialog!!,
+            onDismiss = { filenameTemplateDialog = null },
         )
     }
 
@@ -265,11 +297,19 @@ fun SettingsScreen(
                     val accentOrder = listOf(
                         AccentPreset.AMBER,
                         AccentPreset.OCEAN,
-                        AccentPreset.ROSE,
+                        AccentPreset.COBALT,
+                        AccentPreset.AQUA,
+                        AccentPreset.TEAL,
+                        AccentPreset.MINT,
+                        AccentPreset.EMERALD,
                         AccentPreset.FOREST,
+                        AccentPreset.ROSE,
+                        AccentPreset.CRIMSON,
+                        AccentPreset.MAGENTA,
                         AccentPreset.PURPLE,
                         AccentPreset.YELLOW,
                         AccentPreset.ORANGE,
+                        AccentPreset.COPPER,
                         AccentPreset.MONOCHROME,
                     )
                     choiceDialog = ChoiceDialogState(
@@ -289,24 +329,19 @@ fun SettingsScreen(
             SettingsValueRow(
                 icon = Icons.Outlined.Info,
                 title = "Contrast",
-                subtitle = "Choose between the softer default palette and stronger contrast.",
+                subtitle = "Tune how gently or sharply the app separates cards, text, and backgrounds.",
                 value = contrastLabel(uiState.contrastMode),
                 onClick = {
                     choiceDialog = ChoiceDialogState(
                         title = "Contrast",
                         selected = contrastLabel(uiState.contrastMode),
-                        options = listOf(
+                        options = ContrastMode.entries.map { mode ->
                             ChoiceOption(
-                                title = contrastLabel(ContrastMode.STANDARD),
-                                subtitle = "Balanced contrast for the normal theme surfaces.",
-                                onSelect = { onContrastModeChanged(ContrastMode.STANDARD) },
-                            ),
-                            ChoiceOption(
-                                title = contrastLabel(ContrastMode.HIGH),
-                                subtitle = "Sharper text and stronger separation between cards and background.",
-                                onSelect = { onContrastModeChanged(ContrastMode.HIGH) },
-                            ),
-                        ),
+                                title = contrastLabel(mode),
+                                subtitle = contrastSubtitle(mode),
+                                onSelect = { onContrastModeChanged(mode) },
+                            )
+                        },
                     )
                 },
             )
@@ -314,72 +349,76 @@ fun SettingsScreen(
 
         SectionLabel("Folders")
         SettingsListCard {
-            SettingsValueRow(
+            SettingsBrowseValueRow(
                 icon = Icons.Outlined.Folder,
                 title = "Downloads root",
-                subtitle = "Main app folder under Downloads.",
-                value = uiState.downloadsRootFolderName.cleanPreview(),
-                onClick = {
+                subtitle = "Type a folder path under Downloads or browse to a subfolder you want the app to use as its main root.",
+                value = uiState.downloadsRootFolderName.folderPreview("Default root"),
+                onEditClick = {
                     textDialog = TextDialogState(
                         title = "Downloads root",
                         value = uiState.downloadsRootFolderName,
-                        label = "Folder name",
-                        supporting = "Example: LocalDownloader",
+                        label = "Folder path under Downloads",
+                        supporting = "Examples: LocalDownloader or Media/LocalDownloader",
                         confirmLabel = "Save",
                         onConfirm = onDownloadsRootFolderNameChanged,
                     )
                 },
+                onBrowseClick = onBrowseDownloadsRootFolder,
             )
             DividerInset()
-            SettingsValueRow(
+            SettingsBrowseValueRow(
                 icon = Icons.Outlined.Folder,
                 title = "Video folder",
-                subtitle = "Where downloaded video files are grouped.",
-                value = uiState.videoSubfolderName.cleanPreview(),
-                onClick = {
+                subtitle = "Type a subfolder path or browse to a folder inside the current downloads root for videos.",
+                value = uiState.videoSubfolderName.folderPreview("Downloads root"),
+                onEditClick = {
                     textDialog = TextDialogState(
                         title = "Video folder",
                         value = uiState.videoSubfolderName,
-                        label = "Folder name",
-                        supporting = "Example: Videos",
+                        label = "Folder path inside the downloads root",
+                        supporting = "Examples: Videos or Media/Videos. Leave blank to save videos directly in the downloads root.",
                         confirmLabel = "Save",
                         onConfirm = onVideoSubfolderNameChanged,
                     )
                 },
+                onBrowseClick = onBrowseVideoFolder,
             )
             DividerInset()
-            SettingsValueRow(
+            SettingsBrowseValueRow(
                 icon = Icons.Outlined.Folder,
                 title = "Audio folder",
-                subtitle = "Where downloaded songs and audio extracts are grouped.",
-                value = uiState.audioSubfolderName.cleanPreview(),
-                onClick = {
+                subtitle = "Type a subfolder path or browse to a folder inside the current downloads root for audio.",
+                value = uiState.audioSubfolderName.folderPreview("Downloads root"),
+                onEditClick = {
                     textDialog = TextDialogState(
                         title = "Audio folder",
                         value = uiState.audioSubfolderName,
-                        label = "Folder name",
-                        supporting = "Example: Audio",
+                        label = "Folder path inside the downloads root",
+                        supporting = "Examples: Audio or Music/Tracks. Leave blank to save audio directly in the downloads root.",
                         confirmLabel = "Save",
                         onConfirm = onAudioSubfolderNameChanged,
                     )
                 },
+                onBrowseClick = onBrowseAudioFolder,
             )
             DividerInset()
-            SettingsValueRow(
+            SettingsBrowseValueRow(
                 icon = Icons.Outlined.Folder,
                 title = "Other files folder",
-                subtitle = "A fallback folder for anything that is not audio or video.",
-                value = uiState.otherSubfolderName.cleanPreview(),
-                onClick = {
+                subtitle = "Type a subfolder path or browse to a folder inside the current downloads root for anything else.",
+                value = uiState.otherSubfolderName.folderPreview("Downloads root"),
+                onEditClick = {
                     textDialog = TextDialogState(
                         title = "Other files folder",
                         value = uiState.otherSubfolderName,
-                        label = "Folder name",
-                        supporting = "Example: Files",
+                        label = "Folder path inside the downloads root",
+                        supporting = "Examples: Files or Archives/Misc. Leave blank to save these files directly in the downloads root.",
                         confirmLabel = "Save",
                         onConfirm = onOtherSubfolderNameChanged,
                     )
                 },
+                onBrowseClick = onBrowseOtherFolder,
             )
             DividerInset()
             SettingsActionRow(
@@ -399,17 +438,30 @@ fun SettingsScreen(
         SettingsListCard {
             SettingsValueRow(
                 icon = Icons.Outlined.Description,
-                title = "Filename template",
-                subtitle = "Used for future downloads.",
+                title = "Filename template [video]",
+                subtitle = "Used for future video and merged downloads.",
                 value = uiState.outputTemplate,
                 onClick = {
-                    textDialog = TextDialogState(
-                        title = "Filename template",
-                        value = uiState.outputTemplate,
-                        label = "Template",
-                        supporting = "Example: %(title)s [%(id)s].%(ext)s",
-                        confirmLabel = "Save",
-                        onConfirm = onOutputTemplateChanged,
+                    openFilenameTemplateDialog(
+                        title = "Filename template [video]",
+                        currentValue = uiState.outputTemplate,
+                        presets = videoFilenameTemplatePresets(),
+                        onConfirm = onDefaultVideoOutputTemplateChanged,
+                    )
+                },
+            )
+            DividerInset()
+            SettingsValueRow(
+                icon = Icons.Outlined.Description,
+                title = "Filename template [audio]",
+                subtitle = "Used for future audio-only downloads and extracts.",
+                value = uiState.audioOutputTemplate,
+                onClick = {
+                    openFilenameTemplateDialog(
+                        title = "Filename template [audio]",
+                        currentValue = uiState.audioOutputTemplate,
+                        presets = audioFilenameTemplatePresets(),
+                        onConfirm = onDefaultAudioOutputTemplateChanged,
                     )
                 },
             )
@@ -423,12 +475,33 @@ fun SettingsScreen(
                     val containers = listOf("mp4", "webm", "mkv", "mov")
                     choiceDialog = ChoiceDialogState(
                         title = "Default video container",
-                        selected = uiState.selectedContainer,
+                        selected = uiState.selectedContainer.uppercase(),
                         options = containers.map { container ->
                             ChoiceOption(
                                 title = container.uppercase(),
                                 subtitle = containerDescription(container),
-                                onSelect = { onContainerChanged(container) },
+                                onSelect = { onDefaultVideoContainerChanged(container) },
+                            )
+                        },
+                    )
+                },
+            )
+            DividerInset()
+            SettingsValueRow(
+                icon = Icons.Outlined.CloudDownload,
+                title = "Default audio container",
+                subtitle = "Preferred output format for future audio extracts.",
+                value = uiState.selectedAudioFormat.uppercase(),
+                onClick = {
+                    val audioFormats = listOf("mp3", "m4a", "aac", "opus", "flac", "wav")
+                    choiceDialog = ChoiceDialogState(
+                        title = "Default audio container",
+                        selected = uiState.selectedAudioFormat.uppercase(),
+                        options = audioFormats.map { format ->
+                            ChoiceOption(
+                                title = format.uppercase(),
+                                subtitle = audioFormatDescription(format),
+                                onSelect = { onDefaultAudioContainerChanged(format) },
                             )
                         },
                     )
@@ -436,11 +509,27 @@ fun SettingsScreen(
             )
             DividerInset()
             SettingsToggleRow(
+                icon = Icons.Outlined.Description,
+                title = "Download subtitles",
+                subtitle = "Fetch subtitle sidecars automatically when they are available.",
+                checked = uiState.downloadSubtitles,
+                onCheckedChange = onDefaultDownloadSubtitlesChanged,
+            )
+            DividerInset()
+            SettingsToggleRow(
+                icon = Icons.Outlined.Save,
+                title = "Embed subtitles",
+                subtitle = "Try to place subtitles inside the final video file when the container supports it.",
+                checked = uiState.embedSubtitles,
+                onCheckedChange = onDefaultEmbedSubtitlesChanged,
+            )
+            DividerInset()
+            SettingsToggleRow(
                 icon = Icons.Outlined.Save,
                 title = "Embed metadata",
                 subtitle = "Write title, creator, album, and related tags into supported files.",
                 checked = uiState.embedMetadata,
-                onCheckedChange = onEmbedMetadataChanged,
+                onCheckedChange = onDefaultEmbedMetadataChanged,
             )
             DividerInset()
             SettingsToggleRow(
@@ -448,7 +537,16 @@ fun SettingsScreen(
                 title = "Embed thumbnail",
                 subtitle = "Attach artwork or cover images directly into compatible media files.",
                 checked = uiState.embedThumbnail,
-                onCheckedChange = onEmbedThumbnailChanged,
+                onCheckedChange = onDefaultEmbedThumbnailChanged,
+            )
+        }
+
+        SettingsListCard {
+            SettingsActionRow(
+                icon = Icons.Outlined.Refresh,
+                title = "Reset all settings",
+                subtitle = "Restore appearance, folders, download defaults, and library behavior back to the default setup.",
+                onClick = { showResetDialog = true },
             )
         }
 
@@ -610,6 +708,13 @@ fun SettingsScreen(
             )
             DividerInset()
             SettingsActionRow(
+                icon = Icons.Outlined.Web,
+                title = "Official website",
+                subtitle = "video.sandipmaity.me",
+                onClick = { openUrl("https://video.sandipmaity.me") },
+            )
+            DividerInset()
+            SettingsActionRow(
                 icon = Icons.Outlined.Code,
                 title = "App source code",
                 subtitle = "github.com/iam-sandipmaity/video-downloader",
@@ -662,29 +767,6 @@ fun SettingsScreen(
             )
         }
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            FilledTonalButton(
-                onClick = onSaveClicked,
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(vertical = 14.dp),
-            ) {
-                Icon(Icons.Outlined.Save, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text("Save changes")
-            }
-            OutlinedButton(
-                onClick = { showResetDialog = true },
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(vertical = 14.dp),
-            ) {
-                Icon(Icons.Outlined.Refresh, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text("Reset")
-            }
-        }
     }
 }
 
@@ -752,6 +834,71 @@ private fun SettingsValueRow(
         onClick = onClick,
         enabled = true,
     )
+}
+
+@Composable
+private fun SettingsBrowseValueRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    value: String,
+    onEditClick: () -> Unit,
+    onBrowseClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onEditClick)
+            .padding(horizontal = 18.dp, vertical = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(24.dp),
+        )
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Medium,
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Column(
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                modifier = Modifier.clickable(onClick = onBrowseClick),
+            ) {
+                Text(
+                    text = "Browse",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -937,7 +1084,13 @@ private fun ChoiceDialog(
         onDismissRequest = onDismiss,
         title = { Text(state.title) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 440.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
                 state.options.forEach { option ->
                     Row(
                         modifier = Modifier
@@ -1040,6 +1193,118 @@ private fun TextEditDialog(
     )
 }
 
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun FilenameTemplateDialog(
+    state: FilenameTemplateDialogState,
+    onDismiss: () -> Unit,
+) {
+    var value by remember(state) { mutableStateOf(state.value) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(state.title) },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 520.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = { value = it },
+                    label = { Text("Filename template") },
+                    supportingText = { Text(state.supporting) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                Text(
+                    text = "Quick presets",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    state.presets.forEach { preset ->
+                        Surface(
+                            shape = RoundedCornerShape(18.dp),
+                            color = if (value.trim() == preset.template) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surfaceContainerLow
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { value = preset.template },
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Text(
+                                    text = preset.title,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Medium,
+                                )
+                                Text(
+                                    text = preset.template,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Text(
+                    text = "Suggested fields",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    state.tokens.forEach { token ->
+                        FilterChip(
+                            selected = value.contains(token),
+                            onClick = {
+                                value = appendTemplateToken(
+                                    template = value,
+                                    token = token,
+                                )
+                            },
+                            label = { Text(token) },
+                        )
+                    }
+                }
+
+                Text(
+                    text = "Tip: keep %(ext)s somewhere in the template so the saved file keeps the correct extension.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    state.onConfirm(value.trim())
+                    onDismiss()
+                },
+            ) {
+                Text("Use template")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+    )
+}
+
 @Composable
 private fun ConfirmDialog(
     title: String,
@@ -1117,6 +1382,20 @@ private data class TextDialogState(
     val onConfirm: (String) -> Unit,
 )
 
+private data class FilenameTemplateDialogState(
+    val title: String,
+    val value: String,
+    val supporting: String,
+    val presets: List<FilenameTemplatePreset>,
+    val tokens: List<String>,
+    val onConfirm: (String) -> Unit,
+)
+
+private data class FilenameTemplatePreset(
+    val title: String,
+    val template: String,
+)
+
 private fun themeModeLabel(mode: ThemeMode): String {
     return when (mode) {
         ThemeMode.SYSTEM -> "System"
@@ -1129,11 +1408,19 @@ private fun accentLabel(accentPreset: AccentPreset): String {
     return when (accentPreset) {
         AccentPreset.AMBER -> "Material you"
         AccentPreset.OCEAN -> "Blue"
-        AccentPreset.ROSE -> "Red"
+        AccentPreset.COBALT -> "Cobalt"
+        AccentPreset.AQUA -> "Aqua"
+        AccentPreset.TEAL -> "Teal"
+        AccentPreset.MINT -> "Mint"
+        AccentPreset.EMERALD -> "Emerald"
         AccentPreset.FOREST -> "Green"
+        AccentPreset.ROSE -> "Rose"
+        AccentPreset.CRIMSON -> "Crimson"
+        AccentPreset.MAGENTA -> "Magenta"
         AccentPreset.PURPLE -> "Purple"
         AccentPreset.YELLOW -> "Yellow"
         AccentPreset.ORANGE -> "Orange"
+        AccentPreset.COPPER -> "Copper"
         AccentPreset.MONOCHROME -> "Monochrome"
     }
 }
@@ -1142,19 +1429,38 @@ private fun accentSubtitle(accentPreset: AccentPreset): String {
     return when (accentPreset) {
         AccentPreset.AMBER -> "A warm default with the soft amber look already used by the app."
         AccentPreset.OCEAN -> "Cool blue highlights for a calmer downloader mood."
-        AccentPreset.ROSE -> "A stronger red accent for bold playback and action states."
+        AccentPreset.COBALT -> "A deeper electric blue with stronger player and action contrast."
+        AccentPreset.AQUA -> "Bright aqua accents with a cleaner, glassier utility feel."
+        AccentPreset.TEAL -> "Blue-green accents that feel crisp, modern, and a little lighter."
+        AccentPreset.MINT -> "Fresh mint accents for a softer, cleaner utility look."
+        AccentPreset.EMERALD -> "A richer jewel-green palette with stronger contrast than mint."
         AccentPreset.FOREST -> "A greener look with a softer natural feel."
+        AccentPreset.ROSE -> "Warm rose accents for a brighter and friendlier red tone."
+        AccentPreset.CRIMSON -> "A richer red tone with more drama than the standard rose theme."
+        AccentPreset.MAGENTA -> "Bold magenta highlights for a more vivid music and creator vibe."
         AccentPreset.PURPLE -> "A richer violet palette for a more dramatic music vibe."
         AccentPreset.YELLOW -> "Bright yellow accents with higher energy."
         AccentPreset.ORANGE -> "Warm orange action tones similar to media apps."
+        AccentPreset.COPPER -> "Copper-orange accents that feel warmer and more grounded than amber."
         AccentPreset.MONOCHROME -> "Muted grayscale accents for a cleaner neutral setup."
     }
 }
 
 private fun contrastLabel(mode: ContrastMode): String {
     return when (mode) {
+        ContrastMode.SOFT -> "Soft"
         ContrastMode.STANDARD -> "Standard"
         ContrastMode.HIGH -> "High contrast"
+        ContrastMode.ULTRA -> "Ultra contrast"
+    }
+}
+
+private fun contrastSubtitle(mode: ContrastMode): String {
+    return when (mode) {
+        ContrastMode.SOFT -> "Gentler surfaces and softer separation for a calmer look."
+        ContrastMode.STANDARD -> "Balanced contrast for the normal theme surfaces."
+        ContrastMode.HIGH -> "Sharper text and stronger separation between cards and background."
+        ContrastMode.ULTRA -> "Maximum separation for the clearest edges and strongest readability."
     }
 }
 
@@ -1168,8 +1474,97 @@ private fun containerDescription(container: String): String {
     }
 }
 
+private fun audioFormatDescription(format: String): String {
+    return when (format) {
+        "mp3" -> "The broadest device and car-player compatibility."
+        "m4a" -> "AAC audio in a compact container that works well on most phones."
+        "aac" -> "Raw AAC output for lighter files when you need a simpler audio stream."
+        "opus" -> "High efficiency audio that is great when the source already supports it."
+        "flac" -> "Lossless output when you want to preserve as much audio quality as possible."
+        "wav" -> "Large but simple audio files that work well in editors."
+        else -> "Use this format for future audio extracts."
+    }
+}
+
+private fun videoFilenameTemplatePresets(): List<FilenameTemplatePreset> {
+    return listOf(
+        FilenameTemplatePreset(
+            title = "Title and ID",
+            template = "%(title)s [%(id)s].%(ext)s",
+        ),
+        FilenameTemplatePreset(
+            title = "Uploader and title",
+            template = "%(uploader)s - %(title)s [%(id)s].%(ext)s",
+        ),
+        FilenameTemplatePreset(
+            title = "Playlist-friendly",
+            template = "%(playlist_index,playlist_autonumber&{}. |)s%(title)s [%(id)s].%(ext)s",
+        ),
+        FilenameTemplatePreset(
+            title = "Date first",
+            template = "%(upload_date>%Y-%m-%d)s - %(title)s [%(id)s].%(ext)s",
+        ),
+    )
+}
+
+private fun audioFilenameTemplatePresets(): List<FilenameTemplatePreset> {
+    return listOf(
+        FilenameTemplatePreset(
+            title = "Title and ID",
+            template = "%(title)s [%(id)s].%(ext)s",
+        ),
+        FilenameTemplatePreset(
+            title = "Artist and title",
+            template = "%(artist,uploader)s - %(title)s.%(ext)s",
+        ),
+        FilenameTemplatePreset(
+            title = "Album track",
+            template = "%(album,uploader)s/%(track_number,playlist_index&{}. )s%(title)s.%(ext)s",
+        ),
+        FilenameTemplatePreset(
+            title = "Date and title",
+            template = "%(release_date,upload_date>%Y-%m-%d)s - %(title)s.%(ext)s",
+        ),
+    )
+}
+
+private fun suggestedFilenameTokens(): List<String> {
+    return listOf(
+        "%(title)s",
+        "%(uploader)s",
+        "%(artist)s",
+        "%(album)s",
+        "%(track)s",
+        "%(playlist_index,playlist_autonumber&{}. |)s",
+        "%(upload_date>%Y-%m-%d)s",
+        "%(release_date>%Y-%m-%d)s",
+        "%(duration_string)s",
+        "%(id)s",
+        "%(ext)s",
+    )
+}
+
+private fun appendTemplateToken(template: String, token: String): String {
+    val trimmed = template.trimEnd()
+    if (trimmed.isBlank()) return token
+    val separator = when {
+        trimmed.endsWith("/") -> ""
+        trimmed.endsWith("\\") -> ""
+        trimmed.endsWith("-") -> " "
+        trimmed.endsWith("_") -> ""
+        trimmed.endsWith("[") -> ""
+        trimmed.endsWith("(") -> ""
+        else -> " "
+    }
+    return trimmed + separator + token
+}
+
 private fun String.cleanPreview(): String {
     return trim().ifBlank { "Default" }
+}
+
+private fun String.folderPreview(defaultLabel: String): String {
+    return trim().ifBlank { defaultLabel }
 }
 
 private fun formatFileSize(bytes: Long): String {
