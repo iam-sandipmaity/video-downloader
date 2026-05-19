@@ -420,6 +420,7 @@ fun DownloaderApp(
                     onOpenSettings = { navController.navigate(Routes.Settings) },
                     onOpenHelp = { navController.navigate(Routes.Help) },
                     onDismissDownloadSetupNotice = formatViewModel::dismissDownloadSetupNotice,
+                    onDismissMessage = formatViewModel::dismissMessage,
                     onDarkThemeChanged = formatViewModel::toggleDarkTheme,
                     isDownloadButtonEnabled = formatViewModel.isDownloadButtonEnabled(),
                 )

@@ -40,6 +40,17 @@ class FormatViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(FormatUiState())
     val uiState: StateFlow<FormatUiState> = _uiState.asStateFlow()
 
+    private fun scopedMessageState(
+        state: FormatUiState,
+        scope: FormatMessageScope,
+        infoMessage: String? = null,
+        errorMessage: String? = null,
+    ): FormatUiState = state.copy(
+        messageScope = scope,
+        infoMessage = infoMessage,
+        errorMessage = errorMessage,
+    )
+
     init {
         viewModelScope.launch {
             repository.observeSettings().collect { settings ->
@@ -93,7 +104,11 @@ class FormatViewModel @Inject constructor(
         if (!urlValidator.isValidHttpUrl(url)) {
             logger.w("FormatViewModel", "Rejected analyze request due to invalid URL: $url")
             _uiState.update { state ->
-                state.copy(errorMessage = "Please enter a valid http/https URL.")
+                scopedMessageState(
+                    state = state,
+                    scope = FormatMessageScope.BROWSER,
+                    errorMessage = "Please enter a valid http/https URL.",
+                )
             }
             return
         }
@@ -143,6 +158,7 @@ class FormatViewModel @Inject constructor(
                     _uiState.update { state ->
                         state.copy(
                             isAnalyzing = false,
+                            messageScope = FormatMessageScope.BROWSER,
                             videoInfo = info,
                             availableVideoAudioChoices = choiceBundle.videoAudioChoices,
                             availableVideoOnlyChoices = choiceBundle.videoOnlyChoices,
@@ -165,6 +181,7 @@ class FormatViewModel @Inject constructor(
                     _uiState.update { state ->
                         state.copy(
                             isAnalyzing = false,
+                            messageScope = FormatMessageScope.BROWSER,
                             errorMessage = buildString {
                                 append(baseMessage)
                                 if (shouldShowRuntimeHint(baseMessage)) {
@@ -431,19 +448,23 @@ class FormatViewModel @Inject constructor(
 
     fun onCookiesEnabledChanged(value: Boolean) {
         _uiState.update { state -> state.copy(cookiesEnabled = value) }
-        persistSettings("Cookie preference saved.")
+        persistSettings("Cookie preference saved.", FormatMessageScope.COOKIES)
     }
 
     fun onCookieUserAgentEnabledChanged(value: Boolean) {
         _uiState.update { state -> state.copy(cookieUserAgentEnabled = value) }
-        persistSettings("Cookie header preference saved.")
+        persistSettings("Cookie header preference saved.", FormatMessageScope.COOKIES)
     }
 
     fun importCookieText(rawText: String) {
         val inferredUrl = CookieTextCodec.inferUrl(rawText)
         if (inferredUrl.isNullOrBlank()) {
             _uiState.update { state ->
-                state.copy(errorMessage = "Could not detect a site URL from the copied cookie text.")
+                scopedMessageState(
+                    state = state,
+                    scope = FormatMessageScope.COOKIES,
+                    errorMessage = "Could not detect a site URL from the copied cookie text.",
+                )
             }
             return
         }
@@ -464,13 +485,21 @@ class FormatViewModel @Inject constructor(
         val normalizedUrl = CookieTextCodec.normalizeUrl(url)
         if (normalizedUrl.isNullOrBlank()) {
             _uiState.update { state ->
-                state.copy(errorMessage = "Enter a valid website URL for this cookie.")
+                scopedMessageState(
+                    state = state,
+                    scope = FormatMessageScope.COOKIES,
+                    errorMessage = "Enter a valid website URL for this cookie.",
+                )
             }
             return
         }
         if (cookiesText.isBlank()) {
             _uiState.update { state ->
-                state.copy(errorMessage = "Cookie text cannot be empty.")
+                scopedMessageState(
+                    state = state,
+                    scope = FormatMessageScope.COOKIES,
+                    errorMessage = "Cookie text cannot be empty.",
+                )
             }
             return
         }
@@ -507,13 +536,18 @@ class FormatViewModel @Inject constructor(
                         appSettings = newSettings,
                         cookiesEnabled = true,
                         cookieProfiles = updatedProfiles,
+                        messageScope = FormatMessageScope.COOKIES,
                         infoMessage = successMessage,
                         errorMessage = null,
                     )
                 }
             }.onFailure { error ->
                 _uiState.update { state ->
-                    state.copy(errorMessage = error.message ?: "Unable to save cookie.")
+                    scopedMessageState(
+                        state = state,
+                        scope = FormatMessageScope.COOKIES,
+                        errorMessage = error.message ?: "Unable to save cookie.",
+                    )
                 }
             }
         }
@@ -530,13 +564,18 @@ class FormatViewModel @Inject constructor(
                     state.copy(
                         appSettings = newSettings,
                         cookieProfiles = updatedProfiles,
+                        messageScope = FormatMessageScope.COOKIES,
                         infoMessage = "Cookie removed.",
                         errorMessage = null,
                     )
                 }
             }.onFailure { error ->
                 _uiState.update { state ->
-                    state.copy(errorMessage = error.message ?: "Unable to remove cookie.")
+                    scopedMessageState(
+                        state = state,
+                        scope = FormatMessageScope.COOKIES,
+                        errorMessage = error.message ?: "Unable to remove cookie.",
+                    )
                 }
             }
         }
@@ -552,13 +591,18 @@ class FormatViewModel @Inject constructor(
                     state.copy(
                         appSettings = newSettings,
                         cookieProfiles = emptyList(),
+                        messageScope = FormatMessageScope.COOKIES,
                         infoMessage = "All cookies removed.",
                         errorMessage = null,
                     )
                 }
             }.onFailure { error ->
                 _uiState.update { state ->
-                    state.copy(errorMessage = error.message ?: "Unable to clear cookies.")
+                    scopedMessageState(
+                        state = state,
+                        scope = FormatMessageScope.COOKIES,
+                        errorMessage = error.message ?: "Unable to clear cookies.",
+                    )
                 }
             }
         }
@@ -572,13 +616,21 @@ class FormatViewModel @Inject constructor(
         val normalizedUrl = CookieTextCodec.normalizeUrl(url)
         if (normalizedUrl.isNullOrBlank()) {
             _uiState.update { state ->
-                state.copy(errorMessage = "That site URL could not be used for cookies.")
+                scopedMessageState(
+                    state = state,
+                    scope = FormatMessageScope.COOKIES,
+                    errorMessage = "That site URL could not be used for cookies.",
+                )
             }
             return
         }
         if (cookieText.isBlank()) {
             _uiState.update { state ->
-                state.copy(errorMessage = "No cookies were captured from that page yet.")
+                scopedMessageState(
+                    state = state,
+                    scope = FormatMessageScope.COOKIES,
+                    errorMessage = "No cookies were captured from that page yet.",
+                )
             }
             return
         }
@@ -600,13 +652,21 @@ class FormatViewModel @Inject constructor(
     ) {
         if (cookieText.isBlank()) {
             _uiState.update { state ->
-                state.copy(errorMessage = "No YouTube cookies were captured from the login page.")
+                scopedMessageState(
+                    state = state,
+                    scope = FormatMessageScope.YOUTUBE_ACCESS,
+                    errorMessage = "No YouTube cookies were captured from the login page.",
+                )
             }
             return
         }
         if (!authConfig.isConfigured()) {
             _uiState.update { state ->
-                state.copy(errorMessage = "PO token generation did not complete. Try loading the sample video again.")
+                scopedMessageState(
+                    state = state,
+                    scope = FormatMessageScope.YOUTUBE_ACCESS,
+                    errorMessage = "PO token generation did not complete. Try loading the sample video again.",
+                )
             }
             return
         }
@@ -634,13 +694,18 @@ class FormatViewModel @Inject constructor(
                         cookiesEnabled = true,
                         cookieProfiles = updatedProfiles,
                         youtubeAuthConfig = savedConfig,
+                        messageScope = FormatMessageScope.YOUTUBE_ACCESS,
                         infoMessage = "YouTube access saved. Long-form downloads can now retry with your account session.",
                         errorMessage = null,
                     )
                 }
             }.onFailure { error ->
                 _uiState.update { state ->
-                    state.copy(errorMessage = error.message ?: "Unable to save YouTube access.")
+                    scopedMessageState(
+                        state = state,
+                        scope = FormatMessageScope.YOUTUBE_ACCESS,
+                        errorMessage = error.message ?: "Unable to save YouTube access.",
+                    )
                 }
             }
         }
@@ -650,7 +715,11 @@ class FormatViewModel @Inject constructor(
         val current = uiState.value.youtubeAuthConfig
         if (enabled && !current.isConfigured()) {
             _uiState.update { state ->
-                state.copy(errorMessage = "Generate YouTube access first, then turn it on.")
+                scopedMessageState(
+                    state = state,
+                    scope = FormatMessageScope.YOUTUBE_ACCESS,
+                    errorMessage = "Generate YouTube access first, then turn it on.",
+                )
             }
             return
         }
@@ -665,6 +734,7 @@ class FormatViewModel @Inject constructor(
             } else {
                 "YouTube access disabled."
             },
+            FormatMessageScope.YOUTUBE_ACCESS,
         )
     }
 
@@ -680,20 +750,25 @@ class FormatViewModel @Inject constructor(
                     state.copy(
                         appSettings = newSettings,
                         youtubeAuthConfig = YoutubeAuthConfig(),
+                        messageScope = FormatMessageScope.YOUTUBE_ACCESS,
                         infoMessage = "Saved YouTube PO tokens were cleared.",
                         errorMessage = null,
                     )
                 }
             }.onFailure { error ->
                 _uiState.update { state ->
-                    state.copy(errorMessage = error.message ?: "Unable to clear YouTube access.")
+                    scopedMessageState(
+                        state = state,
+                        scope = FormatMessageScope.YOUTUBE_ACCESS,
+                        errorMessage = error.message ?: "Unable to clear YouTube access.",
+                    )
                 }
             }
         }
     }
 
     fun saveSettings() {
-        persistSettings("Settings saved locally.")
+        persistSettings("Settings saved locally.", FormatMessageScope.SETTINGS)
     }
 
     fun dismissDownloadSetupNotice() {
@@ -707,7 +782,11 @@ class FormatViewModel @Inject constructor(
             runCatching { repository.updateSettings(updatedSettings) }
                 .onFailure { error ->
                     _uiState.update { state ->
-                        state.copy(errorMessage = error.message ?: "Unable to save the setup reminder state.")
+                        scopedMessageState(
+                            state = state,
+                            scope = FormatMessageScope.BROWSER,
+                            errorMessage = error.message ?: "Unable to save the setup reminder state.",
+                        )
                     }
                 }
         }
@@ -746,20 +825,32 @@ class FormatViewModel @Inject constructor(
                 errorMessage = null,
             )
         }
-        persistSettings("Settings reset to defaults.")
+        persistSettings("Settings reset to defaults.", FormatMessageScope.SETTINGS)
     }
 
-    private fun persistSettings(successMessage: String) {
-        persistSettingsInternal(successMessage = successMessage, clearSuccessIfSilent = false)
+    private fun persistSettings(
+        successMessage: String,
+        scope: FormatMessageScope = FormatMessageScope.SETTINGS,
+    ) {
+        persistSettingsInternal(
+            successMessage = successMessage,
+            clearSuccessIfSilent = false,
+            scope = scope,
+        )
     }
 
     private fun persistSettingsSilently() {
-        persistSettingsInternal(successMessage = null, clearSuccessIfSilent = true)
+        persistSettingsInternal(
+            successMessage = null,
+            clearSuccessIfSilent = true,
+            scope = FormatMessageScope.SETTINGS,
+        )
     }
 
     private fun persistSettingsInternal(
         successMessage: String?,
         clearSuccessIfSilent: Boolean,
+        scope: FormatMessageScope,
     ) {
         viewModelScope.launch {
             val state = uiState.value
@@ -788,18 +879,25 @@ class FormatViewModel @Inject constructor(
                 youtubeAuthConfig = state.youtubeAuthConfig,
                 hasSeenDownloadSetupNotice = state.appSettings.hasSeenDownloadSetupNotice,
                 darkTheme = state.isDarkTheme,
-            )
+                )
             runCatching { repository.updateSettings(newSettings) }
                 .onSuccess {
                     _uiState.update {
                         it.copy(
+                            messageScope = scope,
                             infoMessage = successMessage ?: if (clearSuccessIfSilent) null else it.infoMessage,
                             appSettings = newSettings,
                         )
                     }
                 }
                 .onFailure { error ->
-                    _uiState.update { it.copy(errorMessage = error.message ?: "Failed to save settings.") }
+                    _uiState.update {
+                        scopedMessageState(
+                            state = it,
+                            scope = scope,
+                            errorMessage = error.message ?: "Failed to save settings.",
+                        )
+                    }
                 }
         }
     }
@@ -814,7 +912,11 @@ class FormatViewModel @Inject constructor(
         if (info == null) {
             logger.w("FormatViewModel", "Queue rejected: analyze missing")
             _uiState.update { current ->
-                current.copy(errorMessage = "Analyze a URL first.")
+                scopedMessageState(
+                    state = current,
+                    scope = FormatMessageScope.BROWSER,
+                    errorMessage = "Analyze a URL first.",
+                )
             }
             return
         }
@@ -937,6 +1039,7 @@ class FormatViewModel @Inject constructor(
                         _uiState.update { current ->
                             current.copy(
                                 isQueueing = false,
+                                messageScope = FormatMessageScope.BROWSER,
                                 infoMessage = "Queued ${taskIds.size} playlist items in order.",
                                 // Store current settings and disable button for 6 seconds
                                 lastQueuedStreamType = current.selectedStreamType,
@@ -955,6 +1058,7 @@ class FormatViewModel @Inject constructor(
                         _uiState.update { current ->
                             current.copy(
                                 isQueueing = false,
+                                messageScope = FormatMessageScope.BROWSER,
                                 errorMessage = error.message ?: "Unable to queue playlist.",
                             )
                         }
@@ -974,6 +1078,7 @@ class FormatViewModel @Inject constructor(
                     _uiState.update { current ->
                         current.copy(
                             isQueueing = false,
+                            messageScope = FormatMessageScope.BROWSER,
                             infoMessage = "Added to queue. Task: $taskId",
                             // Store current settings and disable button for 6 seconds
                             lastQueuedStreamType = current.selectedStreamType,
@@ -992,6 +1097,7 @@ class FormatViewModel @Inject constructor(
                     _uiState.update { current ->
                         current.copy(
                             isQueueing = false,
+                            messageScope = FormatMessageScope.BROWSER,
                             errorMessage = error.message ?: "Unable to queue download.",
                         )
                     }
@@ -1007,6 +1113,7 @@ class FormatViewModel @Inject constructor(
     fun showSettingsMessage(message: String, isError: Boolean = false) {
         _uiState.update { state ->
             state.copy(
+                messageScope = FormatMessageScope.SETTINGS,
                 infoMessage = if (isError) null else message,
                 errorMessage = if (isError) message else null,
             )

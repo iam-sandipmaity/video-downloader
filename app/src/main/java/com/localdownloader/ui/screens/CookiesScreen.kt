@@ -61,8 +61,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.localdownloader.domain.models.CookieProfile
+import com.localdownloader.ui.components.InlineFeedbackCard
 import com.localdownloader.utils.CookieTextCodec
 import com.localdownloader.utils.WebViewCookieExporter
+import com.localdownloader.viewmodel.FormatMessageScope
 import com.localdownloader.viewmodel.FormatUiState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -85,6 +87,8 @@ fun CookiesScreen(
 ) {
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
+    val infoMessage = uiState.infoMessageFor(FormatMessageScope.COOKIES)
+    val errorMessage = uiState.errorMessageFor(FormatMessageScope.COOKIES)
     var showMenu by remember { mutableStateOf(false) }
     var editorState by remember { mutableStateOf<CookieEditorState?>(null) }
     var confirmDeleteAll by remember { mutableStateOf(false) }
@@ -320,19 +324,22 @@ fun CookiesScreen(
                 }
             }
 
-            uiState.infoMessage?.let { message ->
-                StatusBanner(
-                    text = message,
+            infoMessage?.let { message ->
+                InlineFeedbackCard(
+                    label = "Cookies",
+                    message = message,
+                    isError = false,
                     onDismiss = onDismissMessage,
                     modifier = Modifier.padding(horizontal = 18.dp),
                 )
             }
-            uiState.errorMessage?.let { message ->
-                StatusBanner(
-                    text = message,
+            errorMessage?.let { message ->
+                InlineFeedbackCard(
+                    label = "Cookies",
+                    message = message,
+                    isError = true,
                     onDismiss = onDismissMessage,
                     modifier = Modifier.padding(horizontal = 18.dp),
-                    isError = true,
                 )
             }
 
@@ -622,35 +629,6 @@ private fun CookieEditorDialog(
         confirmButton = {},
         dismissButton = {},
     )
-}
-
-@Composable
-private fun StatusBanner(
-    text: String,
-    onDismiss: () -> Unit,
-    modifier: Modifier = Modifier,
-    isError: Boolean = false,
-) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = if (isError) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = RoundedCornerShape(20.dp),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = text,
-                modifier = Modifier.weight(1f),
-                color = if (isError) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurface,
-            )
-            TextButton(onClick = onDismiss) { Text("Close") }
-        }
-    }
 }
 
 private data class CookieEditorState(

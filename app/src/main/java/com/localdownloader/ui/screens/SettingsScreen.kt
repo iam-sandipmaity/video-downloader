@@ -74,6 +74,8 @@ import com.localdownloader.domain.models.AppSettings
 import com.localdownloader.domain.models.ContrastMode
 import com.localdownloader.domain.models.ThemeMode
 import com.localdownloader.notifications.AppNotifications
+import com.localdownloader.ui.components.InlineFeedbackCard
+import com.localdownloader.viewmodel.FormatMessageScope
 import com.localdownloader.viewmodel.FormatUiState
 
 @Composable
@@ -115,6 +117,8 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val defaults = remember { AppSettings() }
+    val settingsInfoMessage = uiState.infoMessageFor(FormatMessageScope.SETTINGS)
+    val settingsErrorMessage = uiState.errorMessageFor(FormatMessageScope.SETTINGS)
     val svgImageLoader = remember(context) {
         ImageLoader.Builder(context)
             .components { add(SvgDecoder.Factory()) }
@@ -237,6 +241,39 @@ fun SettingsScreen(
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         SettingsHeader(onBack = onBack)
+
+        if (!settingsInfoMessage.isNullOrBlank()) {
+            InlineFeedbackCard(
+                label = "Settings",
+                message = settingsInfoMessage,
+                isError = false,
+                onDismiss = null,
+            )
+        }
+        if (!settingsErrorMessage.isNullOrBlank()) {
+            InlineFeedbackCard(
+                label = "Settings",
+                message = settingsErrorMessage,
+                isError = true,
+                onDismiss = null,
+            )
+        }
+        if (!mediaInfoMessage.isNullOrBlank()) {
+            InlineFeedbackCard(
+                label = "Library",
+                message = mediaInfoMessage,
+                isError = false,
+                onDismiss = onDismissMediaLibraryMessage,
+            )
+        }
+        if (!mediaErrorMessage.isNullOrBlank()) {
+            InlineFeedbackCard(
+                label = "Library",
+                message = mediaErrorMessage,
+                isError = true,
+                onDismiss = onDismissMediaLibraryMessage,
+            )
+        }
 
         SectionLabel("General")
         SettingsListCard {
@@ -657,35 +694,6 @@ fun SettingsScreen(
                 subtitle = "Permanently remove downloaded files from both the library and storage.",
                 onClick = { showDeleteAllMediaDialog = true },
                 enabled = savedItemsCount > 0,
-            )
-        }
-
-        if (!uiState.infoMessage.isNullOrBlank()) {
-            FeedbackBanner(
-                message = uiState.infoMessage,
-                isError = false,
-                onDismiss = null,
-            )
-        }
-        if (!uiState.errorMessage.isNullOrBlank()) {
-            FeedbackBanner(
-                message = uiState.errorMessage,
-                isError = true,
-                onDismiss = null,
-            )
-        }
-        if (!mediaInfoMessage.isNullOrBlank()) {
-            FeedbackBanner(
-                message = mediaInfoMessage,
-                isError = false,
-                onDismiss = onDismissMediaLibraryMessage,
-            )
-        }
-        if (!mediaErrorMessage.isNullOrBlank()) {
-            FeedbackBanner(
-                message = mediaErrorMessage,
-                isError = true,
-                onDismiss = onDismissMediaLibraryMessage,
             )
         }
 
@@ -1329,36 +1337,6 @@ private fun ConfirmDialog(
             }
         },
     )
-}
-
-@Composable
-private fun FeedbackBanner(
-    message: String,
-    isError: Boolean,
-    onDismiss: (() -> Unit)?,
-) {
-    Surface(
-        color = if (isError) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.tertiaryContainer,
-        shape = RoundedCornerShape(20.dp),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = message,
-                modifier = Modifier.weight(1f),
-                color = if (isError) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onTertiaryContainer,
-            )
-            if (onDismiss != null) {
-                TextButton(onClick = onDismiss) {
-                    Text("Close")
-                }
-            }
-        }
-    }
 }
 
 private data class ChoiceDialogState(

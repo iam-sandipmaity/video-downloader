@@ -89,8 +89,10 @@ import coil.decode.SvgDecoder
 import com.localdownloader.domain.models.FormatChoice
 import com.localdownloader.domain.models.StreamType
 import com.localdownloader.domain.models.VideoQuality
+import com.localdownloader.ui.components.InlineFeedbackCard
 import com.localdownloader.ui.components.VideoCard
 import com.localdownloader.ui.model.toReadableSize
+import com.localdownloader.viewmodel.FormatMessageScope
 import com.localdownloader.viewmodel.FormatUiState
 import kotlinx.coroutines.launch
 
@@ -137,6 +139,7 @@ fun BrowserScreen(
     onOpenSettings: () -> Unit,
     onOpenHelp: () -> Unit,
     onDismissDownloadSetupNotice: () -> Unit,
+    onDismissMessage: () -> Unit,
     onDarkThemeChanged: (Boolean) -> Unit,
     isDownloadButtonEnabled: Boolean = true,
     modifier: Modifier = Modifier,
@@ -152,6 +155,8 @@ fun BrowserScreen(
     var showOptionsSheet by rememberSaveable { mutableStateOf(false) }
     var downloadSetupSheetStep by rememberSaveable { mutableStateOf(DownloadSetupSheetStep.Intro) }
     val homeScrollState = rememberScrollState()
+    val errorMessage = uiState.errorMessageFor(FormatMessageScope.BROWSER)
+    val infoMessage = uiState.infoMessageFor(FormatMessageScope.BROWSER)
 
     LaunchedEffect(uiState.videoInfo?.webpageUrl, uiState.shouldShowDownloadSetupNotice) {
         showOptionsSheet = uiState.videoInfo != null && !uiState.shouldShowDownloadSetupNotice
@@ -285,32 +290,34 @@ fun BrowserScreen(
         }
 
         AnimatedVisibility(
-            visible = !uiState.errorMessage.isNullOrBlank(),
+            visible = !errorMessage.isNullOrBlank(),
             enter = fadeIn(animationSpec = tween(durationMillis = 180)) +
                 expandVertically(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)),
             exit = fadeOut(animationSpec = tween(durationMillis = 140)) +
                 shrinkVertically(animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)),
         ) {
-            uiState.errorMessage?.let { message ->
-                MessageBanner(
+            errorMessage?.let { message ->
+                InlineFeedbackCard(
+                    label = "Home",
                     message = message,
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    isError = true,
+                    onDismiss = onDismissMessage,
                 )
             }
         }
         AnimatedVisibility(
-            visible = !uiState.infoMessage.isNullOrBlank(),
+            visible = !infoMessage.isNullOrBlank(),
             enter = fadeIn(animationSpec = tween(durationMillis = 180)) +
                 expandVertically(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)),
             exit = fadeOut(animationSpec = tween(durationMillis = 140)) +
                 shrinkVertically(animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)),
         ) {
-            uiState.infoMessage?.let { message ->
-                MessageBanner(
+            infoMessage?.let { message ->
+                InlineFeedbackCard(
+                    label = "Home",
                     message = message,
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    isError = false,
+                    onDismiss = onDismissMessage,
                 )
             }
         }
@@ -449,12 +456,6 @@ fun BrowserScreen(
                     .fillMaxHeight(0.94f)
                     .imePadding()
                     .navigationBarsPadding()
-                    .animateContentSize(
-                        animationSpec = spring(
-                            dampingRatio = 0.9f,
-                            stiffness = 500f,
-                        ),
-                    )
                     .padding(horizontal = 18.dp, vertical = 6.dp),
             ) {
                 Column(
@@ -754,32 +755,6 @@ private fun DownloadSetupOnboardingSheet(
     }
 }
 
-@Composable
-private fun MessageBanner(
-    message: String,
-    containerColor: Color,
-    contentColor: Color,
-) {
-    Surface(
-        color = containerColor,
-        shape = RoundedCornerShape(20.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .animateContentSize(
-                animationSpec = spring(
-                    dampingRatio = 0.9f,
-                    stiffness = 500f,
-                ),
-            ),
-    ) {
-        Text(
-            text = message,
-            color = contentColor,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-        )
-    }
-}
 
 @Composable
 private fun QuickLinkTile(
