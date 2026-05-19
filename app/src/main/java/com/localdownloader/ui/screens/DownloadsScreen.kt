@@ -91,10 +91,11 @@ fun DownloadsScreen(
     onOpenPlayer: (String) -> Unit,
     onRename: (String, String) -> Unit,
     onDelete: (String) -> Unit,
+    onRemoveCompletedFromApp: () -> Unit,
+    onDeleteCompletedFromDevice: () -> Unit,
     onDismissMessage: () -> Unit,
     onDismissAudioError: () -> Unit,
     onOpenQueue: () -> Unit,
-    onOpenMore: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var selectedFilter by rememberSaveable { mutableStateOf(DownloadsFilter.All.name) }
@@ -102,6 +103,8 @@ fun DownloadsScreen(
     var renameTarget by remember { mutableStateOf<VideoLibraryItem?>(null) }
     var renameValue by rememberSaveable { mutableStateOf("") }
     var deleteTarget by remember { mutableStateOf<VideoLibraryItem?>(null) }
+    var bulkAction by remember { mutableStateOf<DownloadsBulkAction?>(null) }
+    var showHeaderMenu by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     val items = remember(uiState.tasks) { buildVideoLibraryItems(uiState.tasks) }
@@ -180,6 +183,29 @@ fun DownloadsScreen(
         )
     }
 
+    if (bulkAction != null) {
+        val action = bulkAction!!
+        AlertDialog(
+            onDismissRequest = { bulkAction = null },
+            title = { Text(action.title) },
+            text = { Text(action.body) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        when (action) {
+                            DownloadsBulkAction.REMOVE_FROM_APP -> onRemoveCompletedFromApp()
+                            DownloadsBulkAction.PERMANENT_DELETE -> onDeleteCompletedFromDevice()
+                        }
+                        bulkAction = null
+                    },
+                ) { Text(action.confirmLabel) }
+            },
+            dismissButton = {
+                TextButton(onClick = { bulkAction = null }) { Text("Cancel") }
+            },
+        )
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -236,12 +262,44 @@ fun DownloadsScreen(
                     activeCount = activeDownloadsCount,
                     onClick = onOpenQueue,
                 )
-                IconButton(onClick = onOpenMore) {
-                    Icon(
-                        Icons.Default.MoreVert,
-                        contentDescription = "Open more options",
-                        tint = MaterialTheme.colorScheme.onBackground,
-                    )
+                Box {
+                    IconButton(
+                        onClick = { showHeaderMenu = true },
+                        enabled = items.isNotEmpty(),
+                    ) {
+                        Icon(
+                            Icons.Default.MoreVert,
+                            contentDescription = "Open bulk actions",
+                            tint = MaterialTheme.colorScheme.onBackground.copy(
+                                alpha = if (items.isNotEmpty()) 1f else 0.38f,
+                            ),
+                        )
+                    }
+                    androidx.compose.material3.DropdownMenu(
+                        expanded = showHeaderMenu,
+                        onDismissRequest = { showHeaderMenu = false },
+                    ) {
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text("Remove from app") },
+                            leadingIcon = {
+                                Icon(Icons.Outlined.DeleteOutline, contentDescription = null)
+                            },
+                            onClick = {
+                                showHeaderMenu = false
+                                bulkAction = DownloadsBulkAction.REMOVE_FROM_APP
+                            },
+                        )
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text("Permanent delete") },
+                            leadingIcon = {
+                                Icon(Icons.Outlined.DeleteOutline, contentDescription = null)
+                            },
+                            onClick = {
+                                showHeaderMenu = false
+                                bulkAction = DownloadsBulkAction.PERMANENT_DELETE
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -768,4 +826,21 @@ private enum class DownloadsFilter(val label: String) {
             Other -> kind == MediaKind.OTHER
         }
     }
+}
+
+private enum class DownloadsBulkAction(
+    val title: String,
+    val body: String,
+    val confirmLabel: String,
+) {
+    REMOVE_FROM_APP(
+        title = "Remove completed items from app",
+        body = "This removes completed items from the app list and keeps the real device files untouched.",
+        confirmLabel = "Remove from app",
+    ),
+    PERMANENT_DELETE(
+        title = "Permanently delete completed files",
+        body = "This removes completed items from the app and deletes the real device files from storage too.",
+        confirmLabel = "Delete forever",
+    ),
 }
