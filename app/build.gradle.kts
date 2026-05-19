@@ -1,3 +1,4 @@
+import org.gradle.api.tasks.Copy
 import java.util.Properties
 
 plugins {
@@ -21,6 +22,12 @@ fun signingValue(name: String): String? {
     val gradleValue = project.findProperty(name) as String?
     if (!gradleValue.isNullOrBlank()) return gradleValue
     return signingProps.getProperty(name)?.takeIf { it.isNotBlank() }
+}
+
+val generatedChangelogAssetsDir = layout.buildDirectory.dir("generated/changelogAssets")
+val syncBundledChangelog by tasks.registering(Copy::class) {
+    from(rootProject.file("CHANGELOG.md"))
+    into(generatedChangelogAssetsDir.map { it.dir("changelog") })
 }
 
 android {
@@ -132,10 +139,16 @@ android {
             useLegacyPackaging = true
         }
     }
+
+    sourceSets.getByName("main").assets.srcDir(generatedChangelogAssetsDir)
 }
 
 kapt {
     correctErrorTypes = true
+}
+
+tasks.named("preBuild") {
+    dependsOn(syncBundledChangelog)
 }
 
 dependencies {
@@ -165,6 +178,7 @@ dependencies {
     implementation("io.coil-kt:coil-gif:2.7.0")
     implementation("io.coil-kt:coil-svg:2.7.0")
     implementation("io.github.junkfood02.youtubedl-android:library:0.18.1")
+    implementation("io.github.junkfood02.youtubedl-android:ffmpeg:0.18.1")
     implementation("androidx.work:work-runtime-ktx:2.10.0")
     implementation("androidx.hilt:hilt-work:1.2.0")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
