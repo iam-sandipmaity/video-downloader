@@ -71,6 +71,7 @@ class DownloadWorker @AssistedInject constructor(
             downloadVideoOnly = inputData.getBoolean(WorkerKeys.DOWNLOAD_VIDEO_ONLY, false),
             isPlaylistEnabled = inputData.getBoolean(WorkerKeys.PLAYLIST_ENABLED, false),
             shouldDownloadSubtitles = inputData.getBoolean(WorkerKeys.DOWNLOAD_SUBTITLES, false),
+            shouldEmbedSubtitles = inputData.getBoolean(WorkerKeys.EMBED_SUBTITLES, false),
             shouldEmbedMetadata = inputData.getBoolean(WorkerKeys.EMBED_METADATA, true),
             shouldEmbedThumbnail = inputData.getBoolean(WorkerKeys.EMBED_THUMBNAIL, false),
             shouldWriteThumbnail = inputData.getBoolean(WorkerKeys.WRITE_THUMBNAIL, false),
@@ -112,8 +113,11 @@ class DownloadWorker @AssistedInject constructor(
         var lastLoggedProgress = -1
         var lastAttemptOptions = options
         var shouldGenerateThumbnailFallback = false
+        var reusedExistingDownloadFile = false
+        var retriedAfterDeletingInvalidExistingFile = false
         suspend fun runDownloadAttempt(attemptOptions: DownloadOptions): CommandResult {
             lastAttemptOptions = attemptOptions
+            reusedExistingDownloadFile = false
             return downloadEngine.runDownload(
                 options = attemptOptions,
                 outputTemplate = attemptOptions.outputTemplate,
@@ -158,6 +162,9 @@ class DownloadWorker @AssistedInject constructor(
                 onOutputLine = { line ->
                     logger.d("DownloadWorker/output", "taskId=$taskId line=$line")
                     appendDebugTrace(taskId, "yt-dlp: ${line.take(MAX_OUTPUT_TRACE_LINE_LENGTH)}")
+                    if (line.contains("has already been downloaded", ignoreCase = true)) {
+                        reusedExistingDownloadFile = true
+                    }
                     parseOutputPath(line)?.let { parsed -> outputPath = parsed }
                 },
             )
@@ -180,39 +187,50 @@ class DownloadWorker @AssistedInject constructor(
             return stageResult
         }
 
-        var result = try {
-            runDownloadAttempt(options)
-        } catch (cancelled: CancellationException) {
-            appendDebugTrace(taskId, "Worker cancelled while download was in progress")
-            throw cancelled
-        } catch (throwable: Throwable) {
-            if (shouldKeepPausedState(taskId = taskId, throwable = throwable, stderr = null)) {
-                appendDebugTrace(taskId, "Pause request intercepted worker shutdown before failure handling")
-                return finishPausedResult()
-            }
-            val failureMessage = buildFailureMessage(
-                throwable = throwable,
-                stderr = null,
-            )
-            logger.e("DownloadWorker", "yt-dlp command crashed", throwable)
-            appendDebugTrace(taskId, "Task failed: $failureMessage")
-            downloadTaskStore.update(taskId) { task ->
-                task.copy(
-                    status = DownloadStatus.FAILED,
-                    errorMessage = failureMessage,
-                    updatedAtEpochMs = System.currentTimeMillis(),
+        val recoveredPendingOutput = recoverPendingSplitArtifactsIfAvailable(
+            taskId = taskId,
+            outputTemplate = outputTemplate,
+            preferredExtension = options.mergeOutputFormat,
+        )
+        var result = if (recoveredPendingOutput != null) {
+            outputPath = recoveredPendingOutput
+            appendDebugTrace(taskId, "Recovered existing split streams before starting a new download")
+            CommandResult(exitCode = 0, stdout = "", stderr = "")
+        } else {
+            try {
+                runDownloadAttempt(options)
+            } catch (cancelled: CancellationException) {
+                appendDebugTrace(taskId, "Worker cancelled while download was in progress")
+                throw cancelled
+            } catch (throwable: Throwable) {
+                if (shouldKeepPausedState(taskId = taskId, throwable = throwable, stderr = null)) {
+                    appendDebugTrace(taskId, "Pause request intercepted worker shutdown before failure handling")
+                    return finishPausedResult()
+                }
+                val failureMessage = buildFailureMessage(
+                    throwable = throwable,
+                    stderr = null,
+                )
+                logger.e("DownloadWorker", "yt-dlp command crashed", throwable)
+                appendDebugTrace(taskId, "Task failed: $failureMessage")
+                downloadTaskStore.update(taskId) { task ->
+                    task.copy(
+                        status = DownloadStatus.FAILED,
+                        errorMessage = failureMessage,
+                        updatedAtEpochMs = System.currentTimeMillis(),
+                    )
+                }
+                showFailureNotification(
+                    taskId = taskId,
+                    title = runningTitle,
+                    message = failureMessage,
+                )
+                logger.e("DownloadWorker", "Task failed due to exception taskId=$taskId message=${throwable.message}")
+                return finishFailureResult(
+                    shouldContinuePlaylistQueue = shouldContinuePlaylistQueue,
+                    failureMessage = failureMessage,
                 )
             }
-            showFailureNotification(
-                taskId = taskId,
-                title = runningTitle,
-                message = failureMessage,
-            )
-            logger.e("DownloadWorker", "Task failed due to exception taskId=$taskId message=${throwable.message}")
-            return finishFailureResult(
-                shouldContinuePlaylistQueue = shouldContinuePlaylistQueue,
-                failureMessage = failureMessage,
-            )
         }
 
         if (!result.isSuccess && shouldRetryWithFallbackExtractor(options, result.stderr)) {
@@ -426,6 +444,27 @@ class DownloadWorker @AssistedInject constructor(
             }
         }
 
+        if (!result.isSuccess &&
+            !retriedAfterDeletingInvalidExistingFile &&
+            shouldRetryAfterDeletingInvalidExistingFile(
+                currentOutputPath = outputPath,
+                stderr = result.stderr,
+                sawExistingFileReuse = reusedExistingDownloadFile,
+            )
+        ) {
+            val invalidExistingPath = outputPath
+            appendDebugTrace(
+                taskId,
+                "Detected an invalid reused media file after postprocessing failure; deleting it and retrying the download once",
+            )
+            cleanupThumbnailSidecars(invalidExistingPath.orEmpty())
+            safeDelete(invalidExistingPath)
+            outputPath = null
+            reusedExistingDownloadFile = false
+            retriedAfterDeletingInvalidExistingFile = true
+            result = runDownloadAttempt(lastAttemptOptions.copy(loadInfoJsonPath = null))
+        }
+
         if (!result.isSuccess && shouldRetryTransientFailure(result.stderr) && runAttemptCount < MAX_TRANSIENT_RETRY_ATTEMPTS) {
             appendDebugTrace(
                 taskId,
@@ -444,7 +483,7 @@ class DownloadWorker @AssistedInject constructor(
                     taskId = taskId,
                 )
             }
-            if (outputPath != null && options.shouldDownloadSubtitles) {
+            if (outputPath != null && options.shouldDownloadSubtitles && !options.shouldEmbedSubtitles) {
                 val subtitleTemplate = buildOutputTemplateForExistingFile(outputPath!!)
                 appendDebugTrace(taskId, "Downloading subtitle sidecars for completed media")
                 val subtitleResult = downloadEngine.runSubtitleDownload(
@@ -776,6 +815,7 @@ class DownloadWorker @AssistedInject constructor(
                 formatId = selectors.videoSelector,
                 mergeOutputFormat = null,
                 shouldDownloadSubtitles = false,
+                shouldEmbedSubtitles = false,
                 shouldEmbedMetadata = false,
                 shouldEmbedThumbnail = false,
                 shouldWriteThumbnail = false,
@@ -792,6 +832,7 @@ class DownloadWorker @AssistedInject constructor(
                 formatId = selectors.audioSelector,
                 mergeOutputFormat = null,
                 shouldDownloadSubtitles = false,
+                shouldEmbedSubtitles = false,
                 shouldEmbedMetadata = false,
                 shouldEmbedThumbnail = false,
                 shouldWriteThumbnail = false,
@@ -812,15 +853,15 @@ class DownloadWorker @AssistedInject constructor(
             targetPath = mergedOutputPath,
         )
 
-        if (!mergeResult.isSuccess) {
+        if (!mergeResult.commandResult.isSuccess) {
             safeDelete(videoPath)
             safeDelete(audioPath)
-            return SplitDownloadResult.failure(mergeResult.stderr.ifBlank { "FFmpeg merge failed" })
+            return SplitDownloadResult.failure(mergeResult.commandResult.stderr.ifBlank { "FFmpeg merge failed" })
         }
 
         safeDelete(videoPath)
         safeDelete(audioPath)
-        return SplitDownloadResult.success(mergedOutputPath)
+        return SplitDownloadResult.success(mergeResult.outputPath)
     }
 
     private suspend fun downloadSinglePart(
@@ -997,6 +1038,27 @@ class DownloadWorker @AssistedInject constructor(
                 .also { logger.i("DownloadWorker", "Detected merged output path: $it") }
         }
 
+        val metadataPrefix = "Adding metadata to \""
+        if (line.contains(metadataPrefix)) {
+            return line.substringAfter(metadataPrefix).substringBeforeLast("\"")
+                .also { logger.i("DownloadWorker", "Detected metadata output path: $it") }
+        }
+
+        val fixupPrefix = "Fixing MPEG-TS in MP4 container of \""
+        if (line.contains(fixupPrefix)) {
+            return line.substringAfter(fixupPrefix).substringBeforeLast("\"")
+                .also { logger.i("DownloadWorker", "Detected fixup output path: $it") }
+        }
+
+        val alreadyDownloadedSuffix = " has already been downloaded"
+        if (line.contains(alreadyDownloadedSuffix, ignoreCase = true)) {
+            val candidate = line.substringBefore(alreadyDownloadedSuffix).substringAfter("[download]").trim()
+            if (candidate.startsWith("/")) {
+                return candidate.removeSurrounding("\"")
+                    .also { logger.i("DownloadWorker", "Detected existing download output path: $it") }
+            }
+        }
+
         return null
     }
 
@@ -1111,21 +1173,17 @@ class DownloadWorker @AssistedInject constructor(
     ): String? {
         if (!isRecoverablePostprocessingFailure(stderr)) return null
 
-        currentOutputPath
-            ?.let(::File)
-            ?.takeIf {
-                it.exists() &&
-                    isLikelyPrimaryMediaFile(it) &&
-                    !isTemporarySplitArtifact(it) &&
-                    it.length() > MIN_RECOVERED_MEDIA_BYTES
-            }
-            ?.let { return it.absolutePath }
+        recoverStandalonePrimaryMediaAfterPostprocessingFailure(
+            taskId = taskId,
+            stderr = stderr,
+            currentOutputPath = currentOutputPath,
+        )?.let { return it }
 
         val splitArtifacts = findSplitMediaArtifacts(
             outputTemplate = outputTemplate,
             currentOutputPath = currentOutputPath,
         ) ?: return null
-        val targetPath = currentOutputPath
+        val requestedTargetPath = currentOutputPath
             ?.takeIf { candidate ->
                 !isTemporarySplitArtifact(File(candidate))
             }
@@ -1133,13 +1191,13 @@ class DownloadWorker @AssistedInject constructor(
                 videoPath = splitArtifacts.video.absolutePath,
                 preferredExtension = preferredExtension ?: splitArtifacts.video.extension.ifBlank { "mp4" },
             )
-        val targetFile = File(targetPath)
+        val requestedTargetFile = File(requestedTargetPath)
         if (
-            targetFile.exists() &&
-            targetFile.absolutePath != splitArtifacts.video.absolutePath &&
-            targetFile.absolutePath != splitArtifacts.audio.absolutePath
+            requestedTargetFile.exists() &&
+            requestedTargetFile.absolutePath != splitArtifacts.video.absolutePath &&
+            requestedTargetFile.absolutePath != splitArtifacts.audio.absolutePath
         ) {
-            runCatching { targetFile.delete() }
+            runCatching { requestedTargetFile.delete() }
         }
 
         appendDebugTrace(
@@ -1150,23 +1208,171 @@ class DownloadWorker @AssistedInject constructor(
             taskId = taskId,
             videoPath = splitArtifacts.video.absolutePath,
             audioPath = splitArtifacts.audio.absolutePath,
-            targetPath = targetPath,
+            targetPath = requestedTargetPath,
         )
-        if (!remuxResult.isSuccess || !targetFile.exists() || targetFile.length() <= MIN_RECOVERED_MEDIA_BYTES) {
+        val mergedOutputFile = File(remuxResult.outputPath)
+        if (
+            !remuxResult.commandResult.isSuccess ||
+            !mergedOutputFile.exists() ||
+            mergedOutputFile.length() <= MIN_RECOVERED_MEDIA_BYTES
+        ) {
             appendDebugTrace(
                 taskId,
-                "Manual remux recovery failed: ${preferredFailureLine(remuxResult.stderr).orEmpty().ifBlank { "unknown ffmpeg error" }.take(MAX_OUTPUT_TRACE_LINE_LENGTH)}",
+                "Manual remux recovery failed: ${preferredFailureLine(remuxResult.commandResult.stderr).orEmpty().ifBlank { "unknown ffmpeg error" }.take(MAX_OUTPUT_TRACE_LINE_LENGTH)}",
             )
             return null
         }
 
-        if (splitArtifacts.video.absolutePath != targetFile.absolutePath) {
+        if (splitArtifacts.video.absolutePath != mergedOutputFile.absolutePath) {
             safeDelete(splitArtifacts.video.absolutePath)
         }
-        if (splitArtifacts.audio.absolutePath != targetFile.absolutePath) {
+        if (splitArtifacts.audio.absolutePath != mergedOutputFile.absolutePath) {
             safeDelete(splitArtifacts.audio.absolutePath)
         }
-        return targetFile.absolutePath
+        return mergedOutputFile.absolutePath
+    }
+
+    private suspend fun recoverStandalonePrimaryMediaAfterPostprocessingFailure(
+        taskId: String,
+        stderr: String,
+        currentOutputPath: String?,
+    ): String? {
+        val currentFile = currentOutputPath
+            ?.let(::File)
+            ?.takeIf {
+                it.exists() &&
+                    isLikelyPrimaryMediaFile(it) &&
+                    !isTemporarySplitArtifact(it) &&
+                    it.length() > MIN_RECOVERED_MEDIA_BYTES
+            }
+            ?: return null
+
+        val lower = stderr.lowercase()
+        if (lower.contains("fixupm3u8") || lower.contains("mpeg-ts in mp4 container")) {
+            attemptPrimaryMediaContainerRepair(
+                taskId = taskId,
+                sourceFile = currentFile,
+                preferMpegTsInput = true,
+            )?.let { return it }
+            return null
+        }
+
+        return if (isUsablePrimaryMediaFile(currentFile)) {
+            currentFile.absolutePath
+        } else {
+            null
+        }
+    }
+
+    private suspend fun attemptPrimaryMediaContainerRepair(
+        taskId: String,
+        sourceFile: File,
+        preferMpegTsInput: Boolean,
+    ): String? {
+        if (sourceFile.extension.lowercase() !in VIDEO_ARTIFACT_EXTENSIONS) return null
+
+        val tempRepairPath = File(
+            sourceFile.parentFile,
+            "${sourceFile.nameWithoutExtension}.recovered.${sourceFile.extension.ifBlank { "mp4" }}",
+        ).absolutePath
+        safeDelete(tempRepairPath)
+
+        val repairAttempts = buildList {
+            add(
+                SingleFileRepairAttempt(
+                    label = "stream copy remux",
+                    forceInputFormat = null,
+                ),
+            )
+            if (preferMpegTsInput) {
+                add(
+                    SingleFileRepairAttempt(
+                        label = "mpegts remux",
+                        forceInputFormat = "mpegts",
+                    ),
+                )
+            }
+        }
+
+        for (attempt in repairAttempts) {
+            appendDebugTrace(
+                taskId,
+                "Trying standalone media repair with ${attempt.label}",
+            )
+            val result = runSingleFileRepairAttempt(
+                taskId = taskId,
+                sourcePath = sourceFile.absolutePath,
+                targetPath = tempRepairPath,
+                forceInputFormat = attempt.forceInputFormat,
+            )
+            val repairedFile = File(tempRepairPath)
+            if (result.isSuccess && repairedFile.exists() && isUsablePrimaryMediaFile(repairedFile)) {
+                if (sourceFile.delete() && repairedFile.renameTo(sourceFile)) {
+                    appendDebugTrace(taskId, "Standalone media repair succeeded and replaced the original file")
+                    return sourceFile.absolutePath
+                }
+                appendDebugTrace(taskId, "Standalone media repair succeeded under alternate file name: ${repairedFile.name}")
+                return repairedFile.absolutePath
+            }
+            safeDelete(tempRepairPath)
+        }
+
+        return null
+    }
+
+    private suspend fun recoverPendingSplitArtifactsIfAvailable(
+        taskId: String,
+        outputTemplate: String,
+        preferredExtension: String?,
+    ): String? {
+        val splitArtifacts = findSplitMediaArtifacts(
+            outputTemplate = outputTemplate,
+            currentOutputPath = null,
+        ) ?: return null
+        if (splitArtifacts.video.length() <= MIN_RECOVERED_MEDIA_BYTES ||
+            splitArtifacts.audio.length() <= MIN_RECOVERED_MEDIA_BYTES
+        ) {
+            return null
+        }
+
+        val requestedTargetPath = buildMergedOutputPath(
+            videoPath = splitArtifacts.video.absolutePath,
+            preferredExtension = preferredExtension ?: splitArtifacts.video.extension.ifBlank { "mp4" },
+        )
+        val requestedTargetFile = File(requestedTargetPath)
+        if (requestedTargetFile.exists() &&
+            requestedTargetFile.absolutePath != splitArtifacts.video.absolutePath &&
+            requestedTargetFile.absolutePath != splitArtifacts.audio.absolutePath
+        ) {
+            runCatching { requestedTargetFile.delete() }
+        }
+
+        appendDebugTrace(
+            taskId,
+            "Found recoverable split streams from a previous attempt; trying direct ffmpeg remux before redownloading",
+        )
+        val remuxResult = mergeMediaWithFallback(
+            taskId = taskId,
+            videoPath = splitArtifacts.video.absolutePath,
+            audioPath = splitArtifacts.audio.absolutePath,
+            targetPath = requestedTargetPath,
+        )
+        val mergedOutputFile = File(remuxResult.outputPath)
+        if (
+            !remuxResult.commandResult.isSuccess ||
+            !mergedOutputFile.exists() ||
+            mergedOutputFile.length() <= MIN_RECOVERED_MEDIA_BYTES
+        ) {
+            appendDebugTrace(
+                taskId,
+                "Pending split recovery did not complete: ${preferredFailureLine(remuxResult.commandResult.stderr).orEmpty().ifBlank { "unknown ffmpeg error" }.take(MAX_OUTPUT_TRACE_LINE_LENGTH)}",
+            )
+            return null
+        }
+
+        safeDelete(splitArtifacts.video.absolutePath)
+        safeDelete(splitArtifacts.audio.absolutePath)
+        return mergedOutputFile.absolutePath
     }
 
     private suspend fun mergeMediaWithFallback(
@@ -1174,7 +1380,7 @@ class DownloadWorker @AssistedInject constructor(
         videoPath: String,
         audioPath: String,
         targetPath: String,
-    ): CommandResult {
+    ): MergeExecutionResult {
         val copyResult = runMergeAttempt(
             taskId = taskId,
             videoPath = videoPath,
@@ -1183,18 +1389,22 @@ class DownloadWorker @AssistedInject constructor(
             reencodeAudio = false,
         )
         if (copyResult.isSuccess) {
-            return copyResult
+            return MergeExecutionResult(outputPath = targetPath, commandResult = copyResult)
         }
 
-        val lower = copyResult.stderr.lowercase()
-        if (
-            !lower.contains("stream #") &&
-            !lower.contains("error") &&
-            !lower.contains("invalid") &&
-            !lower.contains("could not") &&
-            !lower.contains("failed")
-        ) {
-            return copyResult
+        val compatibleContainerResult = tryCompatibleContainerMerge(
+            taskId = taskId,
+            videoPath = videoPath,
+            audioPath = audioPath,
+            targetPath = targetPath,
+            initialFailure = copyResult,
+        )
+        if (compatibleContainerResult != null) {
+            return compatibleContainerResult
+        }
+
+        if (!shouldAttemptAudioFallback(copyResult.stderr)) {
+            return MergeExecutionResult(outputPath = targetPath, commandResult = copyResult)
         }
 
         runCatching { File(targetPath).delete() }
@@ -1208,8 +1418,74 @@ class DownloadWorker @AssistedInject constructor(
         )
         if (fallbackResult.isSuccess) {
             appendDebugTrace(taskId, "AAC audio fallback merge succeeded")
+            return MergeExecutionResult(outputPath = targetPath, commandResult = fallbackResult)
         }
-        return fallbackResult
+        return MergeExecutionResult(outputPath = targetPath, commandResult = fallbackResult)
+    }
+
+    private suspend fun tryCompatibleContainerMerge(
+        taskId: String,
+        videoPath: String,
+        audioPath: String,
+        targetPath: String,
+        initialFailure: CommandResult,
+    ): MergeExecutionResult? {
+        val compatibleExtension = resolveCompatibleContainerExtension(
+            videoPath = videoPath,
+            audioPath = audioPath,
+            targetPath = targetPath,
+            stderr = initialFailure.stderr,
+        ) ?: return null
+
+        if (compatibleExtension.equals(File(targetPath).extension, ignoreCase = true)) {
+            return null
+        }
+
+        val compatibleTargetPath = replaceFileExtension(targetPath, compatibleExtension)
+        val compatibleTargetFile = File(compatibleTargetPath)
+        if (
+            compatibleTargetFile.exists() &&
+            compatibleTargetFile.absolutePath != videoPath &&
+            compatibleTargetFile.absolutePath != audioPath
+        ) {
+            runCatching { compatibleTargetFile.delete() }
+        }
+
+        appendDebugTrace(
+            taskId,
+            "Requested container rejected the downloaded codec combination; retrying merge as ${compatibleExtension.uppercase()} for compatibility",
+        )
+        val mkvCopyResult = runMergeAttempt(
+            taskId = taskId,
+            videoPath = videoPath,
+            audioPath = audioPath,
+            targetPath = compatibleTargetPath,
+            reencodeAudio = false,
+        )
+        if (mkvCopyResult.isSuccess) {
+            appendDebugTrace(taskId, "Compatible ${compatibleExtension.uppercase()} merge succeeded")
+            return MergeExecutionResult(outputPath = compatibleTargetPath, commandResult = mkvCopyResult)
+        }
+        if (!shouldAttemptAudioFallback(mkvCopyResult.stderr)) {
+            return MergeExecutionResult(outputPath = compatibleTargetPath, commandResult = mkvCopyResult)
+        }
+
+        runCatching { compatibleTargetFile.delete() }
+        appendDebugTrace(
+            taskId,
+            "Compatible ${compatibleExtension.uppercase()} stream-copy merge failed; retrying ${compatibleExtension.uppercase()} with AAC audio fallback",
+        )
+        val mkvAudioFallbackResult = runMergeAttempt(
+            taskId = taskId,
+            videoPath = videoPath,
+            audioPath = audioPath,
+            targetPath = compatibleTargetPath,
+            reencodeAudio = true,
+        )
+        if (mkvAudioFallbackResult.isSuccess) {
+            appendDebugTrace(taskId, "Compatible ${compatibleExtension.uppercase()} merge with AAC audio fallback succeeded")
+        }
+        return MergeExecutionResult(outputPath = compatibleTargetPath, commandResult = mkvAudioFallbackResult)
     }
 
     private suspend fun runMergeAttempt(
@@ -1253,6 +1529,41 @@ class DownloadWorker @AssistedInject constructor(
         )
     }
 
+    private suspend fun runSingleFileRepairAttempt(
+        taskId: String,
+        sourcePath: String,
+        targetPath: String,
+        forceInputFormat: String?,
+    ): CommandResult {
+        return ffmpegExecutor.execute(
+            args = buildList {
+                add("-y")
+                forceInputFormat?.let {
+                    add("-f")
+                    add(it)
+                }
+                add("-i")
+                add(sourcePath)
+                add("-map")
+                add("0")
+                add("-c")
+                add("copy")
+                if (targetPath.endsWith(".mp4", ignoreCase = true) || targetPath.endsWith(".mov", ignoreCase = true)) {
+                    add("-movflags")
+                    add("+faststart")
+                    if (forceInputFormat == "mpegts") {
+                        add("-bsf:a")
+                        add("aac_adtstoasc")
+                    }
+                }
+                add(targetPath)
+            },
+            onStderrLine = { line ->
+                appendDebugTrace(taskId, "ffmpeg: ${line.take(MAX_OUTPUT_TRACE_LINE_LENGTH)}")
+            },
+        )
+    }
+
     private fun isRecoverablePostprocessingFailure(stderr: String): Boolean {
         val lower = stderr.lowercase()
         return lower.contains("postprocessing:") ||
@@ -1260,6 +1571,50 @@ class DownloadWorker @AssistedInject constructor(
             lower.contains("embedthumbnail") ||
             lower.contains("stream #1:0 -> #0:1 (copy)") ||
             (lower.contains("stream #") && lower.contains("(copy)"))
+    }
+
+    private fun shouldAttemptAudioFallback(stderr: String): Boolean {
+        val lower = stderr.lowercase()
+        return lower.contains("stream #") ||
+            lower.contains("error") ||
+            lower.contains("invalid") ||
+            lower.contains("could not") ||
+            lower.contains("failed")
+    }
+
+    private fun resolveCompatibleContainerExtension(
+        videoPath: String,
+        audioPath: String,
+        targetPath: String,
+        stderr: String,
+    ): String? {
+        val extension = File(targetPath).extension.lowercase()
+        if (extension !in CONTAINER_SENSITIVE_EXTENSIONS) return null
+
+        val videoExtension = File(videoPath).extension.lowercase()
+        val audioExtension = File(audioPath).extension.lowercase()
+        val lower = stderr.lowercase()
+        val hasExplicitContainerFailure = lower.contains("codec not currently supported in container") ||
+            lower.contains("could not find tag for codec") ||
+            (lower.contains("could not write header") && lower.contains("incorrect codec parameters"))
+        val hasWebmLikeSource = videoExtension == "webm" || audioExtension in WEBM_LIKE_AUDIO_EXTENSIONS
+
+        if (!hasExplicitContainerFailure && !(extension == "mp4" && hasWebmLikeSource)) {
+            return null
+        }
+
+        return if (videoExtension == "webm" && audioExtension in WEBM_LIKE_AUDIO_EXTENSIONS) {
+            "webm"
+        } else {
+            "mkv"
+        }
+    }
+
+    private fun replaceFileExtension(path: String, extension: String): String {
+        val file = File(path)
+        val normalizedExtension = extension.trim().removePrefix(".")
+        val baseName = file.nameWithoutExtension.ifBlank { file.name }
+        return File(file.parentFile, "$baseName.$normalizedExtension").absolutePath
     }
 
     private fun findSplitMediaArtifacts(
@@ -1293,6 +1648,10 @@ class DownloadWorker @AssistedInject constructor(
         val templateFile = File(outputTemplate)
         val parent = templateFile.parentFile ?: return
         val stem = templateFile.name.substringBefore(".%(ext)s")
+        val recoverableSplitArtifacts = findSplitMediaArtifacts(
+            outputTemplate = outputTemplate,
+            currentOutputPath = null,
+        )
         val primaryExists = parent.listFiles()
             ?.any { candidate ->
                 candidate.isFile &&
@@ -1301,11 +1660,19 @@ class DownloadWorker @AssistedInject constructor(
             }
             ?: false
         if (primaryExists) return
+        if (recoverableSplitArtifacts != null) {
+            appendDebugTrace(
+                taskId,
+                "Keeping recoverable split artifacts for possible merge recovery: ${recoverableSplitArtifacts.video.name}, ${recoverableSplitArtifacts.audio.name}",
+            )
+        }
 
         parent.listFiles()
             ?.filter { candidate ->
                 candidate.isFile &&
                     candidate.name.startsWith(stem) &&
+                    candidate.absolutePath != recoverableSplitArtifacts?.video?.absolutePath &&
+                    candidate.absolutePath != recoverableSplitArtifacts?.audio?.absolutePath &&
                     candidate.nameWithoutExtension != stem &&
                     (
                         isKnownSidecarArtifact(candidate) ||
@@ -1322,6 +1689,37 @@ class DownloadWorker @AssistedInject constructor(
 
     private fun isLikelyPrimaryMediaFile(file: File): Boolean {
         return file.extension.lowercase() in PRIMARY_MEDIA_EXTENSIONS
+    }
+
+    private fun isUsablePrimaryMediaFile(file: File): Boolean {
+        if (!file.exists() || !file.isFile) return false
+        if (!isLikelyPrimaryMediaFile(file)) return false
+        if (file.length() <= MIN_RECOVERED_MEDIA_BYTES) return false
+
+        val retriever = MediaMetadataRetriever()
+        return runCatching {
+            retriever.setDataSource(file.absolutePath)
+            val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                ?.toLongOrNull()
+                ?: 0L
+            durationMs > 0L
+        }.getOrDefault(false).also {
+            runCatching { retriever.release() }
+        }
+    }
+
+    private fun shouldRetryAfterDeletingInvalidExistingFile(
+        currentOutputPath: String?,
+        stderr: String,
+        sawExistingFileReuse: Boolean,
+    ): Boolean {
+        if (!sawExistingFileReuse || currentOutputPath.isNullOrBlank()) return false
+        val file = File(currentOutputPath)
+        if (!file.exists() || isUsablePrimaryMediaFile(file)) return false
+
+        val lower = stderr.lowercase()
+        return lower.contains("postprocessing:") &&
+            lower.contains("invalid data found when processing input")
     }
 
     private fun isKnownSidecarArtifact(file: File): Boolean {
@@ -1697,9 +2095,16 @@ class DownloadWorker @AssistedInject constructor(
             "aac",
             "opus",
             "ogg",
+            "weba",
             "flac",
             "wav",
             "webm",
+        )
+        val WEBM_LIKE_AUDIO_EXTENSIONS = setOf(
+            "webm",
+            "weba",
+            "opus",
+            "ogg",
         )
         val THUMBNAIL_SIDECAR_EXTENSIONS = setOf(
             "jpg",
@@ -1720,6 +2125,12 @@ class DownloadWorker @AssistedInject constructor(
             "json",
             "infojson",
             "nfo",
+        )
+        val CONTAINER_SENSITIVE_EXTENSIONS = setOf(
+            "mp4",
+            "m4v",
+            "mov",
+            "3gp",
         )
     }
 
@@ -1769,6 +2180,16 @@ class DownloadWorker @AssistedInject constructor(
             )
         }
     }
+
+    private data class MergeExecutionResult(
+        val outputPath: String,
+        val commandResult: CommandResult,
+    )
+
+    private data class SingleFileRepairAttempt(
+        val label: String,
+        val forceInputFormat: String?,
+    )
 
     private data class ExportedMediaBundle(
         val primaryPath: String?,
