@@ -257,7 +257,21 @@ class FormatViewModel @Inject constructor(
     }
 
     fun onDownloadSubtitlesChanged(value: Boolean) {
-        _uiState.update { state -> state.copy(downloadSubtitles = value) }
+        _uiState.update { state ->
+            state.copy(
+                downloadSubtitles = value,
+                embedSubtitles = if (value) state.embedSubtitles else false,
+            )
+        }
+    }
+
+    fun onEmbedSubtitlesChanged(value: Boolean) {
+        _uiState.update { state ->
+            state.copy(
+                embedSubtitles = value,
+                downloadSubtitles = if (value) true else state.downloadSubtitles,
+            )
+        }
     }
 
     fun onEmbedMetadataChanged(value: Boolean) {
@@ -274,10 +288,12 @@ class FormatViewModel @Inject constructor(
 
     fun onAutoRemoveMissingFilesFromLibraryChanged(value: Boolean) {
         _uiState.update { state -> state.copy(autoRemoveMissingFilesFromLibrary = value) }
+        persistSettingsSilently()
     }
 
     fun onDeleteFromStorageWhenRemovedInAppChanged(value: Boolean) {
         _uiState.update { state -> state.copy(deleteFromStorageWhenRemovedInApp = value) }
+        persistSettingsSilently()
     }
 
     fun onPlaylistEnabledChanged(value: Boolean) {
@@ -286,6 +302,74 @@ class FormatViewModel @Inject constructor(
 
     fun onOutputTemplateChanged(value: String) {
         _uiState.update { state -> state.copy(outputTemplate = value) }
+    }
+
+    fun onAudioOutputTemplateChanged(value: String) {
+        _uiState.update { state -> state.copy(audioOutputTemplate = value) }
+    }
+
+    fun onDefaultVideoOutputTemplateChanged(value: String) {
+        _uiState.update { state ->
+            state.copy(
+                outputTemplate = normalizeTemplateValue(
+                    value = value,
+                    fallback = AppSettings().defaultOutputTemplate,
+                ),
+            )
+        }
+        persistSettingsSilently()
+    }
+
+    fun onDefaultAudioOutputTemplateChanged(value: String) {
+        _uiState.update { state ->
+            state.copy(
+                audioOutputTemplate = normalizeTemplateValue(
+                    value = value,
+                    fallback = AppSettings().defaultAudioOutputTemplate,
+                ),
+            )
+        }
+        persistSettingsSilently()
+    }
+
+    fun onDefaultVideoContainerChanged(container: String) {
+        onContainerChanged(container)
+        persistSettingsSilently()
+    }
+
+    fun onDefaultAudioFormatChanged(value: String) {
+        onAudioFormatChanged(value)
+        persistSettingsSilently()
+    }
+
+    fun onDefaultDownloadSubtitlesChanged(value: Boolean) {
+        _uiState.update { state ->
+            state.copy(
+                downloadSubtitles = value,
+                embedSubtitles = if (value) state.embedSubtitles else false,
+            )
+        }
+        persistSettingsSilently()
+    }
+
+    fun onDefaultEmbedSubtitlesChanged(value: Boolean) {
+        _uiState.update { state ->
+            state.copy(
+                embedSubtitles = value,
+                downloadSubtitles = state.downloadSubtitles || value,
+            )
+        }
+        persistSettingsSilently()
+    }
+
+    fun onDefaultEmbedMetadataChanged(value: Boolean) {
+        _uiState.update { state -> state.copy(embedMetadata = value) }
+        persistSettingsSilently()
+    }
+
+    fun onDefaultEmbedThumbnailChanged(value: Boolean) {
+        _uiState.update { state -> state.copy(embedThumbnail = value) }
+        persistSettingsSilently()
     }
 
     fun onLanguageChanged(value: String) {
@@ -318,19 +402,31 @@ class FormatViewModel @Inject constructor(
     }
 
     fun onDownloadsRootFolderNameChanged(value: String) {
-        _uiState.update { state -> state.copy(downloadsRootFolderName = value) }
+        _uiState.update { state ->
+            state.copy(downloadsRootFolderName = fileUtils.normalizeDownloadsRootSetting(value))
+        }
+        persistSettingsSilently()
     }
 
     fun onVideoSubfolderNameChanged(value: String) {
-        _uiState.update { state -> state.copy(videoSubfolderName = value) }
+        _uiState.update { state ->
+            state.copy(videoSubfolderName = fileUtils.normalizeSubfolderSetting(value))
+        }
+        persistSettingsSilently()
     }
 
     fun onAudioSubfolderNameChanged(value: String) {
-        _uiState.update { state -> state.copy(audioSubfolderName = value) }
+        _uiState.update { state ->
+            state.copy(audioSubfolderName = fileUtils.normalizeSubfolderSetting(value))
+        }
+        persistSettingsSilently()
     }
 
     fun onOtherSubfolderNameChanged(value: String) {
-        _uiState.update { state -> state.copy(otherSubfolderName = value) }
+        _uiState.update { state ->
+            state.copy(otherSubfolderName = fileUtils.normalizeSubfolderSetting(value))
+        }
+        persistSettingsSilently()
     }
 
     fun onCookiesEnabledChanged(value: Boolean) {
@@ -606,7 +702,11 @@ class FormatViewModel @Inject constructor(
             state.copy(
                 appSettings = defaults,
                 selectedContainer = defaults.defaultMergeContainer,
+                selectedAudioFormat = defaults.defaultAudioFormat,
                 outputTemplate = defaults.defaultOutputTemplate,
+                audioOutputTemplate = defaults.defaultAudioOutputTemplate,
+                downloadSubtitles = defaults.autoDownloadSubtitles,
+                embedSubtitles = defaults.autoEmbedSubtitles,
                 embedMetadata = defaults.autoEmbedMetadata,
                 embedThumbnail = defaults.autoEmbedThumbnail,
                 autoRemoveMissingFilesFromLibrary = defaults.autoRemoveMissingFilesFromLibrary,
@@ -651,11 +751,15 @@ class FormatViewModel @Inject constructor(
                 accentPreset = state.accentPreset,
                 contrastMode = state.contrastMode,
                 defaultOutputTemplate = state.outputTemplate,
+                defaultAudioOutputTemplate = state.audioOutputTemplate,
                 defaultMergeContainer = state.selectedContainer,
+                defaultAudioFormat = state.selectedAudioFormat,
                 downloadsRootFolderName = state.downloadsRootFolderName,
                 videoSubfolderName = state.videoSubfolderName,
                 audioSubfolderName = state.audioSubfolderName,
                 otherSubfolderName = state.otherSubfolderName,
+                autoDownloadSubtitles = state.downloadSubtitles,
+                autoEmbedSubtitles = state.embedSubtitles,
                 autoEmbedMetadata = state.embedMetadata,
                 autoEmbedThumbnail = state.embedThumbnail,
                 autoRemoveMissingFilesFromLibrary = state.autoRemoveMissingFilesFromLibrary,
@@ -729,6 +833,8 @@ class FormatViewModel @Inject constructor(
             val mergeContainer = when {
                 isAudioOnly -> null
                 selectedChoice == null -> state.selectedContainer.ifBlank { null }
+                selectedChoice.streamType == StreamType.VIDEO_AUDIO && selectedChoice.selector.contains("+") ->
+                    state.selectedContainer.ifBlank { selectedChoice.container.ifBlank { null } }
                 selectedChoice.isMerged -> selectedChoice.container.ifBlank { state.selectedContainer.ifBlank { null } }
                 else -> state.selectedContainer.ifBlank { null }
             }
@@ -744,11 +850,16 @@ class FormatViewModel @Inject constructor(
                     FileUtils.MediaFolderCategory.VIDEO
                 else -> FileUtils.MediaFolderCategory.OTHER
             }
-            val resolvedOutputTemplate = if (File(state.outputTemplate).isAbsolute) {
+            val activeOutputTemplate = if (isAudioOnly) {
+                state.audioOutputTemplate
+            } else {
                 state.outputTemplate
+            }
+            val resolvedOutputTemplate = if (File(activeOutputTemplate).isAbsolute) {
+                activeOutputTemplate
             } else {
                 fileUtils.createOutputTemplateWithDirectory(
-                    template = state.outputTemplate,
+                    template = activeOutputTemplate,
                     category = targetCategory,
                 )
             }
@@ -775,7 +886,8 @@ class FormatViewModel @Inject constructor(
                 preferredVideoHeight = selectedChoice?.height ?: state.selectedQuality.maxHeight,
                 downloadVideoOnly = state.selectedStreamType == StreamType.VIDEO_ONLY,
                 isPlaylistEnabled = info.isPlaylist || state.enablePlaylist,
-                shouldDownloadSubtitles = state.downloadSubtitles,
+                shouldDownloadSubtitles = state.downloadSubtitles || state.embedSubtitles,
+                shouldEmbedSubtitles = state.embedSubtitles && !isAudioOnly && !shouldBypassMediaPostProcessing,
                 shouldEmbedMetadata = state.embedMetadata && !shouldBypassMediaPostProcessing,
                 shouldEmbedThumbnail = state.embedThumbnail && !shouldBypassMediaPostProcessing,
                 shouldWriteThumbnail = state.writeThumbnail,
@@ -870,6 +982,15 @@ class FormatViewModel @Inject constructor(
 
     fun dismissMessage() {
         _uiState.update { state -> state.copy(errorMessage = null, infoMessage = null) }
+    }
+
+    fun showSettingsMessage(message: String, isError: Boolean = false) {
+        _uiState.update { state ->
+            state.copy(
+                infoMessage = if (isError) null else message,
+                errorMessage = if (isError) message else null,
+            )
+        }
     }
 
     /**
@@ -1186,11 +1307,15 @@ class FormatViewModel @Inject constructor(
                 accentPreset = settings.accentPreset,
                 contrastMode = settings.contrastMode,
                 selectedContainer = settings.defaultMergeContainer,
+                selectedAudioFormat = settings.defaultAudioFormat,
                 outputTemplate = settings.defaultOutputTemplate,
+                audioOutputTemplate = settings.defaultAudioOutputTemplate,
                 downloadsRootFolderName = settings.downloadsRootFolderName,
                 videoSubfolderName = settings.videoSubfolderName,
                 audioSubfolderName = settings.audioSubfolderName,
                 otherSubfolderName = settings.otherSubfolderName,
+                downloadSubtitles = settings.autoDownloadSubtitles,
+                embedSubtitles = settings.autoEmbedSubtitles,
                 embedMetadata = settings.autoEmbedMetadata,
                 embedThumbnail = settings.autoEmbedThumbnail,
                 autoRemoveMissingFilesFromLibrary = settings.autoRemoveMissingFilesFromLibrary,
@@ -1206,6 +1331,10 @@ class FormatViewModel @Inject constructor(
                 },
             )
         }
+    }
+
+    private fun normalizeTemplateValue(value: String, fallback: String): String {
+        return value.trim().ifBlank { fallback }
     }
 
     private fun upsertYoutubeCookieProfile(
@@ -1249,4 +1378,3 @@ class FormatViewModel @Inject constructor(
             normalized.contains("not initialized")
     }
 }
-
