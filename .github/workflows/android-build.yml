@@ -15,19 +15,19 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: "8.7"
 
@@ -88,7 +88,7 @@ jobs:
              app/build/outputs/apk/debug/video-downloader-v${VERSION}-debug.apk
 
       - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: video-downloader-v${{ steps.version.outputs.version_name }}-debug
           path: app/build/outputs/apk/debug/video-downloader-*.apk
@@ -102,13 +102,13 @@ jobs:
 
     steps:
       - name: Download debug APK artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: video-downloader-v${{ needs.build.outputs.version_name }}-debug
           path: dist
 
       - name: Create nightly GitHub prerelease
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: nightly-${{ github.run_number }}
           name: "Nightly Build #${{ github.run_number }} (v${{ needs.build.outputs.version_name }})"
@@ -126,19 +126,19 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: "8.7"
 
@@ -179,7 +179,7 @@ jobs:
              app/build/outputs/apk/release/video-downloader-v${VERSION}.apk 2>/dev/null || true
 
       - name: Create GitHub release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           name: "Video Downloader v${{ steps.version.outputs.version_name }}"
           generate_release_notes: true
