@@ -39,8 +39,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.filled.Pause as FilledPause
-import androidx.compose.material.icons.filled.PlayArrow as FilledPlayArrow
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.CropFree
 import androidx.compose.material.icons.outlined.Fullscreen
@@ -48,6 +48,7 @@ import androidx.compose.material.icons.outlined.FullscreenExit
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.PictureInPictureAlt
+import androidx.compose.material.icons.outlined.PlayArrow as OutlinedPlayArrow
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Subtitles
 import androidx.compose.material.icons.outlined.VolumeUp
@@ -967,7 +968,7 @@ private fun BoxScope.PlayerChrome(
                     modifier = Modifier.size(84.dp),
                 ) {
                     Icon(
-                        imageVector = if (uiState.isPlaying) FilledPause else FilledPlayArrow,
+                        imageVector = if (uiState.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                         contentDescription = if (uiState.isPlaying) "Pause" else "Play",
                         modifier = Modifier
                             .offset(x = if (uiState.isPlaying) 0.dp else 2.dp)
@@ -1213,7 +1214,7 @@ private fun PlayerOptionPanel(
 
                 PlayerPanel.SETTINGS -> {
                     SettingsMenuRow(
-                        icon = Icons.Outlined.PlayArrow,
+                        icon = OutlinedPlayArrow,
                         title = "Speed",
                         value = if (abs(uiState.playbackSpeed - 1f) < 0.01f) "Normal" else formatSpeed(uiState.playbackSpeed),
                         onClick = onShowSpeedPanel,
