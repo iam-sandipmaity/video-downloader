@@ -1,115 +1,133 @@
-# YouTube Auth Bundle Flow
+# Current Implementation Notes
 
-## Goal
+## Version Scope
 
-Add a practical YouTube authentication fallback for long-form downloads that fail with `HTTP Error 403: Forbidden`.
+- Baseline feature release: `1.7.0`
+- Current maintenance line: `1.7.0.1`
+- Post-`1.7.0` follow-up work: 6 committed maintenance changes across security docs, build tooling, CI, Hilt compatibility, and YouTube auth cleanup
 
-The current preferred flow is:
+---
 
-- user runs the desktop helper on a computer
-- helper captures cookies plus PO token from the user's own YouTube session
-- helper writes one `auth_bundle.json`
-- user imports that single file in the Android app
-- the app stores cookies/token locally and uses them only for YouTube auth fallback retries
+## 1. In-App YouTube Access Implementation
 
-## Why this approach
+The project no longer uses the removed desktop `youtube-auth-helper` flow.
 
-Android cannot realistically mirror desktop `--cookies-from-browser` behavior in a reliable, portable way.
-The fastest path is:
+Current implementation:
 
-1. capture auth data where the browser session already exists
-2. package it into one portable bundle
-3. keep the Android downloader local-first
-4. use auth-specific retry only for blocked YouTube downloads
+1. The user opens the in-app YouTube access screen.
+2. A dedicated WebView loads `YoutubePoTokenGenerator.SAMPLE_VIDEO_URL`.
+3. The app reads `VISITOR_DATA` and `DATASYNC_ID` from the active YouTube page.
+4. `WebViewCookieExporter` exports the matching YouTube and Google cookies from the app WebView session.
+5. `YoutubePoTokenGenerator` runs the BotGuard flow locally and produces:
+   - GVS token
+   - player token
+   - subtitle token
+6. `FormatViewModel` stores the generated `YoutubeAuthConfig` together with the exported cookie text so later download requests can reuse it.
 
-Manual cookies import and manual PO token entry still remain as an advanced fallback inside the app.
+Important points:
 
-## Scope
+- auth data is generated on-device
+- the login session, cookies, and PO tokens come from the same WebView flow
+- the Android app does not depend on Node.js, Playwright, or any desktop handoff
+- current BotGuard constants are documented as mirrored from LibreTube for future maintenance tracking
 
-## Desktop helper flow
+Relevant files:
 
-Add a desktop helper under `tools/youtube-auth-helper/`:
+- `app/src/main/java/com/localdownloader/ui/screens/YoutubeAuthScreen.kt`
+- `app/src/main/java/com/localdownloader/utils/WebViewCookieExporter.kt`
+- `app/src/main/java/com/localdownloader/utils/YoutubePoTokenGenerator.kt`
+- `app/src/main/java/com/localdownloader/viewmodel/FormatViewModel.kt`
 
-- launches a persistent Chromium profile with Playwright
-- lets the user log into YouTube manually
-- listens for `youtubei/v1/player` requests
-- captures `serviceIntegrityDimensions.poToken`
-- exports cookies in Netscape format
-- writes:
-  - `cookies.txt`
-  - `po_token.txt`
-  - `auth_bundle.json`
+---
 
-The important part is that `auth_bundle.json` now embeds:
+## 2. Update System Implementation
 
-- `cookiesContent`
-- `poToken`
-- `poTokenClientHint`
+The app now has a dedicated update subsystem for:
 
-That gives the Android app a true one-file import workflow without embedding Node.js or browser automation inside the APK.
+- app APK updates
+- `yt-dlp` runtime updates
+- FFmpeg runtime updates
 
-### Settings
+Main pieces:
 
-Add to app settings:
+- `updates/GitHubReleaseClient.kt`
+  Fetches GitHub release metadata and downloads assets.
+- `updates/AppUpdateManager.kt`
+  Chooses the best APK asset for the device ABI and prepares installs.
+- `updates/YtDlpUpdateManager.kt`
+  Installs `yt-dlp` runtime updates from the selected channel.
+- `updates/FfmpegUpdateManager.kt`
+  Handles FFmpeg overlay and runtime replacement.
+- `viewmodel/UpdatesViewModel.kt`
+  Keeps Updates screen state and user actions together.
+- `worker/YtDlpUpdateScheduler.kt` and `worker/YtDlpUpdateWorker.kt`
+  Run background `yt-dlp` maintenance with retry and defer handling.
 
-- `youtubeAuthEnabled`
-- `youtubeCookiesPath`
-- `youtubePoToken`
+The project `CHANGELOG.md` is copied into app assets through `syncBundledChangelog`, which lets the app show release notes in the Updates flow.
 
-Expose them in the Settings screen with:
+---
 
-- a recommended `Import auth bundle` flow
-- status card showing whether auth fallback is ready
-- toggle for enabling YouTube auth fallback
-- manual cookies import button
-- manual PO token field
-- token client hint dropdown for advanced/manual setup
+## 3. Build And CI Implementation
 
-### Storage
+Current build state:
 
-When the user imports `auth_bundle.json`:
+- AGP `9.2.1`
+- Kotlin `2.3.21`
+- Compose Gradle plugin enabled
+- `compileSdk = 36`
+- `targetSdk = 35`
+- Java and Kotlin target = `17`
 
-- decode the JSON
-- copy `cookiesContent` into app-private storage under `files/auth/youtube-cookies.txt`
-- save the copied absolute path plus token/client hint in settings
-- enable YouTube auth fallback automatically
+Recent compatibility work:
 
-This avoids depending on temporary cache paths or content URIs at download time.
+- GitHub Actions updated to newer action major versions
+- CI Gradle version moved to `9.4.1`
+- `compileSdk` raised to `36` for the newer AndroidX stack
+- Hilt Gradle plugin transform dependency removed
+- `DownloaderApplication`, `MainActivity`, and `AudioPlaybackService` now use the explicit generated-base-class pattern for Hilt compatibility on AGP 9
 
-### Download options
+Relevant files:
 
-Pass through per-download auth fields:
+- `build.gradle.kts`
+- `app/build.gradle.kts`
+- `.github/workflows/android-build.yml`
+- `.github/workflows/cleanup.yml`
+- `gradle.properties`
 
-- `youtubeAuthEnabled`
-- `youtubeCookiesPath`
-- `youtubePoToken`
+---
 
-This ensures resumed jobs keep the same auth state that existed when they were queued.
+## 4. Security And Maintenance Surface
 
-### yt-dlp integration
+Repository-level maintenance additions now include:
 
-Only for YouTube auth retries:
+- `SECURITY.md` for vulnerability reporting guidance
+- `.github/dependabot.yml` for Gradle and GitHub Actions update monitoring
+- code comments and development notes that document where the current BotGuard constants came from
 
-- add `--cookies <path>` if the file exists
-- use auth extractor args matching the stored client hint:
-  - `youtube:player_client=default,web;po_token=web.gvs+<TOKEN>`
-  - or `youtube:player_client=default,mweb;po_token=mweb.gvs+<TOKEN>`
+The old npm and Playwright helper was removed, so the repo no longer needs an npm maintenance track just to support YouTube auth.
 
-The token is applied only during the dedicated auth fallback path, not during every normal download attempt.
+---
 
-### Retry order
+## 5. Temporary Compatibility Layer
 
-Current order becomes:
+The current AGP 9 migration still relies on these temporary Gradle properties:
 
-1. selected format
-2. analyzed extractor-args fallback
-3. mp4 adaptive fallback
-4. YouTube auth fallback using imported cookies + PO token
-5. YouTube safe mode muxed fallback
+- `android.builtInKotlin=false`
+- `android.newDsl=false`
+- `android.sourceset.disallowProvider=false`
 
-## Notes
+Jetifier is also still enabled:
 
-- This flow does **not** auto-generate tokens on Android.
-- This flow does **not** parse cookies from installed browsers on Android.
-- The desktop helper uses the user's own session and keeps the actual download local on-device.
-- This MVP is expected to improve long-form YouTube reliability, but some formats may still remain unavailable if the token/session pair is invalid or expired.
+- `android.enableJetifier=true`
+
+These settings keep the current build working, but they are intentionally transitional and should be removed as the remaining legacy Android DSL usage is cleaned up.
+
+---
+
+## 6. Known Follow-Up Work
+
+1. Remove deprecated AGP compatibility flags by migrating away from the remaining legacy Android DSL and source-set behavior.
+2. Audit dependencies and disable Jetifier if possible.
+3. Clean CI warnings related to `extractNativeLibs` and native `*.zip.so` stripping.
+4. Expand unit and instrumentation coverage around update flows, auth persistence, and media-tool validation.
+5. Keep release docs aligned with the in-app-only YouTube access implementation.

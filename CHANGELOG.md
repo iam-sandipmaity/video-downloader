@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.7.0.1] - 2026-05-19
+
+### Added
+- **Security and maintenance policy** - added `SECURITY.md` and configured Dependabot coverage for Gradle and GitHub Actions updates
+- **BotGuard provenance notes** - documented the current LibreTube source of the shared PO-token constants and how to refresh them later
+
+### Changed
+- **Android build toolchain refresh** - migrated the project to AGP `9.2.1`, Kotlin `2.3.21`, the Compose Gradle plugin, and newer AndroidX dependency lines
+- **CI compatibility updates** - refreshed GitHub Actions versions, moved CI to Gradle `9.4.1`, and raised `compileSdk` to `36` while keeping `targetSdk` at `35`
+- **Hilt AGP 9 integration** - replaced the old Hilt Gradle plugin transform path with the explicit generated-base-class pattern for `DownloaderApplication`, `MainActivity`, and `AudioPlaybackService`
+- **Documentation refresh** - aligned the audit, implementation notes, and repository docs with the in-app-only YouTube access flow and current maintenance setup
+- **App version bump** - release metadata updated to `1.7.0.1`
+
+### Removed
+- **Desktop YouTube auth helper** - removed the unused Playwright and npm helper now that cookie export and PO-token generation run entirely in-app
+
+### Technical
+- **AGP 9 bridge flags** - retained temporary compatibility flags in `gradle.properties` while the remaining legacy Android DSL cleanup is still pending
+
 ## [1.7.0] - 2026-05-19
 
 ### Added
