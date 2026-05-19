@@ -28,6 +28,7 @@ data class FormatUiState(
     val audioBitrateKbps: Int = 192,
     // Advanced options
     val downloadSubtitles: Boolean = false,
+    val embedSubtitles: Boolean = false,
     val embedMetadata: Boolean = true,
     val embedThumbnail: Boolean = false,
     val writeThumbnail: Boolean = false,
@@ -39,6 +40,7 @@ data class FormatUiState(
     val deleteFromStorageWhenRemovedInApp: Boolean = true,
     val enablePlaylist: Boolean = false,
     val outputTemplate: String = "%(title)s [%(id)s].%(ext)s",
+    val audioOutputTemplate: String = "%(title)s [%(id)s].%(ext)s",
     val downloadsRootFolderName: String = "LocalDownloader",
     val videoSubfolderName: String = "Videos",
     val audioSubfolderName: String = "Audio",
