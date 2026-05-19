@@ -105,11 +105,13 @@ fun BrowserScreen(
     onAudioFormatChanged: (String) -> Unit,
     onAudioBitrateChanged: (Int) -> Unit,
     onDownloadSubtitlesChanged: (Boolean) -> Unit,
+    onEmbedSubtitlesChanged: (Boolean) -> Unit,
     onEmbedMetadataChanged: (Boolean) -> Unit,
     onEmbedThumbnailChanged: (Boolean) -> Unit,
     onWriteThumbnailChanged: (Boolean) -> Unit,
     onPlaylistEnabledChanged: (Boolean) -> Unit,
     onOutputTemplateChanged: (String) -> Unit,
+    onAudioOutputTemplateChanged: (String) -> Unit,
     onClearBrowserState: () -> Unit,
     onClearAnalyzedResult: () -> Unit,
     onQueueDownloadClicked: () -> Unit,
@@ -493,22 +495,45 @@ fun BrowserScreen(
                     )
                 }
 
+                val currentTemplate = if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
+                    uiState.audioOutputTemplate
+                } else {
+                    uiState.outputTemplate
+                }
+
                 OutlinedTextField(
-                    value = uiState.outputTemplate,
-                    onValueChange = onOutputTemplateChanged,
-                    label = { Text("Output filename template") },
+                    value = currentTemplate,
+                    onValueChange = { newValue ->
+                        if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
+                            onAudioOutputTemplateChanged(newValue)
+                        } else {
+                            onOutputTemplateChanged(newValue)
+                        }
+                    },
+                    label = {
+                        Text(
+                            if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
+                                "Audio filename template"
+                            } else {
+                                "Video filename template"
+                            },
+                        )
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
 
                 ToggleChipRow(
-                    items = listOf(
-                        ToggleConfig("Subtitles", uiState.downloadSubtitles, onDownloadSubtitlesChanged),
-                        ToggleConfig("Metadata", uiState.embedMetadata, onEmbedMetadataChanged),
-                        ToggleConfig("Embed thumb", uiState.embedThumbnail, onEmbedThumbnailChanged),
-                        ToggleConfig("Write thumb", uiState.writeThumbnail, onWriteThumbnailChanged),
-                        ToggleConfig("Playlist", uiState.enablePlaylist, onPlaylistEnabledChanged),
-                    ),
+                    items = buildList {
+                        if (uiState.selectedStreamType != StreamType.AUDIO_ONLY) {
+                            add(ToggleConfig("Subtitles", uiState.downloadSubtitles, onDownloadSubtitlesChanged))
+                            add(ToggleConfig("Embed subs", uiState.embedSubtitles, onEmbedSubtitlesChanged))
+                        }
+                        add(ToggleConfig("Metadata", uiState.embedMetadata, onEmbedMetadataChanged))
+                        add(ToggleConfig("Embed thumb", uiState.embedThumbnail, onEmbedThumbnailChanged))
+                        add(ToggleConfig("Write thumb", uiState.writeThumbnail, onWriteThumbnailChanged))
+                        add(ToggleConfig("Playlist", uiState.enablePlaylist, onPlaylistEnabledChanged))
+                    },
                 )
 
                 Button(
@@ -668,7 +693,4 @@ private fun BrowserDropdownRow(
         }
     }
 }
-
-
-
 
