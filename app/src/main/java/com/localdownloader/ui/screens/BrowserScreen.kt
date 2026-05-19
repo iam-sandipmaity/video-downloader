@@ -19,15 +19,20 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Clear
@@ -61,6 +66,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -84,8 +90,10 @@ import coil.decode.SvgDecoder
 import com.localdownloader.domain.models.FormatChoice
 import com.localdownloader.domain.models.StreamType
 import com.localdownloader.domain.models.VideoQuality
+import com.localdownloader.ui.components.InlineFeedbackCard
 import com.localdownloader.ui.components.VideoCard
 import com.localdownloader.ui.model.toReadableSize
+import com.localdownloader.viewmodel.FormatMessageScope
 import com.localdownloader.viewmodel.FormatUiState
 import kotlinx.coroutines.launch
 
@@ -95,6 +103,11 @@ private data class QuickLink(
     val logoAssetPath: String,
     val accent: Color,
 )
+
+private enum class DownloadSetupSheetStep {
+    Intro,
+    Setup,
+}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -127,6 +140,7 @@ fun BrowserScreen(
     onOpenSettings: () -> Unit,
     onOpenHelp: () -> Unit,
     onDismissDownloadSetupNotice: () -> Unit,
+    onDismissMessage: () -> Unit,
     onDarkThemeChanged: (Boolean) -> Unit,
     isDownloadButtonEnabled: Boolean = true,
     modifier: Modifier = Modifier,
@@ -140,9 +154,19 @@ fun BrowserScreen(
             .build()
     }
     var showOptionsSheet by rememberSaveable { mutableStateOf(false) }
+    var downloadSetupSheetStep by rememberSaveable { mutableStateOf(DownloadSetupSheetStep.Intro) }
+    val homeScrollState = rememberScrollState()
+    val errorMessage = uiState.errorMessageFor(FormatMessageScope.BROWSER)
+    val infoMessage = uiState.infoMessageFor(FormatMessageScope.BROWSER)
 
-    LaunchedEffect(uiState.videoInfo?.webpageUrl) {
-        showOptionsSheet = uiState.videoInfo != null
+    LaunchedEffect(uiState.videoInfo?.webpageUrl, uiState.shouldShowDownloadSetupNotice) {
+        showOptionsSheet = uiState.videoInfo != null && !uiState.shouldShowDownloadSetupNotice
+    }
+
+    LaunchedEffect(uiState.shouldShowDownloadSetupNotice) {
+        if (uiState.shouldShowDownloadSetupNotice) {
+            downloadSetupSheetStep = DownloadSetupSheetStep.Intro
+        }
     }
 
     val quickLinks = remember {
@@ -162,6 +186,7 @@ fun BrowserScreen(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .verticalScroll(homeScrollState)
             .animateContentSize(
                 animationSpec = spring(
                     dampingRatio = 0.9f,
@@ -188,26 +213,6 @@ fun BrowserScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-        }
-
-        AnimatedVisibility(
-            visible = uiState.shouldShowDownloadSetupNotice,
-            enter = fadeIn(animationSpec = tween(durationMillis = 180)) +
-                expandVertically(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)),
-            exit = fadeOut(animationSpec = tween(durationMillis = 140)) +
-                shrinkVertically(animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)),
-        ) {
-            DownloadSetupNoticeCard(
-                onOpenCookies = {
-                    onDismissDownloadSetupNotice()
-                    onOpenCookies()
-                },
-                onOpenYoutubeAccess = {
-                    onDismissDownloadSetupNotice()
-                    onOpenYoutubeAccess()
-                },
-                onSkip = onDismissDownloadSetupNotice,
-            )
         }
 
         Card(
@@ -286,32 +291,34 @@ fun BrowserScreen(
         }
 
         AnimatedVisibility(
-            visible = !uiState.errorMessage.isNullOrBlank(),
+            visible = !errorMessage.isNullOrBlank(),
             enter = fadeIn(animationSpec = tween(durationMillis = 180)) +
                 expandVertically(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)),
             exit = fadeOut(animationSpec = tween(durationMillis = 140)) +
                 shrinkVertically(animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)),
         ) {
-            uiState.errorMessage?.let { message ->
-                MessageBanner(
+            errorMessage?.let { message ->
+                InlineFeedbackCard(
+                    label = "Home",
                     message = message,
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    isError = true,
+                    onDismiss = onDismissMessage,
                 )
             }
         }
         AnimatedVisibility(
-            visible = !uiState.infoMessage.isNullOrBlank(),
+            visible = !infoMessage.isNullOrBlank(),
             enter = fadeIn(animationSpec = tween(durationMillis = 180)) +
                 expandVertically(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)),
             exit = fadeOut(animationSpec = tween(durationMillis = 140)) +
                 shrinkVertically(animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)),
         ) {
-            uiState.infoMessage?.let { message ->
-                MessageBanner(
+            infoMessage?.let { message ->
+                InlineFeedbackCard(
+                    label = "Home",
                     message = message,
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    isError = false,
+                    onDismiss = onDismissMessage,
                 )
             }
         }
@@ -415,158 +422,200 @@ fun BrowserScreen(
         }
     }
 
-    if (showOptionsSheet && uiState.videoInfo != null) {
+    if (uiState.shouldShowDownloadSetupNotice) {
+        ModalBottomSheet(
+            onDismissRequest = onDismissDownloadSetupNotice,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+        ) {
+            DownloadSetupOnboardingSheet(
+                step = downloadSetupSheetStep,
+                onSetUpNow = { downloadSetupSheetStep = DownloadSetupSheetStep.Setup },
+                onOpenCookies = {
+                    onDismissDownloadSetupNotice()
+                    onOpenCookies()
+                },
+                onOpenYoutubeAccess = {
+                    onDismissDownloadSetupNotice()
+                    onOpenYoutubeAccess()
+                },
+                onContinueWithoutCookies = onDismissDownloadSetupNotice,
+            )
+        }
+    }
+
+    if (showOptionsSheet && uiState.videoInfo != null && !uiState.shouldShowDownloadSetupNotice) {
+        val sheetScrollState = rememberScrollState()
+        val optionsSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ModalBottomSheet(
             onDismissRequest = { showOptionsSheet = false },
+            sheetState = optionsSheetState,
             shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
             containerColor = MaterialTheme.colorScheme.surface,
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .animateContentSize(
-                        animationSpec = spring(
-                            dampingRatio = 0.9f,
-                            stiffness = 500f,
-                        ),
-                    )
-                    .padding(horizontal = 18.dp, vertical = 6.dp)
-                    .padding(bottom = 18.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                    .fillMaxHeight(0.94f)
+                    .imePadding()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 18.dp, vertical = 6.dp),
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(sheetScrollState),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    Text(
-                        text = "Download options",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    IconButton(
-                        onClick = {
-                            showOptionsSheet = false
-                            onClearAnalyzedResult()
-                        },
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Clear,
-                            contentDescription = "Clear ready download",
-                        )
-                    }
-                }
-                VideoCard(info = uiState.videoInfo)
-
-                val choices = when (uiState.selectedStreamType) {
-                    StreamType.VIDEO_AUDIO -> uiState.availableVideoAudioChoices
-                        .ifEmpty { uiState.availableVideoOnlyChoices }
-                    StreamType.VIDEO_ONLY -> uiState.availableVideoOnlyChoices
-                    StreamType.AUDIO_ONLY -> uiState.availableAudioOnlyChoices
-                }
-
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    StreamType.entries.forEach { item ->
-                        FilterChip(
-                            selected = item == uiState.selectedStreamType,
-                            onClick = { onStreamTypeChanged(item) },
-                            label = { Text(item.label) },
-                        )
-                    }
-                }
-
-                if (choices.isNotEmpty()) {
-                    FormatChoiceDropdownRow(
-                        label = "Format",
-                        choices = choices,
-                        selectedIndex = choices.indexOfFirst { it.selector == uiState.selectedFormatSelector }
-                            .coerceAtLeast(0),
-                        onSelected = { onFormatSelectorChanged(choices[it].selector) },
-                    )
-                } else {
-                    BrowserDropdownRow(
-                        label = "Quality",
-                        options = VideoQuality.entries.map { it.label },
-                        selectedIndex = VideoQuality.entries.indexOf(uiState.selectedQuality).coerceAtLeast(0),
-                        onSelected = { onQualityChanged(VideoQuality.entries[it]) },
-                    )
-                }
-
-                val containers = listOf("mp4", "webm", "mkv", "mov")
-                val audioFormats = listOf("mp3", "m4a", "aac", "opus", "flac", "wav")
-                val bitrates = listOf(64, 96, 128, 192, 256, 320)
-
-                if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
-                    BrowserDropdownRow(
-                        label = "Audio format",
-                        options = audioFormats,
-                        selectedIndex = audioFormats.indexOf(uiState.selectedAudioFormat).coerceAtLeast(0),
-                        onSelected = { onAudioFormatChanged(audioFormats[it]) },
-                    )
-                    BrowserDropdownRow(
-                        label = "Bitrate",
-                        options = bitrates.map { "$it kbps" },
-                        selectedIndex = bitrates.indexOf(uiState.audioBitrateKbps).coerceAtLeast(0),
-                        onSelected = { onAudioBitrateChanged(bitrates[it]) },
-                    )
-                } else {
-                    BrowserDropdownRow(
-                        label = "Container",
-                        options = containers,
-                        selectedIndex = containers.indexOf(uiState.selectedContainer).coerceAtLeast(0),
-                        onSelected = { onContainerChanged(containers[it]) },
-                    )
-                }
-
-                val currentTemplate = if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
-                    uiState.audioOutputTemplate
-                } else {
-                    uiState.outputTemplate
-                }
-
-                OutlinedTextField(
-                    value = currentTemplate,
-                    onValueChange = { newValue ->
-                        if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
-                            onAudioOutputTemplateChanged(newValue)
-                        } else {
-                            onOutputTemplateChanged(newValue)
-                        }
-                    },
-                    label = {
                         Text(
-                            if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
-                                "Audio filename template"
-                            } else {
-                                "Video filename template"
-                            },
+                            text = "Download options",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.SemiBold,
                         )
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                )
-
-                ToggleChipRow(
-                    items = buildList {
-                        if (uiState.selectedStreamType != StreamType.AUDIO_ONLY) {
-                            add(ToggleConfig("Subtitles", uiState.downloadSubtitles, onDownloadSubtitlesChanged))
-                            add(ToggleConfig("Embed subs", uiState.embedSubtitles, onEmbedSubtitlesChanged))
+                        IconButton(
+                            onClick = {
+                                showOptionsSheet = false
+                                onClearAnalyzedResult()
+                            },
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Clear,
+                                contentDescription = "Clear ready download",
+                            )
                         }
-                        add(ToggleConfig("Metadata", uiState.embedMetadata, onEmbedMetadataChanged))
-                        add(ToggleConfig("Embed thumb", uiState.embedThumbnail, onEmbedThumbnailChanged))
-                        add(ToggleConfig("Write thumb", uiState.writeThumbnail, onWriteThumbnailChanged))
-                        add(ToggleConfig("Playlist", uiState.enablePlaylist, onPlaylistEnabledChanged))
-                    },
-                )
+                    }
+                    VideoCard(info = uiState.videoInfo)
+
+                    val choices = when (uiState.selectedStreamType) {
+                        StreamType.VIDEO_AUDIO -> uiState.availableVideoAudioChoices
+                            .ifEmpty { uiState.availableVideoOnlyChoices }
+                        StreamType.VIDEO_ONLY -> uiState.availableVideoOnlyChoices
+                        StreamType.AUDIO_ONLY -> uiState.availableAudioOnlyChoices
+                    }
+
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        StreamType.entries.forEach { item ->
+                            FilterChip(
+                                selected = item == uiState.selectedStreamType,
+                                onClick = { onStreamTypeChanged(item) },
+                                label = { Text(item.label) },
+                            )
+                        }
+                    }
+
+                    if (choices.isNotEmpty()) {
+                        val selectedChoice = choices
+                            .getOrNull(choices.indexOfFirst { it.selector == uiState.selectedFormatSelector })
+                            ?: choices.first()
+                        FormatChoiceDropdownRow(
+                            label = "Format",
+                            choices = choices,
+                            selectedIndex = choices.indexOfFirst { it.selector == uiState.selectedFormatSelector }
+                                .coerceAtLeast(0),
+                            onSelected = { onFormatSelectorChanged(choices[it].selector) },
+                        )
+                        FormatChoiceInsightCard(choice = selectedChoice)
+                    } else {
+                        BrowserDropdownRow(
+                            label = "Quality",
+                            options = VideoQuality.entries.map { it.label },
+                            selectedIndex = VideoQuality.entries.indexOf(uiState.selectedQuality).coerceAtLeast(0),
+                            onSelected = { onQualityChanged(VideoQuality.entries[it]) },
+                        )
+                    }
+
+                    val containers = listOf("mp4", "webm", "mkv", "mov")
+                    val audioFormats = listOf("mp3", "m4a", "aac", "opus", "flac", "wav")
+                    val bitrates = listOf(64, 96, 128, 192, 256, 320)
+
+                    if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
+                        BrowserDropdownRow(
+                            label = "Audio format",
+                            options = audioFormats,
+                            selectedIndex = audioFormats.indexOf(uiState.selectedAudioFormat).coerceAtLeast(0),
+                            onSelected = { onAudioFormatChanged(audioFormats[it]) },
+                        )
+                        BrowserDropdownRow(
+                            label = "Bitrate",
+                            options = bitrates.map { "$it kbps" },
+                            selectedIndex = bitrates.indexOf(uiState.audioBitrateKbps).coerceAtLeast(0),
+                            onSelected = { onAudioBitrateChanged(bitrates[it]) },
+                        )
+                    } else {
+                        BrowserDropdownRow(
+                            label = "Container",
+                            options = containers,
+                            selectedIndex = containers.indexOf(uiState.selectedContainer).coerceAtLeast(0),
+                            onSelected = { onContainerChanged(containers[it]) },
+                        )
+                    }
+
+                    val currentTemplate = if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
+                        uiState.audioOutputTemplate
+                    } else {
+                        uiState.outputTemplate
+                    }
+
+                    OutlinedTextField(
+                        value = currentTemplate,
+                        onValueChange = { newValue ->
+                            if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
+                                onAudioOutputTemplateChanged(newValue)
+                            } else {
+                                onOutputTemplateChanged(newValue)
+                            }
+                        },
+                        label = {
+                            Text(
+                                if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
+                                    "Audio filename template"
+                                } else {
+                                    "Video filename template"
+                                },
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                    )
+
+                    ToggleChipRow(
+                        items = buildList {
+                            if (uiState.selectedStreamType != StreamType.AUDIO_ONLY) {
+                                add(ToggleConfig("Subtitles", uiState.downloadSubtitles, onDownloadSubtitlesChanged))
+                                add(ToggleConfig("Embed subs", uiState.embedSubtitles, onEmbedSubtitlesChanged))
+                            }
+                            add(ToggleConfig("Metadata", uiState.embedMetadata, onEmbedMetadataChanged))
+                            add(ToggleConfig("Embed thumb", uiState.embedThumbnail, onEmbedThumbnailChanged))
+                            add(ToggleConfig("Write thumb", uiState.writeThumbnail, onWriteThumbnailChanged))
+                            add(ToggleConfig("Playlist", uiState.enablePlaylist, onPlaylistEnabledChanged))
+                        },
+                    )
+
+                    if (!isDownloadButtonEnabled) {
+                        Text(
+                            text = "Wait for the active job to settle before starting another download.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
 
                 Button(
                     onClick = onQueueDownloadClicked,
                     enabled = !uiState.isQueueing && isDownloadButtonEnabled,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 14.dp, bottom = 12.dp),
                     contentPadding = PaddingValues(vertical = 14.dp),
                 ) {
                     val buttonText = when {
@@ -582,32 +631,29 @@ fun BrowserScreen(
 }
 
 @Composable
-private fun DownloadSetupNoticeCard(
+private fun DownloadSetupOnboardingSheet(
+    step: DownloadSetupSheetStep,
+    onSetUpNow: () -> Unit,
     onOpenCookies: () -> Unit,
     onOpenYoutubeAccess: () -> Unit,
-    onSkip: () -> Unit,
+    onContinueWithoutCookies: () -> Unit,
 ) {
-    Surface(
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-        shape = RoundedCornerShape(26.dp),
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .animateContentSize(
-                animationSpec = spring(
-                    dampingRatio = 0.9f,
-                    stiffness = 500f,
-                ),
-            ),
+            .navigationBarsPadding()
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+        Surface(
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            shape = RoundedCornerShape(26.dp),
+            modifier = Modifier.fillMaxWidth(),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+            Column(
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 18.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -618,32 +664,64 @@ private fun DownloadSetupNoticeCard(
                         contentDescription = null,
                     )
                     Text(
-                        text = "Recommended first step",
-                        style = MaterialTheme.typography.titleMedium,
+                        text = if (step == DownloadSetupSheetStep.Intro) {
+                            "Before your first download"
+                        } else {
+                            "Set up smoother access"
+                        },
+                        style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold,
                     )
                 }
-                TextButton(onClick = onSkip) {
-                    Text("Skip for now")
+
+                if (step == DownloadSetupSheetStep.Intro) {
+                    Text(
+                        text = "You can download without cookies, but it is recommended to add cookies first from More > Cookies. For YouTube, PO generation from More > YouTube access helps with sign-in and playback checks.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        text = "If a download fails or gets stuck later, cookies and PO generation are the first things to try before reporting an issue.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.88f),
+                    )
+                } else {
+                    Text(
+                        text = "Start with cookies if you want the safest setup. For YouTube, PO generation is the extra step that usually helps with blocked or signed-in videos.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        text = "You can still skip all of this and come back later from More whenever you need it.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.88f),
+                    )
                 }
             }
+        }
 
-            Text(
-                text = "For smoother downloads, it is recommended to open More > Cookies first. For YouTube, open More > YouTube access and run PO generation before you start downloading.",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Text(
-                text = "It is still safe to continue without cookies. If a download fails or gets stuck, adding cookies may solve it. If it still fails, report it on iam-sandipmaity/video-downloader/issues with a screenshot, log.txt, and a short explanation.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.88f),
-            )
-
-            FlowRow(
+        if (step == DownloadSetupSheetStep.Intro) {
+            Button(
+                onClick = onSetUpNow,
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(vertical = 14.dp),
             ) {
-                Button(onClick = onOpenCookies) {
+                Text("Set up now")
+            }
+            TextButton(
+                onClick = onContinueWithoutCookies,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Continue without cookies")
+            }
+        } else {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Button(
+                    onClick = onOpenCookies,
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(vertical = 14.dp),
+                ) {
                     Icon(
                         imageVector = Icons.Outlined.Web,
                         contentDescription = null,
@@ -654,48 +732,32 @@ private fun DownloadSetupNoticeCard(
                         modifier = Modifier.padding(start = 8.dp),
                     )
                 }
-                Button(onClick = onOpenYoutubeAccess) {
+                Button(
+                    onClick = onOpenYoutubeAccess,
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(vertical = 14.dp),
+                ) {
                     Icon(
                         imageVector = Icons.Outlined.Shield,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
                     )
                     Text(
-                        text = "PO generation",
+                        text = "Open YouTube access",
                         modifier = Modifier.padding(start = 8.dp),
                     )
+                }
+                TextButton(
+                    onClick = onContinueWithoutCookies,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Done for now")
                 }
             }
         }
     }
 }
 
-@Composable
-private fun MessageBanner(
-    message: String,
-    containerColor: Color,
-    contentColor: Color,
-) {
-    Surface(
-        color = containerColor,
-        shape = RoundedCornerShape(20.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .animateContentSize(
-                animationSpec = spring(
-                    dampingRatio = 0.9f,
-                    stiffness = 500f,
-                ),
-            ),
-    ) {
-        Text(
-            text = message,
-            color = contentColor,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-        )
-    }
-}
 
 @Composable
 private fun QuickLinkTile(
@@ -770,6 +832,120 @@ private fun ToggleChipRow(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+private fun FormatChoiceInsightCard(
+    choice: FormatChoice,
+) {
+    Surface(
+        shape = RoundedCornerShape(22.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                text = "Selected format details",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = choice.label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                buildFormatInsightChips(choice).forEach { chip ->
+                    Surface(
+                        shape = RoundedCornerShape(999.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                    ) {
+                        Text(
+                            text = chip,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                    }
+                }
+            }
+            Text(
+                text = buildFormatChoiceHint(choice),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+private fun buildFormatInsightChips(choice: FormatChoice): List<String> {
+    return buildList {
+        formatChoicePrimarySizeLabel(choice)?.let { sizeLabel ->
+            add(if (choice.fileSizeBytes != null) "Size $sizeLabel" else sizeLabel)
+        }
+        choice.height?.let { add("${it}p") }
+        choice.fps?.takeIf { it > 0 }?.let { add("${it.toInt()} fps") }
+        add("Container ${choice.container.uppercase()}")
+        when (choice.streamType) {
+            StreamType.VIDEO_AUDIO -> add(if (choice.isMerged) "Video + audio" else "Muxed")
+            StreamType.VIDEO_ONLY -> add("Video only")
+            StreamType.AUDIO_ONLY -> add("Audio only")
+        }
+        choice.bitrateKbps?.let { add("${it} kbps") }
+        choice.videoCodec?.takeIf { it.isNotBlank() && !it.equals("none", ignoreCase = true) }?.let {
+            add("Video ${compactCodecLabel(it)}")
+        }
+        choice.audioCodec?.takeIf { it.isNotBlank() && !it.equals("none", ignoreCase = true) }?.let {
+            add("Audio ${compactCodecLabel(it)}")
+        }
+    }
+}
+
+private fun buildFormatChoiceHint(choice: FormatChoice): String {
+    val baseHint = when (choice.streamType) {
+        StreamType.AUDIO_ONLY -> {
+            if ((choice.bitrateKbps ?: 0) >= 256) {
+                "Higher bitrate audio. Better quality, but it uses more storage."
+            } else {
+                "Lighter audio option. Good when you want to save storage space."
+            }
+        }
+
+        StreamType.VIDEO_ONLY,
+        StreamType.VIDEO_AUDIO,
+        -> when {
+            (choice.height ?: 0) >= 1080 || (choice.fps ?: 0.0) >= 50.0 ->
+                "Quality-first pick. Great for playback quality, but expect a larger download."
+
+            (choice.fileSizeBytes ?: choice.estimatedSizeBytes ?: Long.MAX_VALUE) <= 80L * 1024L * 1024L ->
+                "Storage-friendlier pick. Good when you want a smaller file first."
+
+            else ->
+                "Balanced option. A good middle ground between quality and file size."
+        }
+    }
+    val estimateNote = if (choice.fileSizeBytes == null && choice.estimatedSizeBytes != null) {
+        " Estimated final size is based on bitrate and duration, so the finished file can vary a little."
+    } else {
+        ""
+    }
+    return baseHint + estimateNote
+}
+
+private fun compactCodecLabel(codec: String): String {
+    return codec
+        .substringBefore('.')
+        .substringBefore(':')
+        .uppercase()
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 private fun FormatChoiceDropdownRow(
     label: String,
     choices: List<FormatChoice>,
@@ -785,7 +961,7 @@ private fun FormatChoiceDropdownRow(
         OutlinedTextField(
             value = listOfNotNull(
                 selectedChoice.label,
-                formatChoiceSizeLabel(selectedChoice.fileSizeBytes),
+                formatChoicePrimarySizeLabel(selectedChoice),
             ).joinToString(" | "),
             onValueChange = {},
             readOnly = true,
@@ -803,22 +979,36 @@ private fun FormatChoiceDropdownRow(
             choices.forEachIndexed { index, choice ->
                 DropdownMenuItem(
                     text = {
-                        Row(
+                        Column(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
-                            Text(
-                                text = choice.label,
-                                modifier = Modifier.weight(1f),
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            formatChoiceSizeLabel(choice.fileSizeBytes)?.let { sizeLabel ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
                                 Text(
-                                    text = sizeLabel,
-                                    style = MaterialTheme.typography.labelMedium,
+                                    text = choice.label,
+                                    modifier = Modifier.weight(1f),
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                formatChoicePrimarySizeLabel(choice)?.let { sizeLabel ->
+                                    Text(
+                                        text = sizeLabel,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                            buildFormatMenuMetadata(choice)?.let { metadata ->
+                                Text(
+                                    text = metadata,
+                                    style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                             }
                         }
@@ -837,6 +1027,26 @@ private fun FormatChoiceDropdownRow(
 private fun formatChoiceDisplayLabel(choice: FormatChoice): String {
     val sizeLabel = formatChoiceSizeLabel(choice.fileSizeBytes) ?: return choice.label
     return "${choice.label} • $sizeLabel"
+}
+
+private fun buildFormatMenuMetadata(choice: FormatChoice): String? {
+    return buildList {
+        choice.height?.let { add("${it}p") }
+        choice.fps?.takeIf { it > 0 }?.let { add("${it.toInt()}fps") }
+        add(choice.container.uppercase())
+        choice.videoCodec?.takeIf { it.isNotBlank() && !it.equals("none", ignoreCase = true) }?.let {
+            add("v:${compactCodecLabel(it)}")
+        }
+        choice.audioCodec?.takeIf { it.isNotBlank() && !it.equals("none", ignoreCase = true) }?.let {
+            add("a:${compactCodecLabel(it)}")
+        }
+    }.joinToString(" | ").ifBlank { null }
+}
+
+private fun formatChoicePrimarySizeLabel(choice: FormatChoice): String? {
+    val exactSizeLabel = formatChoiceSizeLabel(choice.fileSizeBytes)
+    if (exactSizeLabel != null) return exactSizeLabel
+    return formatChoiceSizeLabel(choice.estimatedSizeBytes)?.let { "Est. $it" }
 }
 
 private fun formatChoiceSizeLabel(fileSizeBytes: Long?): String? {

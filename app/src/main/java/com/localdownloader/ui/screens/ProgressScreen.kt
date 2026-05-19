@@ -40,6 +40,7 @@ import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.PauseCircle
 import androidx.compose.material.icons.outlined.PlayCircle
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -67,14 +68,22 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil.ImageLoader
 import coil.compose.AsyncImage
+import coil.decode.SvgDecoder
 import com.localdownloader.domain.models.DownloadStatus
 import com.localdownloader.domain.models.DownloadTask
 import com.localdownloader.ui.components.LocalVideoThumbnail
 import com.localdownloader.ui.components.rememberLocalMediaSnapshot
+import com.localdownloader.ui.support.openSupportIssue
+import com.localdownloader.ui.support.SourceSiteVisual
+import com.localdownloader.ui.support.shareAppLogs
+import com.localdownloader.ui.support.sourceHostLabel
+import com.localdownloader.ui.support.sourceSiteVisualForUrl
 import com.localdownloader.viewmodel.DownloadUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -83,10 +92,15 @@ fun ProgressScreen(
     uiState: DownloadUiState,
     onPause: (String) -> Unit,
     onResume: (String) -> Unit,
+    onRetry: (String) -> Unit,
     onCancel: (String) -> Unit,
     onPauseTasks: (List<String>) -> Unit,
     onResumeTasks: (List<String>) -> Unit,
+    onRetryTasks: (List<String>) -> Unit,
     onCancelTasks: (List<String>) -> Unit,
+    onOpenCookies: () -> Unit,
+    onOpenYoutubeAccess: () -> Unit,
+    onToggleDebug: (String) -> Unit,
     onBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -214,6 +228,7 @@ fun ProgressScreen(
                     tasks = filteredTasks,
                     onPauseTasks = onPauseTasks,
                     onResumeTasks = onResumeTasks,
+                    onRetryTasks = onRetryTasks,
                     onCancelTasks = onCancelTasks,
                 )
             } else {
@@ -307,7 +322,12 @@ fun ProgressScreen(
                                 currentTimeMs = currentTimeMs,
                                 onPause = onPause,
                                 onResume = onResume,
+                                onRetry = onRetry,
                                 onCancel = onCancel,
+                                onOpenCookies = onOpenCookies,
+                                onOpenYoutubeAccess = onOpenYoutubeAccess,
+                                expandedDebug = task.id in uiState.expandedDebugTaskIds,
+                                onToggleDebug = { onToggleDebug(task.id) },
                             )
                         } else {
                             ProgressTaskCard(
@@ -315,7 +335,12 @@ fun ProgressScreen(
                                 currentTimeMs = currentTimeMs,
                                 onPause = onPause,
                                 onResume = onResume,
+                                onRetry = onRetry,
                                 onCancel = onCancel,
+                                onOpenCookies = onOpenCookies,
+                                onOpenYoutubeAccess = onOpenYoutubeAccess,
+                                expandedDebug = task.id in uiState.expandedDebugTaskIds,
+                                onToggleDebug = { onToggleDebug(task.id) },
                             )
                         }
                     }
@@ -384,6 +409,7 @@ private fun QueueBatchActionRow(
     tasks: List<DownloadTask>,
     onPauseTasks: (List<String>) -> Unit,
     onResumeTasks: (List<String>) -> Unit,
+    onRetryTasks: (List<String>) -> Unit,
     onCancelTasks: (List<String>) -> Unit,
 ) {
     val taskIds = tasks.map { it.id }
@@ -403,6 +429,13 @@ private fun QueueBatchActionRow(
             QueueBatchAction(
                 label = "Resume All Scheduled",
                 onClick = { onResumeTasks(taskIds) },
+            ),
+        )
+
+        ProgressFilter.Error -> listOf(
+            QueueBatchAction(
+                label = "Retry All Failed",
+                onClick = { onRetryTasks(taskIds) },
             ),
         )
 
@@ -538,7 +571,12 @@ private fun QueueTaskRow(
     currentTimeMs: Long,
     onPause: (String) -> Unit,
     onResume: (String) -> Unit,
+    onRetry: (String) -> Unit,
     onCancel: (String) -> Unit,
+    onOpenCookies: () -> Unit,
+    onOpenYoutubeAccess: () -> Unit,
+    expandedDebug: Boolean,
+    onToggleDebug: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     DownloadTaskHeroCard(
@@ -546,7 +584,12 @@ private fun QueueTaskRow(
         currentTimeMs = currentTimeMs,
         onPause = onPause,
         onResume = onResume,
+        onRetry = onRetry,
         onCancel = onCancel,
+        onOpenCookies = onOpenCookies,
+        onOpenYoutubeAccess = onOpenYoutubeAccess,
+        expandedDebug = expandedDebug,
+        onToggleDebug = onToggleDebug,
         modifier = modifier,
     )
 }
@@ -667,7 +710,12 @@ private fun ProgressTaskCard(
     currentTimeMs: Long,
     onPause: (String) -> Unit,
     onResume: (String) -> Unit,
+    onRetry: (String) -> Unit,
     onCancel: (String) -> Unit,
+    onOpenCookies: () -> Unit,
+    onOpenYoutubeAccess: () -> Unit,
+    expandedDebug: Boolean,
+    onToggleDebug: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     DownloadTaskHeroCard(
@@ -675,7 +723,12 @@ private fun ProgressTaskCard(
         currentTimeMs = currentTimeMs,
         onPause = onPause,
         onResume = onResume,
+        onRetry = onRetry,
         onCancel = onCancel,
+        onOpenCookies = onOpenCookies,
+        onOpenYoutubeAccess = onOpenYoutubeAccess,
+        expandedDebug = expandedDebug,
+        onToggleDebug = onToggleDebug,
         modifier = modifier,
     )
 }
@@ -683,6 +736,7 @@ private fun ProgressTaskCard(
 private data class DownloadTaskAction(
     val icon: ImageVector,
     val contentDescription: String,
+    val label: String? = null,
     val onClick: () -> Unit,
 )
 
@@ -692,11 +746,27 @@ private fun DownloadTaskHeroCard(
     currentTimeMs: Long,
     onPause: (String) -> Unit,
     onResume: (String) -> Unit,
+    onRetry: (String) -> Unit,
     onCancel: (String) -> Unit,
+    onOpenCookies: () -> Unit,
+    onOpenYoutubeAccess: () -> Unit,
+    expandedDebug: Boolean,
+    onToggleDebug: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
+    val imageLoader = remember(context) {
+        ImageLoader.Builder(context)
+            .components { add(SvgDecoder.Factory()) }
+            .build()
+    }
     val accent = statusAccent(task.status)
     val snapshot = rememberLocalMediaSnapshot(task.outputPath)
+    val isStuck = isPotentiallyStuck(task, currentTimeMs)
+    val isYoutubeTask = isYoutubeUrl(task.url)
+    val sourceVisual = remember(task.url) { sourceSiteVisualForUrl(task.url) }
+    val showRecoveryPanel = task.status == DownloadStatus.FAILED || isStuck
+    val hasDiagnostics = hasTaskDiagnostics(task)
     val progressColor = when (task.status) {
         DownloadStatus.FAILED -> MaterialTheme.colorScheme.error
         DownloadStatus.CANCELED -> MaterialTheme.colorScheme.outline
@@ -741,11 +811,26 @@ private fun DownloadTaskHeroCard(
             ),
         )
 
+        DownloadStatus.FAILED,
+        DownloadStatus.CANCELED,
+        -> listOf(
+            DownloadTaskAction(
+                icon = Icons.Outlined.Refresh,
+                contentDescription = "Retry",
+                label = "Retry",
+                onClick = { onRetry(task.id) },
+            ),
+        )
+
         else -> emptyList()
     }
-    val headerSummary = buildTaskHeaderSummary(task, snapshot)
-    val subtitle = buildTaskSubtitle(task, pauseExpiryLabel)
-    val footerMessage = buildTaskFooterMessage(task, snapshot, pauseExpiryLabel)
+    val headerSummary = buildTaskHeaderSummaryEnhanced(task, snapshot)
+    val subtitle = buildTaskSubtitleEnhanced(
+        task = task,
+        pauseExpiryLabel = pauseExpiryLabel,
+        showSourceInBadge = sourceVisual != null,
+    )
+    val footerMessage = buildTaskFooterMessageEnhanced(task, snapshot, pauseExpiryLabel, currentTimeMs)
 
     Surface(
         modifier = modifier
@@ -760,129 +845,192 @@ private fun DownloadTaskHeroCard(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         tonalElevation = 1.dp,
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(218.dp)
-                .clip(RoundedCornerShape(32.dp)),
-        ) {
-            DownloadTaskThumbnail(
-                task = task,
-                accent = accent,
-                statusIcon = taskStatusIcon,
-                showStatusBadge = false,
-            )
+        Column {
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Black.copy(alpha = 0.30f),
-                                Color.Transparent,
-                                Color.Black.copy(alpha = 0.62f),
+                    .fillMaxWidth()
+                    .height(218.dp)
+                    .clip(RoundedCornerShape(32.dp)),
+            ) {
+                DownloadTaskThumbnail(
+                    task = task,
+                    accent = accent,
+                    statusIcon = taskStatusIcon,
+                    showStatusBadge = sourceVisual != null,
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.Black.copy(alpha = 0.30f),
+                                    Color.Transparent,
+                                    Color.Black.copy(alpha = 0.62f),
+                                ),
                             ),
                         ),
-                    ),
-            )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top,
-            ) {
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.82f),
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top,
                 ) {
-                    Icon(
-                        imageVector = taskStatusIcon,
-                        contentDescription = null,
-                        tint = accent,
-                        modifier = Modifier
-                            .padding(12.dp)
-                            .size(18.dp),
-                    )
+                    if (sourceVisual != null) {
+                        TaskSourceBadge(
+                            sourceVisual = sourceVisual,
+                            hostLabel = sourceVisual.label,
+                            imageLoader = imageLoader,
+                        )
+                    } else {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.82f),
+                        ) {
+                            Icon(
+                                imageVector = taskStatusIcon,
+                                contentDescription = null,
+                                tint = accent,
+                                modifier = Modifier
+                                    .padding(12.dp)
+                                    .size(18.dp),
+                            )
+                        }
+                    }
+                    headerSummary?.let { summary ->
+                        Surface(
+                            shape = RoundedCornerShape(18.dp),
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.86f),
+                        ) {
+                            Text(
+                                text = summary,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
                 }
-                headerSummary?.let { summary ->
-                    Surface(
-                        shape = RoundedCornerShape(18.dp),
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.86f),
+                if (actions.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .padding(end = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
+                        actions.forEach { action ->
+                            DownloadTaskHeroActionButton(action = action)
+                        }
+                    }
+                }
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth()
+                        .padding(
+                            start = 20.dp,
+                            top = 16.dp,
+                            end = if (actions.isNotEmpty()) 188.dp else 20.dp,
+                            bottom = 18.dp,
+                        ),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = task.title,
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    subtitle?.let { text ->
                         Text(
-                            text = summary,
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            text = text,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Color.White.copy(alpha = 0.86f),
+                            fontWeight = FontWeight.Medium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
+                    footerMessage?.let { text ->
+                        Text(
+                            text = text,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White.copy(alpha = 0.92f),
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
-            }
-            if (actions.isNotEmpty()) {
-                Row(
+                LinearProgressIndicator(
+                    progress = { animatedProgress },
                     modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .padding(end = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth()
+                        .height(5.dp),
+                    color = progressColor,
+                    trackColor = Color.White.copy(alpha = 0.16f),
+                )
+            }
+
+            if (hasDiagnostics || showRecoveryPanel) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    actions.forEach { action ->
-                        DownloadTaskHeroActionButton(action = action)
+                    if (hasDiagnostics) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            RecoveryActionChip(
+                                label = if (expandedDebug) "Hide details" else "Show details",
+                                onClick = onToggleDebug,
+                            )
+                        }
+                        AnimatedVisibility(
+                            visible = expandedDebug,
+                            enter = fadeIn(animationSpec = tween(durationMillis = 180)) +
+                                expandVertically(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)),
+                            exit = fadeOut(animationSpec = tween(durationMillis = 140)) +
+                                shrinkVertically(animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)),
+                        ) {
+                            TaskDiagnosticsCard(
+                                task = task,
+                                currentTimeMs = currentTimeMs,
+                            )
+                        }
+                    }
+
+                    if (showRecoveryPanel) {
+                        RecoveryHelperCard(
+                            task = task,
+                            currentTimeMs = currentTimeMs,
+                            isStuck = isStuck,
+                            isYoutubeTask = isYoutubeTask,
+                            onRetry = if (task.status == DownloadStatus.FAILED) {
+                                { onRetry(task.id) }
+                            } else {
+                                null
+                            },
+                            onOpenCookies = onOpenCookies,
+                            onOpenYoutubeAccess = onOpenYoutubeAccess,
+                            onExportLogs = { shareAppLogs(context, task, isStuck) },
+                            onReportIssue = { openSupportIssue(context, task, isStuck) },
+                        )
                     }
                 }
             }
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .fillMaxWidth()
-                    .padding(
-                        start = 20.dp,
-                        top = 16.dp,
-                        end = if (actions.isNotEmpty()) 188.dp else 20.dp,
-                        bottom = 18.dp,
-                    ),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Text(
-                    text = task.title,
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = Color.White,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                subtitle?.let { text ->
-                    Text(
-                        text = text,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = Color.White.copy(alpha = 0.86f),
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                footerMessage?.let { text ->
-                    Text(
-                        text = text,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White.copy(alpha = 0.92f),
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-            LinearProgressIndicator(
-                progress = { animatedProgress },
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .fillMaxWidth()
-                    .height(5.dp),
-                color = progressColor,
-                trackColor = Color.White.copy(alpha = 0.16f),
-            )
         }
     }
 }
@@ -894,18 +1042,207 @@ private fun DownloadTaskHeroActionButton(
 ) {
     Surface(
         modifier = modifier
-            .size(84.dp)
+            .height(84.dp)
+            .widthIn(min = if (action.label != null) 112.dp else 84.dp)
             .clickable(onClick = action.onClick),
         shape = RoundedCornerShape(28.dp),
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.86f),
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(
-                imageVector = action.icon,
-                contentDescription = action.contentDescription,
-                tint = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.size(36.dp),
+        if (action.label != null) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Icon(
+                    imageVector = action.icon,
+                    contentDescription = action.contentDescription,
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(30.dp),
+                )
+                Text(
+                    text = action.label,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
+        } else {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = action.icon,
+                    contentDescription = action.contentDescription,
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(36.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TaskSourceBadge(
+    sourceVisual: SourceSiteVisual,
+    hostLabel: String,
+    imageLoader: ImageLoader,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.86f),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(26.dp)
+                    .clip(CircleShape)
+                    .background(sourceVisual.accent.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                AsyncImage(
+                    model = sourceVisual.assetPath,
+                    imageLoader = imageLoader,
+                    contentDescription = "${sourceVisual.label} logo",
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+            Text(
+                text = hostLabel,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
+        }
+    }
+}
+
+@Composable
+private fun RecoveryHelperCard(
+    task: DownloadTask,
+    currentTimeMs: Long,
+    isStuck: Boolean,
+    isYoutubeTask: Boolean,
+    onRetry: (() -> Unit)?,
+    onOpenCookies: () -> Unit,
+    onOpenYoutubeAccess: () -> Unit,
+    onExportLogs: () -> Unit,
+    onReportIssue: () -> Unit,
+) {
+    val guidance = buildRecoveryGuidance(
+        task = task,
+        currentTimeMs = currentTimeMs,
+        isStuck = isStuck,
+        isYoutubeTask = isYoutubeTask,
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            text = if (isStuck) "Download may be stuck" else "Troubleshooting help",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            text = guidance,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            onRetry?.let {
+                RecoveryActionChip(label = "Retry", onClick = it)
+            }
+            RecoveryActionChip(label = "Try Cookies", onClick = onOpenCookies)
+            if (isYoutubeTask) {
+                RecoveryActionChip(label = "PO generation", onClick = onOpenYoutubeAccess)
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            RecoveryActionChip(label = "Export log.txt", onClick = onExportLogs)
+            RecoveryActionChip(label = "Report issue", onClick = onReportIssue)
+        }
+    }
+}
+
+@Composable
+private fun RecoveryActionChip(
+    label: String,
+    onClick: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Medium,
+        )
+    }
+}
+
+@Composable
+private fun TaskDiagnosticsCard(
+    task: DownloadTask,
+    currentTimeMs: Long,
+) {
+    val diagnostics = buildDiagnosticEntries(task, currentTimeMs)
+    if (diagnostics.isEmpty()) return
+
+    Surface(
+        shape = RoundedCornerShape(22.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                text = "Diagnostics",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            diagnostics.forEach { entry ->
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = entry.label,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = entry.value,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+            }
         }
     }
 }
@@ -1183,12 +1520,165 @@ private fun normalizedTaskSize(value: String?): String? {
     }
 }
 
+internal data class TaskDiagnosticEntry(
+    val label: String,
+    val value: String,
+)
+
+internal fun hasTaskDiagnostics(task: DownloadTask): Boolean {
+    return !task.errorMessage.isNullOrBlank() ||
+        !task.debugTrace.isNullOrBlank() ||
+        !task.outputPath.isNullOrBlank() ||
+        !task.url.isBlank()
+}
+
+internal fun buildDiagnosticEntries(
+    task: DownloadTask,
+    currentTimeMs: Long,
+): List<TaskDiagnosticEntry> {
+    return buildList {
+        add(TaskDiagnosticEntry(label = "Task ID", value = task.id))
+        sourceHostLabel(task.url)?.let { add(TaskDiagnosticEntry(label = "Source", value = it)) }
+        add(TaskDiagnosticEntry(label = "Status", value = task.status.name))
+        add(
+            TaskDiagnosticEntry(
+                label = "Last updated",
+                value = formatElapsedLabel(currentTimeMs - task.updatedAtEpochMs) + " ago",
+            ),
+        )
+        task.outputPath?.takeIf { it.isNotBlank() }?.let {
+            add(TaskDiagnosticEntry(label = "Output path", value = it))
+        }
+        task.errorMessage?.takeIf { it.isNotBlank() }?.let {
+            add(TaskDiagnosticEntry(label = "Error", value = it))
+        }
+        latestDebugMessages(task.debugTrace, limit = 3).takeIf { it.isNotEmpty() }?.let {
+            add(TaskDiagnosticEntry(label = "Recent log lines", value = it.joinToString("\n")))
+        }
+    }
+}
+
 private fun latestDebugMessage(debugTrace: String?): String? {
+    return latestDebugMessages(debugTrace, limit = 1).firstOrNull()
+}
+
+internal fun latestDebugMessages(debugTrace: String?, limit: Int = 3): List<String> {
     return debugTrace
         ?.lineSequence()
         ?.map { line ->
             val trimmed = line.trim()
             trimmed.substringAfter(": ", trimmed).trim()
         }
-        ?.lastOrNull { it.isNotBlank() }
+        ?.filter { it.isNotBlank() }
+        ?.toList()
+        ?.takeLast(limit)
+        .orEmpty()
 }
+
+private fun buildTaskHeaderSummaryEnhanced(
+    task: DownloadTask,
+    snapshot: com.localdownloader.ui.components.LocalMediaSnapshot,
+): String? {
+    val segments = buildList {
+        compactResolutionLabel(snapshot.resolutionLabel)?.let(::add)
+        snapshot.formatLabel?.takeIf { it.isNotBlank() }?.let(::add)
+        (
+            normalizedTaskSize(task.totalSizeStr)
+                ?: normalizedTaskSize(snapshot.sizeLabel)
+                ?: normalizedTaskSize(task.downloadedStr)
+            )?.let(::add)
+    }
+    return segments.joinToString(" | ").ifBlank { null }
+}
+
+private fun buildTaskSubtitleEnhanced(
+    task: DownloadTask,
+    pauseExpiryLabel: String?,
+    showSourceInBadge: Boolean,
+): String? {
+    val sourceLabel = sourceHostLabel(task.url)?.takeUnless { showSourceInBadge }
+    return when (task.status) {
+        DownloadStatus.RUNNING -> listOfNotNull(
+            sourceLabel,
+            statusLabel(task.status),
+            task.speed?.takeIf { it.isNotBlank() },
+            task.eta?.takeIf { it.isNotBlank() }?.let { "ETA $it" },
+        ).joinToString(" | ")
+
+        DownloadStatus.QUEUED -> listOfNotNull(sourceLabel, "Waiting in queue").joinToString(" | ")
+        DownloadStatus.PAUSED -> listOfNotNull(sourceLabel, pauseExpiryLabel ?: "Paused").joinToString(" | ")
+        DownloadStatus.COMPLETED -> listOfNotNull(sourceLabel, "Finished").joinToString(" | ")
+        DownloadStatus.FAILED -> listOfNotNull(sourceLabel, "Needs attention").joinToString(" | ")
+        DownloadStatus.CANCELED -> listOfNotNull(sourceLabel, "Canceled").joinToString(" | ")
+    }.ifBlank { null }
+}
+
+private fun buildTaskFooterMessageEnhanced(
+    task: DownloadTask,
+    snapshot: com.localdownloader.ui.components.LocalMediaSnapshot,
+    pauseExpiryLabel: String?,
+    currentTimeMs: Long,
+): String? {
+    task.errorMessage?.takeIf { it.isNotBlank() }?.let { return it }
+    if (isPotentiallyStuck(task, currentTimeMs)) {
+        return "No progress update for ${formatElapsedLabel(currentTimeMs - task.updatedAtEpochMs)}. This item may be stuck."
+    }
+    latestDebugMessage(task.debugTrace)?.let { return it }
+    return when (task.status) {
+        DownloadStatus.RUNNING -> listOfNotNull(
+            progressSizeLabel(task, snapshot.sizeLabel).takeIf { it.isNotBlank() },
+            "${task.progressPercent}% complete".takeIf { task.progressPercent > 0 },
+        ).joinToString(" | ").ifBlank { null }
+
+        DownloadStatus.QUEUED -> "Queued and ready for the worker to start."
+        DownloadStatus.PAUSED -> pauseExpiryLabel
+        DownloadStatus.COMPLETED -> "Saved to your downloads library."
+        DownloadStatus.FAILED -> "This item needs another try."
+        DownloadStatus.CANCELED -> "Canceled by user."
+    }
+}
+
+private fun buildRecoveryGuidance(
+    task: DownloadTask,
+    currentTimeMs: Long,
+    isStuck: Boolean,
+    isYoutubeTask: Boolean,
+): String {
+    return when {
+        isStuck && isYoutubeTask ->
+            "This YouTube item has not updated for ${formatElapsedLabel(currentTimeMs - task.updatedAtEpochMs)}. Cookies or PO generation often help when playback access checks interrupt the download."
+
+        isStuck ->
+            "This item has not updated for ${formatElapsedLabel(currentTimeMs - task.updatedAtEpochMs)}. Cookies can help if the site needs a signed-in or region-matched session."
+
+        isYoutubeTask ->
+            "YouTube failures often improve after adding cookies and refreshing PO generation from More."
+
+        else ->
+            "If this download failed after redirects, rate limits, or protected access, try cookies first. If it still fails, export the logs and report the issue."
+    }
+}
+
+private fun isYoutubeUrl(url: String): Boolean {
+    val normalized = url.lowercase()
+    return normalized.contains("youtube.com") || normalized.contains("youtu.be")
+}
+
+private fun isPotentiallyStuck(task: DownloadTask, currentTimeMs: Long): Boolean {
+    if (task.status != DownloadStatus.RUNNING) return false
+    if (task.progressPercent >= 100) return false
+    return currentTimeMs - task.updatedAtEpochMs >= STUCK_THRESHOLD_MS
+}
+
+private fun formatElapsedLabel(elapsedMs: Long): String {
+    val totalSeconds = (elapsedMs / 1_000L).coerceAtLeast(0L)
+    val minutes = totalSeconds / 60L
+    val seconds = totalSeconds % 60L
+    return if (minutes > 0) {
+        "${minutes}m ${seconds}s"
+    } else {
+        "${seconds}s"
+    }
+}
+
+private const val STUCK_THRESHOLD_MS = 3L * 60L * 1_000L

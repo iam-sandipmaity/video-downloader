@@ -51,9 +51,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.localdownloader.domain.models.YoutubeAuthConfig
+import com.localdownloader.ui.components.InlineFeedbackCard
 import com.localdownloader.utils.CookieTextCodec
 import com.localdownloader.utils.WebViewCookieExporter
 import com.localdownloader.utils.YoutubePoTokenGenerator
+import com.localdownloader.viewmodel.FormatMessageScope
 import com.localdownloader.viewmodel.FormatUiState
 import java.text.DateFormat
 import kotlinx.coroutines.Dispatchers
@@ -76,6 +78,8 @@ fun YoutubeAuthScreen(
     modifier: Modifier = Modifier,
 ) {
     val authConfig = uiState.youtubeAuthConfig
+    val infoMessage = uiState.infoMessageFor(FormatMessageScope.YOUTUBE_ACCESS)
+    val errorMessage = uiState.errorMessageFor(FormatMessageScope.YOUTUBE_ACCESS)
     val hasYoutubeCookie = remember(uiState.cookieProfiles) {
         CookieTextCodec.findBestMatch(uiState.cookieProfiles, "https://www.youtube.com") != null
     }
@@ -208,16 +212,18 @@ fun YoutubeAuthScreen(
                 }
             }
 
-            uiState.infoMessage?.let { message ->
-                MessageCard(
-                    text = message,
+            infoMessage?.let { message ->
+                InlineFeedbackCard(
+                    label = "YouTube access",
+                    message = message,
                     isError = false,
                     onDismiss = onDismissMessage,
                 )
             }
-            uiState.errorMessage?.let { message ->
-                MessageCard(
-                    text = message,
+            errorMessage?.let { message ->
+                InlineFeedbackCard(
+                    label = "YouTube access",
+                    message = message,
                     isError = true,
                     onDismiss = onDismissMessage,
                 )
@@ -461,45 +467,6 @@ private fun DetailRow(
             text = value.ifBlank { "Not set" },
             style = MaterialTheme.typography.bodyMedium,
         )
-    }
-}
-
-@Composable
-private fun MessageCard(
-    text: String,
-    isError: Boolean,
-    onDismiss: () -> Unit,
-) {
-    Surface(
-        color = if (isError) {
-            MaterialTheme.colorScheme.errorContainer
-        } else {
-            MaterialTheme.colorScheme.secondaryContainer
-        },
-        shape = RoundedCornerShape(20.dp),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                text = text,
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (isError) {
-                    MaterialTheme.colorScheme.onErrorContainer
-                } else {
-                    MaterialTheme.colorScheme.onSecondaryContainer
-                },
-            )
-            TextButton(
-                onClick = onDismiss,
-                modifier = Modifier.align(Alignment.End),
-            ) {
-                Text("Dismiss")
-            }
-        }
     }
 }
 

@@ -11,6 +11,13 @@ import com.localdownloader.domain.models.VideoInfo
 import com.localdownloader.domain.models.VideoQuality
 import com.localdownloader.domain.models.YoutubeAuthConfig
 
+enum class FormatMessageScope {
+    BROWSER,
+    SETTINGS,
+    COOKIES,
+    YOUTUBE_ACCESS,
+}
+
 data class FormatUiState(
     val urlInput: String = "",
     val isAnalyzing: Boolean = false,
@@ -51,6 +58,7 @@ data class FormatUiState(
     val youtubeAuthConfig: YoutubeAuthConfig = YoutubeAuthConfig(),
     val appSettings: AppSettings = AppSettings(),
     val hasLoadedSettings: Boolean = false,
+    val messageScope: FormatMessageScope = FormatMessageScope.BROWSER,
     val infoMessage: String? = null,
     val errorMessage: String? = null,
     val isDarkTheme: Boolean = false,
@@ -70,4 +78,10 @@ data class FormatUiState(
             !appSettings.hasSeenDownloadSetupNotice &&
             cookieProfiles.isEmpty() &&
             !youtubeAuthConfig.isConfigured()
+
+    fun infoMessageFor(scope: FormatMessageScope): String? =
+        infoMessage?.takeIf { messageScope == scope }
+
+    fun errorMessageFor(scope: FormatMessageScope): String? =
+        errorMessage?.takeIf { messageScope == scope }
 }

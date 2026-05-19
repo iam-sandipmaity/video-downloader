@@ -68,6 +68,25 @@ class DownloadViewModel @Inject constructor(
         }
     }
 
+    fun retry(taskId: String) {
+        logger.i("DownloadViewModel", "retry requested taskId=$taskId")
+        viewModelScope.launch {
+            repository.retryDownload(taskId)
+                .onSuccess {
+                    _uiState.update { state ->
+                        state.copy(
+                            infoMessage = "Retry queued for this item.",
+                            errorMessage = null,
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    logger.e("DownloadViewModel", "retry failed taskId=$taskId", error)
+                    _uiState.update { state -> state.copy(errorMessage = error.message) }
+                }
+        }
+    }
+
     fun cancel(taskId: String) {
         logger.i("DownloadViewModel", "cancel requested taskId=$taskId")
         viewModelScope.launch {
@@ -148,6 +167,32 @@ class DownloadViewModel @Inject constructor(
                 state.copy(
                     infoMessage = if (failure == null) {
                         "Canceled ${ids.size} queued item(s)."
+                    } else {
+                        state.infoMessage
+                    },
+                    errorMessage = failure?.message,
+                )
+            }
+        }
+    }
+
+    fun retryTasks(taskIds: List<String>) {
+        val ids = taskIds.map(String::trim).filter(String::isNotBlank).distinct()
+        if (ids.isEmpty()) return
+        logger.i("DownloadViewModel", "batch retry requested count=${ids.size}")
+        viewModelScope.launch {
+            var failure: Throwable? = null
+            ids.forEach { taskId ->
+                repository.retryDownload(taskId)
+                    .onFailure { error ->
+                        if (failure == null) failure = error
+                        logger.e("DownloadViewModel", "batch retry failed taskId=$taskId", error)
+                    }
+            }
+            _uiState.update { state ->
+                state.copy(
+                    infoMessage = if (failure == null) {
+                        "Queued retry for ${ids.size} failed item(s)."
                     } else {
                         state.infoMessage
                     },

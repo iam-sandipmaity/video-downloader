@@ -1,5 +1,36 @@
 # Changelog
 
+## [Unreleased]
+
+## [1.7.1] - 2026-05-20
+
+### Added
+- **First-run setup sheet** - replaced the passive Home reminder with a two-step onboarding sheet that lets new users either continue without cookies or jump straight into Cookies and YouTube access setup
+- **Queue source branding** - download queue hero cards now show recognized site badges so YouTube, Instagram, TikTok, and similar sources are easier to scan at a glance
+- **Smarter format estimates** - download options now show estimated final size labels when yt-dlp does not return an exact file size, using bitrate and duration as a fallback
+- **Format-aware picker rows** - download options now show file size directly beside each selectable format, with richer codec, container, fps, and quality metadata in the picker itself
+- **Expandable queue diagnostics** - queue items can now reveal a compact diagnostics panel with task ID, source host, output path, error details, and recent log lines
+- **Failed-item batch retry** - the queue now offers a `Retry All Failed` action from the failed-items tab so recovery is not limited to one card at a time
+
+### Changed
+- **Queue screen redesign** - refreshed the queue into the newer hero-card layout with thumbnail-first previews, stronger empty states, and clearer top-level queue filtering
+- **Download card previews** - queued and running items now prefer analyzed remote thumbnails before a local output file exists, so users see the real media preview instead of a generic placeholder
+- **Playlist control behavior** - pausing, canceling, or resuming one playlist item no longer applies that action to the entire remaining playlist queue by accident
+- **Queue batch controls** - added section-level pause/cancel actions for queued items and resume actions for scheduled items, keeping batch behavior separate from per-item controls
+- **Download sheet reliability** - made the Home screen scrollable and pinned the bottom-sheet `Download` button so it stays reachable on smaller screens and taller format-detail layouts
+- **Feedback card refresh** - Home, Settings, Cookies, and YouTube access now use a cleaner inline feedback card with clearer tone, easier dismissal, and better placement near the top of each screen
+- **Help center redesign** - rebuilt the Help page into a stronger support hub with a visual hero, clearer troubleshooting shortcuts, better recovery guidance, and more practical reporting instructions
+- **Queue recovery polish** - failed queue items now use a clearer retry action and the recovery flow stays aligned with the built-in cookies, PO generation, log export, and issue-report shortcuts
+- **AGP 9 migration cleanup** - removed the temporary built-in-Kotlin, new-DSL, and Jetifier bridge flags and switched annotation processing from kapt to KSP
+- **Build script cleanup** - modernized generated changelog asset wiring to avoid the older deprecated source-set call path
+
+### Fixed
+- **Cross-screen feedback leak** - Browse/Home status messages no longer show up inside Settings, Cookies, or YouTube access because transient format messages are now scoped to the screen that created them
+- **Download options sheet scroll bounce** - stabilized the analyzed-format bottom sheet by removing the unstable size animation and skipping the partial sheet state, so reaching the bottom no longer triggers rapid jumpy up/down movement
+
+### Technical
+- **Logic test coverage** - added unit coverage for first-run onboarding visibility, source-site detection, format size estimation fallback, and queue diagnostics parsing
+
 ## [1.7.0.1] - 2026-05-19
 
 ### Added

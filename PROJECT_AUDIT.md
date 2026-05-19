@@ -2,9 +2,9 @@
 
 ## Audit Scope
 
-- Audit date: 2026-05-19
+- Audit date: 2026-05-20
 - Current app version in `gradle.properties`: `1.7.0.1`
-- Focus: repo state after `1.7.0`, build and CI migration, in-app YouTube access, update infrastructure, and current maintenance risks
+- Focus: repo state after `1.7.0`, build and CI migration, in-app YouTube access, queue recovery UX, and current maintenance risks
 
 ---
 
@@ -14,10 +14,12 @@ Video Downloader is now a local-first Android app built around:
 
 - Jetpack Compose UI
 - Hilt-based dependency injection
+- KSP-based annotation processing
 - Room persistence plus DataStore-backed settings
 - `youtubedl-android` runtime plus FFmpeg integration
 - in-app YouTube cookie capture and PO-token generation
 - app / `yt-dlp` / FFmpeg update management from a dedicated Updates flow
+- first-run setup guidance plus in-queue troubleshooting shortcuts
 
 The biggest architectural correction since the older audit is that the project no longer depends on a desktop auth handoff. The removed `tools/youtube-auth-helper` path has been replaced by an Android-native flow using `YoutubeAuthScreen`, `WebViewCookieExporter`, and `YoutubePoTokenGenerator`.
 
@@ -25,7 +27,7 @@ The biggest architectural correction since the older audit is that the project n
 
 ## Post-1.7.0 Change Summary
 
-The repo picked up 6 follow-up maintenance commits after `1.7.0`:
+The repo picked up 6 maintenance commits after `1.7.0`, then a feature branch focused on download UX and AGP cleanup:
 
 1. Added security policy and maintenance docs
 2. Bumped the app to the `1.7.0.1` line
@@ -34,7 +36,15 @@ The repo picked up 6 follow-up maintenance commits after `1.7.0`:
 5. Removed the old Hilt Gradle plugin transform dependency for AGP 9 compatibility
 6. Removed the unused desktop YouTube auth helper and its npm / Playwright maintenance surface
 
-This is a maintenance-heavy patch line rather than a feature-heavy release line.
+Current branch-level upgrades on top of that:
+
+1. Added a two-step onboarding sheet for first-run cookie and YouTube access guidance
+2. Added queue-level recovery shortcuts and in-app log export / issue-report actions
+3. Refined queue cards with source branding and clearer retry affordances
+4. Added estimated format size fallback when exact yt-dlp size metadata is missing
+5. Migrated annotation processing from kapt to KSP and removed AGP 9 bridge flags
+
+This is now a mixed maintenance and product-polish line rather than a pure maintenance-only patch line.
 
 ---
 
@@ -66,6 +76,12 @@ This is a maintenance-heavy patch line rather than a feature-heavy release line.
 - Dependabot now tracks Gradle and GitHub Actions updates
 - BotGuard constant provenance is documented in code so future refreshes are easier to trace
 
+### 5. Download troubleshooting is much more actionable
+
+- first-run users now get a cleaner setup path instead of a passive reminder card
+- failed or stuck queue items now surface cookies, PO generation, log export, and issue reporting where users actually need them
+- queue cards identify known source sites visually, which makes mixed download lists easier to scan
+
 ### 5. The repo is no longer test-free
 
 There is still only light coverage, but the repo now has targeted unit tests for:
@@ -78,34 +94,19 @@ There is still only light coverage, but the repo now has targeted unit tests for
 
 ## Active Risks And Technical Debt
 
-### 1. AGP 9 still depends on temporary bridge flags
-
-`gradle.properties` still carries:
-
-- `android.builtInKotlin=false`
-- `android.newDsl=false`
-- `android.sourceset.disallowProvider=false`
-
-These flags are deprecated and should be treated as a short-term bridge until the remaining legacy Android DSL and source-set usage is migrated.
-
-### 2. Jetifier is still enabled
-
-`android.enableJetifier=true` is also deprecated. The dependency graph should be reviewed so Jetifier can be removed before AGP 10 forces the issue.
-
-### 3. CI still has packaging warnings
+### 1. CI still has packaging warnings
 
 Recent build logs still show non-fatal warnings around:
 
-- `android:extractNativeLibs` in `AndroidManifest.xml`
 - stripping `libffmpeg.zip.so` and `libpython.zip.so`
 
 These are not release blockers today, but they reduce signal quality in CI.
 
-### 4. Hilt is compatible, but not yet fully modernized
+### 2. Build verification is environment-blocked locally
 
-The project now works on AGP 9 by using the explicit generated-base-class pattern instead of the old Hilt transform path. That fixes the immediate build failure, but the DI and annotation-processing setup is still kapt-based and worth revisiting later.
+The AGP cleanup is in better shape now, but this machine still has no Android SDK path configured. That means local verification currently stops at SDK detection instead of running the full Android compile.
 
-### 5. The YouTube BotGuard path is operationally fragile
+### 3. The YouTube BotGuard path is operationally fragile
 
 The current PO-token flow depends on:
 
@@ -115,12 +116,14 @@ The current PO-token flow depends on:
 
 That is workable, but it is not a stable contract. The app should continue to treat PO-token generation as a best-effort recovery path and fail gracefully when upstream changes land.
 
-### 6. Automated coverage is still narrow
+### 4. Automated coverage is still narrow
 
 There is no visible `androidTest` source tree in the current snapshot, and unit coverage does not yet touch several higher-risk areas:
 
 - update-manager logic
 - auth persistence boundaries
+- onboarding visibility rules
+- queue recovery affordances
 - media-tool validation and recovery
 - runtime fallback behavior
 
@@ -128,14 +131,13 @@ There is no visible `androidTest` source tree in the current snapshot, and unit 
 
 ## Recommended Next Steps
 
-1. Remove the AGP 9 compatibility flags by migrating the remaining legacy Android DSL and source-set usage.
-2. Audit dependencies so Jetifier can be disabled.
-3. Clean the remaining manifest and native-library packaging warnings from CI.
-4. Expand automated coverage around updates, auth persistence, and media-tool request validation.
-5. Keep release docs aligned with the in-app-only YouTube access flow and the newer maintenance tooling.
+1. Validate the post-kapt, KSP-based AGP 9 build on a fully configured Android SDK machine.
+2. Clean the remaining native-library packaging warnings from CI.
+3. Expand automated coverage around updates, onboarding visibility, queue recovery, and media-tool request validation.
+4. Keep release docs aligned with the onboarding sheet, queue recovery UX, and in-app-only YouTube access flow.
 
 ---
 
 ## Conclusion
 
-The project is healthier than the older audit suggested. The most important mismatch is gone: YouTube auth is now an in-app workflow instead of a desktop-helper workflow. The current concerns are mostly maintenance and migration concerns around AGP 9, deprecated Gradle flags, and limited automated coverage, not broken core product architecture.
+The project is healthier than the older audit suggested. The biggest architectural mismatch is gone: YouTube auth is now an in-app workflow instead of a desktop-helper workflow, and the AGP 9 migration no longer relies on the older bridge flags. The remaining concerns are mostly CI hygiene, environment-specific verification, and limited automated coverage rather than broken core product architecture.

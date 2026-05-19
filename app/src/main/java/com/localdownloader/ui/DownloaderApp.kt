@@ -420,6 +420,7 @@ fun DownloaderApp(
                     onOpenSettings = { navController.navigate(Routes.Settings) },
                     onOpenHelp = { navController.navigate(Routes.Help) },
                     onDismissDownloadSetupNotice = formatViewModel::dismissDownloadSetupNotice,
+                    onDismissMessage = formatViewModel::dismissMessage,
                     onDarkThemeChanged = formatViewModel::toggleDarkTheme,
                     isDownloadButtonEnabled = formatViewModel.isDownloadButtonEnabled(),
                 )
@@ -457,10 +458,15 @@ fun DownloaderApp(
                     uiState = downloadState,
                     onPause = downloadViewModel::pause,
                     onResume = downloadViewModel::resume,
+                    onRetry = downloadViewModel::retry,
                     onCancel = downloadViewModel::cancel,
                     onPauseTasks = downloadViewModel::pauseTasks,
                     onResumeTasks = downloadViewModel::resumeTasks,
+                    onRetryTasks = downloadViewModel::retryTasks,
                     onCancelTasks = downloadViewModel::cancelTasks,
+                    onOpenCookies = { navController.navigate(Routes.Cookies) },
+                    onOpenYoutubeAccess = { navController.navigate(Routes.YoutubeAuth) },
+                    onToggleDebug = downloadViewModel::toggleDebug,
                     onBack = { navController.popBackStack() },
                 )
             }
@@ -691,7 +697,11 @@ fun DownloaderApp(
                 )
             }
             composable(Routes.Help) {
-                HelpScreen(onBack = { navController.popBackStack() })
+                HelpScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenCookies = { navController.navigate(Routes.Cookies) },
+                    onOpenYoutubeAccess = { navController.navigate(Routes.YoutubeAuth) },
+                )
             }
             composable(Routes.Music) {
                 MusicPlayerScreen(
