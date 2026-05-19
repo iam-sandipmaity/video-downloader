@@ -232,6 +232,8 @@ APK output:
 
 - Ensure your use of `yt-dlp` and downloaded content follows local law and platform terms.
 - Keep license and attribution files for any bundled binaries.
+- The YouTube PO-token constants and WebView flow in `YoutubePoTokenGenerator` are adapted from LibreTube's upstream implementation:
+  `api/ExternalApi.kt` and `api/poToken/PoTokenWebView.kt`.
 
 ## More documentation
 

@@ -43,6 +43,20 @@ gradle :app:testDebugUnitTest
 - Background yt-dlp maintenance belongs in `worker/YtDlpUpdateScheduler.kt` and `worker/YtDlpUpdateWorker.kt`.
 - Guard runtime replacement when downloads are active; current behavior intentionally blocks manual runtime installs in that case.
 
+## Refreshing YouTube PO-token constants
+
+- `utils/YoutubePoTokenGenerator.kt` currently mirrors LibreTube's BotGuard implementation.
+- `GOOGLE_API_KEY` maps to LibreTube's `api/ExternalApi.kt`; `REQUEST_KEY` maps to `api/poToken/PoTokenWebView.kt`.
+- Before changing either constant, compare against both LibreTube files and then verify the full PO-token flow still matches upstream behavior.
+- PowerShell check:
+
+```powershell
+Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/libre-tube/LibreTube/main/app/src/main/java/com/github/libretube/api/ExternalApi.kt' |
+    Select-String -Pattern 'GOOGLE_API_KEY'
+Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/libre-tube/LibreTube/main/app/src/main/java/com/github/libretube/api/poToken/PoTokenWebView.kt' |
+    Select-String -Pattern 'REQUEST_KEY'
+```
+
 ## Adding new FFmpeg operations
 
 1. Add domain request model if needed.

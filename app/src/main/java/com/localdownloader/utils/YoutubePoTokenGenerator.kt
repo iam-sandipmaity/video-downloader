@@ -268,6 +268,13 @@ object YoutubePoTokenGenerator {
         }
     }
 
+    // These BotGuard constants currently mirror LibreTube's implementation:
+    // GOOGLE_API_KEY:
+    // https://github.com/libre-tube/LibreTube/blob/73e9a0fd9bf7f5ee1d6acb22d2fc4d8353bcc815/app/src/main/java/com/github/libretube/api/ExternalApi.kt#L23
+    // REQUEST_KEY:
+    // https://github.com/libre-tube/LibreTube/blob/73e9a0fd9bf7f5ee1d6acb22d2fc4d8353bcc815/app/src/main/java/com/github/libretube/api/poToken/PoTokenWebView.kt#L268
+    // Maintenance check:
+    // Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/libre-tube/LibreTube/main/app/src/main/java/com/github/libretube/api/ExternalApi.kt' | Select-String -Pattern 'GOOGLE_API_KEY'; Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/libre-tube/LibreTube/main/app/src/main/java/com/github/libretube/api/poToken/PoTokenWebView.kt' | Select-String -Pattern 'REQUEST_KEY'
     private const val GOOGLE_API_KEY = "AIzaSyDyT5W0Jh49F30Pqqtyfdf7pDLFKLJoAnw"
     private const val REQUEST_KEY = "O43z0dpjhgX20SCx4KAo"
     private const val USER_AGENT =
