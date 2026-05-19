@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.SwapHoriz
@@ -48,6 +49,7 @@ fun MoreScreen(
     onOpenConvert: () -> Unit,
     onOpenYoutubeAccess: () -> Unit,
     onOpenCookies: () -> Unit,
+    onOpenUpdates: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenHelp: () -> Unit,
     modifier: Modifier = Modifier,
@@ -76,6 +78,12 @@ fun MoreScreen(
             subtitle = "Manage saved site sessions used by the downloader.",
             icon = Icons.Outlined.Web,
             onClick = onOpenCookies,
+        ),
+        MoreListItem(
+            title = "Updates",
+            subtitle = "Check app, yt-dlp, and FFmpeg versions from one update center.",
+            icon = Icons.Outlined.Refresh,
+            onClick = onOpenUpdates,
         ),
     )
     val toolItems = listOf(
