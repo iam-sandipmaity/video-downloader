@@ -29,8 +29,8 @@ import kotlinx.coroutines.launch
 import java.io.File
 import javax.inject.Inject
 
-@AndroidEntryPoint
-class AudioPlaybackService : Service() {
+@AndroidEntryPoint(Service::class)
+class AudioPlaybackService : Hilt_AudioPlaybackService() {
     @Inject
     lateinit var audioPlaybackManager: AudioPlaybackManager
 

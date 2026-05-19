@@ -19,8 +19,8 @@ import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Inject
 
-@HiltAndroidApp
-class DownloaderApplication : Application() {
+@HiltAndroidApp(Application::class)
+class DownloaderApplication : Hilt_DownloaderApplication() {
 
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
