@@ -6,11 +6,22 @@
 - **First-run setup sheet** - replaced the passive Home reminder with a two-step onboarding sheet that lets new users either continue without cookies or jump straight into Cookies and YouTube access setup
 - **Queue source branding** - download queue hero cards now show recognized site badges so YouTube, Instagram, TikTok, and similar sources are easier to scan at a glance
 - **Smarter format estimates** - download options now show estimated final size labels when yt-dlp does not return an exact file size, using bitrate and duration as a fallback
+- **Format-aware picker rows** - download options now show file size directly beside each selectable format, with richer codec, container, fps, and quality metadata in the picker itself
+- **Expandable queue diagnostics** - queue items can now reveal a compact diagnostics panel with task ID, source host, output path, error details, and recent log lines
+- **Failed-item batch retry** - the queue now offers a `Retry All Failed` action from the failed-items tab so recovery is not limited to one card at a time
 
 ### Changed
+- **Queue screen redesign** - refreshed the queue into the newer hero-card layout with thumbnail-first previews, stronger empty states, and clearer top-level queue filtering
+- **Download card previews** - queued and running items now prefer analyzed remote thumbnails before a local output file exists, so users see the real media preview instead of a generic placeholder
+- **Playlist control behavior** - pausing, canceling, or resuming one playlist item no longer applies that action to the entire remaining playlist queue by accident
+- **Queue batch controls** - added section-level pause/cancel actions for queued items and resume actions for scheduled items, keeping batch behavior separate from per-item controls
+- **Download sheet reliability** - made the Home screen scrollable and pinned the bottom-sheet `Download` button so it stays reachable on smaller screens and taller format-detail layouts
 - **Queue recovery polish** - failed queue items now use a clearer retry action and the recovery flow stays aligned with the built-in cookies, PO generation, log export, and issue-report shortcuts
 - **AGP 9 migration cleanup** - removed the temporary built-in-Kotlin, new-DSL, and Jetifier bridge flags and switched annotation processing from kapt to KSP
 - **Build script cleanup** - modernized generated changelog asset wiring to avoid the older deprecated source-set call path
+
+### Technical
+- **Logic test coverage** - added unit coverage for first-run onboarding visibility, source-site detection, format size estimation fallback, and queue diagnostics parsing
 
 ## [1.7.0.1] - 2026-05-19
 

@@ -96,9 +96,11 @@ fun ProgressScreen(
     onCancel: (String) -> Unit,
     onPauseTasks: (List<String>) -> Unit,
     onResumeTasks: (List<String>) -> Unit,
+    onRetryTasks: (List<String>) -> Unit,
     onCancelTasks: (List<String>) -> Unit,
     onOpenCookies: () -> Unit,
     onOpenYoutubeAccess: () -> Unit,
+    onToggleDebug: (String) -> Unit,
     onBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -226,6 +228,7 @@ fun ProgressScreen(
                     tasks = filteredTasks,
                     onPauseTasks = onPauseTasks,
                     onResumeTasks = onResumeTasks,
+                    onRetryTasks = onRetryTasks,
                     onCancelTasks = onCancelTasks,
                 )
             } else {
@@ -323,6 +326,8 @@ fun ProgressScreen(
                                 onCancel = onCancel,
                                 onOpenCookies = onOpenCookies,
                                 onOpenYoutubeAccess = onOpenYoutubeAccess,
+                                expandedDebug = task.id in uiState.expandedDebugTaskIds,
+                                onToggleDebug = { onToggleDebug(task.id) },
                             )
                         } else {
                             ProgressTaskCard(
@@ -334,6 +339,8 @@ fun ProgressScreen(
                                 onCancel = onCancel,
                                 onOpenCookies = onOpenCookies,
                                 onOpenYoutubeAccess = onOpenYoutubeAccess,
+                                expandedDebug = task.id in uiState.expandedDebugTaskIds,
+                                onToggleDebug = { onToggleDebug(task.id) },
                             )
                         }
                     }
@@ -402,6 +409,7 @@ private fun QueueBatchActionRow(
     tasks: List<DownloadTask>,
     onPauseTasks: (List<String>) -> Unit,
     onResumeTasks: (List<String>) -> Unit,
+    onRetryTasks: (List<String>) -> Unit,
     onCancelTasks: (List<String>) -> Unit,
 ) {
     val taskIds = tasks.map { it.id }
@@ -421,6 +429,13 @@ private fun QueueBatchActionRow(
             QueueBatchAction(
                 label = "Resume All Scheduled",
                 onClick = { onResumeTasks(taskIds) },
+            ),
+        )
+
+        ProgressFilter.Error -> listOf(
+            QueueBatchAction(
+                label = "Retry All Failed",
+                onClick = { onRetryTasks(taskIds) },
             ),
         )
 
@@ -560,6 +575,8 @@ private fun QueueTaskRow(
     onCancel: (String) -> Unit,
     onOpenCookies: () -> Unit,
     onOpenYoutubeAccess: () -> Unit,
+    expandedDebug: Boolean,
+    onToggleDebug: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     DownloadTaskHeroCard(
@@ -571,6 +588,8 @@ private fun QueueTaskRow(
         onCancel = onCancel,
         onOpenCookies = onOpenCookies,
         onOpenYoutubeAccess = onOpenYoutubeAccess,
+        expandedDebug = expandedDebug,
+        onToggleDebug = onToggleDebug,
         modifier = modifier,
     )
 }
@@ -695,6 +714,8 @@ private fun ProgressTaskCard(
     onCancel: (String) -> Unit,
     onOpenCookies: () -> Unit,
     onOpenYoutubeAccess: () -> Unit,
+    expandedDebug: Boolean,
+    onToggleDebug: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     DownloadTaskHeroCard(
@@ -706,6 +727,8 @@ private fun ProgressTaskCard(
         onCancel = onCancel,
         onOpenCookies = onOpenCookies,
         onOpenYoutubeAccess = onOpenYoutubeAccess,
+        expandedDebug = expandedDebug,
+        onToggleDebug = onToggleDebug,
         modifier = modifier,
     )
 }
@@ -727,6 +750,8 @@ private fun DownloadTaskHeroCard(
     onCancel: (String) -> Unit,
     onOpenCookies: () -> Unit,
     onOpenYoutubeAccess: () -> Unit,
+    expandedDebug: Boolean,
+    onToggleDebug: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -741,6 +766,7 @@ private fun DownloadTaskHeroCard(
     val isYoutubeTask = isYoutubeUrl(task.url)
     val sourceVisual = remember(task.url) { sourceSiteVisualForUrl(task.url) }
     val showRecoveryPanel = task.status == DownloadStatus.FAILED || isStuck
+    val hasDiagnostics = hasTaskDiagnostics(task)
     val progressColor = when (task.status) {
         DownloadStatus.FAILED -> MaterialTheme.colorScheme.error
         DownloadStatus.CANCELED -> MaterialTheme.colorScheme.outline
@@ -953,22 +979,57 @@ private fun DownloadTaskHeroCard(
                 )
             }
 
-            if (showRecoveryPanel) {
-                RecoveryHelperCard(
-                    task = task,
-                    currentTimeMs = currentTimeMs,
-                    isStuck = isStuck,
-                    isYoutubeTask = isYoutubeTask,
-                    onRetry = if (task.status == DownloadStatus.FAILED) {
-                        { onRetry(task.id) }
-                    } else {
-                        null
-                    },
-                    onOpenCookies = onOpenCookies,
-                    onOpenYoutubeAccess = onOpenYoutubeAccess,
-                    onExportLogs = { shareAppLogs(context, task, isStuck) },
-                    onReportIssue = { openSupportIssue(context, task, isStuck) },
-                )
+            if (hasDiagnostics || showRecoveryPanel) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    if (hasDiagnostics) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            RecoveryActionChip(
+                                label = if (expandedDebug) "Hide details" else "Show details",
+                                onClick = onToggleDebug,
+                            )
+                        }
+                        AnimatedVisibility(
+                            visible = expandedDebug,
+                            enter = fadeIn(animationSpec = tween(durationMillis = 180)) +
+                                expandVertically(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)),
+                            exit = fadeOut(animationSpec = tween(durationMillis = 140)) +
+                                shrinkVertically(animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)),
+                        ) {
+                            TaskDiagnosticsCard(
+                                task = task,
+                                currentTimeMs = currentTimeMs,
+                            )
+                        }
+                    }
+
+                    if (showRecoveryPanel) {
+                        RecoveryHelperCard(
+                            task = task,
+                            currentTimeMs = currentTimeMs,
+                            isStuck = isStuck,
+                            isYoutubeTask = isYoutubeTask,
+                            onRetry = if (task.status == DownloadStatus.FAILED) {
+                                { onRetry(task.id) }
+                            } else {
+                                null
+                            },
+                            onOpenCookies = onOpenCookies,
+                            onOpenYoutubeAccess = onOpenYoutubeAccess,
+                            onExportLogs = { shareAppLogs(context, task, isStuck) },
+                            onReportIssue = { openSupportIssue(context, task, isStuck) },
+                        )
+                    }
+                }
             }
         }
     }
@@ -1143,6 +1204,46 @@ private fun RecoveryActionChip(
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Medium,
         )
+    }
+}
+
+@Composable
+private fun TaskDiagnosticsCard(
+    task: DownloadTask,
+    currentTimeMs: Long,
+) {
+    val diagnostics = buildDiagnosticEntries(task, currentTimeMs)
+    if (diagnostics.isEmpty()) return
+
+    Surface(
+        shape = RoundedCornerShape(22.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                text = "Diagnostics",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            diagnostics.forEach { entry ->
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = entry.label,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = entry.value,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -1419,14 +1520,59 @@ private fun normalizedTaskSize(value: String?): String? {
     }
 }
 
+internal data class TaskDiagnosticEntry(
+    val label: String,
+    val value: String,
+)
+
+internal fun hasTaskDiagnostics(task: DownloadTask): Boolean {
+    return !task.errorMessage.isNullOrBlank() ||
+        !task.debugTrace.isNullOrBlank() ||
+        !task.outputPath.isNullOrBlank() ||
+        !task.url.isBlank()
+}
+
+internal fun buildDiagnosticEntries(
+    task: DownloadTask,
+    currentTimeMs: Long,
+): List<TaskDiagnosticEntry> {
+    return buildList {
+        add(TaskDiagnosticEntry(label = "Task ID", value = task.id))
+        sourceHostLabel(task.url)?.let { add(TaskDiagnosticEntry(label = "Source", value = it)) }
+        add(TaskDiagnosticEntry(label = "Status", value = task.status.name))
+        add(
+            TaskDiagnosticEntry(
+                label = "Last updated",
+                value = formatElapsedLabel(currentTimeMs - task.updatedAtEpochMs) + " ago",
+            ),
+        )
+        task.outputPath?.takeIf { it.isNotBlank() }?.let {
+            add(TaskDiagnosticEntry(label = "Output path", value = it))
+        }
+        task.errorMessage?.takeIf { it.isNotBlank() }?.let {
+            add(TaskDiagnosticEntry(label = "Error", value = it))
+        }
+        latestDebugMessages(task.debugTrace, limit = 3).takeIf { it.isNotEmpty() }?.let {
+            add(TaskDiagnosticEntry(label = "Recent log lines", value = it.joinToString("\n")))
+        }
+    }
+}
+
 private fun latestDebugMessage(debugTrace: String?): String? {
+    return latestDebugMessages(debugTrace, limit = 1).firstOrNull()
+}
+
+internal fun latestDebugMessages(debugTrace: String?, limit: Int = 3): List<String> {
     return debugTrace
         ?.lineSequence()
         ?.map { line ->
             val trimmed = line.trim()
             trimmed.substringAfter(": ", trimmed).trim()
         }
-        ?.lastOrNull { it.isNotBlank() }
+        ?.filter { it.isNotBlank() }
+        ?.toList()
+        ?.takeLast(limit)
+        .orEmpty()
 }
 
 private fun buildTaskHeaderSummaryEnhanced(

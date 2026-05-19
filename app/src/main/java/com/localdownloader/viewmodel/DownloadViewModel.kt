@@ -176,6 +176,32 @@ class DownloadViewModel @Inject constructor(
         }
     }
 
+    fun retryTasks(taskIds: List<String>) {
+        val ids = taskIds.map(String::trim).filter(String::isNotBlank).distinct()
+        if (ids.isEmpty()) return
+        logger.i("DownloadViewModel", "batch retry requested count=${ids.size}")
+        viewModelScope.launch {
+            var failure: Throwable? = null
+            ids.forEach { taskId ->
+                repository.retryDownload(taskId)
+                    .onFailure { error ->
+                        if (failure == null) failure = error
+                        logger.e("DownloadViewModel", "batch retry failed taskId=$taskId", error)
+                    }
+            }
+            _uiState.update { state ->
+                state.copy(
+                    infoMessage = if (failure == null) {
+                        "Queued retry for ${ids.size} failed item(s)."
+                    } else {
+                        state.infoMessage
+                    },
+                    errorMessage = failure?.message,
+                )
+            }
+        }
+    }
+
     fun renameDownloadedFile(taskId: String, newName: String) {
         logger.i("DownloadViewModel", "rename requested taskId=$taskId")
         viewModelScope.launch {

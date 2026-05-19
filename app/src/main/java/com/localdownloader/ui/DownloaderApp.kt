@@ -461,9 +461,11 @@ fun DownloaderApp(
                     onCancel = downloadViewModel::cancel,
                     onPauseTasks = downloadViewModel::pauseTasks,
                     onResumeTasks = downloadViewModel::resumeTasks,
+                    onRetryTasks = downloadViewModel::retryTasks,
                     onCancelTasks = downloadViewModel::cancelTasks,
                     onOpenCookies = { navController.navigate(Routes.Cookies) },
                     onOpenYoutubeAccess = { navController.navigate(Routes.YoutubeAuth) },
+                    onToggleDebug = downloadViewModel::toggleDebug,
                     onBack = { navController.popBackStack() },
                 )
             }
