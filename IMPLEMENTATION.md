@@ -4,7 +4,7 @@
 
 - Baseline feature release: `1.7.0`
 - Current maintenance line: `1.7.0.1`
-- Post-`1.7.0` follow-up work: 6 committed maintenance changes across security docs, build tooling, CI, Hilt compatibility, and YouTube auth cleanup
+- Current feature branch work: onboarding, queue troubleshooting polish, smarter format estimates, and AGP 9 cleanup on top of `1.7.0.1`
 
 ---
 
@@ -74,6 +74,7 @@ Current build state:
 - AGP `9.2.1`
 - Kotlin `2.3.21`
 - Compose Gradle plugin enabled
+- KSP-based annotation processing for Hilt, Hilt Work, and Room
 - `compileSdk = 36`
 - `targetSdk = 35`
 - Java and Kotlin target = `17`
@@ -85,6 +86,8 @@ Recent compatibility work:
 - `compileSdk` raised to `36` for the newer AndroidX stack
 - Hilt Gradle plugin transform dependency removed
 - `DownloaderApplication`, `MainActivity`, and `AudioPlaybackService` now use the explicit generated-base-class pattern for Hilt compatibility on AGP 9
+- temporary AGP bridge flags removed after switching the project off `kapt`
+- generated changelog asset wiring moved off the older deprecated source-set call path
 
 Relevant files:
 
@@ -110,24 +113,24 @@ The old npm and Playwright helper was removed, so the repo no longer needs an np
 
 ## 5. Temporary Compatibility Layer
 
-The current AGP 9 migration still relies on these temporary Gradle properties:
+The earlier AGP 9 migration bridge flags have now been removed:
 
 - `android.builtInKotlin=false`
 - `android.newDsl=false`
 - `android.sourceset.disallowProvider=false`
-
-Jetifier is also still enabled:
-
 - `android.enableJetifier=true`
 
-These settings keep the current build working, but they are intentionally transitional and should be removed as the remaining legacy Android DSL usage is cleaned up.
+What remains now is normal follow-up cleanup rather than a forced bridge layer:
+
+- validate the KSP-based AGP 9 build on a machine with a configured Android SDK
+- clean the remaining native `*.zip.so` strip warnings in CI
+- keep Hilt / Room processor versions aligned with future Kotlin and AGP updates
 
 ---
 
 ## 6. Known Follow-Up Work
 
-1. Remove deprecated AGP compatibility flags by migrating away from the remaining legacy Android DSL and source-set behavior.
-2. Audit dependencies and disable Jetifier if possible.
-3. Clean CI warnings related to `extractNativeLibs` and native `*.zip.so` stripping.
-4. Expand unit and instrumentation coverage around update flows, auth persistence, and media-tool validation.
-5. Keep release docs aligned with the in-app-only YouTube access implementation.
+1. Expand automated coverage around update flows, auth persistence, playlist queue handling, and media-tool validation.
+2. Clean CI warnings related to native `*.zip.so` stripping.
+3. Validate the post-kapt AGP 9 setup on a fully configured Android SDK environment.
+4. Keep release docs aligned with the in-app onboarding, queue recovery, and in-app-only YouTube access implementation.

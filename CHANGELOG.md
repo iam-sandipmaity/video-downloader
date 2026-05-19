@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased] - 2026-05-20
+
+### Added
+- **First-run setup sheet** - replaced the passive Home reminder with a two-step onboarding sheet that lets new users either continue without cookies or jump straight into Cookies and YouTube access setup
+- **Queue source branding** - download queue hero cards now show recognized site badges so YouTube, Instagram, TikTok, and similar sources are easier to scan at a glance
+- **Smarter format estimates** - download options now show estimated final size labels when yt-dlp does not return an exact file size, using bitrate and duration as a fallback
+
+### Changed
+- **Queue recovery polish** - failed queue items now use a clearer retry action and the recovery flow stays aligned with the built-in cookies, PO generation, log export, and issue-report shortcuts
+- **AGP 9 migration cleanup** - removed the temporary built-in-Kotlin, new-DSL, and Jetifier bridge flags and switched annotation processing from kapt to KSP
+- **Build script cleanup** - modernized generated changelog asset wiring to avoid the older deprecated source-set call path
+
 ## [1.7.0.1] - 2026-05-19
 
 ### Added
