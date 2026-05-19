@@ -1,6 +1,8 @@
 # Changelog
 
-## [Unreleased] - 2026-05-20
+## [Unreleased]
+
+## [1.7.1] - 2026-05-20
 
 ### Added
 - **First-run setup sheet** - replaced the passive Home reminder with a two-step onboarding sheet that lets new users either continue without cookies or jump straight into Cookies and YouTube access setup
