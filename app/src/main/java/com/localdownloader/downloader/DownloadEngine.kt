@@ -72,6 +72,13 @@ class DownloadEngine @Inject constructor(
             args += listOf("--merge-output-format", it)
         }
 
+        if ((options.shouldDownloadSubtitles || options.shouldEmbedSubtitles) && !options.extractAudio) {
+            args += subtitleArgs(
+                url = options.url,
+                embedSubtitles = options.shouldEmbedSubtitles,
+            )
+        }
+
         if (options.shouldEmbedMetadata) {
             args += "--embed-metadata"
         }
