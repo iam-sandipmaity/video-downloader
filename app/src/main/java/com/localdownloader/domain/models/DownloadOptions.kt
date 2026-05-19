@@ -24,6 +24,7 @@ data class DownloadOptions(
     val downloadVideoOnly: Boolean = false,
     val isPlaylistEnabled: Boolean = false,
     val shouldDownloadSubtitles: Boolean = false,
+    val shouldEmbedSubtitles: Boolean = false,
     val shouldEmbedMetadata: Boolean = true,
     val shouldEmbedThumbnail: Boolean = false,
     val shouldWriteThumbnail: Boolean = false,
