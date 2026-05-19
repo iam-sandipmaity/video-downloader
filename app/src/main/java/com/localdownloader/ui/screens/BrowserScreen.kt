@@ -19,15 +19,20 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Clear
@@ -140,6 +145,7 @@ fun BrowserScreen(
             .build()
     }
     var showOptionsSheet by rememberSaveable { mutableStateOf(false) }
+    val homeScrollState = rememberScrollState()
 
     LaunchedEffect(uiState.videoInfo?.webpageUrl) {
         showOptionsSheet = uiState.videoInfo != null
@@ -162,6 +168,7 @@ fun BrowserScreen(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .verticalScroll(homeScrollState)
             .animateContentSize(
                 animationSpec = spring(
                     dampingRatio = 0.9f,
@@ -416,6 +423,7 @@ fun BrowserScreen(
     }
 
     if (showOptionsSheet && uiState.videoInfo != null) {
+        val sheetScrollState = rememberScrollState()
         ModalBottomSheet(
             onDismissRequest = { showOptionsSheet = false },
             shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
@@ -424,153 +432,172 @@ fun BrowserScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .fillMaxHeight(0.94f)
+                    .imePadding()
+                    .navigationBarsPadding()
                     .animateContentSize(
                         animationSpec = spring(
                             dampingRatio = 0.9f,
                             stiffness = 500f,
                         ),
                     )
-                    .padding(horizontal = 18.dp, vertical = 6.dp)
-                    .padding(bottom = 18.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                    .padding(horizontal = 18.dp, vertical = 6.dp),
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(sheetScrollState),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    Text(
-                        text = "Download options",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    IconButton(
-                        onClick = {
-                            showOptionsSheet = false
-                            onClearAnalyzedResult()
-                        },
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Clear,
-                            contentDescription = "Clear ready download",
-                        )
-                    }
-                }
-                VideoCard(info = uiState.videoInfo)
-
-                val choices = when (uiState.selectedStreamType) {
-                    StreamType.VIDEO_AUDIO -> uiState.availableVideoAudioChoices
-                        .ifEmpty { uiState.availableVideoOnlyChoices }
-                    StreamType.VIDEO_ONLY -> uiState.availableVideoOnlyChoices
-                    StreamType.AUDIO_ONLY -> uiState.availableAudioOnlyChoices
-                }
-
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    StreamType.entries.forEach { item ->
-                        FilterChip(
-                            selected = item == uiState.selectedStreamType,
-                            onClick = { onStreamTypeChanged(item) },
-                            label = { Text(item.label) },
-                        )
-                    }
-                }
-
-                if (choices.isNotEmpty()) {
-                    val selectedChoice = choices
-                        .getOrNull(choices.indexOfFirst { it.selector == uiState.selectedFormatSelector })
-                        ?: choices.first()
-                    FormatChoiceDropdownRow(
-                        label = "Format",
-                        choices = choices,
-                        selectedIndex = choices.indexOfFirst { it.selector == uiState.selectedFormatSelector }
-                            .coerceAtLeast(0),
-                        onSelected = { onFormatSelectorChanged(choices[it].selector) },
-                    )
-                    FormatChoiceInsightCard(choice = selectedChoice)
-                } else {
-                    BrowserDropdownRow(
-                        label = "Quality",
-                        options = VideoQuality.entries.map { it.label },
-                        selectedIndex = VideoQuality.entries.indexOf(uiState.selectedQuality).coerceAtLeast(0),
-                        onSelected = { onQualityChanged(VideoQuality.entries[it]) },
-                    )
-                }
-
-                val containers = listOf("mp4", "webm", "mkv", "mov")
-                val audioFormats = listOf("mp3", "m4a", "aac", "opus", "flac", "wav")
-                val bitrates = listOf(64, 96, 128, 192, 256, 320)
-
-                if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
-                    BrowserDropdownRow(
-                        label = "Audio format",
-                        options = audioFormats,
-                        selectedIndex = audioFormats.indexOf(uiState.selectedAudioFormat).coerceAtLeast(0),
-                        onSelected = { onAudioFormatChanged(audioFormats[it]) },
-                    )
-                    BrowserDropdownRow(
-                        label = "Bitrate",
-                        options = bitrates.map { "$it kbps" },
-                        selectedIndex = bitrates.indexOf(uiState.audioBitrateKbps).coerceAtLeast(0),
-                        onSelected = { onAudioBitrateChanged(bitrates[it]) },
-                    )
-                } else {
-                    BrowserDropdownRow(
-                        label = "Container",
-                        options = containers,
-                        selectedIndex = containers.indexOf(uiState.selectedContainer).coerceAtLeast(0),
-                        onSelected = { onContainerChanged(containers[it]) },
-                    )
-                }
-
-                val currentTemplate = if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
-                    uiState.audioOutputTemplate
-                } else {
-                    uiState.outputTemplate
-                }
-
-                OutlinedTextField(
-                    value = currentTemplate,
-                    onValueChange = { newValue ->
-                        if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
-                            onAudioOutputTemplateChanged(newValue)
-                        } else {
-                            onOutputTemplateChanged(newValue)
-                        }
-                    },
-                    label = {
                         Text(
-                            if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
-                                "Audio filename template"
-                            } else {
-                                "Video filename template"
-                            },
+                            text = "Download options",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.SemiBold,
                         )
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                )
-
-                ToggleChipRow(
-                    items = buildList {
-                        if (uiState.selectedStreamType != StreamType.AUDIO_ONLY) {
-                            add(ToggleConfig("Subtitles", uiState.downloadSubtitles, onDownloadSubtitlesChanged))
-                            add(ToggleConfig("Embed subs", uiState.embedSubtitles, onEmbedSubtitlesChanged))
+                        IconButton(
+                            onClick = {
+                                showOptionsSheet = false
+                                onClearAnalyzedResult()
+                            },
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Clear,
+                                contentDescription = "Clear ready download",
+                            )
                         }
-                        add(ToggleConfig("Metadata", uiState.embedMetadata, onEmbedMetadataChanged))
-                        add(ToggleConfig("Embed thumb", uiState.embedThumbnail, onEmbedThumbnailChanged))
-                        add(ToggleConfig("Write thumb", uiState.writeThumbnail, onWriteThumbnailChanged))
-                        add(ToggleConfig("Playlist", uiState.enablePlaylist, onPlaylistEnabledChanged))
-                    },
-                )
+                    }
+                    VideoCard(info = uiState.videoInfo)
+
+                    val choices = when (uiState.selectedStreamType) {
+                        StreamType.VIDEO_AUDIO -> uiState.availableVideoAudioChoices
+                            .ifEmpty { uiState.availableVideoOnlyChoices }
+                        StreamType.VIDEO_ONLY -> uiState.availableVideoOnlyChoices
+                        StreamType.AUDIO_ONLY -> uiState.availableAudioOnlyChoices
+                    }
+
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        StreamType.entries.forEach { item ->
+                            FilterChip(
+                                selected = item == uiState.selectedStreamType,
+                                onClick = { onStreamTypeChanged(item) },
+                                label = { Text(item.label) },
+                            )
+                        }
+                    }
+
+                    if (choices.isNotEmpty()) {
+                        val selectedChoice = choices
+                            .getOrNull(choices.indexOfFirst { it.selector == uiState.selectedFormatSelector })
+                            ?: choices.first()
+                        FormatChoiceDropdownRow(
+                            label = "Format",
+                            choices = choices,
+                            selectedIndex = choices.indexOfFirst { it.selector == uiState.selectedFormatSelector }
+                                .coerceAtLeast(0),
+                            onSelected = { onFormatSelectorChanged(choices[it].selector) },
+                        )
+                        FormatChoiceInsightCard(choice = selectedChoice)
+                    } else {
+                        BrowserDropdownRow(
+                            label = "Quality",
+                            options = VideoQuality.entries.map { it.label },
+                            selectedIndex = VideoQuality.entries.indexOf(uiState.selectedQuality).coerceAtLeast(0),
+                            onSelected = { onQualityChanged(VideoQuality.entries[it]) },
+                        )
+                    }
+
+                    val containers = listOf("mp4", "webm", "mkv", "mov")
+                    val audioFormats = listOf("mp3", "m4a", "aac", "opus", "flac", "wav")
+                    val bitrates = listOf(64, 96, 128, 192, 256, 320)
+
+                    if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
+                        BrowserDropdownRow(
+                            label = "Audio format",
+                            options = audioFormats,
+                            selectedIndex = audioFormats.indexOf(uiState.selectedAudioFormat).coerceAtLeast(0),
+                            onSelected = { onAudioFormatChanged(audioFormats[it]) },
+                        )
+                        BrowserDropdownRow(
+                            label = "Bitrate",
+                            options = bitrates.map { "$it kbps" },
+                            selectedIndex = bitrates.indexOf(uiState.audioBitrateKbps).coerceAtLeast(0),
+                            onSelected = { onAudioBitrateChanged(bitrates[it]) },
+                        )
+                    } else {
+                        BrowserDropdownRow(
+                            label = "Container",
+                            options = containers,
+                            selectedIndex = containers.indexOf(uiState.selectedContainer).coerceAtLeast(0),
+                            onSelected = { onContainerChanged(containers[it]) },
+                        )
+                    }
+
+                    val currentTemplate = if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
+                        uiState.audioOutputTemplate
+                    } else {
+                        uiState.outputTemplate
+                    }
+
+                    OutlinedTextField(
+                        value = currentTemplate,
+                        onValueChange = { newValue ->
+                            if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
+                                onAudioOutputTemplateChanged(newValue)
+                            } else {
+                                onOutputTemplateChanged(newValue)
+                            }
+                        },
+                        label = {
+                            Text(
+                                if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
+                                    "Audio filename template"
+                                } else {
+                                    "Video filename template"
+                                },
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                    )
+
+                    ToggleChipRow(
+                        items = buildList {
+                            if (uiState.selectedStreamType != StreamType.AUDIO_ONLY) {
+                                add(ToggleConfig("Subtitles", uiState.downloadSubtitles, onDownloadSubtitlesChanged))
+                                add(ToggleConfig("Embed subs", uiState.embedSubtitles, onEmbedSubtitlesChanged))
+                            }
+                            add(ToggleConfig("Metadata", uiState.embedMetadata, onEmbedMetadataChanged))
+                            add(ToggleConfig("Embed thumb", uiState.embedThumbnail, onEmbedThumbnailChanged))
+                            add(ToggleConfig("Write thumb", uiState.writeThumbnail, onWriteThumbnailChanged))
+                            add(ToggleConfig("Playlist", uiState.enablePlaylist, onPlaylistEnabledChanged))
+                        },
+                    )
+
+                    if (!isDownloadButtonEnabled) {
+                        Text(
+                            text = "Wait for the active job to settle before starting another download.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
 
                 Button(
                     onClick = onQueueDownloadClicked,
                     enabled = !uiState.isQueueing && isDownloadButtonEnabled,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 14.dp, bottom = 12.dp),
                     contentPadding = PaddingValues(vertical = 14.dp),
                 ) {
                     val buttonText = when {
