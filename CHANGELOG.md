@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.7.0] - 2026-05-19
+
+### Added
+- **Unified Updates center** - added a dedicated Updates flow for app releases, `yt-dlp`, and `FFmpeg`, including one-tap checks, install actions, source selection, and release-note viewing
+- **Background yt-dlp maintenance** - added startup-triggered `yt-dlp` auto-update scheduling with retry tracking so extractor fixes can land without a full APK upgrade
+- **Richer download defaults** - added separate video and audio filename templates, default audio format selection, default subtitle/embed toggles, and folder browsing for Downloads subfolders
+- **Bundled in-app changelog view** - packaged the project `CHANGELOG.md` into app assets so app release notes can be opened in a cleaner documentation-style screen
+
+### Changed
+- **FFmpeg runtime resolution** - the app now prefers managed FFmpeg overlay packages when available, then falls back through bundled native and copied executables more safely
+- **Theme and settings customization** - expanded accent presets, added new contrast modes, and refreshed the Settings experience around folders, templates, and media defaults
+- **Downloads and history workflow** - refreshed the Downloads and History screens with bulk cleanup actions, clearer metadata, and easier access to recent logs and saved paths
+- **App version bump** - release metadata updated to `1.7.0`
+
+### Fixed
+- **Split-stream merge compatibility** - post-download merges now retry with compatible containers and AAC fallback when codecs cannot be written into the requested container
+- **Post-processing recovery** - failed media post-processing now attempts standalone repair, preserves recoverable split artifacts, and can remux previous partial results instead of forcing a full redownload
+- **Subtitle and audio output handling** - audio-only downloads now use their own output template, and subtitle download/embed defaults stay coordinated so invalid combinations are avoided
+
+### Technical
+- **New update infrastructure** - added `UpdatesViewModel`, `AppUpdateManager`, `YtDlpUpdateManager`, `FfmpegUpdateManager`, `YtDlpUpdateWorker`, and `YtDlpUpdateScheduler` to support managed runtime and app update flows
+
 ## [1.6.2] - 2026-05-18
 
 ### Added
