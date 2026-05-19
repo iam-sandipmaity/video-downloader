@@ -19,6 +19,7 @@ object WorkerKeys {
     const val DOWNLOAD_VIDEO_ONLY = "download_video_only"
     const val PLAYLIST_ENABLED = "playlist_enabled"
     const val DOWNLOAD_SUBTITLES = "download_subtitles"
+    const val EMBED_SUBTITLES = "embed_subtitles"
     const val EMBED_METADATA = "embed_metadata"
     const val EMBED_THUMBNAIL = "embed_thumbnail"
     const val WRITE_THUMBNAIL = "write_thumbnail"
