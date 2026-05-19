@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
@@ -55,11 +56,8 @@ class FileUtils @Inject constructor(
      */
     fun ensureDownloadsDir(subDirectoryName: String? = null): File {
         val rootFolderName = configuredRootFolderName()
-        val normalizedSubdirectory = subDirectoryName
-            ?.trim()
-            ?.takeIf { it.isNotBlank() }
-            ?.let(::sanitizeFileName)
-            ?.takeIf { it.isNotBlank() }
+        val normalizedSubdirectory = normalizeSubfolderSetting(subDirectoryName.orEmpty())
+            .ifBlank { null }
         // Android 10 and below: direct path to public Downloads.
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
             val publicDownloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
@@ -184,6 +182,42 @@ class FileUtils @Inject constructor(
 
     fun sanitizeFileName(value: String): String {
         return sanitizeFileNameStatic(value)
+    }
+
+    fun normalizeDownloadsRootSetting(value: String): String {
+        return normalizeRelativeDownloadsPath(
+            raw = value,
+            fallback = "LocalDownloader",
+            allowBlank = false,
+        )
+    }
+
+    fun normalizeSubfolderSetting(value: String): String {
+        return normalizeRelativeDownloadsPath(
+            raw = value,
+            fallback = null,
+            allowBlank = true,
+        )
+    }
+
+    fun resolveRelativeDownloadsFolderFromTreeUri(uri: Uri): String? {
+        val documentId = runCatching { DocumentsContract.getTreeDocumentId(uri) }.getOrNull()
+            ?: runCatching { DocumentsContract.getDocumentId(uri) }.getOrNull()
+            ?: return null
+        return extractRelativeDownloadsPath(documentId)
+    }
+
+    fun deriveSubfolderSettingFromRelativeDownloadsPath(
+        rootFolderSetting: String,
+        selectedRelativeDownloadsPath: String,
+    ): String? {
+        val normalizedRoot = normalizeDownloadsRootSetting(rootFolderSetting)
+        val normalizedSelected = normalizeSubfolderSetting(selectedRelativeDownloadsPath)
+        if (normalizedSelected.isBlank()) return null
+        if (normalizedSelected == normalizedRoot) return ""
+        val rootedPrefix = "$normalizedRoot/"
+        if (!normalizedSelected.startsWith(rootedPrefix)) return null
+        return normalizedSelected.removePrefix(rootedPrefix)
     }
 
     /**
@@ -527,11 +561,7 @@ class FileUtils @Inject constructor(
     }
 
     private fun configuredRootFolderName(): String {
-        return latestSettings.downloadsRootFolderName
-            .trim()
-            .ifBlank { "LocalDownloader" }
-            .let(::sanitizeFileName)
-            .ifBlank { "LocalDownloader" }
+        return normalizeDownloadsRootSetting(latestSettings.downloadsRootFolderName)
     }
 
     private fun resolveSubfolderForCategory(category: MediaFolderCategory): String? {
@@ -541,10 +571,7 @@ class FileUtils @Inject constructor(
             MediaFolderCategory.OTHER -> latestSettings.otherSubfolderName
             MediaFolderCategory.PLAYLIST -> latestSettings.videoSubfolderName
         }
-        return raw.trim()
-            .ifBlank { null }
-            ?.let(::sanitizeFileName)
-            ?.ifBlank { null }
+        return normalizeSubfolderSetting(raw).ifBlank { null }
     }
 
     private fun buildPath(
@@ -655,6 +682,58 @@ class FileUtils @Inject constructor(
                 .replace(Regex("""[\\/:*?"<>|]"""), "_")
                 .take(160)
                 .ifBlank { "media_${System.currentTimeMillis()}" }
+        }
+
+        private fun normalizeRelativeDownloadsPath(
+            raw: String,
+            fallback: String?,
+            allowBlank: Boolean,
+        ): String {
+            val normalized = raw
+                .replace('\\', '/')
+                .split('/')
+                .map(::sanitizeFolderSegment)
+                .filter { it.isNotBlank() }
+                .joinToString("/")
+
+            if (normalized.isNotBlank()) return normalized
+            if (allowBlank) return ""
+
+            val fallbackValue = fallback?.takeIf { it.isNotBlank() } ?: return ""
+            return normalizeRelativeDownloadsPath(
+                raw = fallbackValue,
+                fallback = null,
+                allowBlank = allowBlank,
+            )
+        }
+
+        private fun sanitizeFolderSegment(value: String): String {
+            return value
+                .trim()
+                .replace(Regex("""[:*?"<>|]"""), "_")
+                .trim('.', ' ')
+        }
+
+        private fun extractRelativeDownloadsPath(documentId: String): String? {
+            val normalized = documentId
+                .removePrefix("raw:")
+                .substringAfter(':', documentId.removePrefix("raw:"))
+                .replace('\\', '/')
+                .trim('/')
+            if (normalized.isBlank()) return null
+
+            val segments = normalized.split('/').filter { it.isNotBlank() }
+            val downloadsIndex = segments.indexOfFirst {
+                it.equals("Download", ignoreCase = true) || it.equals("Downloads", ignoreCase = true)
+            }
+            if (downloadsIndex == -1) return null
+
+            val relative = segments.drop(downloadsIndex + 1).joinToString("/")
+            return normalizeRelativeDownloadsPath(
+                raw = relative,
+                fallback = null,
+                allowBlank = true,
+            )
         }
 
         fun getRealPathFromUri(context: Context, uri: Uri): String? {
