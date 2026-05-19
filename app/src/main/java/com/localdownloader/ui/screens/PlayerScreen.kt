@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -41,9 +42,9 @@ import androidx.compose.material.icons.outlined.CropFree
 import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material.icons.outlined.FullscreenExit
 import androidx.compose.material.icons.outlined.GraphicEq
-import androidx.compose.material.icons.outlined.PauseCircle
+import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.PictureInPictureAlt
-import androidx.compose.material.icons.outlined.PlayCircle
+import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Subtitles
 import androidx.compose.material3.CircularProgressIndicator
@@ -532,7 +533,7 @@ fun PlayerScreen(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .navigationBarsPadding()
-                    .padding(end = 18.dp, bottom = 108.dp),
+                    .padding(end = 16.dp, bottom = 92.dp),
             ) {
                 PlayerOptionPanel(
                     panel = activePanel,
@@ -920,12 +921,11 @@ private fun BoxScope.PlayerChrome(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 12.dp),
+                    .statusBarsPadding(),
                 color = Color.Black.copy(alpha = 0.42f),
-                shape = RoundedCornerShape(24.dp),
             ) {
                 Row(
-                    modifier = Modifier.padding(start = 8.dp, end = 18.dp, top = 8.dp, bottom = 8.dp),
+                    modifier = Modifier.padding(start = 14.dp, end = 18.dp, top = 8.dp, bottom = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(onClick = onBack) {
@@ -938,8 +938,8 @@ private fun BoxScope.PlayerChrome(
                     Text(
                         text = title,
                         modifier = Modifier.padding(start = 6.dp),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Medium,
                         color = Color.White,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -955,61 +955,68 @@ private fun BoxScope.PlayerChrome(
             ) {
                 IconButton(
                     onClick = onPlayPause,
-                    modifier = Modifier.size(132.dp),
+                    modifier = Modifier.size(116.dp),
                 ) {
                     Icon(
-                        imageVector = if (uiState.isPlaying) Icons.Outlined.PauseCircle else Icons.Outlined.PlayCircle,
+                        imageVector = if (uiState.isPlaying) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
                         contentDescription = if (uiState.isPlaying) "Pause" else "Play",
-                        modifier = Modifier.size(84.dp),
+                        modifier = Modifier.size(48.dp),
                         tint = Color(0xCC111111),
                     )
                 }
             }
 
-            Column(
+            Surface(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
                     .navigationBarsPadding()
-                    .padding(horizontal = 14.dp, vertical = 14.dp),
+                    .padding(bottom = 6.dp),
+                color = Color.Black.copy(alpha = 0.42f),
             ) {
-                PlayerTimeline(
-                    currentPositionMs = currentPositionMs,
-                    durationMs = uiState.durationMs,
-                    bufferedPositionMs = uiState.bufferedPositionMs,
-                    onSeekChanged = onSeekChanged,
-                    onSeekFinished = onSeekFinished,
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
                 ) {
-                    Text(
-                        text = "${formatPlaybackTime(currentPositionMs)} / ${formatPlaybackTime(uiState.durationMs)}",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White,
+                    PlayerTimeline(
+                        currentPositionMs = currentPositionMs,
+                        durationMs = uiState.durationMs,
+                        bufferedPositionMs = uiState.bufferedPositionMs,
+                        onSeekChanged = onSeekChanged,
+                        onSeekFinished = onSeekFinished,
                     )
-                    DockStrip(
-                        activePanel = activePanel,
-                        subtitleLabel = selectedSubtitleLabel,
-                        audioLabel = selectedAudioLabel,
-                        isFullscreen = isFullscreen,
-                        canEnterPictureInPicture = canEnterPictureInPicture,
-                        settingsHighlighted = activePanel == PlayerPanel.SETTINGS ||
-                            abs(uiState.playbackSpeed - 1f) > 0.01f ||
-                            uiState.volumeBoostMb > 0 ||
-                            isRotationLocked ||
-                            isZoomed,
-                        onResizeClick = { onTogglePanel(PlayerPanel.RESIZE) },
-                        onSubtitleClick = { onTogglePanel(PlayerPanel.SUBTITLES) },
-                        onAudioClick = { onTogglePanel(PlayerPanel.AUDIO) },
-                        onSettingsClick = { onTogglePanel(PlayerPanel.SETTINGS) },
-                        onFullscreenToggle = onFullscreenToggle,
-                        onPictureInPictureClick = onEnterPictureInPicture,
-                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "${formatPlaybackTime(currentPositionMs)} / ${formatPlaybackTime(uiState.durationMs)}",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White,
+                        )
+                        DockStrip(
+                            activePanel = activePanel,
+                            subtitleLabel = selectedSubtitleLabel,
+                            audioLabel = selectedAudioLabel,
+                            isFullscreen = isFullscreen,
+                            canEnterPictureInPicture = canEnterPictureInPicture,
+                            settingsHighlighted = activePanel == PlayerPanel.SETTINGS ||
+                                abs(uiState.playbackSpeed - 1f) > 0.01f ||
+                                uiState.volumeBoostMb > 0 ||
+                                isRotationLocked ||
+                                isZoomed,
+                            onResizeClick = { onTogglePanel(PlayerPanel.RESIZE) },
+                            onSubtitleClick = { onTogglePanel(PlayerPanel.SUBTITLES) },
+                            onAudioClick = { onTogglePanel(PlayerPanel.AUDIO) },
+                            onSettingsClick = { onTogglePanel(PlayerPanel.SETTINGS) },
+                            onFullscreenToggle = onFullscreenToggle,
+                            onPictureInPictureClick = onEnterPictureInPicture,
+                        )
+                    }
                 }
             }
         }
@@ -1025,19 +1032,6 @@ private fun PlayerTimeline(
     onSeekFinished: () -> Unit,
 ) {
     Box(modifier = Modifier.fillMaxWidth()) {
-        Slider(
-            value = currentPositionMs.coerceAtLeast(0L).toFloat(),
-            onValueChange = onSeekChanged,
-            onValueChangeFinished = onSeekFinished,
-            valueRange = 0f..durationMs.coerceAtLeast(1L).toFloat(),
-            colors = SliderDefaults.colors(
-                thumbColor = Color.White,
-                activeTrackColor = Color.White,
-                inactiveTrackColor = Color.White.copy(alpha = 0.18f),
-            ),
-            modifier = Modifier.fillMaxWidth(),
-        )
-
         Box(
             modifier = Modifier
                 .fillMaxWidth(
@@ -1051,6 +1045,19 @@ private fun PlayerTimeline(
                 .height(2.dp)
                 .clip(CircleShape)
                 .background(Color.White.copy(alpha = 0.22f)),
+        )
+
+        Slider(
+            value = currentPositionMs.coerceAtLeast(0L).toFloat(),
+            onValueChange = onSeekChanged,
+            onValueChangeFinished = onSeekFinished,
+            valueRange = 0f..durationMs.coerceAtLeast(1L).toFloat(),
+            colors = SliderDefaults.colors(
+                thumbColor = Color.White,
+                activeTrackColor = Color.White,
+                inactiveTrackColor = Color.White.copy(alpha = 0.18f),
+            ),
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }
@@ -1070,54 +1077,48 @@ private fun DockStrip(
     onFullscreenToggle: () -> Unit,
     onPictureInPictureClick: () -> Unit,
 ) {
-    Surface(
-        color = Color.Black.copy(alpha = 0.52f),
-        shape = RoundedCornerShape(26.dp),
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        DockButton(
+            icon = Icons.Outlined.CropFree,
+            contentDescription = "Video size",
+            selected = activePanel == PlayerPanel.RESIZE,
+            onClick = onResizeClick,
+        )
+        DockButton(
+            icon = Icons.Outlined.Subtitles,
+            contentDescription = "Subtitles",
+            selected = activePanel == PlayerPanel.SUBTITLES || !subtitleLabel.equals("Auto", ignoreCase = true),
+            onClick = onSubtitleClick,
+        )
+        DockButton(
+            icon = Icons.Outlined.GraphicEq,
+            contentDescription = "Audio tracks",
+            selected = activePanel == PlayerPanel.AUDIO || !audioLabel.equals("Auto", ignoreCase = true),
+            onClick = onAudioClick,
+        )
+        DockButton(
+            icon = if (isFullscreen) Icons.Outlined.FullscreenExit else Icons.Outlined.Fullscreen,
+            contentDescription = if (isFullscreen) "Exit fullscreen" else "Enter fullscreen",
+            selected = isFullscreen,
+            onClick = onFullscreenToggle,
+        )
+        if (canEnterPictureInPicture) {
             DockButton(
-                icon = Icons.Outlined.GraphicEq,
-                contentDescription = "Audio tracks",
-                selected = activePanel == PlayerPanel.AUDIO || !audioLabel.equals("Auto", ignoreCase = true),
-                onClick = onAudioClick,
-            )
-            DockButton(
-                icon = Icons.Outlined.Subtitles,
-                contentDescription = "Subtitles",
-                selected = activePanel == PlayerPanel.SUBTITLES || !subtitleLabel.equals("Auto", ignoreCase = true),
-                onClick = onSubtitleClick,
-            )
-            DockButton(
-                icon = Icons.Outlined.CropFree,
-                contentDescription = "Video size",
-                selected = activePanel == PlayerPanel.RESIZE,
-                onClick = onResizeClick,
-            )
-            DockButton(
-                icon = if (isFullscreen) Icons.Outlined.FullscreenExit else Icons.Outlined.Fullscreen,
-                contentDescription = if (isFullscreen) "Exit fullscreen" else "Enter fullscreen",
-                selected = isFullscreen,
-                onClick = onFullscreenToggle,
-            )
-            if (canEnterPictureInPicture) {
-                DockButton(
-                    icon = Icons.Outlined.PictureInPictureAlt,
-                    contentDescription = "Picture in picture",
-                    selected = false,
-                    onClick = onPictureInPictureClick,
-                )
-            }
-            DockButton(
-                icon = Icons.Outlined.Settings,
-                contentDescription = "Playback settings",
-                selected = settingsHighlighted,
-                onClick = onSettingsClick,
+                icon = Icons.Outlined.PictureInPictureAlt,
+                contentDescription = "Picture in picture",
+                selected = false,
+                onClick = onPictureInPictureClick,
             )
         }
+        DockButton(
+            icon = Icons.Outlined.Settings,
+            contentDescription = "Playback settings",
+            selected = settingsHighlighted,
+            onClick = onSettingsClick,
+        )
     }
 }
 
@@ -1129,10 +1130,13 @@ private fun DockButton(
     onClick: () -> Unit,
 ) {
     Surface(
-        color = if (selected) Color.White.copy(alpha = 0.18f) else Color.Transparent,
-        shape = RoundedCornerShape(18.dp),
+        color = if (selected) Color.White.copy(alpha = 0.18f) else Color.Black.copy(alpha = 0.18f),
+        shape = RoundedCornerShape(16.dp),
     ) {
-        IconButton(onClick = onClick) {
+        IconButton(
+            onClick = onClick,
+            modifier = Modifier.size(48.dp),
+        ) {
             Icon(
                 imageVector = icon,
                 contentDescription = contentDescription,
@@ -1164,32 +1168,32 @@ private fun PlayerOptionPanel(
     onResetZoom: () -> Unit,
 ) {
     Surface(
-        color = Color.Black.copy(alpha = 0.78f),
-        shape = RoundedCornerShape(28.dp),
-        tonalElevation = 8.dp,
-        modifier = Modifier.widthIn(min = 240.dp, max = 320.dp),
+        color = Color.Black.copy(alpha = 0.74f),
+        shape = RoundedCornerShape(26.dp),
+        tonalElevation = 10.dp,
+        modifier = Modifier.widthIn(min = 220.dp, max = 340.dp),
     ) {
         Column(
             modifier = Modifier
-                .heightIn(max = 360.dp)
+                .heightIn(max = 420.dp)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 12.dp, vertical = 12.dp),
+                .padding(horizontal = 10.dp, vertical = 10.dp),
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = panel.title,
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = Color.White,
                 )
                 TextButton(onClick = onDismiss) {
-                    Text("Close", color = Color.White.copy(alpha = 0.86f))
+                    Text("Done", color = Color.White.copy(alpha = 0.82f))
                 }
             }
 
@@ -1334,9 +1338,9 @@ private fun PanelSectionLabel(
 ) {
     Text(
         text = title,
-        modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
-        style = MaterialTheme.typography.labelLarge,
-        color = Color.White.copy(alpha = 0.68f),
+        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+        style = MaterialTheme.typography.labelMedium,
+        color = Color.White.copy(alpha = 0.58f),
     )
 }
 
@@ -1348,15 +1352,15 @@ private fun PanelOptionRow(
     onClick: () -> Unit,
 ) {
     Surface(
-        color = if (selected) Color.White.copy(alpha = 0.10f) else Color.Transparent,
-        shape = RoundedCornerShape(22.dp),
+        color = if (selected) Color.White.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.05f),
+        shape = RoundedCornerShape(20.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
         TextButton(
             onClick = onClick,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 4.dp, vertical = 2.dp),
+                .padding(horizontal = 6.dp, vertical = 4.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1370,7 +1374,7 @@ private fun PanelOptionRow(
                 ) {
                     Text(
                         text = title,
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.titleMedium,
                         color = Color.White,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -1378,8 +1382,8 @@ private fun PanelOptionRow(
                     subtitle?.takeIf { it.isNotBlank() }?.let {
                         Text(
                             text = it,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.White.copy(alpha = 0.68f),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White.copy(alpha = 0.62f),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
