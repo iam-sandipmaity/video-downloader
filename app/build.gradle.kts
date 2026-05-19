@@ -36,7 +36,7 @@ val syncBundledChangelog by tasks.registering(Copy::class) {
 
 android {
     namespace = "com.localdownloader"
-    compileSdk = 35
+    compileSdk = 36
 
     val internalDebugStoreFile = signingValue("INTERNAL_DEBUG_STORE_FILE")
     val internalDebugStorePassword = signingValue("INTERNAL_DEBUG_STORE_PASSWORD")
