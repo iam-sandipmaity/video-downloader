@@ -1129,6 +1129,7 @@ class FormatViewModel @Inject constructor(
             )
         }
         val formats = info.formats
+        val durationSeconds = info.durationSeconds
         val audioOnly = formats.filter { it.isAudioOnly }
         val videoOnly = formats.filter { it.isVideoOnly }
         val muxed = formats.filter { !it.isAudioOnly && !it.isVideoOnly }
@@ -1147,6 +1148,8 @@ class FormatViewModel @Inject constructor(
                 isMerged = false,
                 isImageLike = false,
                 fileSizeBytes = audio.fileSizeBytes,
+                estimatedSizeBytes = audio.fileSizeBytes
+                    ?: estimateFormatSizeBytes(durationSeconds, audio.bitrateKbps),
                 videoCodec = null,
                 audioCodec = audio.audioCodec,
                 fps = null,
@@ -1170,6 +1173,8 @@ class FormatViewModel @Inject constructor(
                 isMerged = false,
                 isImageLike = video.isImageLike,
                 fileSizeBytes = video.fileSizeBytes,
+                estimatedSizeBytes = video.fileSizeBytes
+                    ?: estimateFormatSizeBytes(durationSeconds, video.bitrateKbps),
                 videoCodec = video.videoCodec,
                 audioCodec = null,
                 fps = video.fps,
@@ -1196,6 +1201,14 @@ class FormatViewModel @Inject constructor(
                     audioBitrate,
                     "merge",
                 ).filter { it.isNotBlank() }.joinToString(" ")
+                val combinedSizeBytes = combineFormatSizes(video.fileSizeBytes, audio.fileSizeBytes)
+                val estimatedSizeBytes = combinedSizeBytes
+                    ?: estimateFormatSizeBytes(
+                        durationSeconds = durationSeconds,
+                        bitrateKbps = listOfNotNull(video.bitrateKbps, audio.bitrateKbps)
+                            .takeIf { it.isNotEmpty() }
+                            ?.sum(),
+                    )
                 FormatChoice(
                     selector = FormatSelectorBuilder.buildMergedSelector(video, audio),
                     label = label,
@@ -1204,7 +1217,8 @@ class FormatViewModel @Inject constructor(
                     height = parseHeight(video.resolution),
                     isMerged = true,
                     isImageLike = false,
-                    fileSizeBytes = combineFormatSizes(video.fileSizeBytes, audio.fileSizeBytes),
+                    fileSizeBytes = combinedSizeBytes,
+                    estimatedSizeBytes = estimatedSizeBytes,
                     videoCodec = video.videoCodec,
                     audioCodec = audio.audioCodec,
                     fps = video.fps,
@@ -1229,6 +1243,8 @@ class FormatViewModel @Inject constructor(
                 isMerged = false,
                 isImageLike = item.isImageLike,
                 fileSizeBytes = item.fileSizeBytes,
+                estimatedSizeBytes = item.fileSizeBytes
+                    ?: estimateFormatSizeBytes(durationSeconds, item.bitrateKbps),
                 videoCodec = item.videoCodec,
                 audioCodec = item.audioCodec,
                 fps = item.fps,
@@ -1271,6 +1287,12 @@ class FormatViewModel @Inject constructor(
             videoSizeBytes != null && audioSizeBytes != null -> videoSizeBytes + audioSizeBytes
             else -> videoSizeBytes ?: audioSizeBytes
         }
+    }
+
+    private fun estimateFormatSizeBytes(durationSeconds: Long?, bitrateKbps: Int?): Long? {
+        val safeDurationSeconds = durationSeconds?.takeIf { it > 0L } ?: return null
+        val safeBitrateKbps = bitrateKbps?.takeIf { it > 0 } ?: return null
+        return (safeDurationSeconds * safeBitrateKbps * 1_000L) / 8L
     }
 
     private fun resolveDownloadExtractorArgs(

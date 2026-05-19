@@ -12,6 +12,7 @@ data class FormatChoice(
     val isMerged: Boolean,
     val isImageLike: Boolean,
     val fileSizeBytes: Long? = null,
+    val estimatedSizeBytes: Long? = null,
     val videoCodec: String? = null,
     val audioCodec: String? = null,
     val fps: Double? = null,

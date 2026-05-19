@@ -1,7 +1,5 @@
 package com.localdownloader.ui.screens
 
-import android.net.Uri
-
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -74,13 +72,18 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil.ImageLoader
 import coil.compose.AsyncImage
+import coil.decode.SvgDecoder
 import com.localdownloader.domain.models.DownloadStatus
 import com.localdownloader.domain.models.DownloadTask
 import com.localdownloader.ui.components.LocalVideoThumbnail
 import com.localdownloader.ui.components.rememberLocalMediaSnapshot
 import com.localdownloader.ui.support.openSupportIssue
+import com.localdownloader.ui.support.SourceSiteVisual
 import com.localdownloader.ui.support.shareAppLogs
+import com.localdownloader.ui.support.sourceHostLabel
+import com.localdownloader.ui.support.sourceSiteVisualForUrl
 import com.localdownloader.viewmodel.DownloadUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -710,6 +713,7 @@ private fun ProgressTaskCard(
 private data class DownloadTaskAction(
     val icon: ImageVector,
     val contentDescription: String,
+    val label: String? = null,
     val onClick: () -> Unit,
 )
 
@@ -726,10 +730,16 @@ private fun DownloadTaskHeroCard(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val imageLoader = remember(context) {
+        ImageLoader.Builder(context)
+            .components { add(SvgDecoder.Factory()) }
+            .build()
+    }
     val accent = statusAccent(task.status)
     val snapshot = rememberLocalMediaSnapshot(task.outputPath)
     val isStuck = isPotentiallyStuck(task, currentTimeMs)
     val isYoutubeTask = isYoutubeUrl(task.url)
+    val sourceVisual = remember(task.url) { sourceSiteVisualForUrl(task.url) }
     val showRecoveryPanel = task.status == DownloadStatus.FAILED || isStuck
     val progressColor = when (task.status) {
         DownloadStatus.FAILED -> MaterialTheme.colorScheme.error
@@ -781,6 +791,7 @@ private fun DownloadTaskHeroCard(
             DownloadTaskAction(
                 icon = Icons.Outlined.Refresh,
                 contentDescription = "Retry",
+                label = "Retry",
                 onClick = { onRetry(task.id) },
             ),
         )
@@ -788,7 +799,11 @@ private fun DownloadTaskHeroCard(
         else -> emptyList()
     }
     val headerSummary = buildTaskHeaderSummaryEnhanced(task, snapshot)
-    val subtitle = buildTaskSubtitleEnhanced(task, pauseExpiryLabel)
+    val subtitle = buildTaskSubtitleEnhanced(
+        task = task,
+        pauseExpiryLabel = pauseExpiryLabel,
+        showSourceInBadge = sourceVisual != null,
+    )
     val footerMessage = buildTaskFooterMessageEnhanced(task, snapshot, pauseExpiryLabel, currentTimeMs)
 
     Surface(
@@ -815,7 +830,7 @@ private fun DownloadTaskHeroCard(
                     task = task,
                     accent = accent,
                     statusIcon = taskStatusIcon,
-                    showStatusBadge = false,
+                    showStatusBadge = sourceVisual != null,
                 )
                 Box(
                     modifier = Modifier
@@ -837,18 +852,26 @@ private fun DownloadTaskHeroCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.Top,
                 ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.82f),
-                    ) {
-                        Icon(
-                            imageVector = taskStatusIcon,
-                            contentDescription = null,
-                            tint = accent,
-                            modifier = Modifier
-                                .padding(12.dp)
-                                .size(18.dp),
+                    if (sourceVisual != null) {
+                        TaskSourceBadge(
+                            sourceVisual = sourceVisual,
+                            hostLabel = sourceVisual.label,
+                            imageLoader = imageLoader,
                         )
+                    } else {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.82f),
+                        ) {
+                            Icon(
+                                imageVector = taskStatusIcon,
+                                contentDescription = null,
+                                tint = accent,
+                                modifier = Modifier
+                                    .padding(12.dp)
+                                    .size(18.dp),
+                            )
+                        }
                     }
                     headerSummary?.let { summary ->
                         Surface(
@@ -958,17 +981,84 @@ private fun DownloadTaskHeroActionButton(
 ) {
     Surface(
         modifier = modifier
-            .size(84.dp)
+            .height(84.dp)
+            .widthIn(min = if (action.label != null) 112.dp else 84.dp)
             .clickable(onClick = action.onClick),
         shape = RoundedCornerShape(28.dp),
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.86f),
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(
-                imageVector = action.icon,
-                contentDescription = action.contentDescription,
-                tint = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.size(36.dp),
+        if (action.label != null) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Icon(
+                    imageVector = action.icon,
+                    contentDescription = action.contentDescription,
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(30.dp),
+                )
+                Text(
+                    text = action.label,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
+        } else {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = action.icon,
+                    contentDescription = action.contentDescription,
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(36.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TaskSourceBadge(
+    sourceVisual: SourceSiteVisual,
+    hostLabel: String,
+    imageLoader: ImageLoader,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.86f),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(26.dp)
+                    .clip(CircleShape)
+                    .background(sourceVisual.accent.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                AsyncImage(
+                    model = sourceVisual.assetPath,
+                    imageLoader = imageLoader,
+                    contentDescription = "${sourceVisual.label} logo",
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+            Text(
+                text = hostLabel,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
@@ -1358,8 +1448,9 @@ private fun buildTaskHeaderSummaryEnhanced(
 private fun buildTaskSubtitleEnhanced(
     task: DownloadTask,
     pauseExpiryLabel: String?,
+    showSourceInBadge: Boolean,
 ): String? {
-    val sourceLabel = sourceHostLabel(task.url)
+    val sourceLabel = sourceHostLabel(task.url)?.takeUnless { showSourceInBadge }
     return when (task.status) {
         DownloadStatus.RUNNING -> listOfNotNull(
             sourceLabel,
@@ -1420,14 +1511,6 @@ private fun buildRecoveryGuidance(
         else ->
             "If this download failed after redirects, rate limits, or protected access, try cookies first. If it still fails, export the logs and report the issue."
     }
-}
-
-private fun sourceHostLabel(url: String): String? {
-    val host = runCatching { Uri.parse(url).host }.getOrNull()
-        ?.removePrefix("www.")
-        ?.trim()
-        .orEmpty()
-    return host.ifBlank { null }
 }
 
 private fun isYoutubeUrl(url: String): Boolean {
