@@ -36,9 +36,11 @@ import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material.icons.outlined.Transform
 import androidx.compose.material.icons.outlined.TravelExplore
+import androidx.compose.material.icons.outlined.Web
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
@@ -120,8 +122,11 @@ fun BrowserScreen(
     onOpenHistory: () -> Unit,
     onOpenCompress: () -> Unit,
     onOpenConvert: () -> Unit,
+    onOpenYoutubeAccess: () -> Unit,
+    onOpenCookies: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenHelp: () -> Unit,
+    onDismissDownloadSetupNotice: () -> Unit,
     onDarkThemeChanged: (Boolean) -> Unit,
     isDownloadButtonEnabled: Boolean = true,
     modifier: Modifier = Modifier,
@@ -183,6 +188,26 @@ fun BrowserScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+
+        AnimatedVisibility(
+            visible = uiState.shouldShowDownloadSetupNotice,
+            enter = fadeIn(animationSpec = tween(durationMillis = 180)) +
+                expandVertically(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)),
+            exit = fadeOut(animationSpec = tween(durationMillis = 140)) +
+                shrinkVertically(animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)),
+        ) {
+            DownloadSetupNoticeCard(
+                onOpenCookies = {
+                    onDismissDownloadSetupNotice()
+                    onOpenCookies()
+                },
+                onOpenYoutubeAccess = {
+                    onDismissDownloadSetupNotice()
+                    onOpenYoutubeAccess()
+                },
+                onSkip = onDismissDownloadSetupNotice,
+            )
         }
 
         Card(
@@ -550,6 +575,95 @@ fun BrowserScreen(
                         else -> "Download"
                     }
                     Text(buttonText)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DownloadSetupNoticeCard(
+    onOpenCookies: () -> Unit,
+    onOpenYoutubeAccess: () -> Unit,
+    onSkip: () -> Unit,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        shape = RoundedCornerShape(26.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize(
+                animationSpec = spring(
+                    dampingRatio = 0.9f,
+                    stiffness = 500f,
+                ),
+            ),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Info,
+                        contentDescription = null,
+                    )
+                    Text(
+                        text = "Recommended first step",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+                TextButton(onClick = onSkip) {
+                    Text("Skip for now")
+                }
+            }
+
+            Text(
+                text = "For smoother downloads, it is recommended to open More > Cookies first. For YouTube, open More > YouTube access and run PO generation before you start downloading.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Text(
+                text = "It is still safe to continue without cookies. If a download fails or gets stuck, adding cookies may solve it. If it still fails, report it on iam-sandipmaity/video-downloader/issues with a screenshot, log.txt, and a short explanation.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.88f),
+            )
+
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Button(onClick = onOpenCookies) {
+                    Icon(
+                        imageVector = Icons.Outlined.Web,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text(
+                        text = "Open Cookies",
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
+                Button(onClick = onOpenYoutubeAccess) {
+                    Icon(
+                        imageVector = Icons.Outlined.Shield,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text(
+                        text = "PO generation",
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
                 }
             }
         }

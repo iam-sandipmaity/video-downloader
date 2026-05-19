@@ -696,6 +696,23 @@ class FormatViewModel @Inject constructor(
         persistSettings("Settings saved locally.")
     }
 
+    fun dismissDownloadSetupNotice() {
+        val current = uiState.value
+        if (current.appSettings.hasSeenDownloadSetupNotice) return
+
+        val updatedSettings = current.appSettings.copy(hasSeenDownloadSetupNotice = true)
+        _uiState.update { state -> state.copy(appSettings = updatedSettings) }
+
+        viewModelScope.launch {
+            runCatching { repository.updateSettings(updatedSettings) }
+                .onFailure { error ->
+                    _uiState.update { state ->
+                        state.copy(errorMessage = error.message ?: "Unable to save the setup reminder state.")
+                    }
+                }
+        }
+    }
+
     fun resetSettingsToDefaults() {
         val defaults = AppSettings()
         _uiState.update { state ->
@@ -715,6 +732,7 @@ class FormatViewModel @Inject constructor(
                 cookieUserAgentEnabled = defaults.cookieUserAgentEnabled,
                 cookieProfiles = defaults.cookieProfiles,
                 youtubeAuthConfig = defaults.youtubeAuthConfig,
+                hasLoadedSettings = true,
                 languageTag = defaults.languageTag,
                 themeMode = defaults.themeMode,
                 accentPreset = defaults.accentPreset,
@@ -768,6 +786,7 @@ class FormatViewModel @Inject constructor(
                 cookieUserAgentEnabled = state.cookieUserAgentEnabled,
                 cookieProfiles = state.cookieProfiles,
                 youtubeAuthConfig = state.youtubeAuthConfig,
+                hasSeenDownloadSetupNotice = state.appSettings.hasSeenDownloadSetupNotice,
                 darkTheme = state.isDarkTheme,
             )
             runCatching { repository.updateSettings(newSettings) }
@@ -1314,6 +1333,7 @@ class FormatViewModel @Inject constructor(
         _uiState.update { state ->
             state.copy(
                 appSettings = settings,
+                hasLoadedSettings = true,
                 languageTag = settings.languageTag,
                 themeMode = settings.themeMode,
                 accentPreset = settings.accentPreset,

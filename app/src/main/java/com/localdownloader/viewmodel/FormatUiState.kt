@@ -50,6 +50,7 @@ data class FormatUiState(
     val cookieProfiles: List<CookieProfile> = emptyList(),
     val youtubeAuthConfig: YoutubeAuthConfig = YoutubeAuthConfig(),
     val appSettings: AppSettings = AppSettings(),
+    val hasLoadedSettings: Boolean = false,
     val infoMessage: String? = null,
     val errorMessage: String? = null,
     val isDarkTheme: Boolean = false,
@@ -63,4 +64,10 @@ data class FormatUiState(
     val lastQueuedAudioFormat: String? = null,
     val lastQueuedAudioBitrate: Int? = null,
     val lastQueuedQuality: VideoQuality? = null,
-)
+) {
+    val shouldShowDownloadSetupNotice: Boolean
+        get() = hasLoadedSettings &&
+            !appSettings.hasSeenDownloadSetupNotice &&
+            cookieProfiles.isEmpty() &&
+            !youtubeAuthConfig.isConfigured()
+}
