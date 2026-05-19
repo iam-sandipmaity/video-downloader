@@ -696,6 +696,23 @@ class FormatViewModel @Inject constructor(
         persistSettings("Settings saved locally.")
     }
 
+    fun dismissDownloadSetupNotice() {
+        val current = uiState.value
+        if (current.appSettings.hasSeenDownloadSetupNotice) return
+
+        val updatedSettings = current.appSettings.copy(hasSeenDownloadSetupNotice = true)
+        _uiState.update { state -> state.copy(appSettings = updatedSettings) }
+
+        viewModelScope.launch {
+            runCatching { repository.updateSettings(updatedSettings) }
+                .onFailure { error ->
+                    _uiState.update { state ->
+                        state.copy(errorMessage = error.message ?: "Unable to save the setup reminder state.")
+                    }
+                }
+        }
+    }
+
     fun resetSettingsToDefaults() {
         val defaults = AppSettings()
         _uiState.update { state ->
@@ -715,6 +732,7 @@ class FormatViewModel @Inject constructor(
                 cookieUserAgentEnabled = defaults.cookieUserAgentEnabled,
                 cookieProfiles = defaults.cookieProfiles,
                 youtubeAuthConfig = defaults.youtubeAuthConfig,
+                hasLoadedSettings = true,
                 languageTag = defaults.languageTag,
                 themeMode = defaults.themeMode,
                 accentPreset = defaults.accentPreset,
@@ -768,6 +786,7 @@ class FormatViewModel @Inject constructor(
                 cookieUserAgentEnabled = state.cookieUserAgentEnabled,
                 cookieProfiles = state.cookieProfiles,
                 youtubeAuthConfig = state.youtubeAuthConfig,
+                hasSeenDownloadSetupNotice = state.appSettings.hasSeenDownloadSetupNotice,
                 darkTheme = state.isDarkTheme,
             )
             runCatching { repository.updateSettings(newSettings) }
@@ -869,6 +888,7 @@ class FormatViewModel @Inject constructor(
                 url = info.webpageUrl,
                 formatId = formatSelector,
                 outputTemplate = resolvedOutputTemplate,
+                thumbnailUrl = info.thumbnailUrl,
                 extractorArgs = downloadExtractorArgs,
                 fallbackExtractorArgs = fallbackExtractorArgs,
                 loadInfoJsonPath = null,
@@ -1126,6 +1146,7 @@ class FormatViewModel @Inject constructor(
                 height = null,
                 isMerged = false,
                 isImageLike = false,
+                fileSizeBytes = audio.fileSizeBytes,
             )
         }.sortedByDescending { extractBitrate(it.label) }
 
@@ -1143,6 +1164,7 @@ class FormatViewModel @Inject constructor(
                 height = parseHeight(video.resolution),
                 isMerged = false,
                 isImageLike = video.isImageLike,
+                fileSizeBytes = video.fileSizeBytes,
             )
         }.sortedWith(compareByDescending<FormatChoice> { it.height ?: 0 }.thenByDescending { extractBitrate(it.label) })
 
@@ -1172,6 +1194,7 @@ class FormatViewModel @Inject constructor(
                     height = parseHeight(video.resolution),
                     isMerged = true,
                     isImageLike = false,
+                    fileSizeBytes = combineFormatSizes(video.fileSizeBytes, audio.fileSizeBytes),
                 )
             }
         }
@@ -1190,6 +1213,7 @@ class FormatViewModel @Inject constructor(
                 height = parseHeight(item.resolution),
                 isMerged = false,
                 isImageLike = item.isImageLike,
+                fileSizeBytes = item.fileSizeBytes,
             )
         }
 
@@ -1220,6 +1244,13 @@ class FormatViewModel @Inject constructor(
     private fun extractBitrate(label: String): Int {
         val match = Regex("(\\d+)kbps").find(label) ?: return 0
         return match.groupValues[1].toIntOrNull() ?: 0
+    }
+
+    private fun combineFormatSizes(videoSizeBytes: Long?, audioSizeBytes: Long?): Long? {
+        return when {
+            videoSizeBytes != null && audioSizeBytes != null -> videoSizeBytes + audioSizeBytes
+            else -> videoSizeBytes ?: audioSizeBytes
+        }
     }
 
     private fun resolveDownloadExtractorArgs(
@@ -1302,6 +1333,7 @@ class FormatViewModel @Inject constructor(
         _uiState.update { state ->
             state.copy(
                 appSettings = settings,
+                hasLoadedSettings = true,
                 languageTag = settings.languageTag,
                 themeMode = settings.themeMode,
                 accentPreset = settings.accentPreset,

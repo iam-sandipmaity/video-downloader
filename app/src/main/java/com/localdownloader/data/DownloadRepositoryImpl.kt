@@ -116,8 +116,7 @@ class DownloadRepositoryImpl @Inject constructor(
                 options = options.copy(outputTemplate = outputTemplate),
                 titleHint = titleHint,
             )
-            workManager.enqueue(prepared.request)
-            observeWorkState(taskId = prepared.taskId, workId = prepared.request.id)
+            enqueuePreparedDownload(prepared)
             logger.i("DownloadRepository", "Queued download ${prepared.taskId} with outputTemplate=$outputTemplate")
             prepared.taskId
         }.onFailure { error ->
@@ -134,7 +133,7 @@ class DownloadRepositoryImpl @Inject constructor(
             require(entries.isNotEmpty()) { "This playlist does not contain any downloadable items." }
 
             val playlistDirectory = fileUtils.createUniquePlaylistDirectory(playlistTitle)
-            val preparedDownloads = entries.map { entry ->
+            val queuedDownloads = entries.map { entry ->
                 val itemOutputTemplate = fileUtils.buildPlaylistItemOutputTemplate(
                     playlistDirectory = playlistDirectory,
                     baseTemplate = options.outputTemplate,
@@ -144,19 +143,20 @@ class DownloadRepositoryImpl @Inject constructor(
                     taskId = UUID.randomUUID().toString(),
                     options = options.copy(
                         outputTemplate = itemOutputTemplate,
+                        thumbnailUrl = entry.thumbnailUrl ?: options.thumbnailUrl,
                         isPlaylistEnabled = true,
                         playlistItemIndex = entry.playlistItemIndex,
                         playlistFolderName = playlistDirectory.name,
                     ),
                     titleHint = entry.title,
+                    assignWorkId = false,
                 )
             }
 
-            enqueueSequential(preparedDownloads.map { it.request })
-            preparedDownloads.forEach { prepared ->
-                observeWorkState(taskId = prepared.taskId, workId = prepared.request.id)
+            queuedDownloads.firstOrNull()?.let { firstQueued ->
+                enqueueNextPlaylistItemIfIdle(firstQueued.taskId, firstQueued.options)
             }
-            preparedDownloads.map { it.taskId }
+            queuedDownloads.map { it.taskId }
         }.onFailure { error ->
             logger.e("DownloadRepository", "enqueuePlaylistDownload failed", error)
         }
@@ -165,33 +165,25 @@ class DownloadRepositoryImpl @Inject constructor(
     override suspend fun pauseDownload(taskId: String) {
         logger.i("DownloadRepository", "pauseDownload taskId=$taskId")
         val task = downloadTaskStore.getTask(taskId) ?: return
-        val taskOptions = loadTaskOptions(task.id)
-        val pauseTargets = resolvePauseTargets(task, taskOptions)
         val pauseExpiresAt = System.currentTimeMillis() + PAUSE_RESUME_WINDOW_MS
 
-        pauseTargets.forEach { target ->
-            downloadTaskStore.update(target.id) { current ->
-                if (current.status.isTerminal) {
-                    current
-                } else {
-                    current.copy(
-                        status = DownloadStatus.PAUSED,
-                        pauseExpiresAtEpochMs = pauseExpiresAt,
-                        errorMessage = null,
-                        debugTrace = appendDebugLine(
-                            current.debugTrace,
-                            if (pauseTargets.size > 1) {
-                                "Paused by user as part of this playlist. Resume available for ${PAUSE_RESUME_WINDOW_MS / 60_000} minutes before cleanup."
-                            } else {
-                                "Paused by user. Resume available for ${PAUSE_RESUME_WINDOW_MS / 60_000} minutes before cleanup."
-                            },
-                        ),
-                        updatedAtEpochMs = System.currentTimeMillis(),
-                    )
-                }
+        downloadTaskStore.update(task.id) { current ->
+            if (current.status.isTerminal || current.status == DownloadStatus.PAUSED) {
+                current
+            } else {
+                current.copy(
+                    status = DownloadStatus.PAUSED,
+                    pauseExpiresAtEpochMs = pauseExpiresAt,
+                    errorMessage = null,
+                    debugTrace = appendDebugLine(
+                        current.debugTrace,
+                        "Paused by user. Resume available for ${PAUSE_RESUME_WINDOW_MS / 60_000} minutes before cleanup.",
+                    ),
+                    updatedAtEpochMs = System.currentTimeMillis(),
+                )
             }
-            target.activeWorkId?.let { workManager.cancelWorkById(UUID.fromString(it)) }
         }
+        task.activeWorkId?.let { workManager.cancelWorkById(UUID.fromString(it)) }
     }
 
     override suspend fun resumeDownload(taskId: String): Result<String> {
@@ -203,40 +195,39 @@ class DownloadRepositoryImpl @Inject constructor(
         if (task.status != DownloadStatus.PAUSED) {
             return Result.failure(IllegalStateException("Only paused downloads can be resumed."))
         }
+        if (!task.activeWorkId.isNullOrBlank()) {
+            return Result.failure(IllegalStateException("Pause is still finishing. Please try resume again in a moment."))
+        }
 
         val taskOptions = downloadTaskStore.getCachedOptions(taskId)
             ?.let { serialized -> runCatching { json.decodeFromString<DownloadOptions>(serialized) }.getOrNull() }
             ?: return Result.failure(IllegalStateException("No cached download options for task $taskId"))
 
-        val resumeTargets = resolveResumeTargets(task, taskOptions)
-        if (resumeTargets.isEmpty()) {
-            return Result.failure(IllegalStateException("No paused download is available to resume."))
-        }
-
-        val expiredTargets = resumeTargets.filter { target ->
-            target.task.pauseExpiresAtEpochMs?.let { it <= System.currentTimeMillis() } == true
-        }
-        if (expiredTargets.isNotEmpty()) {
-            expiredTargets.forEach { expirePausedDownload(it.task.id) }
+        if (task.pauseExpiresAtEpochMs?.let { it <= System.currentTimeMillis() } == true) {
+            expirePausedDownload(task.id)
             return Result.failure(IllegalStateException("Sorry, this paused download expired after 10 minutes. Its cached data was removed."))
         }
 
         return runCatching {
-            val preparedDownloads = resumeTargets.map { target ->
-                prepareDownload(
-                    taskId = target.task.id,
-                    options = target.options,
-                    titleHint = target.task.title,
-                    existingTask = target.task,
-                )
-            }
-            if (preparedDownloads.size == 1) {
-                workManager.enqueue(preparedDownloads.single().request)
+            if (taskOptions.isPlaylistEnabled) {
+                downloadTaskStore.update(task.id) { current ->
+                    current.copy(
+                        status = DownloadStatus.QUEUED,
+                        pauseExpiresAtEpochMs = null,
+                        errorMessage = null,
+                        debugTrace = appendDebugLine(current.debugTrace, "Resume requested: returning item to the playlist queue"),
+                        updatedAtEpochMs = System.currentTimeMillis(),
+                    )
+                }
+                enqueueNextPlaylistItemIfIdle(task.id, taskOptions)
             } else {
-                enqueueSequential(preparedDownloads.map { it.request })
-            }
-            preparedDownloads.forEach { prepared ->
-                observeWorkState(taskId = prepared.taskId, workId = prepared.request.id)
+                val prepared = prepareDownload(
+                    taskId = task.id,
+                    options = taskOptions,
+                    titleHint = task.title,
+                    existingTask = task,
+                )
+                enqueuePreparedDownload(prepared)
             }
             taskId
         }.onFailure { error ->
@@ -247,10 +238,12 @@ class DownloadRepositoryImpl @Inject constructor(
     override suspend fun cancelDownload(taskId: String) {
         logger.i("DownloadRepository", "cancelDownload taskId=$taskId")
         val existingTask = downloadTaskStore.getTask(taskId)
+        val taskOptions = existingTask?.let { loadTaskOptions(it.id) }
         val activeWorkId = existingTask?.activeWorkId
         downloadTaskStore.update(taskId) { task ->
             task.copy(
                 status = DownloadStatus.CANCELED,
+                activeWorkId = task.activeWorkId,
                 pauseExpiresAtEpochMs = null,
                 debugTrace = appendDebugLine(task.debugTrace, "Cancelled by user"),
                 updatedAtEpochMs = System.currentTimeMillis(),
@@ -264,6 +257,9 @@ class DownloadRepositoryImpl @Inject constructor(
             )
         }
         activeWorkId?.let { workManager.cancelWorkById(UUID.fromString(it)) }
+        if (activeWorkId == null && taskOptions?.isPlaylistEnabled == true) {
+            enqueueNextPlaylistItemIfIdle(taskId, taskOptions)
+        }
     }
 
     override suspend fun renameDownloadedFile(taskId: String, newName: String): Result<Unit> {
@@ -445,6 +441,7 @@ class DownloadRepositoryImpl @Inject constructor(
         options: DownloadOptions,
         titleHint: String,
         existingTask: DownloadTask? = null,
+        assignWorkId: Boolean = true,
     ): PreparedDownload {
         val request = OneTimeWorkRequestBuilder<DownloadWorker>()
             .setInputData(
@@ -492,11 +489,12 @@ class DownloadRepositoryImpl @Inject constructor(
             url = options.url,
             title = titleHint.ifBlank { existingTask?.title ?: "Queued download" },
             status = DownloadStatus.QUEUED,
-            activeWorkId = request.id.toString(),
+            activeWorkId = if (assignWorkId) request.id.toString() else null,
             progressPercent = existingTask?.progressPercent ?: 0,
             speed = existingTask?.speed,
             eta = existingTask?.eta,
             outputPath = existingTask?.outputPath,
+            thumbnailUrl = existingTask?.thumbnailUrl ?: options.thumbnailUrl,
             downloadedStr = existingTask?.downloadedStr,
             totalSizeStr = existingTask?.totalSizeStr,
             errorMessage = null,
@@ -514,16 +512,41 @@ class DownloadRepositoryImpl @Inject constructor(
         return PreparedDownload(
             taskId = taskId,
             request = request,
+            options = options,
         )
     }
 
-    private fun enqueueSequential(requests: List<OneTimeWorkRequest>) {
-        if (requests.isEmpty()) return
-        var continuation = workManager.beginWith(requests.first())
-        requests.drop(1).forEach { request ->
-            continuation = continuation.then(request)
+    private fun enqueuePreparedDownload(prepared: PreparedDownload) {
+        workManager.enqueue(prepared.request)
+        observeWorkState(taskId = prepared.taskId, workId = prepared.request.id)
+    }
+
+    private suspend fun enqueueNextPlaylistItemIfIdle(taskId: String, taskOptions: DownloadOptions) {
+        val playlistGroup = resolvePlaylistGroup(
+            task = downloadTaskStore.getTask(taskId) ?: return,
+            taskOptions = taskOptions,
+        ) ?: return
+
+        val hasActivePlaylistWork = playlistGroup.any { queued ->
+            val status = queued.task.status
+            !status.isTerminal &&
+                status != DownloadStatus.PAUSED &&
+                !queued.task.activeWorkId.isNullOrBlank()
         }
-        continuation.enqueue()
+        if (hasActivePlaylistWork) return
+
+        val nextQueued = playlistGroup.firstOrNull { queued ->
+            queued.task.status == DownloadStatus.QUEUED &&
+                queued.task.activeWorkId.isNullOrBlank()
+        } ?: return
+
+        val prepared = prepareDownload(
+            taskId = nextQueued.task.id,
+            options = nextQueued.options,
+            titleHint = nextQueued.task.title,
+            existingTask = nextQueued.task,
+        )
+        enqueuePreparedDownload(prepared)
     }
 
     private fun observeWorkState(taskId: String, workId: UUID) {
@@ -582,6 +605,7 @@ class DownloadRepositoryImpl @Inject constructor(
                             updatedAtEpochMs = System.currentTimeMillis(),
                         )
                     }
+                    advancePlaylistQueueIfNeeded(taskId)
                 } else if (terminalStatus == DownloadStatus.PAUSED.name) {
                     downloadTaskStore.update(taskId) { task ->
                         task.copy(
@@ -601,6 +625,7 @@ class DownloadRepositoryImpl @Inject constructor(
                             updatedAtEpochMs = System.currentTimeMillis(),
                         )
                     }
+                    advancePlaylistQueueIfNeeded(taskId)
                 } else {
                     downloadTaskStore.update(taskId) { task ->
                         if (task.status == DownloadStatus.COMPLETED) task
@@ -613,6 +638,7 @@ class DownloadRepositoryImpl @Inject constructor(
                             updatedAtEpochMs = System.currentTimeMillis(),
                         )
                     }
+                    advancePlaylistQueueIfNeeded(taskId)
                 }
             }
 
@@ -620,6 +646,7 @@ class DownloadRepositoryImpl @Inject constructor(
                 val failureMessage = info.outputData.getString(WorkerKeys.ERROR_MESSAGE)
                     ?.takeIf { it.isNotBlank() }
                     ?: "Download failed before worker returned an explicit error"
+                var shouldAdvancePlaylist = false
                 downloadTaskStore.update(taskId) { task ->
                     when {
                         task.status == DownloadStatus.PAUSED || task.pauseExpiresAtEpochMs != null -> task.copy(
@@ -636,7 +663,7 @@ class DownloadRepositoryImpl @Inject constructor(
                             debugTrace = appendDebugLine(task.debugTrace, "Worker stopped after cancel request"),
                             pauseExpiresAtEpochMs = null,
                             updatedAtEpochMs = System.currentTimeMillis(),
-                        )
+                        ).also { shouldAdvancePlaylist = true }
 
                         else -> task.copy(
                             status = DownloadStatus.FAILED,
@@ -645,12 +672,16 @@ class DownloadRepositoryImpl @Inject constructor(
                             debugTrace = appendDebugLine(task.debugTrace, "WorkManager failed: $failureMessage"),
                             pauseExpiresAtEpochMs = null,
                             updatedAtEpochMs = System.currentTimeMillis(),
-                        )
+                        ).also { shouldAdvancePlaylist = true }
                     }
+                }
+                if (shouldAdvancePlaylist) {
+                    advancePlaylistQueueIfNeeded(taskId)
                 }
             }
 
             WorkInfo.State.CANCELLED -> {
+                var shouldAdvancePlaylist = false
                 downloadTaskStore.update(taskId) { task ->
                     when {
                         task.status == DownloadStatus.PAUSED || task.pauseExpiresAtEpochMs != null -> task.copy(
@@ -664,7 +695,7 @@ class DownloadRepositoryImpl @Inject constructor(
                             debugTrace = appendDebugLine(task.debugTrace, "WorkManager cancelled"),
                             pauseExpiresAtEpochMs = null,
                             updatedAtEpochMs = System.currentTimeMillis(),
-                        )
+                        ).also { shouldAdvancePlaylist = true }
 
                         else -> task.copy(
                             status = DownloadStatus.CANCELED,
@@ -672,8 +703,11 @@ class DownloadRepositoryImpl @Inject constructor(
                             debugTrace = appendDebugLine(task.debugTrace, "WorkManager cancelled"),
                             pauseExpiresAtEpochMs = null,
                             updatedAtEpochMs = System.currentTimeMillis(),
-                        )
+                        ).also { shouldAdvancePlaylist = true }
                     }
+                }
+                if (shouldAdvancePlaylist) {
+                    advancePlaylistQueueIfNeeded(taskId)
                 }
             }
 
@@ -705,19 +739,13 @@ class DownloadRepositoryImpl @Inject constructor(
         return runCatching { json.decodeFromString<DownloadOptions>(optionsJson) }.getOrNull()
     }
 
-    private suspend fun resolvePauseTargets(task: DownloadTask, taskOptions: DownloadOptions?): List<DownloadTask> {
-        return resolvePlaylistGroup(task, taskOptions)
-            ?.map { it.task }
-            ?.filterNot { it.status.isTerminal }
-            ?.ifEmpty { listOf(task) }
-            ?: listOf(task)
-    }
-
-    private suspend fun resolveResumeTargets(task: DownloadTask, taskOptions: DownloadOptions): List<DownloadTaskWithOptions> {
-        val playlistGroup = resolvePlaylistGroup(task, taskOptions)
-        val targets = (playlistGroup ?: listOf(DownloadTaskWithOptions(task = task, options = taskOptions)))
-            .filter { it.task.status == DownloadStatus.PAUSED }
-        return targets.sortedBy { it.options.playlistItemIndex ?: Int.MAX_VALUE }
+    private fun advancePlaylistQueueIfNeeded(taskId: String) {
+        repositoryScope.launch {
+            val task = downloadTaskStore.getTask(taskId) ?: return@launch
+            val taskOptions = loadTaskOptions(taskId) ?: return@launch
+            if (!taskOptions.isPlaylistEnabled) return@launch
+            enqueueNextPlaylistItemIfIdle(task.id, taskOptions)
+        }
     }
 
     private suspend fun resolvePlaylistGroup(
@@ -872,6 +900,7 @@ class DownloadRepositoryImpl @Inject constructor(
     private data class PreparedDownload(
         val taskId: String,
         val request: OneTimeWorkRequest,
+        val options: DownloadOptions,
     )
 
     private data class DownloadTaskWithOptions(

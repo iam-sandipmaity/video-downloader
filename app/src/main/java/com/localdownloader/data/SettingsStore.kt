@@ -58,6 +58,7 @@ class SettingsStore @Inject constructor(
         val cookieUserAgentEnabled = booleanPreferencesKey("cookie_user_agent_enabled")
         val cookieProfiles = stringPreferencesKey("cookie_profiles_json")
         val youtubeAuthConfig = stringPreferencesKey("youtube_auth_config_json")
+        val hasSeenDownloadSetupNotice = booleanPreferencesKey("has_seen_download_setup_notice")
         val maxConcurrent = intPreferencesKey("max_concurrent")
         val darkTheme = booleanPreferencesKey("dark_theme")
     }
@@ -95,6 +96,7 @@ class SettingsStore @Inject constructor(
                     cookieUserAgentEnabled = prefs[Keys.cookieUserAgentEnabled] ?: false,
                     cookieProfiles = decodeCookieProfiles(prefs[Keys.cookieProfiles]),
                     youtubeAuthConfig = decodeYoutubeAuthConfig(prefs[Keys.youtubeAuthConfig]),
+                    hasSeenDownloadSetupNotice = prefs[Keys.hasSeenDownloadSetupNotice] ?: false,
                     maxConcurrentDownloads = prefs[Keys.maxConcurrent] ?: 2,
                     darkTheme = prefs[Keys.darkTheme] ?: false,
                 )
@@ -125,6 +127,7 @@ class SettingsStore @Inject constructor(
             prefs[Keys.cookieUserAgentEnabled] = settings.cookieUserAgentEnabled
             prefs[Keys.cookieProfiles] = json.encodeToString(settings.cookieProfiles)
             prefs[Keys.youtubeAuthConfig] = json.encodeToString(settings.youtubeAuthConfig)
+            prefs[Keys.hasSeenDownloadSetupNotice] = settings.hasSeenDownloadSetupNotice
             prefs[Keys.maxConcurrent] = settings.maxConcurrentDownloads
             prefs[Keys.darkTheme] = settings.darkTheme
         }

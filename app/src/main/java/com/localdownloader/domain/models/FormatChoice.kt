@@ -11,4 +11,5 @@ data class FormatChoice(
     val height: Int?,
     val isMerged: Boolean,
     val isImageLike: Boolean,
+    val fileSizeBytes: Long? = null,
 )

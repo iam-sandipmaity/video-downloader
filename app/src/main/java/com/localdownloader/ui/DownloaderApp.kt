@@ -415,8 +415,11 @@ fun DownloaderApp(
                     onOpenHistory = { navController.navigate(Routes.History) },
                     onOpenCompress = { navController.navigate(Routes.Compress) },
                     onOpenConvert = { navController.navigate(Routes.Convert) },
+                    onOpenYoutubeAccess = { navController.navigate(Routes.YoutubeAuth) },
+                    onOpenCookies = { navController.navigate(Routes.Cookies) },
                     onOpenSettings = { navController.navigate(Routes.Settings) },
                     onOpenHelp = { navController.navigate(Routes.Help) },
+                    onDismissDownloadSetupNotice = formatViewModel::dismissDownloadSetupNotice,
                     onDarkThemeChanged = formatViewModel::toggleDarkTheme,
                     isDownloadButtonEnabled = formatViewModel.isDownloadButtonEnabled(),
                 )
@@ -455,6 +458,9 @@ fun DownloaderApp(
                     onPause = downloadViewModel::pause,
                     onResume = downloadViewModel::resume,
                     onCancel = downloadViewModel::cancel,
+                    onPauseTasks = downloadViewModel::pauseTasks,
+                    onResumeTasks = downloadViewModel::resumeTasks,
+                    onCancelTasks = downloadViewModel::cancelTasks,
                     onBack = { navController.popBackStack() },
                 )
             }

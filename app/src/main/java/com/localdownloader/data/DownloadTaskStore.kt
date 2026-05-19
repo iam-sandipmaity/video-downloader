@@ -28,12 +28,21 @@ class DownloadTaskStore @Inject constructor(
 
     /** In-memory cache synced from Room for fast non-suspending access. */
     private val tasks = MutableStateFlow<Map<String, DownloadTask>>(emptyMap())
+    private val cachedOptions = MutableStateFlow<Map<String, String>>(emptyMap())
 
     init {
         scope.launch {
             dao.observeAll().collect { entities ->
                 val map = entities.mapNotNull { it.toDomainTask(json) }.associateBy { it.id }
+                val optionsMap = entities.mapNotNull { entity ->
+                    entity.optionsJson?.let { entity.id to it }
+                }.toMap()
                 tasks.update { map }
+                cachedOptions.update { existing ->
+                    existing
+                        .filterKeys { key -> key in map }
+                        .plus(optionsMap)
+                }
             }
         }
     }
@@ -50,6 +59,9 @@ class DownloadTaskStore @Inject constructor(
 
     fun upsert(task: DownloadTask, optionsJson: String? = null) {
         tasks.update { taskMap -> taskMap + (task.id to task) }
+        if (optionsJson != null) {
+            cachedOptions.update { options -> options + (task.id to optionsJson) }
+        }
         scope.launch { dao.upsert(task.toEntity(json = json, optionsJson = optionsJson)) }
     }
 
@@ -58,7 +70,7 @@ class DownloadTaskStore @Inject constructor(
             val current = taskMap[taskId] ?: return@update taskMap
             val updated = reducer(current)
             scope.launch {
-                val existingOptionsJson = dao.getById(taskId)?.optionsJson
+                val existingOptionsJson = cachedOptions.value[taskId] ?: dao.getById(taskId)?.optionsJson
                 dao.upsert(updated.toEntity(json = json, optionsJson = existingOptionsJson))
             }
             taskMap + (taskId to updated)
@@ -68,6 +80,7 @@ class DownloadTaskStore @Inject constructor(
     fun countByUrl(url: String): Int = tasks.value.values.count { it.url == url }
 
     fun cacheOptions(taskId: String, optionsJson: String) {
+        cachedOptions.update { options -> options + (taskId to optionsJson) }
         scope.launch {
             dao.getById(taskId)?.let { entity ->
                 dao.upsert(entity.copy(optionsJson = optionsJson))
@@ -76,6 +89,7 @@ class DownloadTaskStore @Inject constructor(
     }
 
     fun clearCachedOptions(taskId: String) {
+        cachedOptions.update { options -> options - taskId }
         scope.launch {
             dao.getById(taskId)?.let { entity ->
                 dao.upsert(entity.copy(optionsJson = null))
@@ -85,6 +99,7 @@ class DownloadTaskStore @Inject constructor(
 
     fun remove(taskId: String) {
         tasks.update { taskMap -> taskMap - taskId }
+        cachedOptions.update { options -> options - taskId }
         scope.launch { dao.deleteById(taskId) }
     }
 
@@ -92,6 +107,7 @@ class DownloadTaskStore @Inject constructor(
         if (taskIds.isEmpty()) return
         val ids = taskIds.toSet()
         tasks.update { taskMap -> taskMap - ids }
+        cachedOptions.update { options -> options - ids }
         scope.launch {
             ids.forEach { dao.deleteById(it) }
         }
@@ -99,11 +115,12 @@ class DownloadTaskStore @Inject constructor(
 
     fun clearAll() {
         tasks.update { emptyMap() }
+        cachedOptions.update { emptyMap() }
         scope.launch { dao.deleteAll() }
     }
 
     suspend fun getCachedOptions(taskId: String): String? {
-        return dao.getById(taskId)?.optionsJson
+        return cachedOptions.value[taskId] ?: dao.getById(taskId)?.optionsJson
     }
 }
 
@@ -118,6 +135,7 @@ private fun DownloadTask.toEntity(json: Json, optionsJson: String? = null): Down
         speed = speed,
         eta = eta,
         outputPath = outputPath,
+        thumbnailUrl = thumbnailUrl,
         subtitlePathsJson = json.encodeToString(subtitlePaths),
         downloadedStr = downloadedStr,
         totalSizeStr = totalSizeStr,
@@ -142,6 +160,7 @@ private fun DownloadTaskEntity.toDomainTask(json: Json): DownloadTask? {
             speed = speed,
             eta = eta,
             outputPath = outputPath,
+            thumbnailUrl = thumbnailUrl,
             subtitlePaths = subtitlePathsJson
                 ?.takeIf { it.isNotBlank() }
                 ?.let { json.decodeFromString<List<String>>(it) }

@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -40,8 +41,6 @@ import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.PauseCircle
 import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material.icons.outlined.Schedule
-import androidx.compose.material.icons.outlined.StopCircle
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -64,16 +63,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.localdownloader.domain.models.DownloadStatus
 import com.localdownloader.domain.models.DownloadTask
 import com.localdownloader.ui.components.LocalVideoThumbnail
-import com.localdownloader.ui.components.MediaRowCard
-import com.localdownloader.ui.components.MediaRowChip
 import com.localdownloader.ui.components.rememberLocalMediaSnapshot
 import com.localdownloader.viewmodel.DownloadUiState
 
@@ -84,6 +84,9 @@ fun ProgressScreen(
     onPause: (String) -> Unit,
     onResume: (String) -> Unit,
     onCancel: (String) -> Unit,
+    onPauseTasks: (List<String>) -> Unit,
+    onResumeTasks: (List<String>) -> Unit,
+    onCancelTasks: (List<String>) -> Unit,
     onBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -205,6 +208,13 @@ fun ProgressScreen(
                     failedCount = failedCount,
                     canceledCount = canceledCount,
                     onSelect = { selectedFilter = it.name },
+                )
+                QueueBatchActionRow(
+                    currentFilter = currentFilter,
+                    tasks = filteredTasks,
+                    onPauseTasks = onPauseTasks,
+                    onResumeTasks = onResumeTasks,
+                    onCancelTasks = onCancelTasks,
                 )
             } else {
                 Row(
@@ -369,6 +379,67 @@ fun ProgressScreen(
 }
 
 @Composable
+private fun QueueBatchActionRow(
+    currentFilter: ProgressFilter,
+    tasks: List<DownloadTask>,
+    onPauseTasks: (List<String>) -> Unit,
+    onResumeTasks: (List<String>) -> Unit,
+    onCancelTasks: (List<String>) -> Unit,
+) {
+    val taskIds = tasks.map { it.id }
+    val actions = when (currentFilter) {
+        ProgressFilter.Queue -> listOf(
+            QueueBatchAction(
+                label = "Pause All In Queue",
+                onClick = { onPauseTasks(taskIds) },
+            ),
+            QueueBatchAction(
+                label = "Cancel All In Queue",
+                onClick = { onCancelTasks(taskIds) },
+            ),
+        )
+
+        ProgressFilter.Paused -> listOf(
+            QueueBatchAction(
+                label = "Resume All Scheduled",
+                onClick = { onResumeTasks(taskIds) },
+            ),
+        )
+
+        else -> emptyList()
+    }
+    if (actions.isEmpty() || taskIds.isEmpty()) return
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        actions.forEach { action ->
+            Surface(
+                modifier = Modifier.clickable(onClick = action.onClick),
+                shape = RoundedCornerShape(18.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            ) {
+                Text(
+                    text = action.label,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
+        }
+    }
+}
+
+private data class QueueBatchAction(
+    val label: String,
+    val onClick: () -> Unit,
+)
+
+@Composable
 private fun QueueFilterRow(
     currentFilter: ProgressFilter,
     runningCount: Int,
@@ -419,43 +490,40 @@ private fun QueueFilterTab(
 ) {
     Column(
         modifier = Modifier
-            .widthIn(min = 74.dp)
+            .widthIn(min = 92.dp)
             .clickable(onClick = onClick),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-                color = if (selected) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-            )
-            if (count > 0) {
-                Surface(
-                    color = MaterialTheme.colorScheme.errorContainer,
-                    shape = CircleShape,
-                ) {
-                    Text(
-                        text = count.toString(),
-                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                    )
-                }
+        if (count > 0) {
+            Surface(
+                color = MaterialTheme.colorScheme.errorContainer,
+                shape = CircleShape,
+            ) {
+                Text(
+                    text = count.toString(),
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                )
             }
+        } else {
+            Spacer(modifier = Modifier.height(26.dp))
         }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+            color = if (selected) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+        )
         Box(
             modifier = Modifier
                 .height(4.dp)
-                .width(82.dp)
+                .width(104.dp)
                 .clip(CircleShape)
                 .background(
                     if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
@@ -473,205 +541,14 @@ private fun QueueTaskRow(
     onCancel: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var showMenu by remember { mutableStateOf(false) }
-    val accent = statusAccent(task.status)
-    val snapshot = rememberLocalMediaSnapshot(task.outputPath)
-    val progressColor = when (task.status) {
-        DownloadStatus.FAILED -> MaterialTheme.colorScheme.error
-        DownloadStatus.CANCELED -> MaterialTheme.colorScheme.outline
-        else -> accent
-    }
-    val animatedProgress by animateFloatAsState(
-        targetValue = progressValue(task),
-        animationSpec = tween(durationMillis = 450, easing = FastOutSlowInEasing),
-        label = "queueTaskProgress",
+    DownloadTaskHeroCard(
+        task = task,
+        currentTimeMs = currentTimeMs,
+        onPause = onPause,
+        onResume = onResume,
+        onCancel = onCancel,
+        modifier = modifier,
     )
-    val pauseExpiryLabel = task.pauseExpiresAtEpochMs?.let { pauseExpiresAt ->
-        buildPauseExpiryLabel(
-            pauseExpiresAtEpochMs = pauseExpiresAt,
-            currentTimeMs = currentTimeMs,
-        )
-    }
-
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.36f),
-        shape = RoundedCornerShape(24.dp),
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.Top,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .width(126.dp)
-                        .height(76.dp)
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (!task.outputPath.isNullOrBlank()) {
-                        LocalVideoThumbnail(
-                            filePath = task.outputPath,
-                            contentDescription = task.title,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    } else {
-                        Icon(
-                            imageVector = statusIcon(task.status),
-                            contentDescription = null,
-                            tint = accent,
-                            modifier = Modifier.size(28.dp),
-                        )
-                    }
-                }
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.Top,
-                    ) {
-                        Text(
-                            text = task.title,
-                            modifier = Modifier.weight(1f),
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Box {
-                            IconButton(
-                                onClick = { showMenu = true },
-                                modifier = Modifier.size(28.dp),
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.MoreVert,
-                                    contentDescription = "Task actions",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            DropdownMenu(
-                                expanded = showMenu,
-                                onDismissRequest = { showMenu = false },
-                            ) {
-                                when (task.status) {
-                                    DownloadStatus.RUNNING, DownloadStatus.QUEUED -> {
-                                        DropdownMenuItem(
-                                            text = { Text("Pause") },
-                                            leadingIcon = {
-                                                Icon(Icons.Outlined.PauseCircle, contentDescription = null)
-                                            },
-                                            onClick = {
-                                                showMenu = false
-                                                onPause(task.id)
-                                            },
-                                        )
-                                        DropdownMenuItem(
-                                            text = { Text("Cancel") },
-                                            leadingIcon = {
-                                                Icon(Icons.Outlined.StopCircle, contentDescription = null)
-                                            },
-                                            onClick = {
-                                                showMenu = false
-                                                onCancel(task.id)
-                                            },
-                                        )
-                                    }
-
-                                    DownloadStatus.PAUSED -> {
-                                        DropdownMenuItem(
-                                            text = { Text("Resume") },
-                                            leadingIcon = {
-                                                Icon(Icons.Outlined.PlayCircle, contentDescription = null)
-                                            },
-                                            onClick = {
-                                                showMenu = false
-                                                onResume(task.id)
-                                            },
-                                        )
-                                        DropdownMenuItem(
-                                            text = { Text("Cancel") },
-                                            leadingIcon = {
-                                                Icon(Icons.Outlined.StopCircle, contentDescription = null)
-                                            },
-                                            onClick = {
-                                                showMenu = false
-                                                onCancel(task.id)
-                                            },
-                                        )
-                                    }
-
-                                    else -> {
-                                        DropdownMenuItem(
-                                            text = { Text("No actions available") },
-                                            onClick = { showMenu = false },
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        QueueMetaChip(icon = statusIcon(task.status), accent = accent)
-                        QueueMetaChip(text = progressSizeLabel(task, snapshot.sizeLabel))
-                        QueueMetaChip(text = snapshot.resolutionLabel ?: progressStateChip(task))
-                        QueueMetaChip(text = snapshot.formatLabel ?: statusLabel(task.status).uppercase())
-                    }
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        task.speed?.takeIf { it.isNotBlank() }?.let { speed ->
-                            QueueMetaChip(text = speed)
-                        }
-                        task.eta?.takeIf { it.isNotBlank() }?.let { eta ->
-                            QueueMetaChip(text = "ETA $eta")
-                        }
-                        pauseExpiryLabel?.let { label ->
-                            QueueMetaChip(text = label)
-                        }
-                        if (task.status == DownloadStatus.COMPLETED ||
-                            task.status == DownloadStatus.FAILED ||
-                            task.status == DownloadStatus.CANCELED
-                        ) {
-                            QueueMetaChip(text = statusLabel(task.status))
-                        }
-                    }
-                }
-            }
-            LinearProgressIndicator(
-                progress = { animatedProgress },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(CircleShape),
-                color = progressColor,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
-            )
-            task.errorMessage?.takeIf { it.isNotBlank() }?.let { message ->
-                Text(
-                    text = message,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-    }
 }
 
 @Composable
@@ -716,67 +593,37 @@ private fun QueueMetaChip(
 }
 
 @Composable
-private fun ProgressTaskCard(
+private fun DownloadTaskThumbnail(
     task: DownloadTask,
-    currentTimeMs: Long,
-    onPause: (String) -> Unit,
-    onResume: (String) -> Unit,
-    onCancel: (String) -> Unit,
+    accent: Color,
+    statusIcon: ImageVector,
+    showStatusBadge: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
-    var showMenu by remember { mutableStateOf(false) }
-    val hasActions = task.status == DownloadStatus.RUNNING ||
-        task.status == DownloadStatus.QUEUED ||
-        task.status == DownloadStatus.PAUSED
-    val accent = statusAccent(task.status)
-    val snapshot = rememberLocalMediaSnapshot(task.outputPath)
-    val progressColor = when (task.status) {
-        DownloadStatus.FAILED -> MaterialTheme.colorScheme.error
-        DownloadStatus.CANCELED -> MaterialTheme.colorScheme.outline
-        else -> accent
-    }
-    val statusIcon = statusIcon(task.status)
-    val animatedProgress by animateFloatAsState(
-        targetValue = progressValue(task),
-        animationSpec = tween(durationMillis = 450, easing = FastOutSlowInEasing),
-        label = "taskProgress",
-    )
-    val pauseExpiryLabel = task.pauseExpiresAtEpochMs?.let { pauseExpiresAt ->
-        buildPauseExpiryLabel(
-            pauseExpiresAtEpochMs = pauseExpiresAt,
-            currentTimeMs = currentTimeMs,
-        )
-    }
-    val chips = buildList {
-        add(MediaRowChip(icon = statusIcon, accent = accent))
-        add(MediaRowChip(text = progressSizeLabel(task, snapshot.sizeLabel)))
-        add(MediaRowChip(text = snapshot.resolutionLabel ?: progressStateChip(task)))
-        add(MediaRowChip(text = snapshot.formatLabel ?: statusLabel(task.status).uppercase()))
-        task.speed?.takeIf { it.isNotBlank() }?.let { speed ->
-            add(MediaRowChip(text = speed))
-        }
-        task.eta?.takeIf { it.isNotBlank() }?.let { eta ->
-            add(MediaRowChip(text = "ETA $eta"))
-        }
-    }
-
-    MediaRowCard(
-        title = task.title,
-        chips = chips,
-        modifier = modifier.animateContentSize(
-            animationSpec = spring(
-                dampingRatio = 0.9f,
-                stiffness = 500f,
-            ),
-        ),
-        thumbnail = {
-            if (!task.outputPath.isNullOrBlank()) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        when {
+            !task.outputPath.isNullOrBlank() -> {
                 LocalVideoThumbnail(
                     filePath = task.outputPath,
                     contentDescription = task.title,
                     modifier = Modifier.fillMaxSize(),
                 )
-            } else {
+            }
+
+            !task.thumbnailUrl.isNullOrBlank() -> {
+                AsyncImage(
+                    model = task.thumbnailUrl,
+                    contentDescription = task.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+
+            else -> {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -787,95 +634,280 @@ private fun ProgressTaskCard(
                         imageVector = statusIcon,
                         contentDescription = null,
                         tint = accent,
-                        modifier = Modifier.size(40.dp),
+                        modifier = Modifier.size(28.dp),
                     )
                 }
             }
-        },
-        trailing = if (hasActions) {
-            {
-                Box {
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "Task actions")
-                    }
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false },
-                    ) {
-                        when (task.status) {
-                            DownloadStatus.RUNNING, DownloadStatus.QUEUED -> {
-                                DropdownMenuItem(
-                                    text = { Text("Pause") },
-                                    leadingIcon = { Icon(Icons.Outlined.PauseCircle, contentDescription = null) },
-                                    onClick = {
-                                        showMenu = false
-                                        onPause(task.id)
-                                    },
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Cancel") },
-                                    leadingIcon = { Icon(Icons.Outlined.StopCircle, contentDescription = null) },
-                                    onClick = {
-                                        showMenu = false
-                                        onCancel(task.id)
-                                    },
-                                )
-                            }
+        }
 
-                            DownloadStatus.PAUSED -> {
-                                DropdownMenuItem(
-                                    text = { Text("Resume") },
-                                    leadingIcon = { Icon(Icons.Outlined.PlayCircle, contentDescription = null) },
-                                    onClick = {
-                                        showMenu = false
-                                        onResume(task.id)
-                                    },
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Cancel") },
-                                    leadingIcon = { Icon(Icons.Outlined.StopCircle, contentDescription = null) },
-                                    onClick = {
-                                        showMenu = false
-                                        onCancel(task.id)
-                                    },
-                                )
-                            }
-
-                            else -> Unit
-                        }
-                    }
-                }
-            }
-        } else {
-            null
-        },
-        supportingContent = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                LinearProgressIndicator(
-                    progress = { animatedProgress },
+        if (showStatusBadge) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(8.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.82f),
+            ) {
+                Icon(
+                    imageVector = statusIcon,
+                    contentDescription = null,
+                    tint = accent,
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(CircleShape),
-                    color = progressColor,
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                        .padding(6.dp)
+                        .size(16.dp),
                 )
-                pauseExpiryLabel?.let { label ->
-                    AssistChip(
-                        onClick = {},
-                        enabled = false,
-                        label = { Text(label) },
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProgressTaskCard(
+    task: DownloadTask,
+    currentTimeMs: Long,
+    onPause: (String) -> Unit,
+    onResume: (String) -> Unit,
+    onCancel: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    DownloadTaskHeroCard(
+        task = task,
+        currentTimeMs = currentTimeMs,
+        onPause = onPause,
+        onResume = onResume,
+        onCancel = onCancel,
+        modifier = modifier,
+    )
+}
+
+private data class DownloadTaskAction(
+    val icon: ImageVector,
+    val contentDescription: String,
+    val onClick: () -> Unit,
+)
+
+@Composable
+private fun DownloadTaskHeroCard(
+    task: DownloadTask,
+    currentTimeMs: Long,
+    onPause: (String) -> Unit,
+    onResume: (String) -> Unit,
+    onCancel: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val accent = statusAccent(task.status)
+    val snapshot = rememberLocalMediaSnapshot(task.outputPath)
+    val progressColor = when (task.status) {
+        DownloadStatus.FAILED -> MaterialTheme.colorScheme.error
+        DownloadStatus.CANCELED -> MaterialTheme.colorScheme.outline
+        else -> accent
+    }
+    val taskStatusIcon = statusIcon(task.status)
+    val animatedProgress by animateFloatAsState(
+        targetValue = progressValue(task),
+        animationSpec = tween(durationMillis = 450, easing = FastOutSlowInEasing),
+        label = "taskHeroProgress",
+    )
+    val pauseExpiryLabel = task.pauseExpiresAtEpochMs?.let { pauseExpiresAt ->
+        buildPauseExpiryLabel(
+            pauseExpiresAtEpochMs = pauseExpiresAt,
+            currentTimeMs = currentTimeMs,
+        )
+    }
+    val actions = when (task.status) {
+        DownloadStatus.RUNNING, DownloadStatus.QUEUED -> listOf(
+            DownloadTaskAction(
+                icon = Icons.Outlined.PauseCircle,
+                contentDescription = "Pause",
+                onClick = { onPause(task.id) },
+            ),
+            DownloadTaskAction(
+                icon = Icons.Outlined.Cancel,
+                contentDescription = "Cancel",
+                onClick = { onCancel(task.id) },
+            ),
+        )
+
+        DownloadStatus.PAUSED -> listOf(
+            DownloadTaskAction(
+                icon = Icons.Outlined.PlayCircle,
+                contentDescription = "Resume",
+                onClick = { onResume(task.id) },
+            ),
+            DownloadTaskAction(
+                icon = Icons.Outlined.Cancel,
+                contentDescription = "Cancel",
+                onClick = { onCancel(task.id) },
+            ),
+        )
+
+        else -> emptyList()
+    }
+    val headerSummary = buildTaskHeaderSummary(task, snapshot)
+    val subtitle = buildTaskSubtitle(task, pauseExpiryLabel)
+    val footerMessage = buildTaskFooterMessage(task, snapshot, pauseExpiryLabel)
+
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .animateContentSize(
+                animationSpec = spring(
+                    dampingRatio = 0.9f,
+                    stiffness = 500f,
+                ),
+            ),
+        shape = RoundedCornerShape(32.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        tonalElevation = 1.dp,
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(218.dp)
+                .clip(RoundedCornerShape(32.dp)),
+        ) {
+            DownloadTaskThumbnail(
+                task = task,
+                accent = accent,
+                statusIcon = taskStatusIcon,
+                showStatusBadge = false,
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Black.copy(alpha = 0.30f),
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.62f),
+                            ),
+                        ),
+                    ),
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top,
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.82f),
+                ) {
+                    Icon(
+                        imageVector = taskStatusIcon,
+                        contentDescription = null,
+                        tint = accent,
+                        modifier = Modifier
+                            .padding(12.dp)
+                            .size(18.dp),
                     )
                 }
-                task.errorMessage?.takeIf { it.isNotBlank() }?.let { message ->
+                headerSummary?.let { summary ->
+                    Surface(
+                        shape = RoundedCornerShape(18.dp),
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.86f),
+                    ) {
+                        Text(
+                            text = summary,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+            if (actions.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .padding(end = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    actions.forEach { action ->
+                        DownloadTaskHeroActionButton(action = action)
+                    }
+                }
+            }
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .padding(
+                        start = 20.dp,
+                        top = 16.dp,
+                        end = if (actions.isNotEmpty()) 188.dp else 20.dp,
+                        bottom = 18.dp,
+                    ),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    text = task.title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                subtitle?.let { text ->
                     Text(
-                        text = message,
+                        text = text,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White.copy(alpha = 0.86f),
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                footerMessage?.let { text ->
+                    Text(
+                        text = text,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = Color.White.copy(alpha = 0.92f),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
-        },
-    )
+            LinearProgressIndicator(
+                progress = { animatedProgress },
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .height(5.dp),
+                color = progressColor,
+                trackColor = Color.White.copy(alpha = 0.16f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun DownloadTaskHeroActionButton(
+    action: DownloadTaskAction,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier
+            .size(84.dp)
+            .clickable(onClick = action.onClick),
+        shape = RoundedCornerShape(28.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.86f),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = action.icon,
+                contentDescription = action.contentDescription,
+                tint = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.size(36.dp),
+            )
+        }
+    }
 }
 
 @Composable
@@ -1076,4 +1108,87 @@ private fun progressStateChip(task: DownloadTask): String {
         DownloadStatus.FAILED -> "Error"
         DownloadStatus.CANCELED -> "Canceled"
     }
+}
+
+private fun buildTaskHeaderSummary(
+    task: DownloadTask,
+    snapshot: com.localdownloader.ui.components.LocalMediaSnapshot,
+): String? {
+    val segments = buildList {
+        compactResolutionLabel(snapshot.resolutionLabel)?.let(::add)
+        snapshot.formatLabel?.takeIf { it.isNotBlank() }?.let(::add)
+        (
+            normalizedTaskSize(task.totalSizeStr)
+            ?: normalizedTaskSize(snapshot.sizeLabel)
+            ?: normalizedTaskSize(task.downloadedStr)
+            )?.let(::add)
+    }
+    return segments.joinToString(" • ").ifBlank { null }
+}
+
+private fun buildTaskSubtitle(
+    task: DownloadTask,
+    pauseExpiryLabel: String?,
+): String? {
+    return when (task.status) {
+        DownloadStatus.RUNNING -> listOfNotNull(
+            statusLabel(task.status),
+            task.speed?.takeIf { it.isNotBlank() },
+            task.eta?.takeIf { it.isNotBlank() }?.let { "ETA $it" },
+        ).joinToString(" • ")
+
+        DownloadStatus.QUEUED -> "Waiting in queue"
+        DownloadStatus.PAUSED -> pauseExpiryLabel ?: "Paused"
+        DownloadStatus.COMPLETED -> "Finished"
+        DownloadStatus.FAILED -> "Needs attention"
+        DownloadStatus.CANCELED -> "Canceled"
+    }.ifBlank { null }
+}
+
+private fun buildTaskFooterMessage(
+    task: DownloadTask,
+    snapshot: com.localdownloader.ui.components.LocalMediaSnapshot,
+    pauseExpiryLabel: String?,
+): String? {
+    task.errorMessage?.takeIf { it.isNotBlank() }?.let { return it }
+    latestDebugMessage(task.debugTrace)?.let { return it }
+    return when (task.status) {
+        DownloadStatus.RUNNING -> listOfNotNull(
+            progressSizeLabel(task, snapshot.sizeLabel).takeIf { it.isNotBlank() },
+            "${task.progressPercent}% complete".takeIf { task.progressPercent > 0 },
+        ).joinToString(" • ").ifBlank { null }
+
+        DownloadStatus.QUEUED -> "Queued and ready for the worker to start."
+        DownloadStatus.PAUSED -> pauseExpiryLabel
+        DownloadStatus.COMPLETED -> "Saved to your downloads library."
+        DownloadStatus.FAILED -> "This item needs another try."
+        DownloadStatus.CANCELED -> "Canceled by user."
+    }
+}
+
+private fun compactResolutionLabel(value: String?): String? {
+    val raw = value?.trim().orEmpty()
+    if (raw.isBlank()) return null
+    val dimensions = raw.substringAfter('(', "").substringBefore(')').trim()
+    return dimensions.takeIf { it.isNotBlank() }?.uppercase() ?: raw.uppercase()
+}
+
+private fun normalizedTaskSize(value: String?): String? {
+    val normalized = value?.trim().orEmpty()
+    return normalized.takeIf {
+        it.isNotBlank() &&
+            !it.equals("na", ignoreCase = true) &&
+            !it.equals("n/a", ignoreCase = true) &&
+            !it.equals("unknown", ignoreCase = true)
+    }
+}
+
+private fun latestDebugMessage(debugTrace: String?): String? {
+    return debugTrace
+        ?.lineSequence()
+        ?.map { line ->
+            val trimmed = line.trim()
+            trimmed.substringAfter(": ", trimmed).trim()
+        }
+        ?.lastOrNull { it.isNotBlank() }
 }

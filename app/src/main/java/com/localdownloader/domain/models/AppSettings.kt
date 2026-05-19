@@ -26,6 +26,7 @@ data class AppSettings(
     val cookieUserAgentEnabled: Boolean = false,
     val cookieProfiles: List<CookieProfile> = emptyList(),
     val youtubeAuthConfig: YoutubeAuthConfig = YoutubeAuthConfig(),
+    val hasSeenDownloadSetupNotice: Boolean = false,
     val maxConcurrentDownloads: Int = 2,
     val darkTheme: Boolean = false,
 )
