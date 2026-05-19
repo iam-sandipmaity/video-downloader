@@ -1,4 +1,4 @@
-# Dependabot configuration for the Android app, helper tool, and CI workflows.
+# Dependabot configuration for the Android app and CI workflows.
 # Docs:
 # https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 
@@ -13,18 +13,6 @@ updates:
       - "dependencies"
     groups:
       gradle:
-        patterns:
-          - "*"
-
-  - package-ecosystem: "npm"
-    directory: "/tools/youtube-auth-helper"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-    groups:
-      youtube-auth-helper:
         patterns:
           - "*"
 
