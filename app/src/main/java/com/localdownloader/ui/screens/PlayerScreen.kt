@@ -48,7 +48,6 @@ import androidx.compose.material.icons.outlined.FullscreenExit
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.PictureInPictureAlt
-import androidx.compose.material.icons.outlined.PlayArrow as OutlinedPlayArrow
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Subtitles
 import androidx.compose.material.icons.outlined.VolumeUp
@@ -1214,7 +1213,7 @@ private fun PlayerOptionPanel(
 
                 PlayerPanel.SETTINGS -> {
                     SettingsMenuRow(
-                        icon = OutlinedPlayArrow,
+                        icon = Icons.Filled.PlayArrow,
                         title = "Speed",
                         value = if (abs(uiState.playbackSpeed - 1f) < 0.01f) "Normal" else formatSpeed(uiState.playbackSpeed),
                         onClick = onShowSpeedPanel,
