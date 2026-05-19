@@ -60,6 +60,9 @@ import com.localdownloader.ui.screens.MusicPlayerScreen
 import com.localdownloader.ui.screens.PlayerScreen
 import com.localdownloader.ui.screens.ProgressScreen
 import com.localdownloader.ui.screens.SettingsScreen
+import com.localdownloader.ui.screens.UpdateChangelogScreen
+import com.localdownloader.ui.screens.UpdateChangelogSections
+import com.localdownloader.ui.screens.UpdatesScreen
 import com.localdownloader.ui.screens.YoutubeAuthLoginScreen
 import com.localdownloader.ui.screens.YoutubeAuthScreen
 import com.localdownloader.ui.model.ExternalOpenRequest
@@ -70,6 +73,7 @@ import com.localdownloader.viewmodel.FormatViewModel
 import com.localdownloader.viewmodel.MediaToolsViewModel
 import com.localdownloader.viewmodel.AudioPlaybackViewModel
 import com.localdownloader.viewmodel.PlayerViewModel
+import com.localdownloader.viewmodel.UpdatesViewModel
 
 @Composable
 fun DownloaderApp(
@@ -87,6 +91,7 @@ fun DownloaderApp(
     val downloadViewModel: DownloadViewModel = hiltViewModel()
     val mediaToolsViewModel: MediaToolsViewModel = hiltViewModel()
     val audioPlaybackViewModel: AudioPlaybackViewModel = hiltViewModel()
+    val updatesViewModel: UpdatesViewModel = hiltViewModel()
     val context = LocalContext.current
     // Use the DI-provided FileUtils from mediaToolsViewModel instead of creating a new instance.
     val fileUtils = mediaToolsViewModel.fileUtils
@@ -94,6 +99,7 @@ fun DownloaderApp(
     var activeExternalOpenRequest by remember { mutableStateOf<ExternalOpenRequest?>(externalOpenRequest) }
     var pendingCookieCaptureUrl by remember { mutableStateOf<String?>(null) }
     var pendingCookieCaptureProfileId by remember { mutableStateOf<String?>(null) }
+    var pendingFolderBrowseTarget by remember { mutableStateOf<FolderBrowseTarget?>(null) }
 
     val convertFilePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
@@ -119,6 +125,85 @@ fun DownloaderApp(
     val downloadState by downloadViewModel.uiState.collectAsStateWithLifecycle()
     val mediaToolsState by mediaToolsViewModel.uiState.collectAsStateWithLifecycle()
     val audioPlaybackState by audioPlaybackViewModel.uiState.collectAsStateWithLifecycle()
+    val updatesState by updatesViewModel.uiState.collectAsStateWithLifecycle()
+    val folderTreePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree(),
+    ) { uri ->
+        val target = pendingFolderBrowseTarget
+        pendingFolderBrowseTarget = null
+        if (target == null || uri == null) return@rememberLauncherForActivityResult
+
+        val relativeDownloadsPath = fileUtils.resolveRelativeDownloadsFolderFromTreeUri(uri)
+        if (relativeDownloadsPath == null) {
+            formatViewModel.showSettingsMessage(
+                message = "Pick a folder inside your public Downloads directory.",
+                isError = true,
+            )
+            return@rememberLauncherForActivityResult
+        }
+
+        when (target) {
+            FolderBrowseTarget.DOWNLOADS_ROOT -> {
+                if (relativeDownloadsPath.isBlank()) {
+                    formatViewModel.showSettingsMessage(
+                        message = "Pick a subfolder inside Downloads for the app root.",
+                        isError = true,
+                    )
+                } else {
+                    formatViewModel.onDownloadsRootFolderNameChanged(relativeDownloadsPath)
+                    formatViewModel.showSettingsMessage("Downloads root updated.")
+                }
+            }
+
+            FolderBrowseTarget.VIDEO -> {
+                val relativeSubfolder = fileUtils.deriveSubfolderSettingFromRelativeDownloadsPath(
+                    rootFolderSetting = formatState.downloadsRootFolderName,
+                    selectedRelativeDownloadsPath = relativeDownloadsPath,
+                )
+                if (relativeSubfolder == null) {
+                    formatViewModel.showSettingsMessage(
+                        message = "Pick a folder inside the current downloads root for videos.",
+                        isError = true,
+                    )
+                } else {
+                    formatViewModel.onVideoSubfolderNameChanged(relativeSubfolder)
+                    formatViewModel.showSettingsMessage("Video folder updated.")
+                }
+            }
+
+            FolderBrowseTarget.AUDIO -> {
+                val relativeSubfolder = fileUtils.deriveSubfolderSettingFromRelativeDownloadsPath(
+                    rootFolderSetting = formatState.downloadsRootFolderName,
+                    selectedRelativeDownloadsPath = relativeDownloadsPath,
+                )
+                if (relativeSubfolder == null) {
+                    formatViewModel.showSettingsMessage(
+                        message = "Pick a folder inside the current downloads root for audio.",
+                        isError = true,
+                    )
+                } else {
+                    formatViewModel.onAudioSubfolderNameChanged(relativeSubfolder)
+                    formatViewModel.showSettingsMessage("Audio folder updated.")
+                }
+            }
+
+            FolderBrowseTarget.OTHER -> {
+                val relativeSubfolder = fileUtils.deriveSubfolderSettingFromRelativeDownloadsPath(
+                    rootFolderSetting = formatState.downloadsRootFolderName,
+                    selectedRelativeDownloadsPath = relativeDownloadsPath,
+                )
+                if (relativeSubfolder == null) {
+                    formatViewModel.showSettingsMessage(
+                        message = "Pick a folder inside the current downloads root for other files.",
+                        isError = true,
+                    )
+                } else {
+                    formatViewModel.onOtherSubfolderNameChanged(relativeSubfolder)
+                    formatViewModel.showSettingsMessage("Other files folder updated.")
+                }
+            }
+        }
+    }
     val currentDestination = navController.currentBackStackEntryAsState().value?.destination
     val currentRoute = currentDestination?.route
 
@@ -317,11 +402,13 @@ fun DownloaderApp(
                     onAudioFormatChanged = formatViewModel::onAudioFormatChanged,
                     onAudioBitrateChanged = formatViewModel::onAudioBitrateChanged,
                     onDownloadSubtitlesChanged = formatViewModel::onDownloadSubtitlesChanged,
+                    onEmbedSubtitlesChanged = formatViewModel::onEmbedSubtitlesChanged,
                     onEmbedMetadataChanged = formatViewModel::onEmbedMetadataChanged,
                     onEmbedThumbnailChanged = formatViewModel::onEmbedThumbnailChanged,
                     onWriteThumbnailChanged = formatViewModel::onWriteThumbnailChanged,
                     onPlaylistEnabledChanged = formatViewModel::onPlaylistEnabledChanged,
                     onOutputTemplateChanged = formatViewModel::onOutputTemplateChanged,
+                    onAudioOutputTemplateChanged = formatViewModel::onAudioOutputTemplateChanged,
                     onClearBrowserState = formatViewModel::clearBrowserState,
                     onClearAnalyzedResult = formatViewModel::clearAnalyzedResult,
                     onQueueDownloadClicked = formatViewModel::queueDownload,
@@ -356,15 +443,10 @@ fun DownloaderApp(
                     onOpenPlayer = { taskId -> navController.navigate("${Routes.Player}/$taskId") },
                     onRename = downloadViewModel::renameDownloadedFile,
                     onDelete = downloadViewModel::deleteDownloadedFile,
+                    onRemoveCompletedFromApp = downloadViewModel::clearCompletedLibraryEntries,
+                    onDeleteCompletedFromDevice = downloadViewModel::deleteAllCompletedMedia,
                     onDismissMessage = downloadViewModel::dismissMessage,
                     onOpenQueue = { navController.navigate(Routes.DownloadQueue) },
-                    onOpenMore = {
-                        navController.navigate(Routes.More) {
-                            launchSingleTop = true
-                            restoreState = true
-                            popUpTo(navController.graph.startDestinationId) { saveState = true }
-                        }
-                    },
                 )
             }
             composable(Routes.DownloadQueue) {
@@ -384,6 +466,7 @@ fun DownloaderApp(
                     onOpenConvert = { navController.navigate(Routes.Convert) },
                     onOpenYoutubeAccess = { navController.navigate(Routes.YoutubeAuth) },
                     onOpenCookies = { navController.navigate(Routes.Cookies) },
+                    onOpenUpdates = { navController.navigate(Routes.Updates) },
                     onOpenSettings = { navController.navigate(Routes.Settings) },
                     onOpenHelp = { navController.navigate(Routes.Help) },
                 )
@@ -500,25 +583,104 @@ fun DownloaderApp(
                     onThemeModeChanged = formatViewModel::onThemeModeChanged,
                     onAccentPresetChanged = formatViewModel::onAccentPresetChanged,
                     onContrastModeChanged = formatViewModel::onContrastModeChanged,
-                    onOutputTemplateChanged = formatViewModel::onOutputTemplateChanged,
+                    onDefaultVideoOutputTemplateChanged = formatViewModel::onDefaultVideoOutputTemplateChanged,
+                    onDefaultAudioOutputTemplateChanged = formatViewModel::onDefaultAudioOutputTemplateChanged,
                     onDownloadsRootFolderNameChanged = formatViewModel::onDownloadsRootFolderNameChanged,
                     onVideoSubfolderNameChanged = formatViewModel::onVideoSubfolderNameChanged,
                     onAudioSubfolderNameChanged = formatViewModel::onAudioSubfolderNameChanged,
                     onOtherSubfolderNameChanged = formatViewModel::onOtherSubfolderNameChanged,
-                    onContainerChanged = formatViewModel::onContainerChanged,
-                    onEmbedMetadataChanged = formatViewModel::onEmbedMetadataChanged,
-                    onEmbedThumbnailChanged = formatViewModel::onEmbedThumbnailChanged,
+                    onBrowseDownloadsRootFolder = {
+                        pendingFolderBrowseTarget = FolderBrowseTarget.DOWNLOADS_ROOT
+                        folderTreePicker.launch(null)
+                    },
+                    onBrowseVideoFolder = {
+                        pendingFolderBrowseTarget = FolderBrowseTarget.VIDEO
+                        folderTreePicker.launch(null)
+                    },
+                    onBrowseAudioFolder = {
+                        pendingFolderBrowseTarget = FolderBrowseTarget.AUDIO
+                        folderTreePicker.launch(null)
+                    },
+                    onBrowseOtherFolder = {
+                        pendingFolderBrowseTarget = FolderBrowseTarget.OTHER
+                        folderTreePicker.launch(null)
+                    },
+                    onDefaultVideoContainerChanged = formatViewModel::onDefaultVideoContainerChanged,
+                    onDefaultAudioContainerChanged = formatViewModel::onDefaultAudioFormatChanged,
+                    onDefaultDownloadSubtitlesChanged = formatViewModel::onDefaultDownloadSubtitlesChanged,
+                    onDefaultEmbedSubtitlesChanged = formatViewModel::onDefaultEmbedSubtitlesChanged,
+                    onDefaultEmbedMetadataChanged = formatViewModel::onDefaultEmbedMetadataChanged,
+                    onDefaultEmbedThumbnailChanged = formatViewModel::onDefaultEmbedThumbnailChanged,
                     onAutoRemoveMissingFilesFromLibraryChanged = formatViewModel::onAutoRemoveMissingFilesFromLibraryChanged,
                     onDeleteFromStorageWhenRemovedInAppChanged = formatViewModel::onDeleteFromStorageWhenRemovedInAppChanged,
                     onClearVideoTabEntries = downloadViewModel::clearCompletedLibraryEntries,
                     onDeleteAllSavedMedia = downloadViewModel::deleteAllCompletedMedia,
-                    onSaveClicked = formatViewModel::saveSettings,
                     onResetSettings = formatViewModel::resetSettingsToDefaults,
                     onClearCache = {
                         fileUtils.clearCache()
                         cacheSize = 0L
                     },
                     cacheSize = cacheSize,
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable(Routes.Updates) {
+                LaunchedEffect(Unit) {
+                    updatesViewModel.initialize()
+                }
+                UpdatesScreen(
+                    uiState = updatesState,
+                    onBack = { navController.popBackStack() },
+                    onRefreshAll = updatesViewModel::refreshAll,
+                    onRefreshApp = updatesViewModel::refreshApp,
+                    onRefreshYtDlp = updatesViewModel::refreshYtDlp,
+                    onRefreshFfmpeg = updatesViewModel::refreshFfmpeg,
+                    onInstallAppUpdate = updatesViewModel::installAppUpdate,
+                    onInstallYtDlpUpdate = updatesViewModel::installYtDlpUpdate,
+                    onInstallFfmpegUpdate = updatesViewModel::installFfmpegUpdate,
+                    onYtDlpChannelChanged = updatesViewModel::setYtDlpChannel,
+                    onFfmpegChannelChanged = updatesViewModel::setFfmpegChannel,
+                    onAutoUpdateYtDlpChanged = updatesViewModel::setAutoUpdateYtDlp,
+                    onIncludePrereleaseAppReleasesChanged = updatesViewModel::setIncludePrereleaseAppReleases,
+                    onOpenChangelog = { section ->
+                        navController.navigate(Routes.updateChangelog(section))
+                    },
+                    onConsumePendingAppInstall = updatesViewModel::consumePendingAppInstall,
+                    onDismissMessage = updatesViewModel::dismissMessage,
+                )
+            }
+            composable(
+                route = Routes.UpdateChangelog,
+                arguments = listOf(navArgument("section") { type = NavType.StringType }),
+            ) { backStackEntry ->
+                val sectionKey = backStackEntry.arguments?.getString("section")
+                val sectionState = when (sectionKey) {
+                    UpdateChangelogSections.APP -> updatesState.app
+                    UpdateChangelogSections.YT_DLP -> updatesState.ytDlp
+                    UpdateChangelogSections.FFMPEG -> updatesState.ffmpeg
+                    else -> null
+                }
+                UpdateChangelogScreen(
+                    title = sectionState?.title ?: "Changelog",
+                    currentVersion = sectionState?.currentVersion,
+                    latestVersion = sectionState?.latestVersion,
+                    summary = sectionState?.summary ?: "No update details are available.",
+                    releaseNotes = sectionState?.releaseNotes,
+                    documentHeading = if (sectionKey == UpdateChangelogSections.APP) {
+                        "Full changelog"
+                    } else {
+                        "Recent release notes"
+                    },
+                    overviewText = if (sectionKey == UpdateChangelogSections.APP) {
+                        "Browse the complete app release history in a cleaner documentation-style layout."
+                    } else {
+                        "Read the latest release notes in a cleaner documentation-style view."
+                    },
+                    bundledReleaseNotesAssetName = if (sectionKey == UpdateChangelogSections.APP) {
+                        "changelog/CHANGELOG.md"
+                    } else {
+                        null
+                    },
                     onBack = { navController.popBackStack() },
                 )
             }
@@ -610,9 +772,15 @@ object Routes {
     const val Convert = "convert"
     const val Compress = "compress"
     const val Settings = "settings"
+    const val Updates = "updates"
+    const val UpdateChangelog = "updates/changelog/{section}"
     const val Help = "help"
     const val Player = AppLaunchRouter.ROUTE_PLAYER
     const val ExternalOpen = "external_open"
+
+    fun updateChangelog(section: String): String {
+        return "updates/changelog/${android.net.Uri.encode(section)}"
+    }
 }
 
 private data class PrimaryDestination(
@@ -620,6 +788,13 @@ private data class PrimaryDestination(
     val label: String,
     val icon: @Composable () -> Unit,
 )
+
+private enum class FolderBrowseTarget {
+    DOWNLOADS_ROOT,
+    VIDEO,
+    AUDIO,
+    OTHER,
+}
 
 private fun isPlayableMediaRequest(request: ExternalOpenRequest): Boolean {
     val mime = request.mimeType?.lowercase().orEmpty()
@@ -661,4 +836,3 @@ private fun navigationDirection(
 private fun normalizeRoute(route: String?): String? {
     return route?.substringBefore('/')
 }
-
