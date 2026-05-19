@@ -30,6 +30,53 @@ No server. No cloud. No tracking. Everything runs on your device.
 
 ---
 
+## App Preview
+
+<p align="center">
+  <img src="public/demo/home-clean.png" alt="Home screen with URL input and quick links" width="220" />
+  <img src="public/demo/home-link-analysing.png" alt="Home screen while analyzing a link" width="220" />
+  <img src="public/demo/download-options-choose-screen.png" alt="Download options with format and bitrate controls" width="220" />
+</p>
+
+<p align="center">
+  <sub>Home, live link analysis, and download setup.</sub>
+</p>
+
+<p align="center">
+  <img src="public/demo/Queue.png" alt="Download queue with running and scheduled jobs" width="200" />
+  <img src="public/demo/download-running.png" alt="Active download progress state" width="200" />
+  <img src="public/demo/download-page.png" alt="Downloads library with queue access and playback actions" width="220" />
+  <img src="public/demo/download-page-showing-file-delition-options.png" alt="Saved file actions on the downloads screen" width="200" />
+</p>
+
+<p align="center">
+  <sub>Queue management, active transfers, saved items, and file actions.</sub>
+</p>
+
+<p align="center">
+  <img src="public/demo/history-page.png" alt="History screen with task summaries and log previews" width="220" />
+  <img src="public/demo/history-page-specific-file-downloader-log-history-check.png" alt="Detailed per-download history and log view" width="200" />
+  <img src="public/demo/cookies-page.png" alt="Cookie manager for saved website sessions" width="200" />
+  <img src="public/demo/settings-top-side.png" alt="Settings screen with theme, contrast, and folder controls" width="220" />
+</p>
+
+<p align="center">
+  <sub>History, cookie management, and app settings.</sub>
+</p>
+
+<p align="center">
+  <img src="public/demo/morescreen.png" alt="Workspace and tools hub" width="200" />
+  <img src="public/demo/music-player.png" alt="Built-in music player" width="200" />
+  <img src="public/demo/converter-page.png" alt="Media converter tool" width="200" />
+  <img src="public/demo/compressor-page.png" alt="Video compressor tool" width="200" />
+</p>
+
+<p align="center">
+  <sub>Workspace hub, audio playback, format conversion, and compression tools.</sub>
+</p>
+
+---
+
 ## ✨ Features
 
 | Feature | Details |
