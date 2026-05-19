@@ -5,11 +5,13 @@
 ### Added
 - **Security and maintenance policy** - added `SECURITY.md` and configured Dependabot coverage for Gradle and GitHub Actions updates
 - **BotGuard provenance notes** - documented the current LibreTube source of the shared PO-token constants and how to refresh them later
+- **Video player volume boost** - added in-player `Off`, `Low`, `Medium`, and `High` loudness boost controls for quieter videos where the device audio output needs extra help
 
 ### Changed
 - **Android build toolchain refresh** - migrated the project to AGP `9.2.1`, Kotlin `2.3.21`, the Compose Gradle plugin, and newer AndroidX dependency lines
 - **CI compatibility updates** - refreshed GitHub Actions versions, moved CI to Gradle `9.4.1`, and raised `compileSdk` to `36` while keeping `targetSdk` at `35`
 - **Hilt AGP 9 integration** - replaced the old Hilt Gradle plugin transform path with the explicit generated-base-class pattern for `DownloaderApplication`, `MainActivity`, and `AudioPlaybackService`
+- **Video player interface refresh** - reshaped the video-only playback chrome around a cleaner JustPlayer-style layout with a slimmer title bar, tighter bottom control strip, and a gear-based playback settings panel
 - **Documentation refresh** - aligned the audit, implementation notes, and repository docs with the in-app-only YouTube access flow and current maintenance setup
 - **App version bump** - release metadata updated to `1.7.0.1`
 

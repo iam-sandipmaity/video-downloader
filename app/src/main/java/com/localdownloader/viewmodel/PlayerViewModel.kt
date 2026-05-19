@@ -1,6 +1,7 @@
 package com.localdownloader.viewmodel
 
 import android.content.Context
+import android.media.audiofx.LoudnessEnhancer
 import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -62,9 +63,12 @@ class PlayerViewModel @Inject constructor(
     private var progressJob: Job? = null
     private var currentPlaybackSpeed: Float = savedStateHandle[STATE_PLAYBACK_SPEED] ?: 1.0f
     private var currentResizeMode: Int = savedStateHandle[STATE_RESIZE_MODE] ?: AspectRatioFrameLayout.RESIZE_MODE_FIT
+    private var currentVolumeBoostMb: Int = savedStateHandle[STATE_VOLUME_BOOST_MB] ?: 0
     private var isLocked: Boolean = savedStateHandle[STATE_IS_LOCKED] ?: false
     private var audioDisabled: Boolean = savedStateHandle[STATE_AUDIO_DISABLED] ?: false
     private var subtitlesDisabled: Boolean = savedStateHandle[STATE_SUBTITLES_DISABLED] ?: false
+    private var volumeBoostSupported: Boolean = true
+    private var loudnessEnhancer: LoudnessEnhancer? = null
 
     private val playerListener = object : Player.Listener {
         override fun onPlaybackStateChanged(playbackState: Int) {
@@ -107,6 +111,10 @@ class PlayerViewModel @Inject constructor(
         override fun onTracksChanged(tracks: Tracks) {
             updateTrackOptions(tracks)
         }
+
+        override fun onAudioSessionIdChanged(audioSessionId: Int) {
+            attachLoudnessEnhancer(audioSessionId)
+        }
     }
 
     init {
@@ -115,10 +123,13 @@ class PlayerViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(
             playbackSpeed = currentPlaybackSpeed,
             resizeMode = currentResizeMode,
+            volumeBoostMb = currentVolumeBoostMb,
+            volumeBoostSupported = volumeBoostSupported,
             isLocked = isLocked,
             audioDisabled = audioDisabled,
             subtitlesDisabled = subtitlesDisabled,
         )
+        attachLoudnessEnhancer(player.audioSessionId)
         startProgressUpdates()
     }
 
@@ -152,6 +163,8 @@ class PlayerViewModel @Inject constructor(
                     bufferedPositionMs = 0L,
                     playbackSpeed = currentPlaybackSpeed,
                     resizeMode = currentResizeMode,
+                    volumeBoostMb = currentVolumeBoostMb,
+                    volumeBoostSupported = volumeBoostSupported,
                     audioDisabled = audioDisabled,
                     subtitlesDisabled = subtitlesDisabled,
                     audioTracks = emptyList(),
@@ -169,6 +182,8 @@ class PlayerViewModel @Inject constructor(
                     isAvailable = true,
                     playbackSpeed = currentPlaybackSpeed,
                     resizeMode = currentResizeMode,
+                    volumeBoostMb = currentVolumeBoostMb,
+                    volumeBoostSupported = volumeBoostSupported,
                     isLocked = isLocked,
                     audioDisabled = audioDisabled,
                     subtitlesDisabled = subtitlesDisabled,
@@ -232,6 +247,8 @@ class PlayerViewModel @Inject constructor(
                 bufferedPositionMs = savedPosition,
                 playbackSpeed = currentPlaybackSpeed,
                 resizeMode = currentResizeMode,
+                volumeBoostMb = currentVolumeBoostMb,
+                volumeBoostSupported = volumeBoostSupported,
                 audioDisabled = audioDisabled,
                 subtitlesDisabled = subtitlesDisabled,
                 errorMessage = null,
@@ -281,6 +298,18 @@ class PlayerViewModel @Inject constructor(
         currentResizeMode = resizeMode
         savedStateHandle[STATE_RESIZE_MODE] = resizeMode
         _uiState.update { state -> state.copy(resizeMode = resizeMode) }
+    }
+
+    fun setVolumeBoostMb(targetGainMb: Int) {
+        currentVolumeBoostMb = targetGainMb.coerceIn(0, MAX_VOLUME_BOOST_MB)
+        savedStateHandle[STATE_VOLUME_BOOST_MB] = currentVolumeBoostMb
+        applyVolumeBoost()
+        _uiState.update { state ->
+            state.copy(
+                volumeBoostMb = currentVolumeBoostMb,
+                volumeBoostSupported = volumeBoostSupported,
+            )
+        }
     }
 
     fun toggleLock() {
@@ -403,6 +432,51 @@ class PlayerViewModel @Inject constructor(
                 positionMs = player.currentPosition.coerceAtLeast(0L),
                 bufferedPositionMs = player.bufferedPosition.coerceAtLeast(player.currentPosition),
             )
+        }
+    }
+
+    private fun attachLoudnessEnhancer(audioSessionId: Int) {
+        loudnessEnhancer?.release()
+        loudnessEnhancer = null
+
+        if (audioSessionId == C.AUDIO_SESSION_ID_UNSET) {
+            return
+        }
+
+        loudnessEnhancer = runCatching {
+            LoudnessEnhancer(audioSessionId).also { enhancer ->
+                volumeBoostSupported = true
+                enhancer.enabled = currentVolumeBoostMb > 0
+                if (currentVolumeBoostMb > 0) {
+                    enhancer.setTargetGain(currentVolumeBoostMb)
+                }
+            }
+        }.onFailure { error ->
+            volumeBoostSupported = false
+            logger.w("PlayerViewModel", "Volume boost is not available on this device/session", error)
+        }.getOrNull()
+
+        _uiState.update { state ->
+            state.copy(
+                volumeBoostMb = currentVolumeBoostMb,
+                volumeBoostSupported = volumeBoostSupported,
+            )
+        }
+    }
+
+    private fun applyVolumeBoost() {
+        val enhancer = loudnessEnhancer
+        if (enhancer == null) {
+            return
+        }
+
+        runCatching {
+            enhancer.setTargetGain(currentVolumeBoostMb)
+            enhancer.enabled = currentVolumeBoostMb > 0
+            volumeBoostSupported = true
+        }.onFailure { error ->
+            volumeBoostSupported = false
+            logger.w("PlayerViewModel", "Failed applying volume boost", error)
         }
     }
 
@@ -558,6 +632,7 @@ class PlayerViewModel @Inject constructor(
         persistPlaybackState()
         progressJob?.cancel()
         player.removeListener(playerListener)
+        loudnessEnhancer?.release()
         player.release()
         super.onCleared()
     }
@@ -569,10 +644,12 @@ class PlayerViewModel @Inject constructor(
         private const val STATE_PLAY_WHEN_READY = "player_play_when_ready"
         private const val STATE_PLAYBACK_SPEED = "player_playback_speed"
         private const val STATE_RESIZE_MODE = "player_resize_mode"
+        private const val STATE_VOLUME_BOOST_MB = "player_volume_boost_mb"
         private const val STATE_IS_LOCKED = "player_is_locked"
         private const val STATE_AUDIO_DISABLED = "player_audio_disabled"
         private const val STATE_SUBTITLES_DISABLED = "player_subtitles_disabled"
         private const val PROGRESS_UPDATE_MS = 500L
+        private const val MAX_VOLUME_BOOST_MB = 900
     }
 }
 
@@ -588,6 +665,8 @@ data class PlayerUiState(
     val bufferedPositionMs: Long = 0L,
     val playbackSpeed: Float = 1.0f,
     val resizeMode: Int = AspectRatioFrameLayout.RESIZE_MODE_FIT,
+    val volumeBoostMb: Int = 0,
+    val volumeBoostSupported: Boolean = true,
     val audioDisabled: Boolean = false,
     val subtitlesDisabled: Boolean = false,
     val audioTracks: List<PlayerTrackOption> = emptyList(),

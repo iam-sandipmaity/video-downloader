@@ -41,11 +41,10 @@ import androidx.compose.material.icons.outlined.CropFree
 import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material.icons.outlined.FullscreenExit
 import androidx.compose.material.icons.outlined.GraphicEq
-import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.PauseCircle
 import androidx.compose.material.icons.outlined.PictureInPictureAlt
 import androidx.compose.material.icons.outlined.PlayCircle
-import androidx.compose.material.icons.outlined.Speed
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Subtitles
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -524,19 +523,6 @@ fun PlayerScreen(
                     activePanelName = if (activePanel == panel) PlayerPanel.NONE.name else panel.name
                 },
                 isZoomed = zoomScale > 1.02f,
-                onLockClick = {
-                    val willLockRotation = !uiState.isLocked
-                    playerViewModel.toggleLock()
-                    activePanelName = PlayerPanel.NONE.name
-                    controlsVisible = true
-                    gestureFeedback = if (willLockRotation) "Rotation locked" else "Rotation unlocked"
-                },
-                onResetZoom = {
-                    zoomScale = 1f
-                    panOffsetX = 0f
-                    panOffsetY = 0f
-                    controlsVisible = true
-                },
             )
 
             AnimatedVisibility(
@@ -584,6 +570,22 @@ fun PlayerScreen(
                     onSelectResizeMode = {
                         playerViewModel.setResizeMode(it)
                         activePanelName = PlayerPanel.NONE.name
+                    },
+                    onSetVolumeBoostMb = {
+                        playerViewModel.setVolumeBoostMb(it)
+                    },
+                    isFullscreen = isFullscreen,
+                    onToggleFullscreen = {
+                        isFullscreen = !isFullscreen
+                        activePanelName = PlayerPanel.NONE.name
+                        controlsVisible = true
+                    },
+                    onToggleRotationLock = {
+                        val willLockRotation = !uiState.isLocked
+                        playerViewModel.toggleLock()
+                        activePanelName = PlayerPanel.NONE.name
+                        controlsVisible = true
+                        gestureFeedback = if (willLockRotation) "Rotation locked" else "Rotation unlocked"
                     },
                     isZoomed = zoomScale > 1.02f,
                     onResetZoom = {
@@ -894,8 +896,6 @@ private fun BoxScope.PlayerChrome(
     onSeekFinished: () -> Unit,
     onTogglePanel: (PlayerPanel) -> Unit,
     isZoomed: Boolean,
-    onLockClick: () -> Unit,
-    onResetZoom: () -> Unit,
 ) {
     AnimatedVisibility(
         visible = controlsVisible,
@@ -919,11 +919,13 @@ private fun BoxScope.PlayerChrome(
             Surface(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .fillMaxWidth(),
-                color = Color.Black.copy(alpha = 0.34f),
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 12.dp),
+                color = Color.Black.copy(alpha = 0.42f),
+                shape = RoundedCornerShape(24.dp),
             ) {
                 Row(
-                    modifier = Modifier.padding(start = 10.dp, end = 18.dp, top = 14.dp, bottom = 16.dp),
+                    modifier = Modifier.padding(start = 8.dp, end = 18.dp, top = 8.dp, bottom = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(onClick = onBack) {
@@ -936,8 +938,8 @@ private fun BoxScope.PlayerChrome(
                     Text(
                         text = title,
                         modifier = Modifier.padding(start = 6.dp),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Medium,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
                         color = Color.White,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -969,7 +971,7 @@ private fun BoxScope.PlayerChrome(
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
                     .navigationBarsPadding()
-                    .padding(horizontal = 12.dp, vertical = 14.dp),
+                    .padding(horizontal = 14.dp, vertical = 14.dp),
             ) {
                 PlayerTimeline(
                     currentPositionMs = currentPositionMs,
@@ -978,29 +980,35 @@ private fun BoxScope.PlayerChrome(
                     onSeekChanged = onSeekChanged,
                     onSeekFinished = onSeekFinished,
                 )
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    Text(
+                        text = "${formatPlaybackTime(currentPositionMs)} / ${formatPlaybackTime(uiState.durationMs)}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White,
+                    )
                     DockStrip(
                         activePanel = activePanel,
-                        playbackSpeed = uiState.playbackSpeed,
                         subtitleLabel = selectedSubtitleLabel,
                         audioLabel = selectedAudioLabel,
                         isFullscreen = isFullscreen,
                         canEnterPictureInPicture = canEnterPictureInPicture,
-                        isRotationLocked = isRotationLocked,
-                        isZoomed = isZoomed,
+                        settingsHighlighted = activePanel == PlayerPanel.SETTINGS ||
+                            abs(uiState.playbackSpeed - 1f) > 0.01f ||
+                            uiState.volumeBoostMb > 0 ||
+                            isRotationLocked ||
+                            isZoomed,
                         onResizeClick = { onTogglePanel(PlayerPanel.RESIZE) },
                         onSubtitleClick = { onTogglePanel(PlayerPanel.SUBTITLES) },
                         onAudioClick = { onTogglePanel(PlayerPanel.AUDIO) },
-                        onSpeedClick = { onTogglePanel(PlayerPanel.SPEED) },
-                        onPictureInPictureClick = onEnterPictureInPicture,
-                        onResetZoom = onResetZoom,
-                        onLockClick = onLockClick,
+                        onSettingsClick = { onTogglePanel(PlayerPanel.SETTINGS) },
                         onFullscreenToggle = onFullscreenToggle,
+                        onPictureInPictureClick = onEnterPictureInPicture,
                     )
                 }
             }
@@ -1016,43 +1024,33 @@ private fun PlayerTimeline(
     onSeekChanged: (Float) -> Unit,
     onSeekFinished: () -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            Slider(
-                value = currentPositionMs.coerceAtLeast(0L).toFloat(),
-                onValueChange = onSeekChanged,
-                onValueChangeFinished = onSeekFinished,
-                valueRange = 0f..durationMs.coerceAtLeast(1L).toFloat(),
-                colors = SliderDefaults.colors(
-                    thumbColor = Color.White,
-                    activeTrackColor = Color.White,
-                    inactiveTrackColor = Color.White.copy(alpha = 0.24f),
-                ),
-                modifier = Modifier.fillMaxWidth(),
-            )
+    Box(modifier = Modifier.fillMaxWidth()) {
+        Slider(
+            value = currentPositionMs.coerceAtLeast(0L).toFloat(),
+            onValueChange = onSeekChanged,
+            onValueChangeFinished = onSeekFinished,
+            valueRange = 0f..durationMs.coerceAtLeast(1L).toFloat(),
+            colors = SliderDefaults.colors(
+                thumbColor = Color.White,
+                activeTrackColor = Color.White,
+                inactiveTrackColor = Color.White.copy(alpha = 0.18f),
+            ),
+            modifier = Modifier.fillMaxWidth(),
+        )
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(
-                        fraction = if (durationMs > 0L) {
-                            (bufferedPositionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
-                        } else {
-                            0f
-                        },
-                    )
-                    .padding(top = 18.dp, start = 12.dp, end = 12.dp)
-                    .height(2.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.22f)),
-            )
-        }
-
-        Text(
-            text = "${formatPlaybackTime(currentPositionMs)}  •  ${formatPlaybackTime(durationMs)}",
-            modifier = Modifier.padding(start = 12.dp, top = 2.dp),
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = Color.White,
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(
+                    fraction = if (durationMs > 0L) {
+                        (bufferedPositionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+                    } else {
+                        0f
+                    },
+                )
+                .padding(top = 18.dp, start = 12.dp, end = 12.dp)
+                .height(2.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.22f)),
         )
     }
 }
@@ -1060,43 +1058,27 @@ private fun PlayerTimeline(
 @Composable
 private fun DockStrip(
     activePanel: PlayerPanel,
-    playbackSpeed: Float,
     subtitleLabel: String,
     audioLabel: String,
     isFullscreen: Boolean,
     canEnterPictureInPicture: Boolean,
-    isRotationLocked: Boolean,
-    isZoomed: Boolean,
+    settingsHighlighted: Boolean,
     onResizeClick: () -> Unit,
     onSubtitleClick: () -> Unit,
     onAudioClick: () -> Unit,
-    onSpeedClick: () -> Unit,
-    onPictureInPictureClick: () -> Unit,
-    onResetZoom: () -> Unit,
-    onLockClick: () -> Unit,
+    onSettingsClick: () -> Unit,
     onFullscreenToggle: () -> Unit,
+    onPictureInPictureClick: () -> Unit,
 ) {
     Surface(
-        color = Color.Black.copy(alpha = 0.44f),
+        color = Color.Black.copy(alpha = 0.52f),
         shape = RoundedCornerShape(26.dp),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            DockButton(
-                icon = Icons.Outlined.CropFree,
-                contentDescription = "Video size",
-                selected = activePanel == PlayerPanel.RESIZE,
-                onClick = onResizeClick,
-            )
-            DockButton(
-                icon = Icons.Outlined.Subtitles,
-                contentDescription = "Subtitles",
-                selected = activePanel == PlayerPanel.SUBTITLES || subtitleLabel.equals("None", ignoreCase = false).not(),
-                onClick = onSubtitleClick,
-            )
             DockButton(
                 icon = Icons.Outlined.GraphicEq,
                 contentDescription = "Audio tracks",
@@ -1104,19 +1086,23 @@ private fun DockStrip(
                 onClick = onAudioClick,
             )
             DockButton(
-                icon = Icons.Outlined.Speed,
-                contentDescription = "Playback speed",
-                selected = activePanel == PlayerPanel.SPEED || abs(playbackSpeed - 1f) > 0.01f,
-                onClick = onSpeedClick,
+                icon = Icons.Outlined.Subtitles,
+                contentDescription = "Subtitles",
+                selected = activePanel == PlayerPanel.SUBTITLES || !subtitleLabel.equals("Auto", ignoreCase = true),
+                onClick = onSubtitleClick,
             )
-            if (isZoomed) {
-                DockButton(
-                    icon = Icons.Outlined.Check,
-                    contentDescription = "Reset zoom",
-                    selected = true,
-                    onClick = onResetZoom,
-                )
-            }
+            DockButton(
+                icon = Icons.Outlined.CropFree,
+                contentDescription = "Video size",
+                selected = activePanel == PlayerPanel.RESIZE,
+                onClick = onResizeClick,
+            )
+            DockButton(
+                icon = if (isFullscreen) Icons.Outlined.FullscreenExit else Icons.Outlined.Fullscreen,
+                contentDescription = if (isFullscreen) "Exit fullscreen" else "Enter fullscreen",
+                selected = isFullscreen,
+                onClick = onFullscreenToggle,
+            )
             if (canEnterPictureInPicture) {
                 DockButton(
                     icon = Icons.Outlined.PictureInPictureAlt,
@@ -1126,16 +1112,10 @@ private fun DockStrip(
                 )
             }
             DockButton(
-                icon = Icons.Outlined.Lock,
-                contentDescription = if (isRotationLocked) "Unlock rotation" else "Lock rotation",
-                selected = isRotationLocked,
-                onClick = onLockClick,
-            )
-            DockButton(
-                icon = if (isFullscreen) Icons.Outlined.FullscreenExit else Icons.Outlined.Fullscreen,
-                contentDescription = if (isFullscreen) "Exit fullscreen" else "Enter fullscreen",
-                selected = isFullscreen,
-                onClick = onFullscreenToggle,
+                icon = Icons.Outlined.Settings,
+                contentDescription = "Playback settings",
+                selected = settingsHighlighted,
+                onClick = onSettingsClick,
             )
         }
     }
@@ -1176,6 +1156,10 @@ private fun PlayerOptionPanel(
     onEnableSubtitlesAuto: () -> Unit,
     onSelectSubtitleTrack: (PlayerTrackOption?) -> Unit,
     onSelectResizeMode: (Int) -> Unit,
+    onSetVolumeBoostMb: (Int) -> Unit,
+    isFullscreen: Boolean,
+    onToggleFullscreen: () -> Unit,
+    onToggleRotationLock: () -> Unit,
     isZoomed: Boolean,
     onResetZoom: () -> Unit,
 ) {
@@ -1217,6 +1201,54 @@ private fun PlayerOptionPanel(
                             subtitle = if (speed == 1f) "Normal" else null,
                             selected = abs(uiState.playbackSpeed - speed) < 0.01f,
                             onClick = { onSelectSpeed(speed) },
+                        )
+                    }
+                }
+
+                PlayerPanel.SETTINGS -> {
+                    PanelSectionLabel("Playback speed")
+                    SPEED_OPTIONS.forEach { speed ->
+                        PanelOptionRow(
+                            title = formatSpeed(speed),
+                            subtitle = if (speed == 1f) "Normal speed" else null,
+                            selected = abs(uiState.playbackSpeed - speed) < 0.01f,
+                            onClick = { onSelectSpeed(speed) },
+                        )
+                    }
+
+                    PanelSectionLabel("Volume boost")
+                    if (!uiState.volumeBoostSupported) {
+                        EmptyPanelMessage("Volume boost is not available for this device or audio session.")
+                    } else {
+                        VOLUME_BOOST_OPTIONS.forEach { option ->
+                            PanelOptionRow(
+                                title = option.label,
+                                subtitle = option.subtitle,
+                                selected = uiState.volumeBoostMb == option.targetGainMb,
+                                onClick = { onSetVolumeBoostMb(option.targetGainMb) },
+                            )
+                        }
+                    }
+
+                    PanelSectionLabel("View")
+                    PanelOptionRow(
+                        title = if (isFullscreen) "Exit fullscreen" else "Enter fullscreen",
+                        subtitle = "Switch between fullscreen and embedded playback chrome",
+                        selected = isFullscreen,
+                        onClick = onToggleFullscreen,
+                    )
+                    PanelOptionRow(
+                        title = if (uiState.isLocked) "Unlock rotation" else "Lock rotation",
+                        subtitle = "Keep the player from rotating with the device",
+                        selected = uiState.isLocked,
+                        onClick = onToggleRotationLock,
+                    )
+                    if (isZoomed) {
+                        PanelOptionRow(
+                            title = "Reset pinch zoom",
+                            subtitle = "Return to the default framing",
+                            selected = false,
+                            onClick = onResetZoom,
                         )
                     }
                 }
@@ -1294,6 +1326,18 @@ private fun PlayerOptionPanel(
             }
         }
     }
+}
+
+@Composable
+private fun PanelSectionLabel(
+    title: String,
+) {
+    Text(
+        text = title,
+        modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
+        style = MaterialTheme.typography.labelLarge,
+        color = Color.White.copy(alpha = 0.68f),
+    )
 }
 
 @Composable
@@ -1474,6 +1518,12 @@ private data class ResizeOption(
     val subtitle: String,
 )
 
+private data class VolumeBoostOption(
+    val targetGainMb: Int,
+    val label: String,
+    val subtitle: String,
+)
+
 private class PlayerSwipeAdjustmentController(
     private val context: Context,
     private val activity: Activity?,
@@ -1575,6 +1625,7 @@ private class PlayerSwipeAdjustmentController(
 private enum class PlayerPanel(val title: String) {
     NONE(""),
     SPEED("Playback speed"),
+    SETTINGS("Playback settings"),
     AUDIO("Audio track"),
     SUBTITLES("Subtitles"),
     RESIZE("Video size"),
@@ -1607,6 +1658,29 @@ private val RESIZE_OPTIONS = listOf(
         resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIXED_HEIGHT,
         label = "Full height",
         subtitle = "Keep height locked and allow wider framing",
+    ),
+)
+
+private val VOLUME_BOOST_OPTIONS = listOf(
+    VolumeBoostOption(
+        targetGainMb = 0,
+        label = "Off",
+        subtitle = "Use the media file's original volume",
+    ),
+    VolumeBoostOption(
+        targetGainMb = 300,
+        label = "Low",
+        subtitle = "A gentle +3 dB lift for quieter videos",
+    ),
+    VolumeBoostOption(
+        targetGainMb = 600,
+        label = "Medium",
+        subtitle = "A stronger +6 dB boost",
+    ),
+    VolumeBoostOption(
+        targetGainMb = 900,
+        label = "High",
+        subtitle = "Maximum +9 dB boost for hard-to-hear tracks",
     ),
 )
 
