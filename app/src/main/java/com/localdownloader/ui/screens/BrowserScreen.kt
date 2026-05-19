@@ -480,6 +480,9 @@ fun BrowserScreen(
                 }
 
                 if (choices.isNotEmpty()) {
+                    val selectedChoice = choices
+                        .getOrNull(choices.indexOfFirst { it.selector == uiState.selectedFormatSelector })
+                        ?: choices.first()
                     FormatChoiceDropdownRow(
                         label = "Format",
                         choices = choices,
@@ -487,6 +490,7 @@ fun BrowserScreen(
                             .coerceAtLeast(0),
                         onSelected = { onFormatSelectorChanged(choices[it].selector) },
                     )
+                    FormatChoiceInsightCard(choice = selectedChoice)
                 } else {
                     BrowserDropdownRow(
                         label = "Quality",
@@ -770,6 +774,112 @@ private fun ToggleChipRow(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+private fun FormatChoiceInsightCard(
+    choice: FormatChoice,
+) {
+    Surface(
+        shape = RoundedCornerShape(22.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                text = "Selected format details",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = choice.label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                buildFormatInsightChips(choice).forEach { chip ->
+                    Surface(
+                        shape = RoundedCornerShape(999.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                    ) {
+                        Text(
+                            text = chip,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                    }
+                }
+            }
+            Text(
+                text = buildFormatChoiceHint(choice),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+private fun buildFormatInsightChips(choice: FormatChoice): List<String> {
+    return buildList {
+        formatChoiceSizeLabel(choice.fileSizeBytes)?.let { add("Size $it") }
+        choice.height?.let { add("${it}p") }
+        choice.fps?.takeIf { it > 0 }?.let { add("${it.toInt()} fps") }
+        add("Container ${choice.container.uppercase()}")
+        when (choice.streamType) {
+            StreamType.VIDEO_AUDIO -> add(if (choice.isMerged) "Video + audio" else "Muxed")
+            StreamType.VIDEO_ONLY -> add("Video only")
+            StreamType.AUDIO_ONLY -> add("Audio only")
+        }
+        choice.bitrateKbps?.let { add("${it} kbps") }
+        choice.videoCodec?.takeIf { it.isNotBlank() && !it.equals("none", ignoreCase = true) }?.let {
+            add("Video ${compactCodecLabel(it)}")
+        }
+        choice.audioCodec?.takeIf { it.isNotBlank() && !it.equals("none", ignoreCase = true) }?.let {
+            add("Audio ${compactCodecLabel(it)}")
+        }
+    }
+}
+
+private fun buildFormatChoiceHint(choice: FormatChoice): String {
+    return when (choice.streamType) {
+        StreamType.AUDIO_ONLY -> {
+            if ((choice.bitrateKbps ?: 0) >= 256) {
+                "Higher bitrate audio. Better quality, but it uses more storage."
+            } else {
+                "Lighter audio option. Good when you want to save storage space."
+            }
+        }
+
+        StreamType.VIDEO_ONLY,
+        StreamType.VIDEO_AUDIO,
+        -> when {
+            (choice.height ?: 0) >= 1080 || (choice.fps ?: 0.0) >= 50.0 ->
+                "Quality-first pick. Great for playback quality, but expect a larger download."
+
+            (choice.fileSizeBytes ?: Long.MAX_VALUE) <= 80L * 1024L * 1024L ->
+                "Storage-friendlier pick. Good when you want a smaller file first."
+
+            else ->
+                "Balanced option. A good middle ground between quality and file size."
+        }
+    }
+}
+
+private fun compactCodecLabel(codec: String): String {
+    return codec
+        .substringBefore('.')
+        .substringBefore(':')
+        .uppercase()
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 private fun FormatChoiceDropdownRow(
     label: String,
     choices: List<FormatChoice>,
@@ -803,22 +913,36 @@ private fun FormatChoiceDropdownRow(
             choices.forEachIndexed { index, choice ->
                 DropdownMenuItem(
                     text = {
-                        Row(
+                        Column(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
-                            Text(
-                                text = choice.label,
-                                modifier = Modifier.weight(1f),
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            formatChoiceSizeLabel(choice.fileSizeBytes)?.let { sizeLabel ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
                                 Text(
-                                    text = sizeLabel,
-                                    style = MaterialTheme.typography.labelMedium,
+                                    text = choice.label,
+                                    modifier = Modifier.weight(1f),
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                formatChoiceSizeLabel(choice.fileSizeBytes)?.let { sizeLabel ->
+                                    Text(
+                                        text = sizeLabel,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                            buildFormatMenuMetadata(choice)?.let { metadata ->
+                                Text(
+                                    text = metadata,
+                                    style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                             }
                         }
@@ -837,6 +961,20 @@ private fun FormatChoiceDropdownRow(
 private fun formatChoiceDisplayLabel(choice: FormatChoice): String {
     val sizeLabel = formatChoiceSizeLabel(choice.fileSizeBytes) ?: return choice.label
     return "${choice.label} • $sizeLabel"
+}
+
+private fun buildFormatMenuMetadata(choice: FormatChoice): String? {
+    return buildList {
+        choice.height?.let { add("${it}p") }
+        choice.fps?.takeIf { it > 0 }?.let { add("${it.toInt()}fps") }
+        add(choice.container.uppercase())
+        choice.videoCodec?.takeIf { it.isNotBlank() && !it.equals("none", ignoreCase = true) }?.let {
+            add("v:${compactCodecLabel(it)}")
+        }
+        choice.audioCodec?.takeIf { it.isNotBlank() && !it.equals("none", ignoreCase = true) }?.let {
+            add("a:${compactCodecLabel(it)}")
+        }
+    }.joinToString(" | ").ifBlank { null }
 }
 
 private fun formatChoiceSizeLabel(fileSizeBytes: Long?): String? {

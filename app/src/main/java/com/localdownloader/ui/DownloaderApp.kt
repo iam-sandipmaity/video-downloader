@@ -457,10 +457,13 @@ fun DownloaderApp(
                     uiState = downloadState,
                     onPause = downloadViewModel::pause,
                     onResume = downloadViewModel::resume,
+                    onRetry = downloadViewModel::retry,
                     onCancel = downloadViewModel::cancel,
                     onPauseTasks = downloadViewModel::pauseTasks,
                     onResumeTasks = downloadViewModel::resumeTasks,
                     onCancelTasks = downloadViewModel::cancelTasks,
+                    onOpenCookies = { navController.navigate(Routes.Cookies) },
+                    onOpenYoutubeAccess = { navController.navigate(Routes.YoutubeAuth) },
                     onBack = { navController.popBackStack() },
                 )
             }
@@ -691,7 +694,11 @@ fun DownloaderApp(
                 )
             }
             composable(Routes.Help) {
-                HelpScreen(onBack = { navController.popBackStack() })
+                HelpScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenCookies = { navController.navigate(Routes.Cookies) },
+                    onOpenYoutubeAccess = { navController.navigate(Routes.YoutubeAuth) },
+                )
             }
             composable(Routes.Music) {
                 MusicPlayerScreen(

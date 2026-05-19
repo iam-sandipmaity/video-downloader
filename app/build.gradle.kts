@@ -135,7 +135,7 @@ android {
         }
     }
 
-    sourceSets.getByName("main").assets.srcDir(generatedChangelogAssetsDir)
+    sourceSets.getByName("main").assets.srcDir(generatedChangelogAssetsDir.get().asFile)
 }
 
 kapt {

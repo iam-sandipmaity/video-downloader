@@ -235,6 +235,65 @@ class DownloadRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun retryDownload(taskId: String): Result<String> {
+        logger.i("DownloadRepository", "retryDownload taskId=$taskId")
+
+        val task = downloadTaskStore.getTask(taskId)
+            ?: return Result.failure(IllegalStateException("No task found with ID $taskId"))
+
+        if (task.status != DownloadStatus.FAILED && task.status != DownloadStatus.CANCELED) {
+            return Result.failure(IllegalStateException("Only failed or canceled downloads can be retried."))
+        }
+
+        val taskOptions = downloadTaskStore.getCachedOptions(taskId)
+            ?.let { serialized -> runCatching { json.decodeFromString<DownloadOptions>(serialized) }.getOrNull() }
+            ?: return Result.failure(IllegalStateException("No cached download options for task $taskId"))
+
+        return runCatching {
+            val retryTask = task.copy(
+                progressPercent = 0,
+                speed = null,
+                eta = null,
+                outputPath = null,
+                downloadedStr = null,
+                totalSizeStr = null,
+                errorMessage = null,
+                pauseExpiresAtEpochMs = null,
+                updatedAtEpochMs = System.currentTimeMillis(),
+            )
+            if (taskOptions.isPlaylistEnabled) {
+                downloadTaskStore.update(task.id) { current ->
+                    current.copy(
+                        status = DownloadStatus.QUEUED,
+                        activeWorkId = null,
+                        progressPercent = 0,
+                        speed = null,
+                        eta = null,
+                        outputPath = null,
+                        downloadedStr = null,
+                        totalSizeStr = null,
+                        errorMessage = null,
+                        pauseExpiresAtEpochMs = null,
+                        debugTrace = appendDebugLine(current.debugTrace, "Retry requested: returning item to the playlist queue"),
+                        updatedAtEpochMs = System.currentTimeMillis(),
+                    )
+                }
+                enqueueNextPlaylistItemIfIdle(task.id, taskOptions)
+            } else {
+                val prepared = prepareDownload(
+                    taskId = task.id,
+                    options = taskOptions,
+                    titleHint = task.title,
+                    existingTask = retryTask,
+                )
+                enqueuePreparedDownload(prepared)
+            }
+            taskId
+        }.onFailure { error ->
+            logger.e("DownloadRepository", "retryDownload failed taskId=$taskId", error)
+        }
+    }
+
     override suspend fun cancelDownload(taskId: String) {
         logger.i("DownloadRepository", "cancelDownload taskId=$taskId")
         val existingTask = downloadTaskStore.getTask(taskId)

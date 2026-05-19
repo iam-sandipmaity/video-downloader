@@ -1147,6 +1147,11 @@ class FormatViewModel @Inject constructor(
                 isMerged = false,
                 isImageLike = false,
                 fileSizeBytes = audio.fileSizeBytes,
+                videoCodec = null,
+                audioCodec = audio.audioCodec,
+                fps = null,
+                bitrateKbps = audio.bitrateKbps,
+                note = audio.note,
             )
         }.sortedByDescending { extractBitrate(it.label) }
 
@@ -1165,6 +1170,11 @@ class FormatViewModel @Inject constructor(
                 isMerged = false,
                 isImageLike = video.isImageLike,
                 fileSizeBytes = video.fileSizeBytes,
+                videoCodec = video.videoCodec,
+                audioCodec = null,
+                fps = video.fps,
+                bitrateKbps = video.bitrateKbps,
+                note = video.note,
             )
         }.sortedWith(compareByDescending<FormatChoice> { it.height ?: 0 }.thenByDescending { extractBitrate(it.label) })
 
@@ -1195,6 +1205,11 @@ class FormatViewModel @Inject constructor(
                     isMerged = true,
                     isImageLike = false,
                     fileSizeBytes = combineFormatSizes(video.fileSizeBytes, audio.fileSizeBytes),
+                    videoCodec = video.videoCodec,
+                    audioCodec = audio.audioCodec,
+                    fps = video.fps,
+                    bitrateKbps = audio.bitrateKbps ?: video.bitrateKbps,
+                    note = video.note ?: audio.note,
                 )
             }
         }
@@ -1214,6 +1229,11 @@ class FormatViewModel @Inject constructor(
                 isMerged = false,
                 isImageLike = item.isImageLike,
                 fileSizeBytes = item.fileSizeBytes,
+                videoCodec = item.videoCodec,
+                audioCodec = item.audioCodec,
+                fps = item.fps,
+                bitrateKbps = item.bitrateKbps,
+                note = item.note,
             )
         }
 

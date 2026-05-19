@@ -32,8 +32,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -41,13 +43,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.localdownloader.ui.support.openSupportIssue
+import com.localdownloader.ui.support.shareAppLogs
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HelpScreen(
     onBack: () -> Unit,
+    onOpenCookies: () -> Unit,
+    onOpenYoutubeAccess: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
     Scaffold(
         modifier = modifier,
         topBar = {
@@ -73,6 +80,12 @@ fun HelpScreen(
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             HelpHeroCard()
+            HelpActionCard(
+                onOpenCookies = onOpenCookies,
+                onOpenYoutubeAccess = onOpenYoutubeAccess,
+                onExportLogs = { shareAppLogs(context) },
+                onReportIssue = { openSupportIssue(context) },
+            )
 
             HelpSectionCard(
                 title = "Quick start",
@@ -113,7 +126,7 @@ fun HelpScreen(
                     HelpItem(
                         icon = Icons.Outlined.Info,
                         title = "Check the queue and history logs",
-                        body = "If analysis or download still fails, open the queue for active output or history for the full saved log so you can see the exact yt-dlp message.",
+                        body = "If analysis or download still fails, open the queue for recovery actions, then export log.txt and report the issue with a screenshot and explanation.",
                     ),
                 ),
             )
@@ -219,6 +232,50 @@ private fun HelpHeroCard() {
                     HelpBadge("Cookies")
                     HelpBadge("Queue")
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HelpActionCard(
+    onOpenCookies: () -> Unit,
+    onOpenYoutubeAccess: () -> Unit,
+    onExportLogs: () -> Unit,
+    onReportIssue: () -> Unit,
+) {
+    Surface(
+        shape = RoundedCornerShape(28.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = "Troubleshooting shortcuts",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = "When a site fails, try cookies first. For YouTube, refresh PO generation. If it still breaks, export log.txt and report the issue.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                TextButton(onClick = onOpenCookies) { Text("Open Cookies") }
+                TextButton(onClick = onOpenYoutubeAccess) { Text("PO generation") }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                TextButton(onClick = onExportLogs) { Text("Export log.txt") }
+                TextButton(onClick = onReportIssue) { Text("Report issue") }
             }
         }
     }

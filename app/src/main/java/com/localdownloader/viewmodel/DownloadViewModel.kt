@@ -68,6 +68,25 @@ class DownloadViewModel @Inject constructor(
         }
     }
 
+    fun retry(taskId: String) {
+        logger.i("DownloadViewModel", "retry requested taskId=$taskId")
+        viewModelScope.launch {
+            repository.retryDownload(taskId)
+                .onSuccess {
+                    _uiState.update { state ->
+                        state.copy(
+                            infoMessage = "Retry queued for this item.",
+                            errorMessage = null,
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    logger.e("DownloadViewModel", "retry failed taskId=$taskId", error)
+                    _uiState.update { state -> state.copy(errorMessage = error.message) }
+                }
+        }
+    }
+
     fun cancel(taskId: String) {
         logger.i("DownloadViewModel", "cancel requested taskId=$taskId")
         viewModelScope.launch {
