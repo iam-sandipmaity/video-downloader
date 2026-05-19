@@ -8,7 +8,7 @@
 - Download engine: `DownloadEngine`, `ProcessRunner`, `YtDlpExecutor` — no changes
 - Backend architecture: Room DB, WorkManager, Hilt DI, DataStore — no changes
 - Package name: `com.localdownloader` — maintain update compatibility
-- No WebView anywhere — all download logic stays as-is
+- Core downloader architecture stays as-is even as maintenance and update features are layered on top
 
 ---
 
@@ -44,15 +44,16 @@
 - Add resolution dropdown in `BrowserScreen` options sheet
 - Use yt-dlp format selector: `bestvideo[height<=720]+bestaudio/best[height<=720]`
 
-### 2.2 Auto-update yt-dlp
+### 2.2 Auto-update yt-dlp (COMPLETED in v1.7.0)
 **What it does:**
-- Check GitHub for latest yt-dlp on app start (periodically)
-- Download + replace the yt-dlp binary in app data dir
-- Keeps extraction working without APK updates
+- Checks GitHub for the selected yt-dlp release channel on app start when auto-update is enabled
+- Downloads and replaces the embedded yt-dlp runtime in app-owned storage
+- Exposes manual checks and installs through the Updates screen so extractor fixes can land without APK updates
 
 **Technical approach:**
-- `downloader/YtDlpUpdater.kt` — new component
-- GitHub API: fetches latest release, downloads updated Python binary
+- `updates/YtDlpUpdateManager.kt` — release checks and runtime replacement
+- `worker/YtDlpUpdateScheduler.kt` and `worker/YtDlpUpdateWorker.kt` — guarded startup scheduling and retries
+- `viewmodel/UpdatesViewModel.kt` — user-facing update orchestration
 
 ### 2.3 Enhanced PO Token Support
 **What exists:** Has PO token + cookies path + context hint input
@@ -200,7 +201,7 @@ Added comprehensive sections:
 | **P1** | Compressor improvements | Phase 4 | 📋 Planned |
 | **P1** | Converter improvements | Phase 4 | 📋 Planned |
 | **P2** | App size optimization | Phase 6 | 📋 Planned |
-| **P2** | Auto-update yt-dlp | Phase 2 | 📋 Planned |
+| **P2** | Auto-update yt-dlp | Phase 2 | ✅ Complete |
 | **P3** | Cookie management via WebView | Phase 2 | 📋 Planned |
 
 ---
@@ -213,7 +214,6 @@ Added comprehensive sections:
 |---|---|---|
 | `ui/screens/TerminalScreen.kt` | Phase 3 | Embedded terminal for yt-dlp commands |
 | `ui/components/TerminalOutput.kt` | Phase 3 | Terminal output display component |
-| `downloader/YtDlpUpdater.kt` | Phase 2 | Auto-update yt-dlp binary |
 | `ui/components/CompressionPresetCard.kt` | Phase 4 | Compression preset selection |
 | `ui/components/FormatPresetCard.kt` | Phase 4 | Converter format presets |
 
@@ -239,3 +239,11 @@ Added comprehensive sections:
 - `FormatViewModel.kt` ✅
 - `DownloadEngine.kt` ✅
 - `FileUtils.kt` ✅
+
+### Completed Files (v1.7.0)
+
+- `updates/YtDlpUpdateManager.kt` ✅
+- `worker/YtDlpUpdateScheduler.kt` ✅
+- `worker/YtDlpUpdateWorker.kt` ✅
+- `viewmodel/UpdatesViewModel.kt` ✅
+- `ui/screens/UpdatesScreen.kt` ✅
