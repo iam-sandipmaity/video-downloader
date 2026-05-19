@@ -42,6 +42,7 @@ import androidx.compose.material.icons.outlined.CropFree
 import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material.icons.outlined.FullscreenExit
 import androidx.compose.material.icons.outlined.GraphicEq
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.PictureInPictureAlt
 import androidx.compose.material.icons.outlined.PlayArrow
@@ -116,7 +117,6 @@ fun PlayerScreen(
         isLikelyAudioFile(playablePath)
     }
     val uiState by playerViewModel.uiState.collectAsStateWithLifecycle()
-    val selectedAudioTrack = uiState.audioTracks.firstOrNull { it.isSelected }
     val selectedSubtitleTrack = uiState.subtitleTracks.firstOrNull { it.isSelected }
 
     var isFullscreen by rememberSaveable { mutableStateOf(false) }
@@ -482,11 +482,6 @@ fun PlayerScreen(
                 controlsVisible = controlsVisible || uiState.isBuffering,
                 activePanel = activePanel,
                 currentPositionMs = if (isScrubbing) scrubPositionMs.toLong() else uiState.positionMs,
-                selectedAudioLabel = when {
-                    uiState.audioDisabled -> "None"
-                    selectedAudioTrack != null -> selectedAudioTrack.title
-                    else -> "Auto"
-                },
                 selectedSubtitleLabel = when {
                     uiState.subtitlesDisabled -> "None"
                     selectedSubtitleTrack != null -> selectedSubtitleTrack.title
@@ -523,7 +518,6 @@ fun PlayerScreen(
                     controlsVisible = true
                     activePanelName = if (activePanel == panel) PlayerPanel.NONE.name else panel.name
                 },
-                isZoomed = zoomScale > 1.02f,
             )
 
             AnimatedVisibility(
@@ -539,7 +533,8 @@ fun PlayerScreen(
                     panel = activePanel,
                     uiState = uiState,
                     selectedSubtitleTrack = selectedSubtitleTrack,
-                    onDismiss = { activePanelName = PlayerPanel.NONE.name },
+                    onShowSpeedPanel = { activePanelName = PlayerPanel.SPEED.name },
+                    onShowAudioPanel = { activePanelName = PlayerPanel.AUDIO.name },
                     onSelectSpeed = {
                         playerViewModel.setPlaybackSpeed(it)
                         activePanelName = PlayerPanel.NONE.name
@@ -574,12 +569,6 @@ fun PlayerScreen(
                     },
                     onSetVolumeBoostMb = {
                         playerViewModel.setVolumeBoostMb(it)
-                    },
-                    isFullscreen = isFullscreen,
-                    onToggleFullscreen = {
-                        isFullscreen = !isFullscreen
-                        activePanelName = PlayerPanel.NONE.name
-                        controlsVisible = true
                     },
                     onToggleRotationLock = {
                         val willLockRotation = !uiState.isLocked
@@ -885,7 +874,6 @@ private fun BoxScope.PlayerChrome(
     controlsVisible: Boolean,
     activePanel: PlayerPanel,
     currentPositionMs: Long,
-    selectedAudioLabel: String,
     selectedSubtitleLabel: String,
     canEnterPictureInPicture: Boolean,
     isRotationLocked: Boolean,
@@ -896,7 +884,6 @@ private fun BoxScope.PlayerChrome(
     onSeekChanged: (Float) -> Unit,
     onSeekFinished: () -> Unit,
     onTogglePanel: (PlayerPanel) -> Unit,
-    isZoomed: Boolean,
 ) {
     AnimatedVisibility(
         visible = controlsVisible,
@@ -1001,17 +988,16 @@ private fun BoxScope.PlayerChrome(
                         DockStrip(
                             activePanel = activePanel,
                             subtitleLabel = selectedSubtitleLabel,
-                            audioLabel = selectedAudioLabel,
                             isFullscreen = isFullscreen,
                             canEnterPictureInPicture = canEnterPictureInPicture,
                             settingsHighlighted = activePanel == PlayerPanel.SETTINGS ||
+                                activePanel == PlayerPanel.SPEED ||
+                                activePanel == PlayerPanel.AUDIO ||
                                 abs(uiState.playbackSpeed - 1f) > 0.01f ||
                                 uiState.volumeBoostMb > 0 ||
-                                isRotationLocked ||
-                                isZoomed,
+                                isRotationLocked,
                             onResizeClick = { onTogglePanel(PlayerPanel.RESIZE) },
                             onSubtitleClick = { onTogglePanel(PlayerPanel.SUBTITLES) },
-                            onAudioClick = { onTogglePanel(PlayerPanel.AUDIO) },
                             onSettingsClick = { onTogglePanel(PlayerPanel.SETTINGS) },
                             onFullscreenToggle = onFullscreenToggle,
                             onPictureInPictureClick = onEnterPictureInPicture,
@@ -1066,19 +1052,17 @@ private fun PlayerTimeline(
 private fun DockStrip(
     activePanel: PlayerPanel,
     subtitleLabel: String,
-    audioLabel: String,
     isFullscreen: Boolean,
     canEnterPictureInPicture: Boolean,
     settingsHighlighted: Boolean,
     onResizeClick: () -> Unit,
     onSubtitleClick: () -> Unit,
-    onAudioClick: () -> Unit,
     onSettingsClick: () -> Unit,
     onFullscreenToggle: () -> Unit,
     onPictureInPictureClick: () -> Unit,
 ) {
     Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         DockButton(
@@ -1092,12 +1076,6 @@ private fun DockStrip(
             contentDescription = "Subtitles",
             selected = activePanel == PlayerPanel.SUBTITLES || !subtitleLabel.equals("Auto", ignoreCase = true),
             onClick = onSubtitleClick,
-        )
-        DockButton(
-            icon = Icons.Outlined.GraphicEq,
-            contentDescription = "Audio tracks",
-            selected = activePanel == PlayerPanel.AUDIO || !audioLabel.equals("Auto", ignoreCase = true),
-            onClick = onAudioClick,
         )
         DockButton(
             icon = if (isFullscreen) Icons.Outlined.FullscreenExit else Icons.Outlined.Fullscreen,
@@ -1129,20 +1107,16 @@ private fun DockButton(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    Surface(
-        color = if (selected) Color.White.copy(alpha = 0.18f) else Color.Black.copy(alpha = 0.18f),
-        shape = RoundedCornerShape(16.dp),
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier.size(42.dp),
     ) {
-        IconButton(
-            onClick = onClick,
-            modifier = Modifier.size(48.dp),
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = contentDescription,
-                tint = Color.White,
-            )
-        }
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = if (selected) Color.White else Color.White.copy(alpha = 0.92f),
+            modifier = Modifier.size(28.dp),
+        )
     }
 }
 
@@ -1151,7 +1125,8 @@ private fun PlayerOptionPanel(
     panel: PlayerPanel,
     uiState: PlayerUiState,
     selectedSubtitleTrack: PlayerTrackOption?,
-    onDismiss: () -> Unit,
+    onShowSpeedPanel: () -> Unit,
+    onShowAudioPanel: () -> Unit,
     onSelectSpeed: (Float) -> Unit,
     onSelectAudioTrack: (PlayerTrackOption?) -> Unit,
     onDisableAudio: () -> Unit,
@@ -1161,42 +1136,29 @@ private fun PlayerOptionPanel(
     onSelectSubtitleTrack: (PlayerTrackOption?) -> Unit,
     onSelectResizeMode: (Int) -> Unit,
     onSetVolumeBoostMb: (Int) -> Unit,
-    isFullscreen: Boolean,
-    onToggleFullscreen: () -> Unit,
     onToggleRotationLock: () -> Unit,
     isZoomed: Boolean,
     onResetZoom: () -> Unit,
 ) {
+    val selectedAudioTrack = uiState.audioTracks.firstOrNull { it.isSelected }
+    val selectedAudioLabel = when {
+        uiState.audioDisabled -> "None"
+        selectedAudioTrack != null -> selectedAudioTrack.title
+        else -> "Auto"
+    }
+
     Surface(
         color = Color.Black.copy(alpha = 0.74f),
-        shape = RoundedCornerShape(26.dp),
+        shape = RoundedCornerShape(18.dp),
         tonalElevation = 10.dp,
-        modifier = Modifier.widthIn(min = 220.dp, max = 340.dp),
+        modifier = Modifier.widthIn(min = 160.dp, max = 240.dp),
     ) {
         Column(
             modifier = Modifier
                 .heightIn(max = 420.dp)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 10.dp, vertical = 10.dp),
+                .padding(horizontal = 8.dp, vertical = 8.dp),
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = panel.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color.White,
-                )
-                TextButton(onClick = onDismiss) {
-                    Text("Done", color = Color.White.copy(alpha = 0.82f))
-                }
-            }
-
             when (panel) {
                 PlayerPanel.SPEED -> {
                     SPEED_OPTIONS.forEach { speed ->
@@ -1210,63 +1172,37 @@ private fun PlayerOptionPanel(
                 }
 
                 PlayerPanel.SETTINGS -> {
-                    PanelSectionLabel("Playback speed")
-                    SPEED_OPTIONS.forEach { speed ->
-                        PanelOptionRow(
-                            title = formatSpeed(speed),
-                            subtitle = if (speed == 1f) "Normal speed" else null,
-                            selected = abs(uiState.playbackSpeed - speed) < 0.01f,
-                            onClick = { onSelectSpeed(speed) },
-                        )
-                    }
-
-                    PanelSectionLabel("Volume boost")
-                    if (!uiState.volumeBoostSupported) {
-                        EmptyPanelMessage("Volume boost is not available for this device or audio session.")
-                    } else {
-                        VOLUME_BOOST_OPTIONS.forEach { option ->
-                            PanelOptionRow(
-                                title = option.label,
-                                subtitle = option.subtitle,
-                                selected = uiState.volumeBoostMb == option.targetGainMb,
-                                onClick = { onSetVolumeBoostMb(option.targetGainMb) },
-                            )
-                        }
-                    }
-
-                    PanelSectionLabel("View")
-                    PanelOptionRow(
-                        title = if (isFullscreen) "Exit fullscreen" else "Enter fullscreen",
-                        subtitle = "Switch between fullscreen and embedded playback chrome",
-                        selected = isFullscreen,
-                        onClick = onToggleFullscreen,
+                    SettingsMenuRow(
+                        icon = Icons.Outlined.PlayArrow,
+                        title = "Speed",
+                        value = if (abs(uiState.playbackSpeed - 1f) < 0.01f) "Normal" else formatSpeed(uiState.playbackSpeed),
+                        onClick = onShowSpeedPanel,
                     )
-                    PanelOptionRow(
-                        title = if (uiState.isLocked) "Unlock rotation" else "Lock rotation",
-                        subtitle = "Keep the player from rotating with the device",
-                        selected = uiState.isLocked,
+                    SettingsMenuRow(
+                        icon = Icons.Outlined.GraphicEq,
+                        title = "Audio",
+                        value = selectedAudioLabel,
+                        onClick = onShowAudioPanel,
+                    )
+                    SettingsMenuRow(
+                        icon = Icons.Outlined.Lock,
+                        title = "Rotation",
+                        value = if (uiState.isLocked) "Locked" else "Auto",
                         onClick = onToggleRotationLock,
                     )
-                    if (isZoomed) {
-                        PanelOptionRow(
-                            title = "Reset pinch zoom",
-                            subtitle = "Return to the default framing",
-                            selected = false,
-                            onClick = onResetZoom,
-                        )
-                    }
                 }
 
                 PlayerPanel.AUDIO -> {
+                    PanelSectionLabel("Track")
                     PanelOptionRow(
                         title = "None",
-                        subtitle = "Mute this file in the player",
+                        subtitle = null,
                         selected = uiState.audioDisabled,
                         onClick = onDisableAudio,
                     )
                     PanelOptionRow(
                         title = "Auto",
-                        subtitle = "Let player choose",
+                        subtitle = null,
                         selected = !uiState.audioDisabled && uiState.audioTracks.none { it.isSelected },
                         onClick = onEnableAudioAuto,
                     )
@@ -1282,18 +1218,29 @@ private fun PlayerOptionPanel(
                             )
                         }
                     }
+                    if (uiState.volumeBoostSupported) {
+                        PanelSectionLabel("Volume boost")
+                        VOLUME_BOOST_OPTIONS.forEach { option ->
+                            PanelOptionRow(
+                                title = option.label,
+                                subtitle = option.subtitle,
+                                selected = uiState.volumeBoostMb == option.targetGainMb,
+                                onClick = { onSetVolumeBoostMb(option.targetGainMb) },
+                            )
+                        }
+                    }
                 }
 
                 PlayerPanel.SUBTITLES -> {
                     PanelOptionRow(
                         title = "None",
-                        subtitle = "Disable subtitles",
+                        subtitle = null,
                         selected = uiState.subtitlesDisabled,
                         onClick = onDisableSubtitles,
                     )
                     PanelOptionRow(
                         title = "Auto",
-                        subtitle = "Let player choose",
+                        subtitle = null,
                         selected = !uiState.subtitlesDisabled && selectedSubtitleTrack == null,
                         onClick = onEnableSubtitlesAuto,
                     )
@@ -1311,7 +1258,7 @@ private fun PlayerOptionPanel(
                     RESIZE_OPTIONS.forEach { option ->
                         PanelOptionRow(
                             title = option.label,
-                            subtitle = option.subtitle,
+                            subtitle = null,
                             selected = uiState.resizeMode == option.resizeMode,
                             onClick = { onSelectResizeMode(option.resizeMode) },
                         )
@@ -1338,10 +1285,57 @@ private fun PanelSectionLabel(
 ) {
     Text(
         text = title,
-        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
         style = MaterialTheme.typography.labelMedium,
-        color = Color.White.copy(alpha = 0.58f),
+        color = Color.White.copy(alpha = 0.56f),
     )
+}
+
+@Composable
+private fun SettingsMenuRow(
+    icon: ImageVector,
+    title: String,
+    value: String,
+    onClick: () -> Unit,
+) {
+    TextButton(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 2.dp, vertical = 2.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(26.dp),
+            )
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 12.dp, end = 8.dp),
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = value,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White.copy(alpha = 0.64f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -1351,49 +1345,45 @@ private fun PanelOptionRow(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    Surface(
-        color = if (selected) Color.White.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.05f),
-        shape = RoundedCornerShape(20.dp),
-        modifier = Modifier.fillMaxWidth(),
+    TextButton(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 2.dp, vertical = 2.dp),
     ) {
-        TextButton(
-            onClick = onClick,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 6.dp, vertical = 4.dp),
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+            if (selected) {
+                Icon(
+                    imageVector = Icons.Outlined.Check,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp),
+                )
+            } else {
+                Spacer(modifier = Modifier.size(20.dp))
+            }
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 12.dp),
             ) {
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(end = 10.dp),
-                ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                subtitle?.takeIf { it.isNotBlank() }?.let {
                     Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = Color.White,
+                        text = it,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White.copy(alpha = 0.62f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                    )
-                    subtitle?.takeIf { it.isNotBlank() }?.let {
-                        Text(
-                            text = it,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.White.copy(alpha = 0.62f),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-                if (selected) {
-                    Icon(
-                        imageVector = Icons.Outlined.Check,
-                        contentDescription = null,
-                        tint = Color.White,
                     )
                 }
             }
