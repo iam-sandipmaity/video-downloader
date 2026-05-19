@@ -17,13 +17,14 @@
 - **Queue batch controls** - added section-level pause/cancel actions for queued items and resume actions for scheduled items, keeping batch behavior separate from per-item controls
 - **Download sheet reliability** - made the Home screen scrollable and pinned the bottom-sheet `Download` button so it stays reachable on smaller screens and taller format-detail layouts
 - **Feedback card refresh** - Home, Settings, Cookies, and YouTube access now use a cleaner inline feedback card with clearer tone, easier dismissal, and better placement near the top of each screen
+- **Help center redesign** - rebuilt the Help page into a stronger support hub with a visual hero, clearer troubleshooting shortcuts, better recovery guidance, and more practical reporting instructions
 - **Queue recovery polish** - failed queue items now use a clearer retry action and the recovery flow stays aligned with the built-in cookies, PO generation, log export, and issue-report shortcuts
 - **AGP 9 migration cleanup** - removed the temporary built-in-Kotlin, new-DSL, and Jetifier bridge flags and switched annotation processing from kapt to KSP
 - **Build script cleanup** - modernized generated changelog asset wiring to avoid the older deprecated source-set call path
 
 ### Fixed
 - **Cross-screen feedback leak** - Browse/Home status messages no longer show up inside Settings, Cookies, or YouTube access because transient format messages are now scoped to the screen that created them
-- **Download options sheet scroll bounce** - removed the unstable size animation from the analyzed-format bottom sheet so reaching the bottom no longer triggers rapid jumpy up/down movement
+- **Download options sheet scroll bounce** - stabilized the analyzed-format bottom sheet by removing the unstable size animation and skipping the partial sheet state, so reaching the bottom no longer triggers rapid jumpy up/down movement
 
 ### Technical
 - **Logic test coverage** - added unit coverage for first-run onboarding visibility, source-site detection, format size estimation fallback, and queue diagnostics parsing
