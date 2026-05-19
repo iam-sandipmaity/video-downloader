@@ -5,10 +5,12 @@ import android.media.AudioManager
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -37,17 +39,18 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.filled.Pause as FilledPause
+import androidx.compose.material.icons.filled.PlayArrow as FilledPlayArrow
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.CropFree
 import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material.icons.outlined.FullscreenExit
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.PictureInPictureAlt
-import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Subtitles
+import androidx.compose.material.icons.outlined.VolumeUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -75,6 +78,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
@@ -108,6 +112,7 @@ fun PlayerScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val configuration = LocalConfiguration.current
     val context = LocalContext.current
     val view = LocalView.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -117,7 +122,9 @@ fun PlayerScreen(
         isLikelyAudioFile(playablePath)
     }
     val uiState by playerViewModel.uiState.collectAsStateWithLifecycle()
+    val selectedAudioTrack = uiState.audioTracks.firstOrNull { it.isSelected }
     val selectedSubtitleTrack = uiState.subtitleTracks.firstOrNull { it.isSelected }
+    val currentOrientation = configuration.orientation
 
     var isFullscreen by rememberSaveable { mutableStateOf(false) }
     var controlsVisible by rememberSaveable { mutableStateOf(true) }
@@ -231,6 +238,14 @@ fun PlayerScreen(
         zoomScale = 1f
         panOffsetX = 0f
         panOffsetY = 0f
+    }
+
+    LaunchedEffect(currentOrientation, uiState.isLocked) {
+        if (uiState.isLocked) return@LaunchedEffect
+        when (currentOrientation) {
+            Configuration.ORIENTATION_LANDSCAPE -> isFullscreen = true
+            Configuration.ORIENTATION_PORTRAIT -> isFullscreen = false
+        }
     }
 
     DisposableEffect(activity, view, isFullscreen, uiState.isLocked) {
@@ -482,6 +497,11 @@ fun PlayerScreen(
                 controlsVisible = controlsVisible || uiState.isBuffering,
                 activePanel = activePanel,
                 currentPositionMs = if (isScrubbing) scrubPositionMs.toLong() else uiState.positionMs,
+                selectedAudioLabel = when {
+                    uiState.audioDisabled -> "None"
+                    selectedAudioTrack != null -> selectedAudioTrack.title
+                    else -> "Auto"
+                },
                 selectedSubtitleLabel = when {
                     uiState.subtitlesDisabled -> "None"
                     selectedSubtitleTrack != null -> selectedSubtitleTrack.title
@@ -518,6 +538,12 @@ fun PlayerScreen(
                     controlsVisible = true
                     activePanelName = if (activePanel == panel) PlayerPanel.NONE.name else panel.name
                 },
+                onToggleRotationLock = {
+                    val willLockRotation = !uiState.isLocked
+                    playerViewModel.toggleLock()
+                    controlsVisible = true
+                    gestureFeedback = if (willLockRotation) "Rotation locked" else "Rotation unlocked"
+                },
             )
 
             AnimatedVisibility(
@@ -534,7 +560,7 @@ fun PlayerScreen(
                     uiState = uiState,
                     selectedSubtitleTrack = selectedSubtitleTrack,
                     onShowSpeedPanel = { activePanelName = PlayerPanel.SPEED.name },
-                    onShowAudioPanel = { activePanelName = PlayerPanel.AUDIO.name },
+                    onShowBoostPanel = { activePanelName = PlayerPanel.BOOST.name },
                     onSelectSpeed = {
                         playerViewModel.setPlaybackSpeed(it)
                         activePanelName = PlayerPanel.NONE.name
@@ -569,13 +595,6 @@ fun PlayerScreen(
                     },
                     onSetVolumeBoostMb = {
                         playerViewModel.setVolumeBoostMb(it)
-                    },
-                    onToggleRotationLock = {
-                        val willLockRotation = !uiState.isLocked
-                        playerViewModel.toggleLock()
-                        activePanelName = PlayerPanel.NONE.name
-                        controlsVisible = true
-                        gestureFeedback = if (willLockRotation) "Rotation locked" else "Rotation unlocked"
                     },
                     isZoomed = zoomScale > 1.02f,
                     onResetZoom = {
@@ -874,6 +893,7 @@ private fun BoxScope.PlayerChrome(
     controlsVisible: Boolean,
     activePanel: PlayerPanel,
     currentPositionMs: Long,
+    selectedAudioLabel: String,
     selectedSubtitleLabel: String,
     canEnterPictureInPicture: Boolean,
     isRotationLocked: Boolean,
@@ -884,6 +904,7 @@ private fun BoxScope.PlayerChrome(
     onSeekChanged: (Float) -> Unit,
     onSeekFinished: () -> Unit,
     onTogglePanel: (PlayerPanel) -> Unit,
+    onToggleRotationLock: () -> Unit,
 ) {
     AnimatedVisibility(
         visible = controlsVisible,
@@ -936,19 +957,22 @@ private fun BoxScope.PlayerChrome(
 
             Surface(
                 modifier = Modifier.align(Alignment.Center),
-                color = Color.White.copy(alpha = 0.94f),
+                color = Color.Black.copy(alpha = 0.34f),
                 shape = CircleShape,
-                shadowElevation = 10.dp,
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.16f)),
+                shadowElevation = 12.dp,
             ) {
                 IconButton(
                     onClick = onPlayPause,
-                    modifier = Modifier.size(116.dp),
+                    modifier = Modifier.size(84.dp),
                 ) {
                     Icon(
-                        imageVector = if (uiState.isPlaying) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
+                        imageVector = if (uiState.isPlaying) FilledPause else FilledPlayArrow,
                         contentDescription = if (uiState.isPlaying) "Pause" else "Play",
-                        modifier = Modifier.size(48.dp),
-                        tint = Color(0xCC111111),
+                        modifier = Modifier
+                            .offset(x = if (uiState.isPlaying) 0.dp else 2.dp)
+                            .size(if (uiState.isPlaying) 32.dp else 38.dp),
+                        tint = Color.White,
                     )
                 }
             }
@@ -964,7 +988,7 @@ private fun BoxScope.PlayerChrome(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
                 ) {
                     PlayerTimeline(
                         currentPositionMs = currentPositionMs,
@@ -973,33 +997,37 @@ private fun BoxScope.PlayerChrome(
                         onSeekChanged = onSeekChanged,
                         onSeekFinished = onSeekFinished,
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
                             text = "${formatPlaybackTime(currentPositionMs)} / ${formatPlaybackTime(uiState.durationMs)}",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
                             color = Color.White,
+                            modifier = Modifier.padding(end = 12.dp),
                         )
                         DockStrip(
+                            modifier = Modifier.weight(1f),
                             activePanel = activePanel,
+                            audioLabel = selectedAudioLabel,
                             subtitleLabel = selectedSubtitleLabel,
                             isFullscreen = isFullscreen,
+                            isRotationLocked = isRotationLocked,
                             canEnterPictureInPicture = canEnterPictureInPicture,
                             settingsHighlighted = activePanel == PlayerPanel.SETTINGS ||
                                 activePanel == PlayerPanel.SPEED ||
-                                activePanel == PlayerPanel.AUDIO ||
+                                activePanel == PlayerPanel.BOOST ||
                                 abs(uiState.playbackSpeed - 1f) > 0.01f ||
-                                uiState.volumeBoostMb > 0 ||
-                                isRotationLocked,
+                                uiState.volumeBoostMb > 0,
                             onResizeClick = { onTogglePanel(PlayerPanel.RESIZE) },
                             onSubtitleClick = { onTogglePanel(PlayerPanel.SUBTITLES) },
+                            onAudioClick = { onTogglePanel(PlayerPanel.AUDIO) },
                             onSettingsClick = { onTogglePanel(PlayerPanel.SETTINGS) },
                             onFullscreenToggle = onFullscreenToggle,
+                            onRotationLockClick = onToggleRotationLock,
                             onPictureInPictureClick = onEnterPictureInPicture,
                         )
                     }
@@ -1028,7 +1056,7 @@ private fun PlayerTimeline(
                     },
                 )
                 .padding(top = 18.dp, start = 12.dp, end = 12.dp)
-                .height(2.dp)
+                .height(1.dp)
                 .clip(CircleShape)
                 .background(Color.White.copy(alpha = 0.22f)),
         )
@@ -1043,26 +1071,34 @@ private fun PlayerTimeline(
                 activeTrackColor = Color.White,
                 inactiveTrackColor = Color.White.copy(alpha = 0.18f),
             ),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .graphicsLayer(scaleY = 0.82f),
         )
     }
 }
 
 @Composable
 private fun DockStrip(
+    modifier: Modifier = Modifier,
     activePanel: PlayerPanel,
+    audioLabel: String,
     subtitleLabel: String,
     isFullscreen: Boolean,
+    isRotationLocked: Boolean,
     canEnterPictureInPicture: Boolean,
     settingsHighlighted: Boolean,
     onResizeClick: () -> Unit,
     onSubtitleClick: () -> Unit,
+    onAudioClick: () -> Unit,
     onSettingsClick: () -> Unit,
     onFullscreenToggle: () -> Unit,
+    onRotationLockClick: () -> Unit,
     onPictureInPictureClick: () -> Unit,
 ) {
     Row(
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         DockButton(
@@ -1078,10 +1114,22 @@ private fun DockStrip(
             onClick = onSubtitleClick,
         )
         DockButton(
+            icon = Icons.Outlined.GraphicEq,
+            contentDescription = "Audio tracks",
+            selected = activePanel == PlayerPanel.AUDIO || !audioLabel.equals("Auto", ignoreCase = true),
+            onClick = onAudioClick,
+        )
+        DockButton(
             icon = if (isFullscreen) Icons.Outlined.FullscreenExit else Icons.Outlined.Fullscreen,
             contentDescription = if (isFullscreen) "Exit fullscreen" else "Enter fullscreen",
             selected = isFullscreen,
             onClick = onFullscreenToggle,
+        )
+        DockButton(
+            icon = Icons.Outlined.Lock,
+            contentDescription = "Rotation lock",
+            selected = isRotationLocked,
+            onClick = onRotationLockClick,
         )
         if (canEnterPictureInPicture) {
             DockButton(
@@ -1126,7 +1174,7 @@ private fun PlayerOptionPanel(
     uiState: PlayerUiState,
     selectedSubtitleTrack: PlayerTrackOption?,
     onShowSpeedPanel: () -> Unit,
-    onShowAudioPanel: () -> Unit,
+    onShowBoostPanel: () -> Unit,
     onSelectSpeed: (Float) -> Unit,
     onSelectAudioTrack: (PlayerTrackOption?) -> Unit,
     onDisableAudio: () -> Unit,
@@ -1136,17 +1184,9 @@ private fun PlayerOptionPanel(
     onSelectSubtitleTrack: (PlayerTrackOption?) -> Unit,
     onSelectResizeMode: (Int) -> Unit,
     onSetVolumeBoostMb: (Int) -> Unit,
-    onToggleRotationLock: () -> Unit,
     isZoomed: Boolean,
     onResetZoom: () -> Unit,
 ) {
-    val selectedAudioTrack = uiState.audioTracks.firstOrNull { it.isSelected }
-    val selectedAudioLabel = when {
-        uiState.audioDisabled -> "None"
-        selectedAudioTrack != null -> selectedAudioTrack.title
-        else -> "Auto"
-    }
-
     Surface(
         color = Color.Black.copy(alpha = 0.74f),
         shape = RoundedCornerShape(18.dp),
@@ -1179,16 +1219,13 @@ private fun PlayerOptionPanel(
                         onClick = onShowSpeedPanel,
                     )
                     SettingsMenuRow(
-                        icon = Icons.Outlined.GraphicEq,
-                        title = "Audio",
-                        value = selectedAudioLabel,
-                        onClick = onShowAudioPanel,
-                    )
-                    SettingsMenuRow(
-                        icon = Icons.Outlined.Lock,
-                        title = "Rotation",
-                        value = if (uiState.isLocked) "Locked" else "Auto",
-                        onClick = onToggleRotationLock,
+                        icon = Icons.Outlined.VolumeUp,
+                        title = "Volume boost",
+                        value = currentVolumeBoostLabel(
+                            targetGainMb = uiState.volumeBoostMb,
+                            supported = uiState.volumeBoostSupported,
+                        ),
+                        onClick = onShowBoostPanel,
                     )
                 }
 
@@ -1218,8 +1255,12 @@ private fun PlayerOptionPanel(
                             )
                         }
                     }
-                    if (uiState.volumeBoostSupported) {
-                        PanelSectionLabel("Volume boost")
+                }
+
+                PlayerPanel.BOOST -> {
+                    if (!uiState.volumeBoostSupported) {
+                        EmptyPanelMessage("Volume boost is not available for this device or audio session.")
+                    } else {
                         VOLUME_BOOST_OPTIONS.forEach { option ->
                             PanelOptionRow(
                                 title = option.label,
@@ -1440,6 +1481,17 @@ private fun formatSpeed(speed: Float): String {
     }
 }
 
+private fun currentVolumeBoostLabel(
+    targetGainMb: Int,
+    supported: Boolean,
+): String {
+    if (!supported) return "Unavailable"
+    return VOLUME_BOOST_OPTIONS
+        .firstOrNull { it.targetGainMb == targetGainMb }
+        ?.label
+        ?: "Custom"
+}
+
 private fun formatSignedSeekDelta(deltaMs: Long): String {
     val sign = when {
         deltaMs > 0L -> "+"
@@ -1620,7 +1672,8 @@ private enum class PlayerPanel(val title: String) {
     NONE(""),
     SPEED("Playback speed"),
     SETTINGS("Playback settings"),
-    AUDIO("Audio track"),
+    BOOST("Volume boost"),
+    AUDIO("Audio"),
     SUBTITLES("Subtitles"),
     RESIZE("Video size"),
 }
