@@ -467,6 +467,7 @@ class DownloadRepositoryImpl @Inject constructor(
                     WorkerKeys.DOWNLOAD_VIDEO_ONLY to options.downloadVideoOnly,
                     WorkerKeys.PLAYLIST_ENABLED to options.isPlaylistEnabled,
                     WorkerKeys.DOWNLOAD_SUBTITLES to options.shouldDownloadSubtitles,
+                    WorkerKeys.EMBED_SUBTITLES to options.shouldEmbedSubtitles,
                     WorkerKeys.EMBED_METADATA to options.shouldEmbedMetadata,
                     WorkerKeys.EMBED_THUMBNAIL to options.shouldEmbedThumbnail,
                     WorkerKeys.WRITE_THUMBNAIL to options.shouldWriteThumbnail,
