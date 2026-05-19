@@ -38,11 +38,12 @@ No server. No cloud. No tracking. Everything runs on your device.
 | 🎵 **Audio-only** | mp3, m4a, aac, wav, opus, flac |
 | 📋 **Format picker** | Quality selector (144p → 4K), stream type, container |
 | 📥 **Download queue** | Real-time progress, speed, size info, pause/resume/cancel |
-| 📜 **History** | Completed and failed downloads with timestamps |
+| 📜 **History** | Completed and failed downloads with timestamps, saved paths, and log access |
+| 🔄 **Updates center** | Check and install app, `yt-dlp`, and `FFmpeg` updates from inside the app |
 | 🌐 **1000+ sites** | YouTube, Instagram, TikTok, X/Twitter, Reddit, Vimeo, SoundCloud, and more |
 | 🔒 **100% local** | No backend, no accounts, no cloud |
 | 📁 **Public Downloads** | Files saved to `/sdcard/Download/LocalDownloader/` |
-| ⚙️ **Settings** | Persistent defaults via DataStore |
+| ⚙️ **Settings** | Persistent defaults for folders, filename templates, subtitles, and media output |
 
 ---
 
@@ -90,34 +91,39 @@ Compose UI  ──→  ViewModel  ──→  Repository
 app/src/main/
 ├── java/com/localdownloader/
 │   ├── ui/
-│   │   ├── screens/          # Home, Queue, History, Settings, FormatSelection
+│   │   ├── screens/          # Browser, Downloads, History, Settings, Updates, player flows
 │   │   ├── components/       # UrlInput, VideoCard, DownloadProgress, FormatSelector
 │   │   └── theme/
-│   ├── viewmodel/            # DownloadViewModel, FormatViewModel
+│   ├── viewmodel/            # DownloadViewModel, FormatViewModel, UpdatesViewModel
 │   ├── domain/
 │   │   ├── models/           # DownloadTask, VideoInfo, DownloadOptions …
 │   │   ├── repositories/     # DownloaderRepository interface
-│   │   └── usecases/         # Analyze, StartDownload, ObserveQueue …
-│   ├── data/                 # DownloadRepositoryImpl, TaskStore, SettingsStore
+│   ├── data/                 # DownloadRepositoryImpl, Room persistence, SettingsStore
 │   ├── downloader/           # YtDlpExecutor, DownloadEngine, ProgressParser …
-│   ├── worker/               # DownloadWorker (WorkManager)
+│   ├── updates/              # GitHub release client + app/runtime update managers
+│   ├── worker/               # DownloadWorker + yt-dlp update workers
 │   ├── utils/                # FileUtils, Logger, UrlValidator
 │   └── di/                   # Hilt modules
 ├── assets/
-│   └── ffmpeg/arm64-v8a/ffmpeg     ← fallback binary
+│   ├── ffmpeg/arm64-v8a/ffmpeg     ← fallback executable
+│   └── changelog/CHANGELOG.md      ← bundled release notes shown in-app
 └── jniLibs/
     └── arm64-v8a/
-        └── libffmpeg_exec.so        ← primary binary (preferred)
+        └── libffmpeg_exec.so        ← bundled native fallback
 ```
 
 ---
 
 ## ⚙️ Binary integration
 
-The app uses the embedded `youtubedl-android` runtime for `yt-dlp`, and resolves bundled `ffmpeg` in this order:
+The app uses the embedded `youtubedl-android` runtime for `yt-dlp`, and can replace that runtime through the in-app Updates screen.
 
-1. **`jniLibs/`** — `.so` files packaged as native libraries (faster, always executable)
-2. **`assets/`** — raw binaries copied to app internal storage on first run
+`ffmpeg` now resolves in this order:
+
+1. **Managed overlay package** — app-owned runtime downloaded from the Updates screen
+2. **Embedded runtime package** — packaged `libffmpeg.so` with support files when available
+3. **Bundled native fallback** — `libffmpeg_exec.so` shipped with the app
+4. **Copied executable fallback** — raw asset copied to internal storage if native launch fails
 
 Default shipped ABIs:
 
@@ -125,6 +131,8 @@ Default shipped ABIs:
 |---|---|
 | `libffmpeg_exec.so` | `jniLibs/arm64-v8a/` |
 | `ffmpeg` (fallback) | `assets/ffmpeg/arm64-v8a/` |
+
+Managed overlay packages and the embedded FFmpeg runtime dependency may also provide `libffmpeg.so` and `libffmpeg.zip.so` at runtime.
 
 > Need a different architecture? See [COMPATIBILITY.md](COMPATIBILITY.md) for step-by-step instructions.
 
@@ -180,6 +188,16 @@ Important:
 - That old install must be uninstalled once.
 - After switching to the stable keystore, future APKs from that same channel will install as updates.
 
+## In-app updates
+
+The app now includes an Updates screen for three separate flows:
+
+- app release checks and APK install handoff from GitHub releases
+- `yt-dlp` channel selection (`stable`, `nightly`, `master`) plus manual or startup-triggered updates
+- `FFmpeg` managed runtime installation layered on top of the bundled fallback binaries
+
+Runtime updates are blocked while downloads are actively running so file replacement stays safe.
+
 ---
 
 ## 🌐 Supported sites
@@ -231,4 +249,3 @@ The app now writes persistent logs to internal storage:
 - mirrored external crash file (if available): `/storage/emulated/0/Android/data/<applicationId>/files/logs/crash.log`
 
 Logs include activity lifecycle, analyze flow, yt-dlp command execution, worker progress, and failures.
-
