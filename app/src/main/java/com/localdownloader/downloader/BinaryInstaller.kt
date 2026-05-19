@@ -33,6 +33,12 @@ class BinaryInstaller @Inject constructor(
     private val processRunner: ProcessRunner,
     private val logger: Logger,
 ) {
+    private data class FfmpegCandidate(
+        val sourceBinary: File,
+        val supportDir: File?,
+        val label: String,
+    )
+
     private val cleanupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val ffmpegVerificationMutex = Mutex()
     @Volatile
@@ -43,30 +49,78 @@ class BinaryInstaller @Inject constructor(
     }
 
     suspend fun ensureFfmpegRuntime(preferNative: Boolean = true): FfmpegRuntime = withContext(Dispatchers.IO) {
-        if (!preferNative) {
-            logger.w("BinaryInstaller", "Asset ffmpeg fallback is disabled; using packaged bundled runtime only")
-        }
-        val binary = resolveNativeLibraryBinary(listOf("libffmpeg.so", "libffmpeg_exec.so"))
-            ?: throw IOException("Missing packaged ffmpeg binary in nativeLibraryDir")
         val supportDir = ensureBundledFfmpegSupportDir()
-        val environment = buildFfmpegEnvironment(binary = binary, supportDir = supportDir)
-        val runtimeKey = buildString {
-            append(binary.absolutePath)
-            append('|')
-            append(supportDir?.absolutePath.orEmpty())
-            append('|')
-            append(supportDir?.lastModified() ?: 0L)
-        }
-        if (verifiedFfmpegRuntimeKey == runtimeKey) {
-            return@withContext FfmpegRuntime(binary, supportDir, environment)
-        }
-        ffmpegVerificationMutex.withLock {
-            if (verifiedFfmpegRuntimeKey != runtimeKey) {
-                verifyFfmpegBinary(binary, environment)
-                verifiedFfmpegRuntimeKey = runtimeKey
+        val candidates = buildList {
+            resolveDownloadedOverlayFfmpegCandidate()?.let(::add)
+            resolveNativeLibraryBinary(listOf("libffmpeg.so"))?.let { nativeBinary ->
+                add(
+                    FfmpegCandidate(
+                        sourceBinary = nativeBinary,
+                        supportDir = supportDir,
+                        label = nativeBinary.name,
+                    ),
+                )
+            }
+            resolveNativeLibraryBinary(listOf("libffmpeg_exec.so"))?.let { nativeBinary ->
+                add(
+                    FfmpegCandidate(
+                        sourceBinary = nativeBinary,
+                        supportDir = null,
+                        label = nativeBinary.name,
+                    ),
+                )
             }
         }
-        FfmpegRuntime(binary, supportDir, environment)
+        if (candidates.isEmpty()) {
+            throw IOException("Missing packaged ffmpeg binary in nativeLibraryDir")
+        }
+
+        var lastFailure: IOException? = null
+
+        for (candidate in candidates) {
+            val executable = if (preferNative) {
+                candidate.sourceBinary
+            } else {
+                ensureCopiedExecutable(
+                    sourceBinary = candidate.sourceBinary,
+                    runtimeFolderName = "ffmpeg",
+                    targetFileName = "ffmpeg",
+                )
+            }
+
+            val environment = buildFfmpegEnvironment(
+                binary = executable,
+                supportDir = candidate.supportDir,
+                extraLibraryDir = candidate.sourceBinary.parentFile,
+            )
+            val runtimeKey = buildFfmpegRuntimeKey(
+                executable = executable,
+                supportDir = candidate.supportDir,
+            )
+
+            if (verifiedFfmpegRuntimeKey == runtimeKey) {
+                return@withContext FfmpegRuntime(executable, candidate.supportDir, environment)
+            }
+
+            try {
+                ffmpegVerificationMutex.withLock {
+                    if (verifiedFfmpegRuntimeKey != runtimeKey) {
+                        verifyFfmpegBinary(executable, environment)
+                        verifiedFfmpegRuntimeKey = runtimeKey
+                    }
+                }
+                return@withContext FfmpegRuntime(executable, candidate.supportDir, environment)
+            } catch (error: IOException) {
+                lastFailure = error
+                logger.w(
+                    "BinaryInstaller",
+                    "FFmpeg candidate ${candidate.label} failed health check; trying next runtime if available",
+                    error,
+                )
+            }
+        }
+
+        throw lastFailure ?: IOException("Missing packaged ffmpeg binary in nativeLibraryDir")
     }
 
     fun cleanupRedundantArtifactsAsync() {
@@ -92,7 +146,6 @@ class BinaryInstaller @Inject constructor(
             freedBytes += deleteRecursively(File(File(context.filesDir, "bin"), "ffmpeg"))
             val runtimeBaseDir = File(context.noBackupFilesDir, YoutubeDL.baseName)
             val packagesDir = File(runtimeBaseDir, "packages")
-            freedBytes += deleteRecursively(File(packagesDir, "ffmpeg"))
             freedBytes += deleteRecursively(File(packagesDir, "aria2c"))
 
             if (freedBytes > 0L) {
@@ -102,6 +155,10 @@ class BinaryInstaller @Inject constructor(
                 )
             }
         }
+    }
+
+    fun ffmpegOverlayDir(): File {
+        return File(context.noBackupFilesDir, "localdownloader_runtime/downloaded_packages/ffmpeg")
     }
 
     private fun resolveNativeLibraryBinary(candidates: List<String>): File? {
@@ -121,6 +178,23 @@ class BinaryInstaller @Inject constructor(
             }
         }
         return null
+    }
+
+    private fun resolveDownloadedOverlayFfmpegCandidate(): FfmpegCandidate? {
+        val overlayDir = ffmpegOverlayDir()
+        val overlayBinary = File(overlayDir, "libffmpeg.so")
+        if (!overlayBinary.exists() || !overlayBinary.isFile) return null
+        val overlaySupportDir = ensureSupportDirFromZip(
+            zipBinary = File(overlayDir, "libffmpeg.zip.so"),
+            supportDir = File(overlayDir, "support/ffmpeg"),
+            markerFile = File(overlayDir, ".support-marker"),
+        )
+        logger.i("BinaryInstaller", "Using downloaded FFmpeg overlay: ${overlayBinary.absolutePath}")
+        return FfmpegCandidate(
+            sourceBinary = overlayBinary,
+            supportDir = overlaySupportDir,
+            label = "downloaded overlay",
+        )
     }
 
     private suspend fun verifyFfmpegBinary(binary: File, environment: Map<String, String>) {
@@ -154,24 +228,74 @@ class BinaryInstaller @Inject constructor(
     }
 
     private fun ensureBundledFfmpegSupportDir(): File? {
-        val zipBinary = resolveNativeLibraryBinary(listOf("libffmpeg.zip.so")) ?: return null
-        val supportDir = File(context.noBackupFilesDir, "localdownloader_runtime/packages/ffmpeg")
-        val versionMarker = File(supportDir, ".bundled-size")
-        val expectedMarker = zipBinary.length().toString()
-
-        if (supportDir.exists() && versionMarker.exists() && versionMarker.readText() == expectedMarker) {
-            return supportDir
+        val embeddedRuntimeDir = File(File(context.noBackupFilesDir, YoutubeDL.baseName), "packages/ffmpeg")
+        val embeddedUsrLib = File(embeddedRuntimeDir, "usr/lib")
+        if (embeddedUsrLib.exists()) {
+            logger.i("BinaryInstaller", "Using embedded ffmpeg support dir: ${embeddedRuntimeDir.absolutePath}")
+            return embeddedRuntimeDir
         }
 
-        deleteRecursively(supportDir)
-        supportDir.mkdirs()
-        unzipSafely(zipBinary, supportDir)
-        versionMarker.writeText(expectedMarker)
-        logger.i("BinaryInstaller", "Prepared bundled ffmpeg support dir: ${supportDir.absolutePath}")
-        return supportDir
+        val zipBinary = resolveNativeLibraryBinary(listOf("libffmpeg.zip.so")) ?: return null
+        return ensureSupportDirFromZip(
+            zipBinary = zipBinary,
+            supportDir = File(context.noBackupFilesDir, "localdownloader_runtime/packages/ffmpeg"),
+            markerFile = File(context.noBackupFilesDir, "localdownloader_runtime/packages/ffmpeg/.bundled-size"),
+        )
     }
 
-    private fun buildFfmpegEnvironment(binary: File, supportDir: File?): Map<String, String> {
+    private fun buildFfmpegRuntimeKey(executable: File, supportDir: File?): String = buildString {
+        append(executable.absolutePath)
+        append('|')
+        append(supportDir?.absolutePath.orEmpty())
+        append('|')
+        append(supportDir?.lastModified() ?: 0L)
+        append('|')
+        append(executable.lastModified())
+        append('|')
+        append(executable.length())
+    }
+
+    private fun ensureCopiedExecutable(
+        sourceBinary: File,
+        runtimeFolderName: String,
+        targetFileName: String,
+    ): File {
+        val targetDir = File(context.noBackupFilesDir, "localdownloader_runtime/bin/$runtimeFolderName")
+        if (!targetDir.exists() && !targetDir.mkdirs()) {
+            throw IOException("Unable to create fallback runtime directory: ${targetDir.absolutePath}")
+        }
+
+        val targetBinary = File(targetDir, targetFileName)
+        val versionMarker = File(targetDir, ".$targetFileName.source-size")
+        val expectedMarker = "${sourceBinary.length()}|${sourceBinary.lastModified()}"
+        val needsRefresh = !targetBinary.exists() ||
+            !targetBinary.isFile ||
+            versionMarker.readTextOrNull() != expectedMarker
+
+        if (needsRefresh) {
+            sourceBinary.copyTo(targetBinary, overwrite = true)
+            if (!targetBinary.setExecutable(true, false) && !targetBinary.canExecute()) {
+                throw IOException("Unable to mark fallback runtime executable: ${targetBinary.absolutePath}")
+            }
+            versionMarker.writeText(expectedMarker)
+            logger.i(
+                "BinaryInstaller",
+                "Prepared copied ffmpeg fallback executable: ${targetBinary.absolutePath}",
+            )
+        }
+
+        if (!targetBinary.canExecute() && !targetBinary.setExecutable(true, false)) {
+            throw IOException("Fallback runtime is not executable: ${targetBinary.absolutePath}")
+        }
+
+        return targetBinary
+    }
+
+    private fun buildFfmpegEnvironment(
+        binary: File,
+        supportDir: File?,
+        extraLibraryDir: File? = null,
+    ): Map<String, String> {
         val ldPaths = mutableListOf<String>()
         supportDir?.let { dir ->
             val usrLib = File(dir, "usr/lib")
@@ -181,8 +305,10 @@ class BinaryInstaller @Inject constructor(
             }
         }
         binary.parentFile?.absolutePath?.let(ldPaths::add)
+        extraLibraryDir?.absolutePath?.let(ldPaths::add)
         val pathEntries = listOfNotNull(
             binary.parentFile?.absolutePath,
+            extraLibraryDir?.absolutePath,
             System.getenv("PATH")?.takeIf { it.isNotBlank() },
         )
         return buildMap {
@@ -193,6 +319,25 @@ class BinaryInstaller @Inject constructor(
                 put("PATH", pathEntries.distinct().joinToString(":"))
             }
         }
+    }
+
+    private fun ensureSupportDirFromZip(
+        zipBinary: File,
+        supportDir: File,
+        markerFile: File,
+    ): File? {
+        if (!zipBinary.exists() || !zipBinary.isFile) return null
+        val expectedMarker = "${zipBinary.length()}|${zipBinary.lastModified()}"
+        if (supportDir.exists() && markerFile.readTextOrNull() == expectedMarker) {
+            return supportDir
+        }
+        deleteRecursively(supportDir)
+        supportDir.mkdirs()
+        unzipSafely(zipBinary, supportDir)
+        markerFile.parentFile?.mkdirs()
+        markerFile.writeText(expectedMarker)
+        logger.i("BinaryInstaller", "Prepared ffmpeg support dir: ${supportDir.absolutePath}")
+        return supportDir
     }
 
     private fun unzipSafely(sourceZip: File, targetDir: File) {
@@ -226,5 +371,9 @@ class BinaryInstaller @Inject constructor(
         }
 
         return if (target.delete()) bytes else 0L
+    }
+
+    private fun File.readTextOrNull(): String? {
+        return runCatching { readText() }.getOrNull()
     }
 }
