@@ -1,10 +1,13 @@
 package com.localdownloader.ui.screens
 
+import android.net.Uri
+
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,8 +27,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Article
 import androidx.compose.material.icons.outlined.ContentCopy
-import androidx.compose.material.icons.outlined.ErrorOutline
-import androidx.compose.material.icons.outlined.TaskAlt
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -35,7 +40,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -47,6 +51,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
@@ -60,6 +65,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DownloadHistoryScreen(
     tasks: List<DownloadTask>,
@@ -129,49 +135,69 @@ fun DownloadHistoryScreen(
         Surface(
             shape = RoundedCornerShape(30.dp),
             color = MaterialTheme.colorScheme.surfaceContainerLow,
+            tonalElevation = 1.dp,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Column(
-                modifier = Modifier.padding(18.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+            Box(
+                modifier = Modifier.background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.surfaceContainerHigh,
+                            MaterialTheme.colorScheme.surfaceContainerLow,
+                        ),
+                    ),
+                ),
             ) {
-                Text(
-                    text = "Task summary",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    HistorySummaryChip(
-                        label = "Completed",
-                        value = completedCount,
-                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                        modifier = Modifier.weight(1f),
-                    )
-                    HistorySummaryChip(
-                        label = "Failed",
-                        value = failedCount,
-                        containerColor = MaterialTheme.colorScheme.errorContainer,
-                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                        modifier = Modifier.weight(1f),
-                    )
-                    HistorySummaryChip(
-                        label = "Canceled",
-                        value = canceledCount,
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        contentColor = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.weight(1f),
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            text = "Task summary",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            text = "Showing ${filteredItems.size} of ${historyItems.size} finished tasks in ${currentFilter.label.lowercase(Locale.getDefault())}.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        HistorySummaryChip(
+                            label = "Completed",
+                            value = completedCount,
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                            modifier = Modifier.weight(1f),
+                        )
+                        HistorySummaryChip(
+                            label = "Failed",
+                            value = failedCount,
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.weight(1f),
+                        )
+                        HistorySummaryChip(
+                            label = "Canceled",
+                            value = canceledCount,
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            contentColor = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
                 }
             }
         }
 
-        Row(
+        FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             HistoryFilter.entries.forEach { filter ->
                 FilterChip(
@@ -193,12 +219,20 @@ fun DownloadHistoryScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Article,
-                        contentDescription = null,
-                        modifier = Modifier.size(42.dp),
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.size(68.dp),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Outlined.Article,
+                                contentDescription = null,
+                                modifier = Modifier.size(32.dp),
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                        }
+                    }
                     Text(
                         text = "No matching history yet",
                         style = MaterialTheme.typography.titleLarge,
@@ -214,6 +248,7 @@ fun DownloadHistoryScreen(
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 items(filteredItems, key = { it.id }) { task ->
@@ -266,12 +301,15 @@ private fun HistorySummaryChip(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun HistoryCard(
     task: DownloadTask,
     onOpenLog: () -> Unit,
 ) {
     val statusColors = statusPalette(task.status)
+    val sourceLabel = remember(task.url) { historySourceLabel(task.url) }
+    val outputName = task.outputPath?.substringAfterLast('/') ?: "No output file"
     val previewLog = task.debugTrace
         ?.lines()
         ?.takeLast(3)
@@ -282,11 +320,12 @@ private fun HistoryCard(
     Surface(
         shape = RoundedCornerShape(28.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
+        tonalElevation = 1.dp,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(
             modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -305,11 +344,30 @@ private fun HistoryCard(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = formatDate(task.updatedAtEpochMs),
+                        text = when (task.status) {
+                            DownloadStatus.COMPLETED -> "Finished successfully"
+                            DownloadStatus.FAILED -> "Stopped with an error"
+                            DownloadStatus.CANCELED -> "Canceled before completion"
+                            else -> historyStatusLabel(task.status)
+                        },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        HistoryInlineDetail(
+                            label = sourceLabel,
+                            icon = Icons.Outlined.Language,
+                        )
+                        HistoryInlineDetail(
+                            label = formatDate(task.updatedAtEpochMs),
+                            icon = Icons.Outlined.Schedule,
+                        )
+                    }
                 }
+                Spacer(modifier = Modifier.width(12.dp))
                 HistoryStatusBadge(
                     text = historyStatusLabel(task.status),
                     background = statusColors.container,
@@ -317,24 +375,25 @@ private fun HistoryCard(
                 )
             }
 
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 HistoryMetaPill(
                     label = task.totalSizeStr ?: task.downloadedStr ?: "Unknown size",
-                    icon = if (task.status == DownloadStatus.COMPLETED) {
-                        Icons.Outlined.TaskAlt
-                    } else {
-                        Icons.Outlined.ErrorOutline
-                    },
-                    modifier = Modifier.weight(1f),
+                    icon = Icons.Outlined.Storage,
                 )
                 HistoryMetaPill(
-                    label = task.outputPath?.substringAfterLast('/') ?: "No output file",
-                    icon = Icons.Outlined.Article,
-                    modifier = Modifier.weight(1f),
+                    label = outputName,
+                    icon = Icons.Outlined.Folder,
                 )
+                if (task.subtitlePaths.isNotEmpty()) {
+                    HistoryMetaPill(
+                        label = "${task.subtitlePaths.size} subtitle file${if (task.subtitlePaths.size == 1) "" else "s"}",
+                        icon = Icons.Outlined.Article,
+                    )
+                }
             }
 
             task.errorMessage?.takeIf { it.isNotBlank() }?.let { error ->
@@ -343,13 +402,39 @@ private fun HistoryCard(
                     color = MaterialTheme.colorScheme.errorContainer,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text(
-                        text = error,
+                    Column(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                    )
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Text(
+                            text = "Failure reason",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            text = error,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                        )
+                    }
                 }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = "Saved path",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = task.outputPath ?: "No saved path",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
 
             if (previewLog.isNotBlank()) {
@@ -358,36 +443,37 @@ private fun HistoryCard(
                     color = MaterialTheme.colorScheme.surface,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text(
-                        text = previewLog,
+                    Column(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text(
+                            text = "Recent log lines",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            text = previewLog,
+                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = task.outputPath ?: "No saved path",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                OutlinedButton(
+                FilledTonalButton(
                     onClick = onOpenLog,
                     enabled = !task.debugTrace.isNullOrBlank(),
                 ) {
                     Icon(Icons.Outlined.Visibility, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Full log")
+                    Text("View log")
                 }
             }
         }
@@ -409,6 +495,31 @@ private fun HistoryStatusBadge(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
             style = MaterialTheme.typography.labelLarge,
             color = foreground,
+        )
+    }
+}
+
+@Composable
+private fun HistoryInlineDetail(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(14.dp),
+            tint = MaterialTheme.colorScheme.primary,
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -439,7 +550,7 @@ private fun HistoryMetaPill(
                 text = label,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
         }
@@ -556,6 +667,13 @@ private fun HistoryLogSheet(
 private fun formatDate(epochMs: Long): String {
     val sdf = SimpleDateFormat("dd MMM yyyy | HH:mm", Locale.getDefault())
     return sdf.format(Date(epochMs))
+}
+
+private fun historySourceLabel(url: String): String {
+    return Uri.parse(url).host
+        ?.removePrefix("www.")
+        ?.takeIf { it.isNotBlank() }
+        ?: "Unknown source"
 }
 
 private fun historyStatusLabel(status: DownloadStatus): String {
