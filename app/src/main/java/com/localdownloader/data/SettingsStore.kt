@@ -11,8 +11,10 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.localdownloader.domain.models.AccentPreset
 import com.localdownloader.domain.models.AppSettings
+import com.localdownloader.domain.models.CacheCleanupPolicy
 import com.localdownloader.domain.models.ContrastMode
 import com.localdownloader.domain.models.CookieProfile
+import com.localdownloader.domain.models.DownloadNetworkMode
 import com.localdownloader.domain.models.ThemeMode
 import com.localdownloader.domain.models.YoutubeAuthConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -59,7 +61,12 @@ class SettingsStore @Inject constructor(
         val cookieProfiles = stringPreferencesKey("cookie_profiles_json")
         val youtubeAuthConfig = stringPreferencesKey("youtube_auth_config_json")
         val hasSeenDownloadSetupNotice = booleanPreferencesKey("has_seen_download_setup_notice")
+        val downloadNetworkMode = stringPreferencesKey("download_network_mode")
         val maxConcurrent = intPreferencesKey("max_concurrent")
+        val defaultAudioBitrateKbps = intPreferencesKey("default_audio_bitrate_kbps")
+        val defaultWriteThumbnail = booleanPreferencesKey("default_write_thumbnail")
+        val defaultPlaylistEnabled = booleanPreferencesKey("default_playlist_enabled")
+        val cacheCleanupPolicy = stringPreferencesKey("cache_cleanup_policy")
         val darkTheme = booleanPreferencesKey("dark_theme")
     }
 
@@ -97,7 +104,16 @@ class SettingsStore @Inject constructor(
                     cookieProfiles = decodeCookieProfiles(prefs[Keys.cookieProfiles]),
                     youtubeAuthConfig = decodeYoutubeAuthConfig(prefs[Keys.youtubeAuthConfig]),
                     hasSeenDownloadSetupNotice = prefs[Keys.hasSeenDownloadSetupNotice] ?: false,
-                    maxConcurrentDownloads = prefs[Keys.maxConcurrent] ?: 2,
+                    downloadNetworkMode = prefs[Keys.downloadNetworkMode]
+                        ?.toEnumOrDefault(DownloadNetworkMode.ANY)
+                        ?: DownloadNetworkMode.ANY,
+                    maxConcurrentDownloads = (prefs[Keys.maxConcurrent] ?: 2).coerceIn(1, 3),
+                    defaultAudioBitrateKbps = (prefs[Keys.defaultAudioBitrateKbps] ?: 192).coerceIn(64, 320),
+                    defaultWriteThumbnail = prefs[Keys.defaultWriteThumbnail] ?: false,
+                    defaultPlaylistEnabled = prefs[Keys.defaultPlaylistEnabled] ?: false,
+                    cacheCleanupPolicy = prefs[Keys.cacheCleanupPolicy]
+                        ?.toEnumOrDefault(CacheCleanupPolicy.SEVEN_DAYS)
+                        ?: CacheCleanupPolicy.SEVEN_DAYS,
                     darkTheme = prefs[Keys.darkTheme] ?: false,
                 )
             }
@@ -128,7 +144,12 @@ class SettingsStore @Inject constructor(
             prefs[Keys.cookieProfiles] = json.encodeToString(settings.cookieProfiles)
             prefs[Keys.youtubeAuthConfig] = json.encodeToString(settings.youtubeAuthConfig)
             prefs[Keys.hasSeenDownloadSetupNotice] = settings.hasSeenDownloadSetupNotice
-            prefs[Keys.maxConcurrent] = settings.maxConcurrentDownloads
+            prefs[Keys.downloadNetworkMode] = settings.downloadNetworkMode.name
+            prefs[Keys.maxConcurrent] = settings.maxConcurrentDownloads.coerceIn(1, 3)
+            prefs[Keys.defaultAudioBitrateKbps] = settings.defaultAudioBitrateKbps.coerceIn(64, 320)
+            prefs[Keys.defaultWriteThumbnail] = settings.defaultWriteThumbnail
+            prefs[Keys.defaultPlaylistEnabled] = settings.defaultPlaylistEnabled
+            prefs[Keys.cacheCleanupPolicy] = settings.cacheCleanupPolicy.name
             prefs[Keys.darkTheme] = settings.darkTheme
         }
     }

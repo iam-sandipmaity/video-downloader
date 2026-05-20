@@ -1,5 +1,6 @@
 package com.localdownloader.ui.screens
 
+import android.widget.Toast
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -54,6 +55,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,7 +63,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -71,10 +75,14 @@ import coil.decode.SvgDecoder
 import com.localdownloader.BuildConfig
 import com.localdownloader.domain.models.AccentPreset
 import com.localdownloader.domain.models.AppSettings
+import com.localdownloader.domain.models.CacheCleanupPolicy
 import com.localdownloader.domain.models.ContrastMode
+import com.localdownloader.domain.models.DownloadNetworkMode
 import com.localdownloader.domain.models.ThemeMode
 import com.localdownloader.notifications.AppNotifications
 import com.localdownloader.ui.components.InlineFeedbackCard
+import com.localdownloader.ui.support.clearAppLogs
+import com.localdownloader.ui.support.shareAppLogs
 import com.localdownloader.viewmodel.FormatMessageScope
 import com.localdownloader.viewmodel.FormatUiState
 
@@ -101,21 +109,30 @@ fun SettingsScreen(
     onBrowseOtherFolder: () -> Unit,
     onDefaultVideoContainerChanged: (String) -> Unit,
     onDefaultAudioContainerChanged: (String) -> Unit,
+    onDownloadNetworkModeChanged: (DownloadNetworkMode) -> Unit,
+    onMaxConcurrentDownloadsChanged: (Int) -> Unit,
+    onDefaultAudioBitrateChanged: (Int) -> Unit,
     onDefaultDownloadSubtitlesChanged: (Boolean) -> Unit,
     onDefaultEmbedSubtitlesChanged: (Boolean) -> Unit,
     onDefaultEmbedMetadataChanged: (Boolean) -> Unit,
     onDefaultEmbedThumbnailChanged: (Boolean) -> Unit,
+    onDefaultWriteThumbnailChanged: (Boolean) -> Unit,
+    onDefaultPlaylistEnabledChanged: (Boolean) -> Unit,
     onAutoRemoveMissingFilesFromLibraryChanged: (Boolean) -> Unit,
     onDeleteFromStorageWhenRemovedInAppChanged: (Boolean) -> Unit,
+    onCacheCleanupPolicyChanged: (CacheCleanupPolicy) -> Unit,
     onClearVideoTabEntries: () -> Unit,
     onDeleteAllSavedMedia: () -> Unit,
     onResetSettings: () -> Unit,
+    onCopyAppRuntimeInfo: () -> Unit,
+    onConsumePendingAppRuntimeInfo: () -> Unit,
     onClearCache: () -> Unit,
     cacheSize: Long = 0L,
     onBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
     val defaults = remember { AppSettings() }
     val settingsInfoMessage = uiState.infoMessageFor(FormatMessageScope.SETTINGS)
     val settingsErrorMessage = uiState.errorMessageFor(FormatMessageScope.SETTINGS)
@@ -131,6 +148,13 @@ fun SettingsScreen(
     var showLibraryClearDialog by remember { mutableStateOf(false) }
     var showDeleteAllMediaDialog by remember { mutableStateOf(false) }
     var showResetDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(uiState.pendingAppRuntimeInfo) {
+        val pending = uiState.pendingAppRuntimeInfo ?: return@LaunchedEffect
+        clipboardManager.setText(AnnotatedString(pending))
+        Toast.makeText(context, "App diagnostics copied.", Toast.LENGTH_SHORT).show()
+        onConsumePendingAppRuntimeInfo()
+    }
 
     fun openUrl(url: String) {
         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
@@ -578,6 +602,87 @@ fun SettingsScreen(
             )
         }
 
+        SectionLabel("Download rules")
+        SettingsListCard {
+            SettingsValueRow(
+                icon = Icons.Outlined.CloudDownload,
+                title = "Download network",
+                subtitle = "Choose when queued downloads are allowed to start.",
+                value = networkModeLabel(uiState.downloadNetworkMode),
+                onClick = {
+                    choiceDialog = ChoiceDialogState(
+                        title = "Download network",
+                        selected = networkModeLabel(uiState.downloadNetworkMode),
+                        options = DownloadNetworkMode.entries.map { mode ->
+                            ChoiceOption(
+                                title = networkModeLabel(mode),
+                                subtitle = networkModeSubtitle(mode),
+                                onSelect = { onDownloadNetworkModeChanged(mode) },
+                            )
+                        },
+                    )
+                },
+            )
+            DividerInset()
+            SettingsValueRow(
+                icon = Icons.Outlined.CloudDownload,
+                title = "Concurrent downloads",
+                subtitle = "Limit how many download workers can run at the same time.",
+                value = uiState.maxConcurrentDownloads.toString(),
+                onClick = {
+                    val options = listOf(1, 2, 3)
+                    choiceDialog = ChoiceDialogState(
+                        title = "Concurrent downloads",
+                        selected = uiState.maxConcurrentDownloads.toString(),
+                        options = options.map { value ->
+                            ChoiceOption(
+                                title = value.toString(),
+                                subtitle = concurrentDownloadsSubtitle(value),
+                                onSelect = { onMaxConcurrentDownloadsChanged(value) },
+                            )
+                        },
+                    )
+                },
+            )
+            DividerInset()
+            SettingsValueRow(
+                icon = Icons.Outlined.Description,
+                title = "Default audio bitrate",
+                subtitle = "Used for future audio-only downloads and extracts.",
+                value = "${uiState.audioBitrateKbps} kbps",
+                onClick = {
+                    val bitrates = listOf(64, 96, 128, 192, 256, 320)
+                    choiceDialog = ChoiceDialogState(
+                        title = "Default audio bitrate",
+                        selected = "${uiState.audioBitrateKbps} kbps",
+                        options = bitrates.map { bitrate ->
+                            ChoiceOption(
+                                title = "$bitrate kbps",
+                                subtitle = audioBitrateDescription(bitrate),
+                                onSelect = { onDefaultAudioBitrateChanged(bitrate) },
+                            )
+                        },
+                    )
+                },
+            )
+            DividerInset()
+            SettingsToggleRow(
+                icon = Icons.Outlined.Palette,
+                title = "Write thumbnail file",
+                subtitle = "Save a separate poster or cover image beside future downloads when the site provides one.",
+                checked = uiState.writeThumbnail,
+                onCheckedChange = onDefaultWriteThumbnailChanged,
+            )
+            DividerInset()
+            SettingsToggleRow(
+                icon = Icons.Outlined.CloudDownload,
+                title = "Queue playlists by default",
+                subtitle = "When a playlist page is detected, queue every item instead of a single entry.",
+                checked = uiState.enablePlaylist,
+                onCheckedChange = onDefaultPlaylistEnabledChanged,
+            )
+        }
+
         SettingsListCard {
             SettingsActionRow(
                 icon = Icons.Outlined.Refresh,
@@ -673,6 +778,26 @@ fun SettingsScreen(
                 onClick = null,
             )
             DividerInset()
+            SettingsValueRow(
+                icon = Icons.Outlined.Refresh,
+                title = "Auto cache cleanup",
+                subtitle = "Clean older temporary files automatically so the cache does not grow forever.",
+                value = cacheCleanupPolicyLabel(uiState.cacheCleanupPolicy),
+                onClick = {
+                    choiceDialog = ChoiceDialogState(
+                        title = "Auto cache cleanup",
+                        selected = cacheCleanupPolicyLabel(uiState.cacheCleanupPolicy),
+                        options = CacheCleanupPolicy.entries.map { policy ->
+                            ChoiceOption(
+                                title = cacheCleanupPolicyLabel(policy),
+                                subtitle = cacheCleanupPolicySubtitle(policy),
+                                onSelect = { onCacheCleanupPolicyChanged(policy) },
+                            )
+                        },
+                    )
+                },
+            )
+            DividerInset()
             SettingsActionRow(
                 icon = Icons.Outlined.Refresh,
                 title = "Clear cache",
@@ -694,6 +819,38 @@ fun SettingsScreen(
                 subtitle = "Permanently remove downloaded files from both the library and storage.",
                 onClick = { showDeleteAllMediaDialog = true },
                 enabled = savedItemsCount > 0,
+            )
+        }
+
+        SectionLabel("Diagnostics")
+        SettingsListCard {
+            SettingsActionRow(
+                icon = Icons.Outlined.Description,
+                title = "Export logs",
+                subtitle = "Share the internal app and crash logs when a download needs troubleshooting.",
+                onClick = { shareAppLogs(context) },
+            )
+            DividerInset()
+            SettingsActionRow(
+                icon = Icons.Outlined.Delete,
+                title = "Clear logs",
+                subtitle = "Remove the saved log files after you are done debugging or reporting an issue.",
+                onClick = {
+                    val freedBytes = clearAppLogs(context)
+                    val message = if (freedBytes > 0L) {
+                        "Cleared ${formatFileSize(freedBytes)} of logs."
+                    } else {
+                        "No log files were available to clear."
+                    }
+                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                },
+            )
+            DividerInset()
+            SettingsActionRow(
+                icon = Icons.Outlined.Code,
+                title = "Copy app/runtime info",
+                subtitle = "Copy version, device, ABI, and runtime details for bug reports.",
+                onClick = onCopyAppRuntimeInfo,
             )
         }
 
@@ -1449,6 +1606,61 @@ private fun containerDescription(container: String): String {
         "mkv" -> "Flexible container for mixed codecs and more unusual source formats."
         "mov" -> "Apple-style container when you want a closer edit-friendly export."
         else -> "Use this container for future merged video downloads."
+    }
+}
+
+private fun networkModeLabel(mode: DownloadNetworkMode): String {
+    return when (mode) {
+        DownloadNetworkMode.ANY -> "Any network"
+        DownloadNetworkMode.WIFI_ONLY -> "Wi-Fi only"
+        DownloadNetworkMode.UNMETERED -> "Unmetered only"
+    }
+}
+
+private fun networkModeSubtitle(mode: DownloadNetworkMode): String {
+    return when (mode) {
+        DownloadNetworkMode.ANY -> "Start downloads on mobile data, Wi-Fi, or any other connected network."
+        DownloadNetworkMode.WIFI_ONLY -> "Only start queued downloads when the device is on Wi-Fi or ethernet."
+        DownloadNetworkMode.UNMETERED -> "Allow only networks Android marks as unmetered, which helps avoid data charges."
+    }
+}
+
+private fun concurrentDownloadsSubtitle(value: Int): String {
+    return when (value) {
+        1 -> "Run one download at a time for the safest bandwidth and battery use."
+        2 -> "A balanced default that keeps the queue moving without overloading most connections."
+        else -> "Move the queue faster when your network and storage are comfortable with heavier parallel work."
+    }
+}
+
+private fun audioBitrateDescription(bitrate: Int): String {
+    return when (bitrate) {
+        64 -> "Smallest audio files, best when size matters more than detail."
+        96 -> "Lightweight audio that still sounds fine for speech and casual listening."
+        128 -> "A practical balance for everyday listening and smaller file sizes."
+        192 -> "A cleaner default for music with broader quality headroom."
+        256 -> "Higher-quality audio for users who want more detail without going lossless."
+        else -> "Largest lossy option for users who want to keep as much detail as possible."
+    }
+}
+
+private fun cacheCleanupPolicyLabel(policy: CacheCleanupPolicy): String {
+    return when (policy) {
+        CacheCleanupPolicy.NEVER -> "Never"
+        CacheCleanupPolicy.ONE_DAY -> "After 1 day"
+        CacheCleanupPolicy.THREE_DAYS -> "After 3 days"
+        CacheCleanupPolicy.SEVEN_DAYS -> "After 7 days"
+        CacheCleanupPolicy.THIRTY_DAYS -> "After 30 days"
+    }
+}
+
+private fun cacheCleanupPolicySubtitle(policy: CacheCleanupPolicy): String {
+    return when (policy) {
+        CacheCleanupPolicy.NEVER -> "Keep cached analysis and processing files until you clear them manually."
+        CacheCleanupPolicy.ONE_DAY -> "Aggressively clear old temporary files for tighter storage control."
+        CacheCleanupPolicy.THREE_DAYS -> "Clean old cache fairly often while still allowing short-term reuse."
+        CacheCleanupPolicy.SEVEN_DAYS -> "A balanced cleanup window for regular use."
+        CacheCleanupPolicy.THIRTY_DAYS -> "Keep reusable cache around longer before older files are removed."
     }
 }
 

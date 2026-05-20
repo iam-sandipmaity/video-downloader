@@ -2,8 +2,10 @@ package com.localdownloader.viewmodel
 
 import com.localdownloader.domain.models.AccentPreset
 import com.localdownloader.domain.models.AppSettings
+import com.localdownloader.domain.models.CacheCleanupPolicy
 import com.localdownloader.domain.models.ContrastMode
 import com.localdownloader.domain.models.CookieProfile
+import com.localdownloader.domain.models.DownloadNetworkMode
 import com.localdownloader.domain.models.FormatChoice
 import com.localdownloader.domain.models.StreamType
 import com.localdownloader.domain.models.ThemeMode
@@ -58,10 +60,14 @@ data class FormatUiState(
     val youtubeAuthConfig: YoutubeAuthConfig = YoutubeAuthConfig(),
     val appSettings: AppSettings = AppSettings(),
     val hasLoadedSettings: Boolean = false,
+    val downloadNetworkMode: DownloadNetworkMode = DownloadNetworkMode.ANY,
+    val maxConcurrentDownloads: Int = 2,
+    val cacheCleanupPolicy: CacheCleanupPolicy = CacheCleanupPolicy.SEVEN_DAYS,
     val messageScope: FormatMessageScope = FormatMessageScope.BROWSER,
     val infoMessage: String? = null,
     val errorMessage: String? = null,
     val isDarkTheme: Boolean = false,
+    val pendingAppRuntimeInfo: String? = null,
     // Download button state management
     val isDownloadButtonDisabled: Boolean = false,
     val downloadButtonDisabledAt: Long = 0L,

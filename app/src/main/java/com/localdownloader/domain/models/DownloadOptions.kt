@@ -20,6 +20,7 @@ data class DownloadOptions(
     val youtubePoToken: String? = null,
     val youtubePoTokenClientHint: String = "web.gvs",
     val youtubeDataSyncId: String? = null,
+    val networkMode: DownloadNetworkMode = DownloadNetworkMode.ANY,
     val mergeOutputFormat: String? = null,
     val preferredVideoHeight: Int? = null,
     val downloadVideoOnly: Boolean = false,

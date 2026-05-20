@@ -10,9 +10,11 @@ import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
 import com.localdownloader.data.SettingsStore
 import com.localdownloader.domain.models.AppSettings
+import com.localdownloader.domain.models.CacheCleanupPolicy
 import com.localdownloader.ui.model.ExternalOpenRequest
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -34,7 +36,10 @@ class FileUtils @Inject constructor(
 
     init {
         settingsStore.observeSettings()
-            .onEach { latestSettings = it }
+            .onEach {
+                latestSettings = it
+                cleanupCacheForPolicy(it.cacheCleanupPolicy)
+            }
             .launchIn(settingsScope)
     }
 
@@ -607,6 +612,12 @@ class FileUtils @Inject constructor(
         return calculateDirSize(context.cacheDir)
     }
 
+    fun cleanupCacheForPolicy(policy: CacheCleanupPolicy): Long {
+        val maxAgeDays = policy.days ?: return 0L
+        val cutoffEpochMs = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(maxAgeDays.toLong())
+        return clearCacheOlderThan(cutoffEpochMs)
+    }
+
     private fun calculateDirSize(dir: File): Long {
         var size = 0L
         dir.listFiles()?.forEach { file ->
@@ -626,6 +637,33 @@ class FileUtils @Inject constructor(
             file.length()
         }
         return if (file.delete()) size else 0L
+    }
+
+    private fun clearCacheOlderThan(cutoffEpochMs: Long): Long {
+        val cacheDir = context.cacheDir
+        return cacheDir.listFiles()
+            ?.sumOf { file -> deleteOlderEntries(file, cutoffEpochMs) }
+            ?: 0L
+    }
+
+    private fun deleteOlderEntries(
+        file: File,
+        cutoffEpochMs: Long,
+    ): Long {
+        if (file.isDirectory) {
+            val freedBytes = file.listFiles()?.sumOf { child -> deleteOlderEntries(child, cutoffEpochMs) } ?: 0L
+            val isEmpty = file.listFiles().isNullOrEmpty()
+            if (isEmpty && file.lastModified() < cutoffEpochMs) {
+                file.delete()
+            }
+            return freedBytes
+        }
+        return if (file.lastModified() < cutoffEpochMs) {
+            val size = file.length()
+            if (file.delete()) size else 0L
+        } else {
+            0L
+        }
     }
 
     private fun ensureInternalDir(name: String): File {

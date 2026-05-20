@@ -27,7 +27,12 @@ data class AppSettings(
     val cookieProfiles: List<CookieProfile> = emptyList(),
     val youtubeAuthConfig: YoutubeAuthConfig = YoutubeAuthConfig(),
     val hasSeenDownloadSetupNotice: Boolean = false,
+    val downloadNetworkMode: DownloadNetworkMode = DownloadNetworkMode.ANY,
     val maxConcurrentDownloads: Int = 2,
+    val defaultAudioBitrateKbps: Int = 192,
+    val defaultWriteThumbnail: Boolean = false,
+    val defaultPlaylistEnabled: Boolean = false,
+    val cacheCleanupPolicy: CacheCleanupPolicy = CacheCleanupPolicy.SEVEN_DAYS,
     val darkTheme: Boolean = false,
 )
 
@@ -61,4 +66,20 @@ enum class ContrastMode {
     STANDARD,
     HIGH,
     ULTRA,
+}
+
+enum class DownloadNetworkMode {
+    ANY,
+    WIFI_ONLY,
+    UNMETERED,
+}
+
+enum class CacheCleanupPolicy(
+    val days: Int?,
+) {
+    NEVER(days = null),
+    ONE_DAY(days = 1),
+    THREE_DAYS(days = 3),
+    SEVEN_DAYS(days = 7),
+    THIRTY_DAYS(days = 30),
 }

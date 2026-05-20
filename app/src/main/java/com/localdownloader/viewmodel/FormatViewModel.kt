@@ -6,9 +6,11 @@ import com.localdownloader.domain.models.AccentPreset
 import com.localdownloader.downloader.FormatSelectorBuilder
 import com.localdownloader.downloader.YoutubeRequestPlanner
 import com.localdownloader.domain.models.AppSettings
+import com.localdownloader.domain.models.CacheCleanupPolicy
 import com.localdownloader.domain.models.ContrastMode
 import com.localdownloader.domain.models.CookieProfile
 import com.localdownloader.domain.models.DownloadOptions
+import com.localdownloader.domain.models.DownloadNetworkMode
 import com.localdownloader.domain.models.FormatChoice
 import com.localdownloader.domain.models.StreamType
 import com.localdownloader.domain.models.ThemeMode
@@ -16,6 +18,7 @@ import com.localdownloader.domain.models.VideoInfo
 import com.localdownloader.domain.models.VideoQuality
 import com.localdownloader.domain.models.YoutubeAuthConfig
 import com.localdownloader.domain.repositories.DownloaderRepository
+import com.localdownloader.support.AppDiagnosticsManager
 import com.localdownloader.utils.CookieTextCodec
 import com.localdownloader.utils.FileUtils
 import com.localdownloader.utils.Logger
@@ -35,6 +38,7 @@ class FormatViewModel @Inject constructor(
     private val repository: DownloaderRepository,
     private val fileUtils: FileUtils,
     private val urlValidator: UrlValidator,
+    private val appDiagnosticsManager: AppDiagnosticsManager,
     private val logger: Logger,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(FormatUiState())
@@ -164,12 +168,12 @@ class FormatViewModel @Inject constructor(
                             availableVideoOnlyChoices = choiceBundle.videoOnlyChoices,
                             availableAudioOnlyChoices = choiceBundle.audioOnlyChoices,
                             selectedFormatSelector = selectedSelector,
-                            enablePlaylist = state.enablePlaylist || info.isPlaylist,
                             infoMessage = when {
-                                info.isPlaylist -> {
+                                info.isPlaylist && state.enablePlaylist -> {
                                     val itemCount = info.playlistCount ?: info.playlistEntries.size
                                     "Playlist ready: $itemCount items will queue one by one."
                                 }
+                                info.isPlaylist -> "Playlist detected. Turn Playlist on if you want to queue every item."
                                 else -> "Found ${info.formats.size} formats."
                             },
                         )
@@ -359,6 +363,21 @@ class FormatViewModel @Inject constructor(
         persistSettingsSilently()
     }
 
+    fun onDownloadNetworkModeChanged(value: DownloadNetworkMode) {
+        _uiState.update { state -> state.copy(downloadNetworkMode = value) }
+        persistSettingsSilently()
+    }
+
+    fun onMaxConcurrentDownloadsChanged(value: Int) {
+        _uiState.update { state -> state.copy(maxConcurrentDownloads = value.coerceIn(1, 3)) }
+        persistSettingsSilently()
+    }
+
+    fun onDefaultAudioBitrateChanged(value: Int) {
+        _uiState.update { state -> state.copy(audioBitrateKbps = value.coerceIn(64, 320)) }
+        persistSettingsSilently()
+    }
+
     fun onDefaultDownloadSubtitlesChanged(value: Boolean) {
         _uiState.update { state ->
             state.copy(
@@ -386,6 +405,16 @@ class FormatViewModel @Inject constructor(
 
     fun onDefaultEmbedThumbnailChanged(value: Boolean) {
         _uiState.update { state -> state.copy(embedThumbnail = value) }
+        persistSettingsSilently()
+    }
+
+    fun onDefaultWriteThumbnailChanged(value: Boolean) {
+        _uiState.update { state -> state.copy(writeThumbnail = value) }
+        persistSettingsSilently()
+    }
+
+    fun onDefaultPlaylistEnabledChanged(value: Boolean) {
+        _uiState.update { state -> state.copy(enablePlaylist = value) }
         persistSettingsSilently()
     }
 
@@ -443,6 +472,11 @@ class FormatViewModel @Inject constructor(
         _uiState.update { state ->
             state.copy(otherSubfolderName = fileUtils.normalizeSubfolderSetting(value))
         }
+        persistSettingsSilently()
+    }
+
+    fun onCacheCleanupPolicyChanged(value: CacheCleanupPolicy) {
+        _uiState.update { state -> state.copy(cacheCleanupPolicy = value) }
         persistSettingsSilently()
     }
 
@@ -771,6 +805,34 @@ class FormatViewModel @Inject constructor(
         persistSettings("Settings saved locally.", FormatMessageScope.SETTINGS)
     }
 
+    fun copyAppRuntimeInfo() {
+        viewModelScope.launch {
+            runCatching { appDiagnosticsManager.buildReport() }
+                .onSuccess { report ->
+                    _uiState.update { state ->
+                        scopedMessageState(
+                            state = state.copy(pendingAppRuntimeInfo = report),
+                            scope = FormatMessageScope.SETTINGS,
+                            infoMessage = "App diagnostics are ready to copy.",
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _uiState.update { state ->
+                        scopedMessageState(
+                            state = state,
+                            scope = FormatMessageScope.SETTINGS,
+                            errorMessage = error.message ?: "Unable to build app diagnostics right now.",
+                        )
+                    }
+                }
+        }
+    }
+
+    fun consumePendingAppRuntimeInfo() {
+        _uiState.update { state -> state.copy(pendingAppRuntimeInfo = null) }
+    }
+
     fun dismissDownloadSetupNotice() {
         val current = uiState.value
         if (current.appSettings.hasSeenDownloadSetupNotice) return
@@ -811,6 +873,12 @@ class FormatViewModel @Inject constructor(
                 cookieUserAgentEnabled = defaults.cookieUserAgentEnabled,
                 cookieProfiles = defaults.cookieProfiles,
                 youtubeAuthConfig = defaults.youtubeAuthConfig,
+                downloadNetworkMode = defaults.downloadNetworkMode,
+                maxConcurrentDownloads = defaults.maxConcurrentDownloads,
+                audioBitrateKbps = defaults.defaultAudioBitrateKbps,
+                writeThumbnail = defaults.defaultWriteThumbnail,
+                enablePlaylist = defaults.defaultPlaylistEnabled,
+                cacheCleanupPolicy = defaults.cacheCleanupPolicy,
                 hasLoadedSettings = true,
                 languageTag = defaults.languageTag,
                 themeMode = defaults.themeMode,
@@ -878,6 +946,12 @@ class FormatViewModel @Inject constructor(
                 cookieProfiles = state.cookieProfiles,
                 youtubeAuthConfig = state.youtubeAuthConfig,
                 hasSeenDownloadSetupNotice = state.appSettings.hasSeenDownloadSetupNotice,
+                downloadNetworkMode = state.downloadNetworkMode,
+                maxConcurrentDownloads = state.maxConcurrentDownloads.coerceIn(1, 3),
+                defaultAudioBitrateKbps = state.audioBitrateKbps.coerceIn(64, 320),
+                defaultWriteThumbnail = state.writeThumbnail,
+                defaultPlaylistEnabled = state.enablePlaylist,
+                cacheCleanupPolicy = state.cacheCleanupPolicy,
                 darkTheme = state.isDarkTheme,
                 )
             runCatching { repository.updateSettings(newSettings) }
@@ -965,7 +1039,7 @@ class FormatViewModel @Inject constructor(
             )
             val youtubeAuthConfig = state.youtubeAuthConfig.takeIf { it.enabled && it.isConfigured() }
             val targetCategory = when {
-                info.isPlaylist -> FileUtils.MediaFolderCategory.PLAYLIST
+                info.isPlaylist && state.enablePlaylist -> FileUtils.MediaFolderCategory.PLAYLIST
                 isAudioOnly -> FileUtils.MediaFolderCategory.AUDIO
                 state.selectedStreamType == StreamType.VIDEO_ONLY || state.selectedStreamType == StreamType.VIDEO_AUDIO ->
                     FileUtils.MediaFolderCategory.VIDEO
@@ -1004,10 +1078,11 @@ class FormatViewModel @Inject constructor(
                 youtubePoToken = youtubeAuthConfig?.buildPoTokenValue(),
                 youtubePoTokenClientHint = youtubeAuthConfig?.clientHint ?: "web.gvs",
                 youtubeDataSyncId = youtubeAuthConfig?.dataSyncId?.ifBlank { null },
+                networkMode = state.downloadNetworkMode,
                 mergeOutputFormat = mergeContainer,
                 preferredVideoHeight = selectedChoice?.height ?: state.selectedQuality.maxHeight,
                 downloadVideoOnly = state.selectedStreamType == StreamType.VIDEO_ONLY,
-                isPlaylistEnabled = info.isPlaylist || state.enablePlaylist,
+                isPlaylistEnabled = state.enablePlaylist,
                 shouldDownloadSubtitles = state.downloadSubtitles || state.embedSubtitles,
                 shouldEmbedSubtitles = state.embedSubtitles && !isAudioOnly && !shouldBypassMediaPostProcessing,
                 shouldEmbedMetadata = state.embedMetadata && !shouldBypassMediaPostProcessing,
@@ -1022,7 +1097,7 @@ class FormatViewModel @Inject constructor(
                 "Queueing download for URL=${options.url}, formatSelector=$formatSelector, extractAudio=${options.extractAudio}",
             )
 
-            if (info.isPlaylist) {
+            if (info.isPlaylist && state.enablePlaylist) {
                 val playlistResult = runCatching {
                     repository.enqueuePlaylistDownload(
                         options = options,
@@ -1499,6 +1574,12 @@ class FormatViewModel @Inject constructor(
                 cookieUserAgentEnabled = settings.cookieUserAgentEnabled,
                 cookieProfiles = settings.cookieProfiles,
                 youtubeAuthConfig = settings.youtubeAuthConfig,
+                downloadNetworkMode = settings.downloadNetworkMode,
+                maxConcurrentDownloads = settings.maxConcurrentDownloads.coerceIn(1, 3),
+                audioBitrateKbps = settings.defaultAudioBitrateKbps.coerceIn(64, 320),
+                writeThumbnail = settings.defaultWriteThumbnail,
+                enablePlaylist = settings.defaultPlaylistEnabled,
+                cacheCleanupPolicy = settings.cacheCleanupPolicy,
                 isDarkTheme = when (settings.themeMode) {
                     ThemeMode.DARK -> true
                     ThemeMode.LIGHT -> false

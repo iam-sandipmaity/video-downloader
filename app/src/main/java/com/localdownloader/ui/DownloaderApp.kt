@@ -621,15 +621,23 @@ fun DownloaderApp(
                     },
                     onDefaultVideoContainerChanged = formatViewModel::onDefaultVideoContainerChanged,
                     onDefaultAudioContainerChanged = formatViewModel::onDefaultAudioFormatChanged,
+                    onDownloadNetworkModeChanged = formatViewModel::onDownloadNetworkModeChanged,
+                    onMaxConcurrentDownloadsChanged = formatViewModel::onMaxConcurrentDownloadsChanged,
+                    onDefaultAudioBitrateChanged = formatViewModel::onDefaultAudioBitrateChanged,
                     onDefaultDownloadSubtitlesChanged = formatViewModel::onDefaultDownloadSubtitlesChanged,
                     onDefaultEmbedSubtitlesChanged = formatViewModel::onDefaultEmbedSubtitlesChanged,
                     onDefaultEmbedMetadataChanged = formatViewModel::onDefaultEmbedMetadataChanged,
                     onDefaultEmbedThumbnailChanged = formatViewModel::onDefaultEmbedThumbnailChanged,
+                    onDefaultWriteThumbnailChanged = formatViewModel::onDefaultWriteThumbnailChanged,
+                    onDefaultPlaylistEnabledChanged = formatViewModel::onDefaultPlaylistEnabledChanged,
                     onAutoRemoveMissingFilesFromLibraryChanged = formatViewModel::onAutoRemoveMissingFilesFromLibraryChanged,
                     onDeleteFromStorageWhenRemovedInAppChanged = formatViewModel::onDeleteFromStorageWhenRemovedInAppChanged,
+                    onCacheCleanupPolicyChanged = formatViewModel::onCacheCleanupPolicyChanged,
                     onClearVideoTabEntries = downloadViewModel::clearCompletedLibraryEntries,
                     onDeleteAllSavedMedia = downloadViewModel::deleteAllCompletedMedia,
                     onResetSettings = formatViewModel::resetSettingsToDefaults,
+                    onCopyAppRuntimeInfo = formatViewModel::copyAppRuntimeInfo,
+                    onConsumePendingAppRuntimeInfo = formatViewModel::consumePendingAppRuntimeInfo,
                     onClearCache = {
                         fileUtils.clearCache()
                         cacheSize = 0L

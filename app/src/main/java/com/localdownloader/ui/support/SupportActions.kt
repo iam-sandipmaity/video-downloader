@@ -68,6 +68,17 @@ fun shareAppLogs(
     context.startActivity(Intent.createChooser(shareIntent, "Share log.txt"))
 }
 
+fun clearAppLogs(context: Context): Long {
+    val logsDir = File(context.filesDir, LOGS_DIRECTORY)
+    if (!logsDir.exists()) return 0L
+    return logsDir.listFiles()
+        ?.sumOf { file ->
+            val size = file.length()
+            if (file.delete()) size else 0L
+        }
+        ?: 0L
+}
+
 private fun availableLogFiles(context: Context): List<File> {
     val logsDir = File(context.filesDir, LOGS_DIRECTORY)
     return listOf(
