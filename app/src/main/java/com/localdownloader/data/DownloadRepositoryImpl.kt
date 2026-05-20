@@ -308,12 +308,14 @@ class DownloadRepositoryImpl @Inject constructor(
                 updatedAtEpochMs = System.currentTimeMillis(),
             )
         }
-        existingTask?.title?.takeIf { it.isNotBlank() }?.let { title ->
-            AppNotifications.showDownloadCanceled(
-                context = appContext,
-                taskId = taskId,
-                title = title,
-            )
+        if (settingsStore.observeSettings().first().notifyCanceledDownloads) {
+            existingTask?.title?.takeIf { it.isNotBlank() }?.let { title ->
+                AppNotifications.showDownloadCanceled(
+                    context = appContext,
+                    taskId = taskId,
+                    title = title,
+                )
+            }
         }
         activeWorkId?.let { workManager.cancelWorkById(UUID.fromString(it)) }
         if (activeWorkId == null && taskOptions?.isPlaylistEnabled == true) {

@@ -84,7 +84,7 @@ fun SettingsScreen(
                 PreferenceRow(
                     icon = Icons.Rounded.NotificationsActive,
                     title = "Notifications",
-                    subtitle = "Quick links into Android's app and per-channel notification controls.",
+                    subtitle = "Completion, error, cancel, and playback alerts.",
                     onClick = onOpenNotifications,
                 )
             }

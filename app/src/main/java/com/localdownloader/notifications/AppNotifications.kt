@@ -11,18 +11,8 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.emptyPreferences
-import androidx.datastore.preferences.preferencesDataStore
 import com.localdownloader.AppLaunchRouter
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 import java.io.File
-import java.io.IOException
-
-private val Context.notificationSettingsDataStore by preferencesDataStore(name = "app_settings")
 
 object AppNotifications {
     const val CHANNEL_ACTIVE_DOWNLOADS = "downloads.active"
@@ -39,13 +29,6 @@ object AppNotifications {
     private const val NOTIFICATION_GROUP_COMPLETED = "notifications.downloads.completed"
     private const val NOTIFICATION_GROUP_ERRORS = "notifications.downloads.errors"
     private const val NOTIFICATION_GROUP_CANCELED = "notifications.downloads.canceled"
-
-    private object SettingsKeys {
-        val notifyCompletedDownloads = booleanPreferencesKey("notify_completed_downloads")
-        val notifyDownloadErrors = booleanPreferencesKey("notify_download_errors")
-        val notifyCanceledDownloads = booleanPreferencesKey("notify_canceled_downloads")
-        val notifyPromotions = booleanPreferencesKey("notify_promotions")
-    }
 
     fun ensureChannels(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -195,7 +178,6 @@ object AppNotifications {
         outputPath: String?,
         sizeLabel: String?,
     ) {
-        if (!isNotificationEnabled(context, SettingsKeys.notifyCompletedDownloads, defaultValue = true)) return
         if (!canPostUserNotifications(context)) return
         ensureChannels(context)
 
@@ -241,7 +223,6 @@ object AppNotifications {
         title: String,
         errorMessage: String,
     ) {
-        if (!isNotificationEnabled(context, SettingsKeys.notifyDownloadErrors, defaultValue = true)) return
         if (!canPostUserNotifications(context)) return
         ensureChannels(context)
 
@@ -276,7 +257,6 @@ object AppNotifications {
         taskId: String,
         title: String,
     ) {
-        if (!isNotificationEnabled(context, SettingsKeys.notifyCanceledDownloads, defaultValue = true)) return
         if (!canPostUserNotifications(context)) return
         ensureChannels(context)
 
@@ -329,24 +309,6 @@ object AppNotifications {
             AppLaunchRouter.buildIntent(context = context, route = route, taskId = taskId),
             PendingIntent.FLAG_UPDATE_CURRENT or pendingIntentImmutableFlag(),
         )
-    }
-
-    private fun isNotificationEnabled(
-        context: Context,
-        key: Preferences.Key<Boolean>,
-        defaultValue: Boolean,
-    ): Boolean {
-        return runBlocking {
-            context.notificationSettingsDataStore.data
-                .catch { error ->
-                    if (error is IOException) {
-                        emit(emptyPreferences())
-                    } else {
-                        throw error
-                    }
-                }
-                .first()[key] ?: defaultValue
-        }
     }
 
     private fun pendingIntentImmutableFlag(): Int {

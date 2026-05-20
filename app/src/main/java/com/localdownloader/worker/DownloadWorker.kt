@@ -12,6 +12,7 @@ import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.localdownloader.data.DownloadTaskStore
+import com.localdownloader.data.SettingsStore
 import com.localdownloader.domain.models.DownloadOptions
 import com.localdownloader.domain.models.DownloadStatus
 import com.localdownloader.domain.models.DownloadTask
@@ -26,6 +27,7 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import androidx.hilt.work.HiltWorker
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.first
 
 @HiltWorker
 class DownloadWorker @AssistedInject constructor(
@@ -33,6 +35,7 @@ class DownloadWorker @AssistedInject constructor(
     @Assisted params: WorkerParameters,
     private val downloadEngine: DownloadEngine,
     private val downloadTaskStore: DownloadTaskStore,
+    private val settingsStore: SettingsStore,
     private val ffmpegExecutor: FfmpegExecutor,
     private val fileUtils: FileUtils,
     private val logger: Logger,
@@ -2030,12 +2033,13 @@ class DownloadWorker @AssistedInject constructor(
         }
     }
 
-    private fun showCompletionNotification(
+    private suspend fun showCompletionNotification(
         taskId: String,
         title: String,
         outputPath: String?,
         sizeLabel: String?,
     ) {
+        if (!settingsStore.observeSettings().first().notifyCompletedDownloads) return
         AppNotifications.showDownloadCompleted(
             context = applicationContext,
             taskId = taskId,
@@ -2045,11 +2049,12 @@ class DownloadWorker @AssistedInject constructor(
         )
     }
 
-    private fun showFailureNotification(
+    private suspend fun showFailureNotification(
         taskId: String,
         title: String,
         message: String,
     ) {
+        if (!settingsStore.observeSettings().first().notifyDownloadErrors) return
         AppNotifications.showDownloadFailed(
             context = applicationContext,
             taskId = taskId,
