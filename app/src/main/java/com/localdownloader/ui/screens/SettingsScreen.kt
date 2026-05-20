@@ -14,10 +14,8 @@ import com.localdownloader.BuildConfig
 import com.localdownloader.ui.components.InlineFeedbackCard
 import com.localdownloader.ui.components.PreferenceDivider
 import com.localdownloader.ui.components.PreferenceGroup
-import com.localdownloader.ui.components.PreferenceHeroCard
 import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.ui.components.PreferenceRow
-import com.localdownloader.ui.components.PreferenceSectionHeader
 import com.localdownloader.ui.screens.settings.accentLabel
 import com.localdownloader.ui.screens.settings.themeModeLabel
 import com.localdownloader.viewmodel.FormatMessageScope
@@ -47,18 +45,6 @@ fun SettingsScreen(
         onBack = onBack,
         modifier = modifier,
     ) {
-        item {
-            PreferenceHeroCard(
-                eyebrow = "Revamped",
-                title = "A lighter control center for the whole app",
-                subtitle = "Inspired by Seal's smoother settings flow, but still shaped around this app's broader toolset and download workflow.",
-                badges = listOf(
-                    themeModeLabel(uiState.themeMode),
-                    "${uiState.cookieProfiles.size} cookies",
-                    "v${BuildConfig.VERSION_NAME}",
-                ),
-            )
-        }
         settingsMessages(
             settingsInfoMessage = settingsInfoMessage,
             settingsErrorMessage = settingsErrorMessage,
@@ -66,12 +52,6 @@ fun SettingsScreen(
             mediaErrorMessage = mediaErrorMessage,
             onDismissMediaLibraryMessage = onDismissMediaLibraryMessage,
         )
-        item {
-            PreferenceSectionHeader(
-                title = "Personalize",
-                subtitle = "Visual controls that shape how calm, bright, or contrast-heavy the app feels.",
-            )
-        }
         item {
             PreferenceGroup {
                 PreferenceRow(
@@ -82,12 +62,6 @@ fun SettingsScreen(
                     onClick = onOpenAppearance,
                 )
             }
-        }
-        item {
-            PreferenceSectionHeader(
-                title = "Download behavior",
-                subtitle = "Defaults for filenames, formats, slots, and post-processing actions.",
-            )
         }
         item {
             PreferenceGroup {
@@ -114,12 +88,6 @@ fun SettingsScreen(
                     onClick = onOpenNotifications,
                 )
             }
-        }
-        item {
-            PreferenceSectionHeader(
-                title = "Access and support",
-                subtitle = "Session handling, YouTube retries, update entry points, and the app story around them.",
-            )
         }
         item {
             PreferenceGroup {

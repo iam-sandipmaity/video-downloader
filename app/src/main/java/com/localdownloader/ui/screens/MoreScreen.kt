@@ -15,10 +15,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.localdownloader.ui.components.PreferenceDivider
 import com.localdownloader.ui.components.PreferenceGroup
-import com.localdownloader.ui.components.PreferenceHeroCard
 import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.ui.components.PreferenceRow
-import com.localdownloader.ui.components.PreferenceSectionHeader
 
 @Composable
 fun MoreScreen(
@@ -38,20 +36,6 @@ fun MoreScreen(
         onBack = null,
         modifier = modifier,
     ) {
-        item {
-            PreferenceHeroCard(
-                eyebrow = "Utility center",
-                title = "Everything that helps after Home and Downloads",
-                subtitle = "This area stays focused on support, recovery, tooling, and configuration so the main workflow can stay calmer and lighter.",
-                badges = listOf("Queue", "Access", "Tools"),
-            )
-        }
-        item {
-            PreferenceSectionHeader(
-                title = "Workflow",
-                subtitle = "Shortcuts for the places you usually open when something is waiting, finished, or needs a settings-level adjustment.",
-            )
-        }
         item {
             PreferenceGroup {
                 PreferenceRow(
@@ -75,12 +59,6 @@ fun MoreScreen(
                     onClick = onOpenSettings,
                 )
             }
-        }
-        item {
-            PreferenceSectionHeader(
-                title = "Access and upkeep",
-                subtitle = "The recovery and maintenance paths that usually matter when a site gets stricter or you want to check the runtime layer.",
-            )
         }
         item {
             PreferenceGroup {
@@ -112,12 +90,6 @@ fun MoreScreen(
                     onClick = onOpenHelp,
                 )
             }
-        }
-        item {
-            PreferenceSectionHeader(
-                title = "Media tools",
-                subtitle = "Quick local file tools that sit beside the downloader rather than inside the main fetch flow.",
-            )
         }
         item {
             PreferenceGroup {
