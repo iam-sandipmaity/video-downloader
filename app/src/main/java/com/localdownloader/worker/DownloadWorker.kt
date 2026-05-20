@@ -16,6 +16,7 @@ import com.localdownloader.data.SettingsStore
 import com.localdownloader.domain.models.DownloadOptions
 import com.localdownloader.domain.models.DownloadStatus
 import com.localdownloader.domain.models.DownloadTask
+import com.localdownloader.domain.repositories.DownloaderRepository
 import com.localdownloader.downloader.CommandResult
 import com.localdownloader.downloader.DownloadEngine
 import com.localdownloader.downloader.YoutubeRequestPlanner
@@ -36,6 +37,7 @@ class DownloadWorker @AssistedInject constructor(
     private val downloadEngine: DownloadEngine,
     private val downloadTaskStore: DownloadTaskStore,
     private val settingsStore: SettingsStore,
+    private val repository: DownloaderRepository,
     private val ffmpegExecutor: FfmpegExecutor,
     private val fileUtils: FileUtils,
     private val logger: Logger,
@@ -543,6 +545,7 @@ class DownloadWorker @AssistedInject constructor(
                 outputPath = finalPath,
                 sizeLabel = finalSizeLabel,
             )
+            refillQueuedDownloadsSafely(taskId)
             return Result.success(workDataOf(WorkerKeys.OUTPUT_PATH to finalPath))
         }
 
@@ -1953,10 +1956,11 @@ class DownloadWorker @AssistedInject constructor(
             (detail.contains("giving up after") && detail.contains("fragment"))
     }
 
-    private fun finishFailureResult(
+    private suspend fun finishFailureResult(
         shouldContinuePlaylistQueue: Boolean,
         failureMessage: String,
     ): Result {
+        refillQueuedDownloadsSafely(id.toString())
         val outputData = workDataOf(
             WorkerKeys.ERROR_MESSAGE to failureMessage,
             WorkerKeys.TERMINAL_STATUS to DownloadStatus.FAILED.name,
@@ -1971,12 +1975,20 @@ class DownloadWorker @AssistedInject constructor(
         return Result.success(outputData)
     }
 
-    private fun finishPausedResult(): Result {
+    private suspend fun finishPausedResult(): Result {
+        refillQueuedDownloadsSafely(id.toString())
         return Result.success(
             workDataOf(
                 WorkerKeys.TERMINAL_STATUS to DownloadStatus.PAUSED.name,
             ),
         )
+    }
+
+    private suspend fun refillQueuedDownloadsSafely(taskId: String) {
+        runCatching { repository.refillQueuedDownloads() }
+            .onFailure { error ->
+                logger.e("DownloadWorker", "Unable to refill queued downloads after terminal state for $taskId", error)
+            }
     }
 
     private fun shouldKeepPausedState(

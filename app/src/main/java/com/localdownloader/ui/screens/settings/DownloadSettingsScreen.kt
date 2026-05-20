@@ -175,7 +175,7 @@ fun DownloadSettingsScreen(
                 PreferenceRow(
                     icon = Icons.Rounded.Queue,
                     title = "Concurrent downloads",
-                    subtitle = "Store the preferred number of parallel download slots for the updated queue experience.",
+                    subtitle = "Choose how many downloads can run or hold queue slots at the same time.",
                     value = uiState.maxConcurrentDownloads.toString(),
                     onClick = {
                         val slotChoices = (1..4).map { slotCount ->

@@ -1,6 +1,7 @@
 package com.localdownloader.ui.screens.settings
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.SignalCellularAlt
 import androidx.compose.material.icons.rounded.Cookie
 import androidx.compose.material.icons.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.Security
@@ -17,6 +18,7 @@ import com.localdownloader.viewmodel.FormatUiState
 @Composable
 fun AccessSettingsScreen(
     uiState: FormatUiState,
+    onAllowMeteredDownloadsChanged: (Boolean) -> Unit,
     onCookiesEnabledChanged: (Boolean) -> Unit,
     onCookieUserAgentEnabledChanged: (Boolean) -> Unit,
     onOpenCookies: () -> Unit,
@@ -34,6 +36,14 @@ fun AccessSettingsScreen(
     ) {
         item {
             PreferenceGroup {
+                PreferenceSwitchRow(
+                    icon = Icons.Rounded.SignalCellularAlt,
+                    title = "Download using cellular",
+                    subtitle = "Allow downloads on metered networks instead of waiting for Wi-Fi.",
+                    checked = uiState.allowMeteredDownloads,
+                    onCheckedChange = onAllowMeteredDownloadsChanged,
+                )
+                PreferenceDivider()
                 PreferenceSwitchRow(
                     icon = Icons.Rounded.Cookie,
                     title = "Use cookies",

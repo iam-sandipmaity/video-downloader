@@ -159,6 +159,11 @@ private fun LazyListScope.settingsMessages(
 }
 
 private fun buildAccessSummary(uiState: FormatUiState): String {
+    val networkSummary = if (uiState.allowMeteredDownloads) {
+        "Cellular downloads are allowed."
+    } else {
+        "Downloads wait for Wi-Fi."
+    }
     val cookieSummary = if (uiState.cookieProfiles.isEmpty()) {
         "No site sessions saved yet."
     } else {
@@ -169,13 +174,12 @@ private fun buildAccessSummary(uiState: FormatUiState): String {
     } else {
         "YouTube access is not configured yet."
     }
-    return "$cookieSummary $youtubeSummary"
+    return "$networkSummary $cookieSummary $youtubeSummary"
 }
 
 private fun accessValue(uiState: FormatUiState): String {
     return when {
-        uiState.youtubeAuthConfig.isConfigured() && uiState.cookiesEnabled -> "Ready"
-        uiState.cookiesEnabled -> "Cookies on"
-        else -> "Set up"
+        uiState.allowMeteredDownloads -> "Cellular allowed"
+        else -> "Wi-Fi only"
     }
 }

@@ -3,8 +3,10 @@ package com.localdownloader.domain.models
 /**
  * User preferences that influence yt-dlp argument generation.
  */
+const val SYSTEM_LANGUAGE_TAG = "system"
+
 data class AppSettings(
-    val languageTag: String = "en",
+    val languageTag: String = SYSTEM_LANGUAGE_TAG,
     val themeMode: ThemeMode = ThemeMode.LIGHT,
     val accentPreset: AccentPreset = AccentPreset.TEAL,
     val contrastMode: ContrastMode = ContrastMode.ULTRA,
@@ -32,6 +34,7 @@ data class AppSettings(
     val youtubeAuthConfig: YoutubeAuthConfig = YoutubeAuthConfig(),
     val hasSeenDownloadSetupNotice: Boolean = false,
     val maxConcurrentDownloads: Int = 2,
+    val allowMeteredDownloads: Boolean = false,
     val darkTheme: Boolean = false,
 )
 

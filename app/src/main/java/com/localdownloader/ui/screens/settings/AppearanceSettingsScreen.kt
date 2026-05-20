@@ -13,6 +13,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.localdownloader.domain.models.AccentPreset
 import com.localdownloader.domain.models.ContrastMode
+import com.localdownloader.domain.models.SYSTEM_LANGUAGE_TAG
 import com.localdownloader.domain.models.ThemeMode
 import com.localdownloader.ui.components.PreferenceDivider
 import com.localdownloader.ui.components.PreferenceGroup
@@ -137,17 +138,22 @@ fun AppearanceSettingsScreen(
             PreferenceGroup {
                 PreferenceRow(
                     icon = Icons.Rounded.Language,
-                    title = "Language",
-                    subtitle = "Only English is available in the current build.",
-                    value = "English",
+                    title = "App language",
+                    subtitle = "Follow Android's app language or keep English pinned from here.",
+                    value = languageLabel(uiState.languageTag),
                     onClick = {
                         choiceDialog = SettingChoiceDialogState(
-                            title = "Language",
-                            selected = "English",
+                            title = "App language",
+                            selected = languageLabel(uiState.languageTag),
                             options = listOf(
                                 SettingChoiceOption(
+                                    title = "System default",
+                                    subtitle = "Follow the language Android already uses for this app.",
+                                    onSelect = { onLanguageChanged(SYSTEM_LANGUAGE_TAG) },
+                                ),
+                                SettingChoiceOption(
                                     title = "English",
-                                    subtitle = "Keep the current interface language.",
+                                    subtitle = "Use the bundled English interface everywhere in the app.",
                                     onSelect = { onLanguageChanged("en") },
                                 ),
                             ),
@@ -156,5 +162,13 @@ fun AppearanceSettingsScreen(
                 )
             }
         }
+    }
+}
+
+private fun languageLabel(languageTag: String): String {
+    return when (languageTag) {
+        SYSTEM_LANGUAGE_TAG -> "System default"
+        "en" -> "English"
+        else -> languageTag
     }
 }

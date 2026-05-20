@@ -43,4 +43,5 @@ interface DownloaderRepository {
 
     fun observeSettings(): Flow<AppSettings>
     suspend fun updateSettings(settings: AppSettings)
+    suspend fun refillQueuedDownloads()
 }

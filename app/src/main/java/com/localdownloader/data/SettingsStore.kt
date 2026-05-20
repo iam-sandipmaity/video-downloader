@@ -13,6 +13,7 @@ import com.localdownloader.domain.models.AccentPreset
 import com.localdownloader.domain.models.AppSettings
 import com.localdownloader.domain.models.ContrastMode
 import com.localdownloader.domain.models.CookieProfile
+import com.localdownloader.domain.models.SYSTEM_LANGUAGE_TAG
 import com.localdownloader.domain.models.ThemeMode
 import com.localdownloader.domain.models.YoutubeAuthConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -64,6 +65,7 @@ class SettingsStore @Inject constructor(
         val youtubeAuthConfig = stringPreferencesKey("youtube_auth_config_json")
         val hasSeenDownloadSetupNotice = booleanPreferencesKey("has_seen_download_setup_notice")
         val maxConcurrent = intPreferencesKey("max_concurrent")
+        val allowMeteredDownloads = booleanPreferencesKey("allow_metered_downloads")
         val darkTheme = booleanPreferencesKey("dark_theme")
     }
 
@@ -78,10 +80,10 @@ class SettingsStore @Inject constructor(
             }
             .map { prefs ->
                 AppSettings(
-                    languageTag = prefs[Keys.languageTag] ?: "en",
-                    themeMode = prefs[Keys.themeMode]?.toEnumOrDefault(ThemeMode.SYSTEM) ?: ThemeMode.SYSTEM,
-                    accentPreset = prefs[Keys.accentPreset]?.toEnumOrDefault(AccentPreset.AMBER) ?: AccentPreset.AMBER,
-                    contrastMode = prefs[Keys.contrastMode]?.toEnumOrDefault(ContrastMode.STANDARD) ?: ContrastMode.STANDARD,
+                    languageTag = prefs[Keys.languageTag] ?: SYSTEM_LANGUAGE_TAG,
+                    themeMode = prefs[Keys.themeMode]?.toEnumOrDefault(ThemeMode.LIGHT) ?: ThemeMode.LIGHT,
+                    accentPreset = prefs[Keys.accentPreset]?.toEnumOrDefault(AccentPreset.TEAL) ?: AccentPreset.TEAL,
+                    contrastMode = prefs[Keys.contrastMode]?.toEnumOrDefault(ContrastMode.ULTRA) ?: ContrastMode.ULTRA,
                     defaultOutputTemplate = prefs[Keys.template] ?: "%(title)s [%(id)s].%(ext)s",
                     defaultAudioOutputTemplate = prefs[Keys.audioTemplate] ?: "%(title)s [%(id)s].%(ext)s",
                     defaultMergeContainer = prefs[Keys.mergeContainer] ?: "mp4",
@@ -106,6 +108,7 @@ class SettingsStore @Inject constructor(
                     youtubeAuthConfig = decodeYoutubeAuthConfig(prefs[Keys.youtubeAuthConfig]),
                     hasSeenDownloadSetupNotice = prefs[Keys.hasSeenDownloadSetupNotice] ?: false,
                     maxConcurrentDownloads = prefs[Keys.maxConcurrent] ?: 2,
+                    allowMeteredDownloads = prefs[Keys.allowMeteredDownloads] ?: false,
                     darkTheme = prefs[Keys.darkTheme] ?: false,
                 )
             }
@@ -141,6 +144,7 @@ class SettingsStore @Inject constructor(
             prefs[Keys.youtubeAuthConfig] = json.encodeToString(settings.youtubeAuthConfig)
             prefs[Keys.hasSeenDownloadSetupNotice] = settings.hasSeenDownloadSetupNotice
             prefs[Keys.maxConcurrent] = settings.maxConcurrentDownloads
+            prefs[Keys.allowMeteredDownloads] = settings.allowMeteredDownloads
             prefs[Keys.darkTheme] = settings.darkTheme
         }
     }

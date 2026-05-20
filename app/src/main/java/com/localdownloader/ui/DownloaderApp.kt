@@ -90,6 +90,7 @@ fun DownloaderApp(
     notificationOpenRequest: AppOpenRequest? = null,
     onNotificationOpenHandled: (() -> Unit)? = null,
     onAppearanceUpdated: ((ThemeMode, AccentPreset, ContrastMode) -> Unit)? = null,
+    onLanguageUpdated: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val navController = rememberNavController()
@@ -220,6 +221,10 @@ fun DownloaderApp(
             formatState.accentPreset,
             formatState.contrastMode,
         )
+    }
+
+    LaunchedEffect(formatState.languageTag) {
+        onLanguageUpdated?.invoke(formatState.languageTag)
     }
 
     LaunchedEffect(externalOpenRequest) {
@@ -428,6 +433,9 @@ fun DownloaderApp(
                     onOpenHelp = { navController.navigate(Routes.Help) },
                     onDismissDownloadSetupNotice = formatViewModel::dismissDownloadSetupNotice,
                     onDismissMessage = formatViewModel::dismissMessage,
+                    onDismissMeteredNetworkDialog = formatViewModel::dismissMeteredNetworkDialog,
+                    onQueueWhenWifiAvailable = formatViewModel::queueDownloadWhenWifiAvailable,
+                    onAllowCellularDownloadsAndQueue = formatViewModel::allowCellularDownloadsAndQueue,
                     onDarkThemeChanged = formatViewModel::toggleDarkTheme,
                     isDownloadButtonEnabled = formatViewModel.isDownloadButtonEnabled(),
                 )
@@ -685,6 +693,7 @@ fun DownloaderApp(
             composable(Routes.SettingsAccess) {
                 AccessSettingsScreen(
                     uiState = formatState,
+                    onAllowMeteredDownloadsChanged = formatViewModel::onAllowMeteredDownloadsChanged,
                     onCookiesEnabledChanged = formatViewModel::onCookiesEnabledChanged,
                     onCookieUserAgentEnabledChanged = formatViewModel::onCookieUserAgentEnabledChanged,
                     onOpenCookies = { navController.navigate(Routes.Cookies) },

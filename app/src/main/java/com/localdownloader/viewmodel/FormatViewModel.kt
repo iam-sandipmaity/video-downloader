@@ -10,6 +10,7 @@ import com.localdownloader.domain.models.ContrastMode
 import com.localdownloader.domain.models.CookieProfile
 import com.localdownloader.domain.models.DownloadOptions
 import com.localdownloader.domain.models.FormatChoice
+import com.localdownloader.domain.models.SYSTEM_LANGUAGE_TAG
 import com.localdownloader.domain.models.StreamType
 import com.localdownloader.domain.models.ThemeMode
 import com.localdownloader.domain.models.VideoInfo
@@ -19,6 +20,7 @@ import com.localdownloader.domain.repositories.DownloaderRepository
 import com.localdownloader.utils.CookieTextCodec
 import com.localdownloader.utils.FileUtils
 import com.localdownloader.utils.Logger
+import com.localdownloader.utils.NetworkStatusMonitor
 import com.localdownloader.utils.UrlValidator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,6 +38,7 @@ class FormatViewModel @Inject constructor(
     private val fileUtils: FileUtils,
     private val urlValidator: UrlValidator,
     private val logger: Logger,
+    private val networkStatusMonitor: NetworkStatusMonitor,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(FormatUiState())
     val uiState: StateFlow<FormatUiState> = _uiState.asStateFlow()
@@ -410,7 +413,7 @@ class FormatViewModel @Inject constructor(
     }
 
     fun onLanguageChanged(value: String) {
-        _uiState.update { state -> state.copy(languageTag = value) }
+        _uiState.update { state -> state.copy(languageTag = value.ifBlank { SYSTEM_LANGUAGE_TAG }) }
         persistSettingsSilently()
     }
 
@@ -470,6 +473,11 @@ class FormatViewModel @Inject constructor(
         _uiState.update { state ->
             state.copy(maxConcurrentDownloads = value.coerceIn(1, 4))
         }
+        persistSettingsSilently()
+    }
+
+    fun onAllowMeteredDownloadsChanged(value: Boolean) {
+        _uiState.update { state -> state.copy(allowMeteredDownloads = value) }
         persistSettingsSilently()
     }
 
@@ -852,9 +860,11 @@ class FormatViewModel @Inject constructor(
                 audioSubfolderName = defaults.audioSubfolderName,
                 otherSubfolderName = defaults.otherSubfolderName,
                 maxConcurrentDownloads = defaults.maxConcurrentDownloads,
+                allowMeteredDownloads = defaults.allowMeteredDownloads,
                 isDarkTheme = false,
                 infoMessage = null,
                 errorMessage = null,
+                showMeteredNetworkDialog = false,
             )
         }
         persistSettings("Settings reset to defaults.", FormatMessageScope.SETTINGS)
@@ -906,6 +916,7 @@ class FormatViewModel @Inject constructor(
                 autoRemoveMissingFilesFromLibrary = state.autoRemoveMissingFilesFromLibrary,
                 deleteFromStorageWhenRemovedInApp = state.deleteFromStorageWhenRemovedInApp,
                 maxConcurrentDownloads = state.maxConcurrentDownloads,
+                allowMeteredDownloads = state.allowMeteredDownloads,
                 cookiesEnabled = state.cookiesEnabled,
                 cookieUserAgentEnabled = state.cookieUserAgentEnabled,
                 cookieProfiles = state.cookieProfiles,
@@ -940,6 +951,79 @@ class FormatViewModel @Inject constructor(
     }
 
     fun queueDownload() {
+        if (uiState.value.videoInfo == null) {
+            viewModelScope.launch {
+                enqueueCurrentDownload()
+            }
+            return
+        }
+
+        if (shouldPromptForMeteredNetwork()) {
+            _uiState.update { state ->
+                state.copy(
+                    showMeteredNetworkDialog = true,
+                    messageScope = FormatMessageScope.BROWSER,
+                    infoMessage = null,
+                    errorMessage = null,
+                )
+            }
+            return
+        }
+
+        viewModelScope.launch {
+            enqueueCurrentDownload()
+        }
+    }
+
+    fun dismissMeteredNetworkDialog() {
+        _uiState.update { state -> state.copy(showMeteredNetworkDialog = false) }
+    }
+
+    fun queueDownloadWhenWifiAvailable() {
+        _uiState.update { state -> state.copy(showMeteredNetworkDialog = false) }
+        viewModelScope.launch {
+            enqueueCurrentDownload(
+                queuedMessageSuffix = "It will start automatically when Wi-Fi is available.",
+            )
+        }
+    }
+
+    fun allowCellularDownloadsAndQueue() {
+        viewModelScope.launch {
+            val current = uiState.value
+            val previousSettings = current.appSettings
+            val updatedSettings = previousSettings.copy(allowMeteredDownloads = true)
+            _uiState.update { state ->
+                state.copy(
+                    allowMeteredDownloads = true,
+                    appSettings = updatedSettings,
+                    showMeteredNetworkDialog = false,
+                )
+            }
+
+            val persisted = runCatching { repository.updateSettings(updatedSettings) }
+            if (persisted.isFailure) {
+                _uiState.update { state ->
+                    scopedMessageState(
+                        state = state.copy(
+                            allowMeteredDownloads = previousSettings.allowMeteredDownloads,
+                            appSettings = previousSettings,
+                            showMeteredNetworkDialog = false,
+                        ),
+                        scope = FormatMessageScope.BROWSER,
+                        errorMessage = persisted.exceptionOrNull()?.message ?: "Unable to update the download network setting.",
+                    )
+                }
+                return@launch
+            }
+
+            enqueueCurrentDownload()
+        }
+    }
+
+    private suspend fun enqueueCurrentDownload(
+        queuedMessageSuffix: String? = null,
+    ) {
         val state = uiState.value
         val info = state.videoInfo
         logger.i(
@@ -958,166 +1042,137 @@ class FormatViewModel @Inject constructor(
             return
         }
 
-        viewModelScope.launch {
-            _uiState.update { current -> current.copy(isQueueing = true, errorMessage = null, infoMessage = null) }
-
-            val selectedChoice = resolveSelectedChoice(state)
-            val formatSelector = if (info.isPlaylist) {
-                buildFormatSelector(
-                    quality = state.selectedQuality,
-                    streamType = state.selectedStreamType,
-                    container = state.selectedContainer,
-                )
-            } else if (selectedChoice != null) {
-                selectedChoice.selector
-            } else if (isYoutubeUrl(info.webpageUrl)) {
-                val st = state.selectedStreamType
-                val boundedHeight = state.selectedQuality.maxHeight?.let { "[height<=$it]" }.orEmpty()
-                when (st) {
-                    StreamType.AUDIO_ONLY -> "bestaudio/best"
-                    StreamType.VIDEO_ONLY -> "bestvideo$boundedHeight/bestvideo"
-                    StreamType.VIDEO_AUDIO -> "bestvideo$boundedHeight+bestaudio/best$boundedHeight/best"
-                }
-            } else {
-                buildFormatSelector(
-                    quality = state.selectedQuality,
-                    streamType = state.selectedStreamType,
-                    container = state.selectedContainer,
-                )
-            }
-            val isAudioOnly = state.selectedStreamType == StreamType.AUDIO_ONLY
-            val shouldBypassMediaPostProcessing = !info.isPlaylist && selectedChoice?.isImageLike == true
-            val runtimeCookiesPath = resolveRuntimeCookiesPathForUrl(info.webpageUrl)
-            val mergeContainer = when {
-                isAudioOnly -> null
-                selectedChoice == null -> state.selectedContainer.ifBlank { null }
-                selectedChoice.streamType == StreamType.VIDEO_AUDIO && selectedChoice.selector.contains("+") ->
-                    state.selectedContainer.ifBlank { selectedChoice.container.ifBlank { null } }
-                selectedChoice.isMerged -> selectedChoice.container.ifBlank { state.selectedContainer.ifBlank { null } }
-                else -> state.selectedContainer.ifBlank { null }
-            }
-            val (downloadExtractorArgs, fallbackExtractorArgs) = resolveDownloadExtractorArgs(
-                info = info,
-                cookiesAvailable = runtimeCookiesPath != null,
+        _uiState.update { current ->
+            current.copy(
+                isQueueing = true,
+                errorMessage = null,
+                infoMessage = null,
+                showMeteredNetworkDialog = false,
             )
-            val youtubeAuthConfig = state.youtubeAuthConfig.takeIf { it.enabled && it.isConfigured() }
-            val targetCategory = when {
-                info.isPlaylist -> FileUtils.MediaFolderCategory.PLAYLIST
-                isAudioOnly -> FileUtils.MediaFolderCategory.AUDIO
-                state.selectedStreamType == StreamType.VIDEO_ONLY || state.selectedStreamType == StreamType.VIDEO_AUDIO ->
-                    FileUtils.MediaFolderCategory.VIDEO
-                else -> FileUtils.MediaFolderCategory.OTHER
-            }
-            val activeOutputTemplate = if (isAudioOnly) {
-                state.audioOutputTemplate
-            } else {
-                state.outputTemplate
-            }
-            val resolvedOutputTemplate = if (File(activeOutputTemplate).isAbsolute) {
-                activeOutputTemplate
-            } else {
-                fileUtils.createOutputTemplateWithDirectory(
-                    template = activeOutputTemplate,
-                    category = targetCategory,
-                )
-            }
+        }
 
-            // Re-extract at download time so yt-dlp can refresh short-lived HLS/DASH URLs.
-            val options = DownloadOptions(
-                url = info.webpageUrl,
-                formatId = formatSelector,
-                outputTemplate = resolvedOutputTemplate,
-                thumbnailUrl = info.thumbnailUrl,
-                extractorArgs = downloadExtractorArgs,
-                fallbackExtractorArgs = fallbackExtractorArgs,
-                loadInfoJsonPath = null,
-                userAgentHeader = if (state.cookiesEnabled && state.cookieUserAgentEnabled) {
-                    CookieTextCodec.COOKIE_USER_AGENT
-                } else {
-                    null
-                },
-                youtubeAuthEnabled = runtimeCookiesPath != null && youtubeAuthConfig != null,
-                youtubeCookiesPath = runtimeCookiesPath,
-                youtubePoToken = youtubeAuthConfig?.buildPoTokenValue(),
-                youtubePoTokenClientHint = youtubeAuthConfig?.clientHint ?: "web.gvs",
-                youtubeDataSyncId = youtubeAuthConfig?.dataSyncId?.ifBlank { null },
-                mergeOutputFormat = mergeContainer,
-                preferredVideoHeight = selectedChoice?.height ?: state.selectedQuality.maxHeight,
-                downloadVideoOnly = state.selectedStreamType == StreamType.VIDEO_ONLY,
-                isPlaylistEnabled = info.isPlaylist || state.enablePlaylist,
-                shouldDownloadSubtitles = state.downloadSubtitles || state.embedSubtitles,
-                shouldEmbedSubtitles = state.embedSubtitles && !isAudioOnly && !shouldBypassMediaPostProcessing,
-                shouldEmbedMetadata = state.embedMetadata && !shouldBypassMediaPostProcessing,
-                shouldEmbedThumbnail = state.embedThumbnail && !shouldBypassMediaPostProcessing,
-                shouldWriteThumbnail = state.writeThumbnail,
-                extractAudio = isAudioOnly,
-                audioFormat = if (isAudioOnly) state.selectedAudioFormat.ifBlank { null } else null,
-                audioBitrateKbps = if (isAudioOnly) state.audioBitrateKbps else null,
+        val selectedChoice = resolveSelectedChoice(state)
+        val formatSelector = if (info.isPlaylist) {
+            buildFormatSelector(
+                quality = state.selectedQuality,
+                streamType = state.selectedStreamType,
+                container = state.selectedContainer,
             )
-            logger.i(
-                "FormatViewModel",
-                "Queueing download for URL=${options.url}, formatSelector=$formatSelector, extractAudio=${options.extractAudio}",
+        } else if (selectedChoice != null) {
+            selectedChoice.selector
+        } else if (isYoutubeUrl(info.webpageUrl)) {
+            val st = state.selectedStreamType
+            val boundedHeight = state.selectedQuality.maxHeight?.let { "[height<=$it]" }.orEmpty()
+            when (st) {
+                StreamType.AUDIO_ONLY -> "bestaudio/best"
+                StreamType.VIDEO_ONLY -> "bestvideo$boundedHeight/bestvideo"
+                StreamType.VIDEO_AUDIO -> "bestvideo$boundedHeight+bestaudio/best$boundedHeight/best"
+            }
+        } else {
+            buildFormatSelector(
+                quality = state.selectedQuality,
+                streamType = state.selectedStreamType,
+                container = state.selectedContainer,
             )
+        }
+        val isAudioOnly = state.selectedStreamType == StreamType.AUDIO_ONLY
+        val shouldBypassMediaPostProcessing = !info.isPlaylist && selectedChoice?.isImageLike == true
+        val runtimeCookiesPath = resolveRuntimeCookiesPathForUrl(info.webpageUrl)
+        val mergeContainer = when {
+            isAudioOnly -> null
+            selectedChoice == null -> state.selectedContainer.ifBlank { null }
+            selectedChoice.streamType == StreamType.VIDEO_AUDIO && selectedChoice.selector.contains("+") ->
+                state.selectedContainer.ifBlank { selectedChoice.container.ifBlank { null } }
+            selectedChoice.isMerged -> selectedChoice.container.ifBlank { state.selectedContainer.ifBlank { null } }
+            else -> state.selectedContainer.ifBlank { null }
+        }
+        val (downloadExtractorArgs, fallbackExtractorArgs) = resolveDownloadExtractorArgs(
+            info = info,
+            cookiesAvailable = runtimeCookiesPath != null,
+        )
+        val youtubeAuthConfig = state.youtubeAuthConfig.takeIf { it.enabled && it.isConfigured() }
+        val targetCategory = when {
+            info.isPlaylist -> FileUtils.MediaFolderCategory.PLAYLIST
+            isAudioOnly -> FileUtils.MediaFolderCategory.AUDIO
+            state.selectedStreamType == StreamType.VIDEO_ONLY || state.selectedStreamType == StreamType.VIDEO_AUDIO ->
+                FileUtils.MediaFolderCategory.VIDEO
+            else -> FileUtils.MediaFolderCategory.OTHER
+        }
+        val activeOutputTemplate = if (isAudioOnly) {
+            state.audioOutputTemplate
+        } else {
+            state.outputTemplate
+        }
+        val resolvedOutputTemplate = if (File(activeOutputTemplate).isAbsolute) {
+            activeOutputTemplate
+        } else {
+            fileUtils.createOutputTemplateWithDirectory(
+                template = activeOutputTemplate,
+                category = targetCategory,
+            )
+        }
 
-            if (info.isPlaylist) {
-                val playlistResult = runCatching {
-                    repository.enqueuePlaylistDownload(
-                        options = options,
-                        playlistTitle = info.title,
-                        entries = info.playlistEntries,
-                    )
-                }.getOrElse { throwable ->
-                    Result.failure(IllegalStateException(throwable.message ?: "Unable to queue playlist.", throwable))
-                }
+        val options = DownloadOptions(
+            url = info.webpageUrl,
+            formatId = formatSelector,
+            outputTemplate = resolvedOutputTemplate,
+            thumbnailUrl = info.thumbnailUrl,
+            extractorArgs = downloadExtractorArgs,
+            fallbackExtractorArgs = fallbackExtractorArgs,
+            loadInfoJsonPath = null,
+            userAgentHeader = if (state.cookiesEnabled && state.cookieUserAgentEnabled) {
+                CookieTextCodec.COOKIE_USER_AGENT
+            } else {
+                null
+            },
+            youtubeAuthEnabled = runtimeCookiesPath != null && youtubeAuthConfig != null,
+            youtubeCookiesPath = runtimeCookiesPath,
+            youtubePoToken = youtubeAuthConfig?.buildPoTokenValue(),
+            youtubePoTokenClientHint = youtubeAuthConfig?.clientHint ?: "web.gvs",
+            youtubeDataSyncId = youtubeAuthConfig?.dataSyncId?.ifBlank { null },
+            mergeOutputFormat = mergeContainer,
+            preferredVideoHeight = selectedChoice?.height ?: state.selectedQuality.maxHeight,
+            downloadVideoOnly = state.selectedStreamType == StreamType.VIDEO_ONLY,
+            isPlaylistEnabled = info.isPlaylist || state.enablePlaylist,
+            shouldDownloadSubtitles = state.downloadSubtitles || state.embedSubtitles,
+            shouldEmbedSubtitles = state.embedSubtitles && !isAudioOnly && !shouldBypassMediaPostProcessing,
+            shouldEmbedMetadata = state.embedMetadata && !shouldBypassMediaPostProcessing,
+            shouldEmbedThumbnail = state.embedThumbnail && !shouldBypassMediaPostProcessing,
+            shouldWriteThumbnail = state.writeThumbnail,
+            extractAudio = isAudioOnly,
+            audioFormat = if (isAudioOnly) state.selectedAudioFormat.ifBlank { null } else null,
+            audioBitrateKbps = if (isAudioOnly) state.audioBitrateKbps else null,
+        )
+        logger.i(
+            "FormatViewModel",
+            "Queueing download for URL=${options.url}, formatSelector=$formatSelector, extractAudio=${options.extractAudio}",
+        )
 
-                playlistResult.fold(
-                    onSuccess = { taskIds ->
-                        logger.i("FormatViewModel", "Playlist queue success. taskCount=${taskIds.size}")
-                        _uiState.update { current ->
-                            current.copy(
-                                isQueueing = false,
-                                messageScope = FormatMessageScope.BROWSER,
-                                infoMessage = "Queued ${taskIds.size} playlist items in order.",
-                                // Store current settings and disable button for 6 seconds
-                                lastQueuedStreamType = current.selectedStreamType,
-                                lastQueuedFormatSelector = current.selectedFormatSelector,
-                                lastQueuedContainer = current.selectedContainer,
-                                lastQueuedAudioFormat = current.selectedAudioFormat,
-                                lastQueuedAudioBitrate = current.audioBitrateKbps,
-                                lastQueuedQuality = current.selectedQuality,
-                                isDownloadButtonDisabled = true,
-                                downloadButtonDisabledAt = System.currentTimeMillis(),
-                            )
-                        }
-                    },
-                    onFailure = { error ->
-                        logger.e("FormatViewModel", "Playlist queue failed", error)
-                        _uiState.update { current ->
-                            current.copy(
-                                isQueueing = false,
-                                messageScope = FormatMessageScope.BROWSER,
-                                errorMessage = error.message ?: "Unable to queue playlist.",
-                            )
-                        }
-                    },
+        if (info.isPlaylist) {
+            val playlistResult = runCatching {
+                repository.enqueuePlaylistDownload(
+                    options = options,
+                    playlistTitle = info.title,
+                    entries = info.playlistEntries,
                 )
-                return@launch
+            }.getOrElse { throwable ->
+                Result.failure(IllegalStateException(throwable.message ?: "Unable to queue playlist.", throwable))
             }
 
-            val queueResult = runCatching { repository.enqueueDownload(options, info.title) }
-                .getOrElse { throwable ->
-                    Result.failure(IllegalStateException(throwable.message ?: "Unable to queue download.", throwable))
-                }
-
-            queueResult.fold(
-                onSuccess = { taskId ->
-                    logger.i("FormatViewModel", "Queue success. taskId=$taskId")
+            playlistResult.fold(
+                onSuccess = { taskIds ->
+                    logger.i("FormatViewModel", "Playlist queue success. taskCount=${taskIds.size}")
                     _uiState.update { current ->
                         current.copy(
                             isQueueing = false,
                             messageScope = FormatMessageScope.BROWSER,
-                            infoMessage = "Added to queue. Task: $taskId",
-                            // Store current settings and disable button for 6 seconds
+                            infoMessage = buildString {
+                                append("Queued ${taskIds.size} playlist items in order.")
+                                queuedMessageSuffix?.takeIf { it.isNotBlank() }?.let {
+                                    append(" ")
+                                    append(it)
+                                }
+                            },
                             lastQueuedStreamType = current.selectedStreamType,
                             lastQueuedFormatSelector = current.selectedFormatSelector,
                             lastQueuedContainer = current.selectedContainer,
@@ -1130,17 +1185,65 @@ class FormatViewModel @Inject constructor(
                     }
                 },
                 onFailure = { error ->
-                    logger.e("FormatViewModel", "Queue failed", error)
+                    logger.e("FormatViewModel", "Playlist queue failed", error)
                     _uiState.update { current ->
                         current.copy(
                             isQueueing = false,
                             messageScope = FormatMessageScope.BROWSER,
-                            errorMessage = error.message ?: "Unable to queue download.",
+                            errorMessage = error.message ?: "Unable to queue playlist.",
                         )
                     }
                 },
             )
+            return
         }
+
+        val queueResult = runCatching { repository.enqueueDownload(options, info.title) }
+            .getOrElse { throwable ->
+                Result.failure(IllegalStateException(throwable.message ?: "Unable to queue download.", throwable))
+            }
+
+        queueResult.fold(
+            onSuccess = { taskId ->
+                logger.i("FormatViewModel", "Queue success. taskId=$taskId")
+                _uiState.update { current ->
+                    current.copy(
+                        isQueueing = false,
+                        messageScope = FormatMessageScope.BROWSER,
+                        infoMessage = buildString {
+                            append("Added to queue. Task: $taskId")
+                            queuedMessageSuffix?.takeIf { it.isNotBlank() }?.let {
+                                append(" ")
+                                append(it)
+                            }
+                        },
+                        lastQueuedStreamType = current.selectedStreamType,
+                        lastQueuedFormatSelector = current.selectedFormatSelector,
+                        lastQueuedContainer = current.selectedContainer,
+                        lastQueuedAudioFormat = current.selectedAudioFormat,
+                        lastQueuedAudioBitrate = current.audioBitrateKbps,
+                        lastQueuedQuality = current.selectedQuality,
+                        isDownloadButtonDisabled = true,
+                        downloadButtonDisabledAt = System.currentTimeMillis(),
+                    )
+                }
+            },
+            onFailure = { error ->
+                logger.e("FormatViewModel", "Queue failed", error)
+                _uiState.update { current ->
+                    current.copy(
+                        isQueueing = false,
+                        messageScope = FormatMessageScope.BROWSER,
+                        errorMessage = error.message ?: "Unable to queue download.",
+                    )
+                }
+            },
+        )
+    }
+
+    private fun shouldPromptForMeteredNetwork(): Boolean {
+        val state = uiState.value
+        return !state.allowMeteredDownloads && networkStatusMonitor.isConnectedToMeteredNetwork()
     }
 
     fun dismissMessage() {
@@ -1527,6 +1630,7 @@ class FormatViewModel @Inject constructor(
                 audioSubfolderName = settings.audioSubfolderName,
                 otherSubfolderName = settings.otherSubfolderName,
                 maxConcurrentDownloads = settings.maxConcurrentDownloads,
+                allowMeteredDownloads = settings.allowMeteredDownloads,
                 downloadSubtitles = settings.autoDownloadSubtitles,
                 embedSubtitles = settings.autoEmbedSubtitles,
                 embedMetadata = settings.autoEmbedMetadata,
@@ -1541,6 +1645,7 @@ class FormatViewModel @Inject constructor(
                 notifyDownloadErrors = settings.notifyDownloadErrors,
                 notifyCanceledDownloads = settings.notifyCanceledDownloads,
                 notifyPromotions = settings.notifyPromotions,
+                showMeteredNetworkDialog = false,
                 isDarkTheme = when (settings.themeMode) {
                     ThemeMode.DARK -> true
                     ThemeMode.LIGHT -> false
