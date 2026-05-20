@@ -29,6 +29,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Cancel
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.ErrorOutline
@@ -76,6 +77,7 @@ fun ConvertScreen(
     onAudioBitrateChanged: (String) -> Unit,
     onVideoBitrateChanged: (String) -> Unit,
     onConvertClicked: () -> Unit,
+    onStopConvertClicked: () -> Unit,
     onBrowseFile: () -> Unit,
     onConversionPresetSelected: (Int) -> Unit,
     onBack: (() -> Unit)? = null,
@@ -262,7 +264,9 @@ fun ConvertScreen(
         ) {
             ToolStatusCard(
                 title = when {
+                    uiState.isConverting && uiState.isStoppingConvert -> "Stopping"
                     uiState.isConverting -> "Converting"
+                    uiState.convertWasCanceled -> "Canceled"
                     uiState.convertError != null -> "Stopped"
                     else -> "Done"
                 },
@@ -271,27 +275,41 @@ fun ConvertScreen(
                     ?: "Working...",
                 progress = uiState.convertProgress,
                 success = uiState.convertResult != null && uiState.convertError == null,
+                canceled = uiState.convertWasCanceled,
                 sourceBytes = uiState.convertSourceSizeBytes,
                 resultBytes = uiState.convertResultSizeBytes,
             )
         }
 
-        Button(
-            onClick = onConvertClicked,
-            enabled = canConvert,
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(vertical = 16.dp),
-            shape = RoundedCornerShape(24.dp),
-        ) {
-            if (uiState.isConverting) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                )
-                Spacer(Modifier.size(10.dp))
-                Text("Converting")
-            } else {
+        if (uiState.isConverting) {
+            OutlinedButton(
+                onClick = onStopConvertClicked,
+                enabled = !uiState.isStoppingConvert,
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(vertical = 16.dp),
+                shape = RoundedCornerShape(24.dp),
+            ) {
+                if (uiState.isStoppingConvert) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                    )
+                    Spacer(Modifier.size(10.dp))
+                    Text("Stopping...")
+                } else {
+                    Icon(Icons.Outlined.Cancel, contentDescription = null)
+                    Spacer(Modifier.size(10.dp))
+                    Text("Stop conversion")
+                }
+            }
+        } else {
+            Button(
+                onClick = onConvertClicked,
+                enabled = canConvert,
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(vertical = 16.dp),
+                shape = RoundedCornerShape(24.dp),
+            ) {
                 Icon(Icons.Outlined.SwapHoriz, contentDescription = null)
                 Spacer(Modifier.size(10.dp))
                 Text(if (canConvert) "Convert" else "Pick file")
@@ -503,6 +521,7 @@ private fun ToolStatusCard(
     body: String,
     progress: Float?,
     success: Boolean,
+    canceled: Boolean,
     sourceBytes: Long?,
     resultBytes: Long?,
 ) {
@@ -510,6 +529,8 @@ private fun ToolStatusCard(
         shape = RoundedCornerShape(28.dp),
         color = if (success) {
             MaterialTheme.colorScheme.tertiaryContainer
+        } else if (canceled) {
+            MaterialTheme.colorScheme.secondaryContainer
         } else if (body.isNotBlank() && progress == null) {
             MaterialTheme.colorScheme.errorContainer
         } else {
@@ -528,6 +549,7 @@ private fun ToolStatusCard(
                 Icon(
                     imageVector = when {
                         success -> Icons.Outlined.CheckCircle
+                        canceled -> Icons.Outlined.Cancel
                         progress != null -> Icons.Outlined.GraphicEq
                         else -> Icons.Outlined.ErrorOutline
                     },

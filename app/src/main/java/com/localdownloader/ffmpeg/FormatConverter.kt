@@ -110,16 +110,23 @@ class FormatConverter @Inject constructor(
         }
 
         val outputExt = request.outputFilePath.substringAfterLast('.', "").lowercase().ifBlank { "mp4" }
-        val isAudioOnlyOut = outputExt in listOf("mp3", "m4a", "aac", "wav", "flac", "ogg", "opus")
+        val isAudioOnlyOut = outputExt in AUDIO_OUTPUT_FORMATS
         val sourceType = request.inputFilePath.guessContentType()
 
-        // Validate format compatibility
         if (sourceType == MediaContentType.AUDIO && !isAudioOnlyOut) {
-            // Converting audio-only to video will produce a static/black video.
-            // This is allowed but we should use a poster frame approach.
+            return Result.failure(
+                IllegalArgumentException(
+                    "Audio-only files can only be converted to audio formats right now. Choose ${AUDIO_OUTPUT_FORMATS.joinToString(", ") { it.uppercase() }}.",
+                ),
+            )
         }
-        if (sourceType == MediaContentType.VIDEO && isAudioOnlyOut) {
-            // Extracting audio from video - this is fine, -vn will handle it.
+        if (!isAudioOnlyOut && outputExt !in VIDEO_OUTPUT_FORMATS) {
+            val supported = (VIDEO_OUTPUT_FORMATS + AUDIO_OUTPUT_FORMATS).joinToString(", ")
+            return Result.failure(
+                IllegalArgumentException(
+                    "Unsupported output format: .$outputExt. Supported: $supported",
+                ),
+            )
         }
 
         val outputDir = File(request.outputFilePath).parentFile
@@ -132,17 +139,11 @@ class FormatConverter @Inject constructor(
         if (isAudioOnlyOut) {
             // Strip video, keep only audio.
             args += listOf("-vn")
+            args += audioCodecArgsForOutput(outputExt)
         } else {
             // Video output: use mpeg4 encoder (bundled FFmpeg doesn't have libx264).
-            // If source is audio-only, produce a static poster video.
             args += listOf("-c:v", "mpeg4")
-            if (sourceType == MediaContentType.AUDIO) {
-                args += listOf(
-                    "-loop", "1",
-                    "-vf", "scale=1280:720",
-                    "-shortest",
-                )
-            }
+            args += videoAudioCodecArgsForContainer(outputExt)
             request.videoBitrateKbps?.let { args += listOf("-b:v", "${it}k") }
         }
 
@@ -175,7 +176,14 @@ class FormatConverter @Inject constructor(
                 Result.failure(IllegalStateException("Conversion completed but output file was not found or empty"))
             }
         } else {
-            Result.failure(IllegalStateException(result.stderr.ifBlank { "FFmpeg conversion failed" }))
+            Result.failure(
+                IllegalStateException(
+                    summarizeMediaToolFailure(
+                        rawError = result.stderr,
+                        fallbackMessage = "FFmpeg conversion failed",
+                    ),
+                ),
+            )
         }
     }
 }

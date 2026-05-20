@@ -28,6 +28,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Cancel
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.ErrorOutline
@@ -62,6 +63,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.localdownloader.ffmpeg.suggestedCompressionOutputExtension
 import com.localdownloader.viewmodel.AUDIO_BITRATE_PRESETS
 import com.localdownloader.viewmodel.MediaToolsUiState
 import com.localdownloader.viewmodel.RESOLUTION_PRESETS
@@ -114,6 +116,7 @@ fun CompressScreen(
     onVideoBitrateChanged: (String) -> Unit,
     onAudioBitrateChanged: (String) -> Unit,
     onCompressClicked: () -> Unit,
+    onStopCompressClicked: () -> Unit,
     onBrowseFile: () -> Unit,
     onCompressQuickPresetSelected: (String, String, String) -> Unit,
     onBack: (() -> Unit)? = null,
@@ -334,7 +337,9 @@ fun CompressScreen(
         ) {
             CompressStatusCard(
                 title = when {
+                    uiState.isCompressing && uiState.isStoppingCompress -> "Stopping"
                     uiState.isCompressing -> "Compressing"
+                    uiState.compressWasCanceled -> "Canceled"
                     uiState.compressError != null -> "Stopped"
                     else -> "Done"
                 },
@@ -343,27 +348,41 @@ fun CompressScreen(
                     ?: "Working...",
                 progress = uiState.compressProgress,
                 success = uiState.compressResult != null && uiState.compressError == null,
+                canceled = uiState.compressWasCanceled,
                 sourceBytes = uiState.compressSourceSizeBytes,
                 resultBytes = uiState.compressResultSizeBytes,
             )
         }
 
-        Button(
-            onClick = onCompressClicked,
-            enabled = canCompress,
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(vertical = 16.dp),
-            shape = RoundedCornerShape(24.dp),
-        ) {
-            if (uiState.isCompressing) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                )
-                Spacer(Modifier.size(10.dp))
-                Text("Compressing")
-            } else {
+        if (uiState.isCompressing) {
+            OutlinedButton(
+                onClick = onStopCompressClicked,
+                enabled = !uiState.isStoppingCompress,
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(vertical = 16.dp),
+                shape = RoundedCornerShape(24.dp),
+            ) {
+                if (uiState.isStoppingCompress) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                    )
+                    Spacer(Modifier.size(10.dp))
+                    Text("Stopping...")
+                } else {
+                    Icon(Icons.Outlined.Cancel, contentDescription = null)
+                    Spacer(Modifier.size(10.dp))
+                    Text("Stop compression")
+                }
+            }
+        } else {
+            Button(
+                onClick = onCompressClicked,
+                enabled = canCompress,
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(vertical = 16.dp),
+                shape = RoundedCornerShape(24.dp),
+            ) {
                 Icon(Icons.Outlined.Transform, contentDescription = null)
                 Spacer(Modifier.size(10.dp))
                 Text(if (canCompress) "Compress" else "Pick video")
@@ -591,6 +610,7 @@ private fun CompressStatusCard(
     body: String,
     progress: Float?,
     success: Boolean,
+    canceled: Boolean,
     sourceBytes: Long?,
     resultBytes: Long?,
 ) {
@@ -598,6 +618,8 @@ private fun CompressStatusCard(
         shape = RoundedCornerShape(28.dp),
         color = if (success) {
             MaterialTheme.colorScheme.tertiaryContainer
+        } else if (canceled) {
+            MaterialTheme.colorScheme.secondaryContainer
         } else if (body.isNotBlank() && progress == null) {
             MaterialTheme.colorScheme.errorContainer
         } else {
@@ -616,6 +638,7 @@ private fun CompressStatusCard(
                 Icon(
                     imageVector = when {
                         success -> Icons.Outlined.CheckCircle
+                        canceled -> Icons.Outlined.Cancel
                         progress != null -> Icons.Outlined.GraphicEq
                         else -> Icons.Outlined.ErrorOutline
                     },
@@ -746,7 +769,7 @@ private fun buildCompressedOutputPreview(uiState: MediaToolsUiState): String {
     val sourceName = uiState.compressInputFileInfo?.name
         ?: uiState.compressInputPath.substringAfterLast('/').substringAfterLast('\\').ifBlank { "compressed-media.mp4" }
     val baseName = sourceName.substringBeforeLast('.', sourceName)
-    val extension = sourceName.substringAfterLast('.', "mp4")
+    val extension = suggestedCompressionOutputExtension(uiState.compressInputPath.ifBlank { sourceName })
     return "${baseName}_compressed.$extension"
 }
 

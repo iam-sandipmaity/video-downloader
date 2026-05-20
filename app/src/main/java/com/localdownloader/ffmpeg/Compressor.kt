@@ -36,10 +36,18 @@ class Compressor @Inject constructor(
             return Result.failure(IllegalArgumentException("Max height must be positive"))
         }
 
-        val outputExt = request.outputFilePath.substringAfterLast('.').lowercase()
-        val validVideoExts = listOf("mp4", "mkv", "avi", "flv", "mov", "webm")
-        if (outputExt !in validVideoExts) {
-            return Result.failure(IllegalArgumentException("Unsupported output format: .$outputExt. Supported: ${validVideoExts.joinToString(", ")}"))
+        val sourceType = request.inputFilePath.guessContentType()
+        val isAudioOnlyInput = sourceType == MediaContentType.AUDIO
+        val outputExt = request.outputFilePath.substringAfterLast('.', "").lowercase().ifBlank {
+            suggestedCompressionOutputExtension(request.inputFilePath)
+        }
+        val validOutputExts = if (isAudioOnlyInput) AUDIO_OUTPUT_FORMATS else VIDEO_OUTPUT_FORMATS
+        if (outputExt !in validOutputExts) {
+            return Result.failure(
+                IllegalArgumentException(
+                    "Unsupported output format: .$outputExt. Supported: ${validOutputExts.joinToString(", ")}",
+                ),
+            )
         }
 
         val outputDir = File(request.outputFilePath).parentFile
@@ -51,9 +59,6 @@ class Compressor @Inject constructor(
             "-i",
             request.inputFilePath,
         )
-
-        val inputExt = request.inputFilePath.substringAfterLast('.').lowercase()
-        val isAudioOnlyInput = inputExt in listOf("mp3", "m4a", "aac", "wav", "flac", "ogg", "opus")
 
         if (!isAudioOnlyInput) {
             // Use mpeg4 video encoder (bundled FFmpeg doesn't have libx264).
@@ -74,6 +79,7 @@ class Compressor @Inject constructor(
         } else {
             // Audio-only input: just re-encode audio at a lower bitrate.
             args += listOf("-vn")
+            args += audioCodecArgsForOutput(outputExt)
         }
 
         request.targetAudioBitrateKbps?.let { args += listOf("-b:a", "${it}k") }
@@ -82,12 +88,7 @@ class Compressor @Inject constructor(
         val finalArgs = if (isAudioOnlyInput) {
             args + listOf("-y", request.outputFilePath)
         } else {
-            val audioCodec = when (outputExt) {
-                "mp4", "mov", "mkv" -> listOf("-c:a", "aac", "-movflags", "+faststart")
-                "avi", "flv" -> listOf("-c:a", "mp3")
-                else -> listOf("-c:a", "aac")
-            }
-            args + audioCodec + listOf("-y", request.outputFilePath)
+            args + videoAudioCodecArgsForContainer(outputExt) + listOf("-y", request.outputFilePath)
         }
 
         val parser = FfmpegProgressParser
@@ -116,7 +117,14 @@ class Compressor @Inject constructor(
                 Result.failure(IllegalStateException("Compression completed but output file was not found or empty"))
             }
         } else {
-            Result.failure(IllegalStateException(result.stderr.ifBlank { "FFmpeg compression failed" }))
+            Result.failure(
+                IllegalStateException(
+                    summarizeMediaToolFailure(
+                        rawError = result.stderr,
+                        fallbackMessage = "FFmpeg compression failed",
+                    ),
+                ),
+            )
         }
     }
 }

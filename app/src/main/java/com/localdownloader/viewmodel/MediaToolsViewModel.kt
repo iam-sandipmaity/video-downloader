@@ -5,8 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.localdownloader.domain.models.CompressionRequest
 import com.localdownloader.domain.models.ConversionRequest
 import com.localdownloader.domain.repositories.DownloaderRepository
+import com.localdownloader.ffmpeg.suggestedCompressionOutputExtension
 import com.localdownloader.utils.FileUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -76,6 +79,8 @@ data class MediaToolsUiState(
     val convertVideoBitrate: String = "",
     val convertPresetIndex: Int = 1, // "Best compatibility" by default
     val isConverting: Boolean = false,
+    val isStoppingConvert: Boolean = false,
+    val convertWasCanceled: Boolean = false,
     val convertProgress: Float? = null,
     val convertResult: String? = null,
     val convertResultSizeBytes: Long? = null,
@@ -92,6 +97,8 @@ data class MediaToolsUiState(
     val compressAudioBitratePresetIndex: Int = 2, // 128kbps
     val compressAudioBitrate: String = "128",
     val isCompressing: Boolean = false,
+    val isStoppingCompress: Boolean = false,
+    val compressWasCanceled: Boolean = false,
     val compressProgress: Float? = null,
     val compressResult: String? = null,
     val compressResultSizeBytes: Long? = null,
@@ -107,6 +114,8 @@ class MediaToolsViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(MediaToolsUiState())
     val uiState: StateFlow<MediaToolsUiState> = _uiState.asStateFlow()
+    private var convertJob: Job? = null
+    private var compressJob: Job? = null
 
     // ── Helpers ──────────────────────────────────────────────────────
 
@@ -133,6 +142,8 @@ class MediaToolsViewModel @Inject constructor(
                 convertInputFileInfo = fileInfo,
                 convertResult = null,
                 convertError = null,
+                convertWasCanceled = false,
+                isStoppingConvert = false,
                 convertResultSizeBytes = null,
                 convertSourceSizeBytes = fileInfo?.sizeBytes,
             )
@@ -158,6 +169,7 @@ class MediaToolsViewModel @Inject constructor(
 
     fun startConvert() {
         val s = _uiState.value
+        if (convertJob?.isActive == true) return
         if (s.convertInputPath.isBlank()) {
             _uiState.update { it.copy(convertError = "Input file path is required") }
             return
@@ -184,29 +196,84 @@ class MediaToolsViewModel @Inject constructor(
             videoBitrateKbps = s.convertVideoBitrate.toIntOrNull(),
         )
         val sourceSize = s.convertSourceSizeBytes ?: File(s.convertInputPath.trim()).takeIf { it.exists() }?.length()
-        viewModelScope.launch {
-            _uiState.update { it.copy(isConverting = true, convertResult = null, convertError = null, convertProgress = 0f) }
-            val result = repository.convertMedia(request) { progress ->
-                _uiState.update { it.copy(convertProgress = progress) }
-            }
-            // Copy to public Downloads folder so user can find it
-            val publicPath = result.getOrNull()?.let { path ->
-                runCatching { fileUtils.copyToPublicDownloads(File(path), null) }.getOrNull()
-            }
+        convertJob = viewModelScope.launch {
             _uiState.update {
                 it.copy(
-                    isConverting = false,
-                    convertProgress = null,
-                    convertResult = result.getOrNull()?.let { path -> "Saved to: ${publicPath ?: path}" },
-                    convertResultSizeBytes = result.getOrNull()?.let { path -> File(path).length() },
-                    convertSourceSizeBytes = sourceSize,
-                    convertError = result.exceptionOrNull()?.message,
+                    isConverting = true,
+                    isStoppingConvert = false,
+                    convertWasCanceled = false,
+                    convertResult = null,
+                    convertError = null,
+                    convertProgress = 0f,
                 )
+            }
+            try {
+                val result = repository.convertMedia(request) { progress ->
+                    _uiState.update { state -> state.copy(convertProgress = progress) }
+                }
+                val resultPath = result.getOrNull()
+                // Copy to public Downloads folder so user can find it
+                val publicPath = resultPath?.let { path ->
+                    runCatching { fileUtils.copyToPublicDownloads(File(path), null) }.getOrNull()
+                }
+                _uiState.update {
+                    it.copy(
+                        isConverting = false,
+                        isStoppingConvert = false,
+                        convertWasCanceled = false,
+                        convertProgress = null,
+                        convertResult = resultPath?.let { path -> "Saved to: ${publicPath ?: path}" },
+                        convertResultSizeBytes = resultPath?.let { path -> File(path).length() },
+                        convertSourceSizeBytes = sourceSize,
+                        convertError = result.exceptionOrNull()?.message,
+                    )
+                }
+            } catch (_: CancellationException) {
+                _uiState.update {
+                    it.copy(
+                        isConverting = false,
+                        isStoppingConvert = false,
+                        convertWasCanceled = true,
+                        convertProgress = null,
+                        convertResult = null,
+                        convertResultSizeBytes = null,
+                        convertSourceSizeBytes = sourceSize,
+                        convertError = "Conversion canceled by you.",
+                    )
+                }
+            } catch (error: Throwable) {
+                _uiState.update {
+                    it.copy(
+                        isConverting = false,
+                        isStoppingConvert = false,
+                        convertWasCanceled = false,
+                        convertProgress = null,
+                        convertResult = null,
+                        convertResultSizeBytes = null,
+                        convertSourceSizeBytes = sourceSize,
+                        convertError = error.message ?: "Conversion failed.",
+                    )
+                }
+            } finally {
+                convertJob = null
             }
         }
     }
 
-    fun dismissConvertResult() = _uiState.update { it.copy(convertResult = null, convertError = null, convertResultSizeBytes = null) }
+    fun stopConvert() {
+        if (convertJob?.isActive != true) return
+        _uiState.update { it.copy(isStoppingConvert = true) }
+        convertJob?.cancel(CancellationException("Conversion canceled by user"))
+    }
+
+    fun dismissConvertResult() = _uiState.update {
+        it.copy(
+            convertResult = null,
+            convertError = null,
+            convertWasCanceled = false,
+            convertResultSizeBytes = null,
+        )
+    }
 
     // ── Compress fields ───────────────────────────────────────────────
 
@@ -218,6 +285,8 @@ class MediaToolsViewModel @Inject constructor(
                 compressInputFileInfo = fileInfo,
                 compressResult = null,
                 compressError = null,
+                compressWasCanceled = false,
+                isStoppingCompress = false,
                 compressResultSizeBytes = null,
                 compressSourceSizeBytes = fileInfo?.sizeBytes,
             )
@@ -273,6 +342,7 @@ class MediaToolsViewModel @Inject constructor(
 
     fun startCompress() {
         val s = _uiState.value
+        if (compressJob?.isActive == true) return
         if (s.compressInputPath.isBlank()) {
             _uiState.update { it.copy(compressError = "Input file path is required") }
             return
@@ -284,12 +354,12 @@ class MediaToolsViewModel @Inject constructor(
                 return
             }
 
-        val inputExt = s.compressInputPath.trim().substringAfterLast('.').lowercase().ifBlank { "mp4" }
+        val outputExt = suggestedCompressionOutputExtension(s.compressInputPath.trim())
         val baseName = s.compressInputPath.trim()
             .substringAfterLast('/')
             .substringAfterLast('\\')
             .let { if ('.' in it) it.substringBeforeLast('.') else it }
-        val outputPath = downloadsDir.absolutePath + "/" + fileUtils.sanitizeFileName("${baseName}_compressed") + "." + inputExt
+        val outputPath = downloadsDir.absolutePath + "/" + fileUtils.sanitizeFileName("${baseName}_compressed") + "." + outputExt
         val request = CompressionRequest(
             inputFilePath = s.compressInputPath.trim(),
             outputFilePath = outputPath,
@@ -298,27 +368,82 @@ class MediaToolsViewModel @Inject constructor(
             maxHeight = s.compressMaxHeight.toIntOrNull(),
         )
         val sourceSize = s.compressSourceSizeBytes ?: File(s.compressInputPath.trim()).takeIf { it.exists() }?.length()
-        viewModelScope.launch {
-            _uiState.update { it.copy(isCompressing = true, compressResult = null, compressError = null, compressProgress = 0f) }
-            val result = repository.compressMedia(request) { progress ->
-                _uiState.update { it.copy(compressProgress = progress) }
-            }
-            // Copy to public Downloads folder so user can find it
-            val publicPath = result.getOrNull()?.let { path ->
-                runCatching { fileUtils.copyToPublicDownloads(File(path), null) }.getOrNull()
-            }
+        compressJob = viewModelScope.launch {
             _uiState.update {
                 it.copy(
-                    isCompressing = false,
-                    compressProgress = null,
-                    compressResult = result.getOrNull()?.let { path -> "Saved to: ${publicPath ?: path}" },
-                    compressResultSizeBytes = result.getOrNull()?.let { path -> File(path).length() },
-                    compressSourceSizeBytes = sourceSize,
-                    compressError = result.exceptionOrNull()?.message,
+                    isCompressing = true,
+                    isStoppingCompress = false,
+                    compressWasCanceled = false,
+                    compressResult = null,
+                    compressError = null,
+                    compressProgress = 0f,
                 )
+            }
+            try {
+                val result = repository.compressMedia(request) { progress ->
+                    _uiState.update { state -> state.copy(compressProgress = progress) }
+                }
+                val resultPath = result.getOrNull()
+                // Copy to public Downloads folder so user can find it
+                val publicPath = resultPath?.let { path ->
+                    runCatching { fileUtils.copyToPublicDownloads(File(path), null) }.getOrNull()
+                }
+                _uiState.update {
+                    it.copy(
+                        isCompressing = false,
+                        isStoppingCompress = false,
+                        compressWasCanceled = false,
+                        compressProgress = null,
+                        compressResult = resultPath?.let { path -> "Saved to: ${publicPath ?: path}" },
+                        compressResultSizeBytes = resultPath?.let { path -> File(path).length() },
+                        compressSourceSizeBytes = sourceSize,
+                        compressError = result.exceptionOrNull()?.message,
+                    )
+                }
+            } catch (_: CancellationException) {
+                _uiState.update {
+                    it.copy(
+                        isCompressing = false,
+                        isStoppingCompress = false,
+                        compressWasCanceled = true,
+                        compressProgress = null,
+                        compressResult = null,
+                        compressResultSizeBytes = null,
+                        compressSourceSizeBytes = sourceSize,
+                        compressError = "Compression canceled by you.",
+                    )
+                }
+            } catch (error: Throwable) {
+                _uiState.update {
+                    it.copy(
+                        isCompressing = false,
+                        isStoppingCompress = false,
+                        compressWasCanceled = false,
+                        compressProgress = null,
+                        compressResult = null,
+                        compressResultSizeBytes = null,
+                        compressSourceSizeBytes = sourceSize,
+                        compressError = error.message ?: "Compression failed.",
+                    )
+                }
+            } finally {
+                compressJob = null
             }
         }
     }
 
-    fun dismissCompressResult() = _uiState.update { it.copy(compressResult = null, compressError = null, compressResultSizeBytes = null) }
+    fun stopCompress() {
+        if (compressJob?.isActive != true) return
+        _uiState.update { it.copy(isStoppingCompress = true) }
+        compressJob?.cancel(CancellationException("Compression canceled by user"))
+    }
+
+    fun dismissCompressResult() = _uiState.update {
+        it.copy(
+            compressResult = null,
+            compressError = null,
+            compressWasCanceled = false,
+            compressResultSizeBytes = null,
+        )
+    }
 }

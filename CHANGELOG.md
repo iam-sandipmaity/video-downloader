@@ -9,6 +9,7 @@
 - **Queue source branding** - download queue hero cards now show recognized site badges so YouTube, Instagram, TikTok, and similar sources are easier to scan at a glance
 - **Smarter format estimates** - download options now show estimated final size labels when yt-dlp does not return an exact file size, using bitrate and duration as a fallback
 - **Format-aware picker rows** - download options now show file size directly beside each selectable format, with richer codec, container, fps, and quality metadata in the picker itself
+- **Cancelable media tools** - converter and compressor now keep their in-progress progress bars visible and expose a dedicated stop action while FFmpeg is running
 - **Expandable queue diagnostics** - queue items can now reveal a compact diagnostics panel with task ID, source host, output path, error details, and recent log lines
 - **Failed-item batch retry** - the queue now offers a `Retry All Failed` action from the failed-items tab so recovery is not limited to one card at a time
 
@@ -25,6 +26,7 @@
 - **Build script cleanup** - modernized generated changelog asset wiring to avoid the older deprecated source-set call path
 
 ### Fixed
+- **Media tool runtime handling** - converter and compressor now surface shorter FFmpeg guidance for unsupported codecs like AV1 and avoid incompatible compression output/container combinations
 - **Cross-screen feedback leak** - Browse/Home status messages no longer show up inside Settings, Cookies, or YouTube access because transient format messages are now scoped to the screen that created them
 - **Download options sheet scroll bounce** - stabilized the analyzed-format bottom sheet by removing the unstable size animation and skipping the partial sheet state, so reaching the bottom no longer triggers rapid jumpy up/down movement
 
