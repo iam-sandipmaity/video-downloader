@@ -1,7 +1,6 @@
 package com.localdownloader.ui.screens
 
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.lazy.item
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CloudDownload
 import androidx.compose.material.icons.rounded.Folder

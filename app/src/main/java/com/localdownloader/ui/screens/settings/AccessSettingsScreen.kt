@@ -1,6 +1,5 @@
 package com.localdownloader.ui.screens.settings
 
-import androidx.compose.foundation.lazy.item
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Cookie
 import androidx.compose.material.icons.rounded.OpenInNew

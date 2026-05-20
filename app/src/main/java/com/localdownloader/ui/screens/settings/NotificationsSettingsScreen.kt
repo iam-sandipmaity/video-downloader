@@ -3,7 +3,6 @@ package com.localdownloader.ui.screens.settings
 import android.content.Intent
 import android.os.Build
 import android.provider.Settings
-import androidx.compose.foundation.lazy.item
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Campaign
 import androidx.compose.material.icons.rounded.CheckCircle
