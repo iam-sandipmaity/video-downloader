@@ -42,9 +42,9 @@ class MainActivity : Hilt_MainActivity() {
     @Inject
     lateinit var settingsStore: SettingsStore
 
-    private var themeMode by mutableStateOf(ThemeMode.SYSTEM)
-    private var accentPreset by mutableStateOf(AccentPreset.AMBER)
-    private var contrastMode by mutableStateOf(ContrastMode.STANDARD)
+    private var themeMode by mutableStateOf(ThemeMode.LIGHT)
+    private var accentPreset by mutableStateOf(AccentPreset.AQUA)
+    private var contrastMode by mutableStateOf(ContrastMode.ULTRA)
     private var externalOpenRequest by mutableStateOf<ExternalOpenRequest?>(null)
     private var sharedUrlRequest by mutableStateOf<String?>(null)
     private var notificationOpenRequest by mutableStateOf<AppOpenRequest?>(null)

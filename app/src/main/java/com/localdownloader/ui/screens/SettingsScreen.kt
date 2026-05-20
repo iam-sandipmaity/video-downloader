@@ -117,7 +117,6 @@ fun SettingsScreen(
     onDefaultEmbedMetadataChanged: (Boolean) -> Unit,
     onDefaultEmbedThumbnailChanged: (Boolean) -> Unit,
     onDefaultWriteThumbnailChanged: (Boolean) -> Unit,
-    onDefaultPlaylistEnabledChanged: (Boolean) -> Unit,
     onAutoRemoveMissingFilesFromLibraryChanged: (Boolean) -> Unit,
     onDeleteFromStorageWhenRemovedInAppChanged: (Boolean) -> Unit,
     onCacheCleanupPolicyChanged: (CacheCleanupPolicy) -> Unit,
@@ -672,14 +671,6 @@ fun SettingsScreen(
                 subtitle = "Save a separate poster or cover image beside future downloads when the site provides one.",
                 checked = uiState.writeThumbnail,
                 onCheckedChange = onDefaultWriteThumbnailChanged,
-            )
-            DividerInset()
-            SettingsToggleRow(
-                icon = Icons.Outlined.CloudDownload,
-                title = "Queue playlists by default",
-                subtitle = "When a playlist page is detected, queue every item instead of a single entry.",
-                checked = uiState.enablePlaylist,
-                onCheckedChange = onDefaultPlaylistEnabledChanged,
             )
         }
 

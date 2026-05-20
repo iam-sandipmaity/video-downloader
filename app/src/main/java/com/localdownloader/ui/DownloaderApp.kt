@@ -629,7 +629,6 @@ fun DownloaderApp(
                     onDefaultEmbedMetadataChanged = formatViewModel::onDefaultEmbedMetadataChanged,
                     onDefaultEmbedThumbnailChanged = formatViewModel::onDefaultEmbedThumbnailChanged,
                     onDefaultWriteThumbnailChanged = formatViewModel::onDefaultWriteThumbnailChanged,
-                    onDefaultPlaylistEnabledChanged = formatViewModel::onDefaultPlaylistEnabledChanged,
                     onAutoRemoveMissingFilesFromLibraryChanged = formatViewModel::onAutoRemoveMissingFilesFromLibraryChanged,
                     onDeleteFromStorageWhenRemovedInAppChanged = formatViewModel::onDeleteFromStorageWhenRemovedInAppChanged,
                     onCacheCleanupPolicyChanged = formatViewModel::onCacheCleanupPolicyChanged,

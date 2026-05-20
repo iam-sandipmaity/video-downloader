@@ -19,9 +19,9 @@ import com.localdownloader.domain.models.ThemeMode
 
 @Composable
 fun LocalDownloaderTheme(
-    themeMode: ThemeMode = ThemeMode.SYSTEM,
-    accentPreset: AccentPreset = AccentPreset.AMBER,
-    contrastMode: ContrastMode = ContrastMode.STANDARD,
+    themeMode: ThemeMode = ThemeMode.LIGHT,
+    accentPreset: AccentPreset = AccentPreset.AQUA,
+    contrastMode: ContrastMode = ContrastMode.ULTRA,
     content: @Composable () -> Unit,
 ) {
     val darkTheme = when (themeMode) {

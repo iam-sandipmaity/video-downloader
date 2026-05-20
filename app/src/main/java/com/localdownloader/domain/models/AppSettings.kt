@@ -5,9 +5,9 @@ package com.localdownloader.domain.models
  */
 data class AppSettings(
     val languageTag: String = "en",
-    val themeMode: ThemeMode = ThemeMode.SYSTEM,
-    val accentPreset: AccentPreset = AccentPreset.AMBER,
-    val contrastMode: ContrastMode = ContrastMode.STANDARD,
+    val themeMode: ThemeMode = ThemeMode.LIGHT,
+    val accentPreset: AccentPreset = AccentPreset.AQUA,
+    val contrastMode: ContrastMode = ContrastMode.ULTRA,
     val defaultOutputTemplate: String = "%(title)s [%(id)s].%(ext)s",
     val defaultAudioOutputTemplate: String = "%(title)s [%(id)s].%(ext)s",
     val defaultMergeContainer: String = "mp4",
@@ -28,10 +28,9 @@ data class AppSettings(
     val youtubeAuthConfig: YoutubeAuthConfig = YoutubeAuthConfig(),
     val hasSeenDownloadSetupNotice: Boolean = false,
     val downloadNetworkMode: DownloadNetworkMode = DownloadNetworkMode.ANY,
-    val maxConcurrentDownloads: Int = 2,
+    val maxConcurrentDownloads: Int = 1,
     val defaultAudioBitrateKbps: Int = 192,
     val defaultWriteThumbnail: Boolean = false,
-    val defaultPlaylistEnabled: Boolean = false,
     val cacheCleanupPolicy: CacheCleanupPolicy = CacheCleanupPolicy.SEVEN_DAYS,
     val darkTheme: Boolean = false,
 )

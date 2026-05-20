@@ -413,11 +413,6 @@ class FormatViewModel @Inject constructor(
         persistSettingsSilently()
     }
 
-    fun onDefaultPlaylistEnabledChanged(value: Boolean) {
-        _uiState.update { state -> state.copy(enablePlaylist = value) }
-        persistSettingsSilently()
-    }
-
     fun onLanguageChanged(value: String) {
         _uiState.update { state -> state.copy(languageTag = value) }
         persistSettingsSilently()
@@ -877,7 +872,7 @@ class FormatViewModel @Inject constructor(
                 maxConcurrentDownloads = defaults.maxConcurrentDownloads,
                 audioBitrateKbps = defaults.defaultAudioBitrateKbps,
                 writeThumbnail = defaults.defaultWriteThumbnail,
-                enablePlaylist = defaults.defaultPlaylistEnabled,
+                enablePlaylist = false,
                 cacheCleanupPolicy = defaults.cacheCleanupPolicy,
                 hasLoadedSettings = true,
                 languageTag = defaults.languageTag,
@@ -888,7 +883,11 @@ class FormatViewModel @Inject constructor(
                 videoSubfolderName = defaults.videoSubfolderName,
                 audioSubfolderName = defaults.audioSubfolderName,
                 otherSubfolderName = defaults.otherSubfolderName,
-                isDarkTheme = false,
+                isDarkTheme = when (defaults.themeMode) {
+                    ThemeMode.DARK -> true
+                    ThemeMode.LIGHT -> false
+                    ThemeMode.SYSTEM -> defaults.darkTheme
+                },
                 infoMessage = null,
                 errorMessage = null,
             )
@@ -950,7 +949,6 @@ class FormatViewModel @Inject constructor(
                 maxConcurrentDownloads = state.maxConcurrentDownloads.coerceIn(1, 3),
                 defaultAudioBitrateKbps = state.audioBitrateKbps.coerceIn(64, 320),
                 defaultWriteThumbnail = state.writeThumbnail,
-                defaultPlaylistEnabled = state.enablePlaylist,
                 cacheCleanupPolicy = state.cacheCleanupPolicy,
                 darkTheme = state.isDarkTheme,
                 )
@@ -1578,7 +1576,6 @@ class FormatViewModel @Inject constructor(
                 maxConcurrentDownloads = settings.maxConcurrentDownloads.coerceIn(1, 3),
                 audioBitrateKbps = settings.defaultAudioBitrateKbps.coerceIn(64, 320),
                 writeThumbnail = settings.defaultWriteThumbnail,
-                enablePlaylist = settings.defaultPlaylistEnabled,
                 cacheCleanupPolicy = settings.cacheCleanupPolicy,
                 isDarkTheme = when (settings.themeMode) {
                     ThemeMode.DARK -> true
