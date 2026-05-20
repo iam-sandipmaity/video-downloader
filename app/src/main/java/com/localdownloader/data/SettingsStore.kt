@@ -54,6 +54,10 @@ class SettingsStore @Inject constructor(
         val autoEmbedThumbnail = booleanPreferencesKey("auto_embed_thumbnail")
         val autoRemoveMissingFilesFromLibrary = booleanPreferencesKey("auto_remove_missing_files_from_library")
         val deleteFromStorageWhenRemovedInApp = booleanPreferencesKey("delete_from_storage_when_removed_in_app")
+        val notifyCompletedDownloads = booleanPreferencesKey("notify_completed_downloads")
+        val notifyDownloadErrors = booleanPreferencesKey("notify_download_errors")
+        val notifyCanceledDownloads = booleanPreferencesKey("notify_canceled_downloads")
+        val notifyPromotions = booleanPreferencesKey("notify_promotions")
         val cookiesEnabled = booleanPreferencesKey("cookies_enabled")
         val cookieUserAgentEnabled = booleanPreferencesKey("cookie_user_agent_enabled")
         val cookieProfiles = stringPreferencesKey("cookie_profiles_json")
@@ -92,6 +96,10 @@ class SettingsStore @Inject constructor(
                     autoEmbedThumbnail = prefs[Keys.autoEmbedThumbnail] ?: false,
                     autoRemoveMissingFilesFromLibrary = prefs[Keys.autoRemoveMissingFilesFromLibrary] ?: true,
                     deleteFromStorageWhenRemovedInApp = prefs[Keys.deleteFromStorageWhenRemovedInApp] ?: true,
+                    notifyCompletedDownloads = prefs[Keys.notifyCompletedDownloads] ?: true,
+                    notifyDownloadErrors = prefs[Keys.notifyDownloadErrors] ?: true,
+                    notifyCanceledDownloads = prefs[Keys.notifyCanceledDownloads] ?: true,
+                    notifyPromotions = prefs[Keys.notifyPromotions] ?: true,
                     cookiesEnabled = prefs[Keys.cookiesEnabled] ?: false,
                     cookieUserAgentEnabled = prefs[Keys.cookieUserAgentEnabled] ?: false,
                     cookieProfiles = decodeCookieProfiles(prefs[Keys.cookieProfiles]),
@@ -123,6 +131,10 @@ class SettingsStore @Inject constructor(
             prefs[Keys.autoEmbedThumbnail] = settings.autoEmbedThumbnail
             prefs[Keys.autoRemoveMissingFilesFromLibrary] = settings.autoRemoveMissingFilesFromLibrary
             prefs[Keys.deleteFromStorageWhenRemovedInApp] = settings.deleteFromStorageWhenRemovedInApp
+            prefs[Keys.notifyCompletedDownloads] = settings.notifyCompletedDownloads
+            prefs[Keys.notifyDownloadErrors] = settings.notifyDownloadErrors
+            prefs[Keys.notifyCanceledDownloads] = settings.notifyCanceledDownloads
+            prefs[Keys.notifyPromotions] = settings.notifyPromotions
             prefs[Keys.cookiesEnabled] = settings.cookiesEnabled
             prefs[Keys.cookieUserAgentEnabled] = settings.cookieUserAgentEnabled
             prefs[Keys.cookieProfiles] = json.encodeToString(settings.cookieProfiles)

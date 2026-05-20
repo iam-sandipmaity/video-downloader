@@ -3,7 +3,6 @@ package com.localdownloader.ui.screens.settings
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AudioFile
 import androidx.compose.material.icons.rounded.Description
-import androidx.compose.material.icons.rounded.DownloadForOffline
 import androidx.compose.material.icons.rounded.PhotoSizeSelectActual
 import androidx.compose.material.icons.rounded.Queue
 import androidx.compose.material.icons.rounded.Subtitles
@@ -16,10 +15,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.localdownloader.ui.components.PreferenceDivider
 import com.localdownloader.ui.components.PreferenceGroup
-import com.localdownloader.ui.components.PreferenceHeroCard
 import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.ui.components.PreferenceRow
-import com.localdownloader.ui.components.PreferenceSectionHeader
 import com.localdownloader.ui.components.PreferenceSwitchRow
 import com.localdownloader.viewmodel.FormatUiState
 
@@ -59,24 +56,6 @@ fun DownloadSettingsScreen(
         onBack = onBack,
         modifier = modifier,
     ) {
-        item {
-            PreferenceHeroCard(
-                eyebrow = "Future downloads",
-                title = "Make the next save feel predictable",
-                subtitle = "Set the naming, containers, subtitles, and saved defaults you want the app to reach for before you tweak anything item by item.",
-                badges = listOf(
-                    uiState.selectedContainer.uppercase(),
-                    uiState.selectedAudioFormat.uppercase(),
-                    "${uiState.maxConcurrentDownloads} slots",
-                ),
-            )
-        }
-        item {
-            PreferenceSectionHeader(
-                title = "Naming and containers",
-                subtitle = "These defaults are reused for future downloads and act like the clean baseline for the rest of the app.",
-            )
-        }
         item {
             PreferenceGroup {
                 PreferenceRow(
@@ -157,12 +136,6 @@ fun DownloadSettingsScreen(
             }
         }
         item {
-            PreferenceSectionHeader(
-                title = "Post-processing",
-                subtitle = "These switches define how much extra metadata the app should pull in or embed once the file is on its way out.",
-            )
-        }
-        item {
             PreferenceGroup {
                 PreferenceSwitchRow(
                     icon = Icons.Rounded.Subtitles,
@@ -198,12 +171,6 @@ fun DownloadSettingsScreen(
             }
         }
         item {
-            PreferenceSectionHeader(
-                title = "Queue preference",
-                subtitle = "UI-only for now: we can still save how many slots you want the app to target as the queue system keeps evolving.",
-            )
-        }
-        item {
             PreferenceGroup {
                 PreferenceRow(
                     icon = Icons.Rounded.Queue,
@@ -229,14 +196,6 @@ fun DownloadSettingsScreen(
                             options = slotChoices,
                         )
                     },
-                )
-                PreferenceDivider()
-                PreferenceRow(
-                    icon = Icons.Rounded.DownloadForOffline,
-                    title = "Default setup summary",
-                    subtitle = "Current defaults at a glance for quick sanity checks before you leave this page.",
-                    value = "${uiState.selectedContainer.uppercase()} / ${uiState.selectedAudioFormat.uppercase()}",
-                    onClick = null,
                 )
             }
         }

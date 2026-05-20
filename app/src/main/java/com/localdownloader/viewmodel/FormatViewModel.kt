@@ -313,6 +313,26 @@ class FormatViewModel @Inject constructor(
         persistSettingsSilently()
     }
 
+    fun onNotifyCompletedDownloadsChanged(value: Boolean) {
+        _uiState.update { state -> state.copy(notifyCompletedDownloads = value) }
+        persistSettingsSilently()
+    }
+
+    fun onNotifyDownloadErrorsChanged(value: Boolean) {
+        _uiState.update { state -> state.copy(notifyDownloadErrors = value) }
+        persistSettingsSilently()
+    }
+
+    fun onNotifyCanceledDownloadsChanged(value: Boolean) {
+        _uiState.update { state -> state.copy(notifyCanceledDownloads = value) }
+        persistSettingsSilently()
+    }
+
+    fun onNotifyPromotionsChanged(value: Boolean) {
+        _uiState.update { state -> state.copy(notifyPromotions = value) }
+        persistSettingsSilently()
+    }
+
     fun onPlaylistEnabledChanged(value: Boolean) {
         _uiState.update { state -> state.copy(enablePlaylist = value) }
     }
@@ -818,6 +838,10 @@ class FormatViewModel @Inject constructor(
                 cookieUserAgentEnabled = defaults.cookieUserAgentEnabled,
                 cookieProfiles = defaults.cookieProfiles,
                 youtubeAuthConfig = defaults.youtubeAuthConfig,
+                notifyCompletedDownloads = defaults.notifyCompletedDownloads,
+                notifyDownloadErrors = defaults.notifyDownloadErrors,
+                notifyCanceledDownloads = defaults.notifyCanceledDownloads,
+                notifyPromotions = defaults.notifyPromotions,
                 hasLoadedSettings = true,
                 languageTag = defaults.languageTag,
                 themeMode = defaults.themeMode,
@@ -886,9 +910,13 @@ class FormatViewModel @Inject constructor(
                 cookieUserAgentEnabled = state.cookieUserAgentEnabled,
                 cookieProfiles = state.cookieProfiles,
                 youtubeAuthConfig = state.youtubeAuthConfig,
+                notifyCompletedDownloads = state.notifyCompletedDownloads,
+                notifyDownloadErrors = state.notifyDownloadErrors,
+                notifyCanceledDownloads = state.notifyCanceledDownloads,
+                notifyPromotions = state.notifyPromotions,
                 hasSeenDownloadSetupNotice = state.appSettings.hasSeenDownloadSetupNotice,
                 darkTheme = state.isDarkTheme,
-                )
+            )
             runCatching { repository.updateSettings(newSettings) }
                 .onSuccess {
                     _uiState.update {
@@ -1509,6 +1537,10 @@ class FormatViewModel @Inject constructor(
                 cookieUserAgentEnabled = settings.cookieUserAgentEnabled,
                 cookieProfiles = settings.cookieProfiles,
                 youtubeAuthConfig = settings.youtubeAuthConfig,
+                notifyCompletedDownloads = settings.notifyCompletedDownloads,
+                notifyDownloadErrors = settings.notifyDownloadErrors,
+                notifyCanceledDownloads = settings.notifyCanceledDownloads,
+                notifyPromotions = settings.notifyPromotions,
                 isDarkTheme = when (settings.themeMode) {
                     ThemeMode.DARK -> true
                     ThemeMode.LIGHT -> false

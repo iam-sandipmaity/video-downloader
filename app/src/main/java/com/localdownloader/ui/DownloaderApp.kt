@@ -674,6 +674,11 @@ fun DownloaderApp(
             }
             composable(Routes.SettingsNotifications) {
                 NotificationsSettingsScreen(
+                    uiState = formatState,
+                    onNotifyCompletedDownloadsChanged = formatViewModel::onNotifyCompletedDownloadsChanged,
+                    onNotifyDownloadErrorsChanged = formatViewModel::onNotifyDownloadErrorsChanged,
+                    onNotifyCanceledDownloadsChanged = formatViewModel::onNotifyCanceledDownloadsChanged,
+                    onNotifyPromotionsChanged = formatViewModel::onNotifyPromotionsChanged,
                     onBack = { navController.popBackStack() },
                 )
             }

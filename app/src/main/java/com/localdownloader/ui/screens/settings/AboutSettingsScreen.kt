@@ -15,7 +15,6 @@ import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Language
-import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.RestartAlt
 import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material3.Icon
@@ -39,10 +38,8 @@ import coil.decode.SvgDecoder
 import com.localdownloader.BuildConfig
 import com.localdownloader.ui.components.PreferenceDivider
 import com.localdownloader.ui.components.PreferenceGroup
-import com.localdownloader.ui.components.PreferenceHeroCard
 import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.ui.components.PreferenceRow
-import com.localdownloader.ui.components.PreferenceSectionHeader
 
 @Composable
 fun AboutSettingsScreen(
@@ -76,23 +73,6 @@ fun AboutSettingsScreen(
         modifier = modifier,
     ) {
         item {
-            PreferenceHeroCard(
-                eyebrow = "Project info",
-                title = "Version, links, update center, and reset tools in one place",
-                subtitle = "This page keeps the important project details visible without stuffing them into the main workflow or the settings hub itself.",
-                badges = listOf(
-                    BuildConfig.VERSION_NAME,
-                    BuildConfig.APPLICATION_ID,
-                ),
-            )
-        }
-        item {
-            PreferenceSectionHeader(
-                title = "App details",
-                subtitle = "Quick reference details that help when comparing builds, reporting issues, or checking release status.",
-            )
-        }
-        item {
             PreferenceGroup {
                 PreferenceRow(
                     icon = Icons.Rounded.Info,
@@ -117,12 +97,6 @@ fun AboutSettingsScreen(
                     onClick = onOpenUpdates,
                 )
             }
-        }
-        item {
-            PreferenceSectionHeader(
-                title = "Project links",
-                subtitle = "The core app, upstream engines, and developer profiles stay grouped together for easier trust checks and support flows.",
-            )
         }
         item {
             PreferenceGroup {
@@ -187,12 +161,6 @@ fun AboutSettingsScreen(
             }
         }
         item {
-            PreferenceSectionHeader(
-                title = "Maintenance",
-                subtitle = "A deliberate place for bigger preference resets so they do not get triggered accidentally while you are just browsing.",
-            )
-        }
-        item {
             PreferenceGroup {
                 PreferenceRow(
                     icon = Icons.Rounded.RestartAlt,
@@ -209,14 +177,6 @@ fun AboutSettingsScreen(
                             },
                         )
                     },
-                )
-                PreferenceDivider()
-                PreferenceRow(
-                    icon = Icons.Rounded.Refresh,
-                    title = "Release posture",
-                    subtitle = "This build is meant for UI revamp validation before the label graduates to the next release channel.",
-                    value = BuildConfig.VERSION_NAME,
-                    onClick = null,
                 )
             }
         }

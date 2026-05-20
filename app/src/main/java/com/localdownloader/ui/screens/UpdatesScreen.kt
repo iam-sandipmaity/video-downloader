@@ -49,7 +49,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
-import com.localdownloader.ui.components.PreferenceHeroCard
 import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.viewmodel.UpdateSectionUiState
 import com.localdownloader.viewmodel.UpdatesUiState
@@ -147,18 +146,6 @@ fun UpdatesScreen(
                     onDismiss = onDismissMessage,
                 )
             }
-        }
-        item {
-            PreferenceHeroCard(
-                eyebrow = "Runtime status",
-                title = "Check the app, yt-dlp, and FFmpeg without leaving one page",
-                subtitle = "The update center now follows the same lighter preference-page rhythm as Settings while keeping the full runtime controls intact.",
-                badges = listOf(
-                    uiState.app.currentVersion ?: "App unknown",
-                    uiState.ytDlp.currentVersion ?: "yt-dlp unknown",
-                    uiState.ffmpeg.currentVersion ?: "FFmpeg unknown",
-                ),
-            )
         }
         item {
             UpdateSectionCard(section = uiState.app) {
@@ -311,19 +298,12 @@ private fun UpdateSectionCard(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(
-                text = section.title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = section.subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        Text(
+            text = section.title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         Surface(
             shape = RoundedCornerShape(28.dp),
             color = MaterialTheme.colorScheme.surfaceContainerLow,

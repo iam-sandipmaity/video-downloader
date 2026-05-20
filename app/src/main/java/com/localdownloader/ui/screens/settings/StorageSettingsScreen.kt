@@ -28,11 +28,9 @@ import androidx.compose.material3.Text
 import com.localdownloader.ui.components.InlineFeedbackCard
 import com.localdownloader.ui.components.PreferenceDivider
 import com.localdownloader.ui.components.PreferenceGroup
-import com.localdownloader.ui.components.PreferenceHeroCard
 import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.ui.components.PreferencePillButton
 import com.localdownloader.ui.components.PreferenceRow
-import com.localdownloader.ui.components.PreferenceSectionHeader
 import com.localdownloader.ui.components.PreferenceSwitchRow
 import com.localdownloader.viewmodel.FormatMessageScope
 import com.localdownloader.viewmodel.FormatUiState
@@ -87,18 +85,6 @@ fun StorageSettingsScreen(
         onBack = onBack,
         modifier = modifier,
     ) {
-        item {
-            PreferenceHeroCard(
-                eyebrow = "Keep it tidy",
-                title = "Control where files land and how cleanup should feel",
-                subtitle = "These storage preferences keep the app organized without forcing you into a rigid folder scheme.",
-                badges = listOf(
-                    uiState.downloadsRootFolderName.folderPreview("Default root"),
-                    "${savedItemsCount} saved",
-                    formatFileSize(cacheSize),
-                ),
-            )
-        }
         if (!settingsInfoMessage.isNullOrBlank()) {
             item {
                 InlineFeedbackCard(
@@ -136,12 +122,6 @@ fun StorageSettingsScreen(
                     onDismiss = onDismissMediaLibraryMessage,
                 )
             }
-        }
-        item {
-            PreferenceSectionHeader(
-                title = "Folders",
-                subtitle = "Type paths manually or browse inside Downloads when you want a more visual flow.",
-            )
         }
         item {
             PreferenceGroup {
@@ -227,12 +207,6 @@ fun StorageSettingsScreen(
             }
         }
         item {
-            PreferenceSectionHeader(
-                title = "Library behavior",
-                subtitle = "Choose how the app should react when files disappear or when you clean up saved items from inside the UI.",
-            )
-        }
-        item {
             PreferenceGroup {
                 PreferenceSwitchRow(
                     icon = Icons.Rounded.AutoDelete,
@@ -266,12 +240,6 @@ fun StorageSettingsScreen(
                     onClick = null,
                 )
             }
-        }
-        item {
-            PreferenceSectionHeader(
-                title = "Maintenance",
-                subtitle = "Cleanup tools are separated so you can clear temporary clutter without touching real saved media unless you choose to.",
-            )
         }
         item {
             PreferenceGroup {

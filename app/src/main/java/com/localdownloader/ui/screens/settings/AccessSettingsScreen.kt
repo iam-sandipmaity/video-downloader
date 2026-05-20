@@ -5,15 +5,12 @@ import androidx.compose.material.icons.rounded.Cookie
 import androidx.compose.material.icons.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Shield
-import androidx.compose.material.icons.rounded.TravelExplore
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.localdownloader.ui.components.PreferenceDivider
 import com.localdownloader.ui.components.PreferenceGroup
-import com.localdownloader.ui.components.PreferenceHeroCard
 import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.ui.components.PreferenceRow
-import com.localdownloader.ui.components.PreferenceSectionHeader
 import com.localdownloader.ui.components.PreferenceSwitchRow
 import com.localdownloader.viewmodel.FormatUiState
 
@@ -35,24 +32,6 @@ fun AccessSettingsScreen(
         onBack = onBack,
         modifier = modifier,
     ) {
-        item {
-            PreferenceHeroCard(
-                eyebrow = "Protected sites",
-                title = "Keep recovery tools close without crowding the main workflow",
-                subtitle = "This page concentrates the access-related switches and deep links that usually matter only when a site becomes stricter or a retry starts failing.",
-                badges = listOf(
-                    if (uiState.cookiesEnabled) "Cookies on" else "Cookies off",
-                    if (youtubeConfigured) "YouTube ready" else "YouTube not ready",
-                    "$cookieCount saved",
-                ),
-            )
-        }
-        item {
-            PreferenceSectionHeader(
-                title = "Cookie-backed access",
-                subtitle = "Session-backed retries work best when the app knows both whether cookies are enabled and whether a stricter browser-style header should go out with them.",
-            )
-        }
         item {
             PreferenceGroup {
                 PreferenceSwitchRow(
@@ -85,12 +64,6 @@ fun AccessSettingsScreen(
             }
         }
         item {
-            PreferenceSectionHeader(
-                title = "YouTube recovery",
-                subtitle = "For tougher YouTube playback checks, the app can keep PO tokens and matching cookie state together in a dedicated setup flow.",
-            )
-        }
-        item {
             PreferenceGroup {
                 PreferenceRow(
                     icon = Icons.Rounded.Shield,
@@ -105,14 +78,6 @@ fun AccessSettingsScreen(
                     } else {
                         "Set up"
                     },
-                    onClick = onOpenYoutubeAccess,
-                )
-                PreferenceDivider()
-                PreferenceRow(
-                    icon = Icons.Rounded.TravelExplore,
-                    title = "Recovery path",
-                    subtitle = "The usual order is cookies first, then YouTube access if retries still keep stalling on protected playback checks.",
-                    value = "Guide",
                     onClick = onOpenYoutubeAccess,
                 )
             }

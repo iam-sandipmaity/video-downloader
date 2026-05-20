@@ -16,10 +16,8 @@ import com.localdownloader.domain.models.ContrastMode
 import com.localdownloader.domain.models.ThemeMode
 import com.localdownloader.ui.components.PreferenceDivider
 import com.localdownloader.ui.components.PreferenceGroup
-import com.localdownloader.ui.components.PreferenceHeroCard
 import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.ui.components.PreferenceRow
-import com.localdownloader.ui.components.PreferenceSectionHeader
 import com.localdownloader.viewmodel.FormatUiState
 
 @Composable
@@ -46,24 +44,6 @@ fun AppearanceSettingsScreen(
         onBack = onBack,
         modifier = modifier,
     ) {
-        item {
-            PreferenceHeroCard(
-                eyebrow = "Look and feel",
-                title = "Keep the app light, smooth, and easy to scan",
-                subtitle = "This page controls the same visual language you feel across Home, Settings, the queue, and playback surfaces.",
-                badges = listOf(
-                    themeModeLabel(uiState.themeMode),
-                    accentLabel(uiState.accentPreset),
-                    contrastLabel(uiState.contrastMode),
-                ),
-            )
-        }
-        item {
-            PreferenceSectionHeader(
-                title = "Color system",
-                subtitle = "A Seal-style flow: fewer giant walls of controls, more focused choices with instant feedback.",
-            )
-        }
         item {
             PreferenceGroup {
                 PreferenceRow(
@@ -152,12 +132,6 @@ fun AppearanceSettingsScreen(
                     },
                 )
             }
-        }
-        item {
-            PreferenceSectionHeader(
-                title = "Language",
-                subtitle = "The app is still English-only right now, but this stays structured for future localization work.",
-            )
         }
         item {
             PreferenceGroup {
