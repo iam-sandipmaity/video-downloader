@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+## [1.7.1.0-test] - 2026-05-20
+
+### Added
+- **Seal-style settings architecture** - replaced the one-page settings wall with a dedicated settings hub plus focused pages for Appearance, Download defaults, Folders and storage, Notifications, Access and network, and About and support
+- **Concurrent download preference UI** - surfaced the stored `maxConcurrentDownloads` setting in the new Download defaults page so queue-slot intent is now visible in the UI ahead of deeper scheduler work
+- **Shared preference-page system** - introduced reusable large-app-bar settings scaffolds, grouped preference rows, hero cards, and shared dialogs to keep revamp work consistent across settings-related screens
+
+### Changed
+- **Settings revamp** - rebuilt Settings around a lighter Seal-inspired preference flow with grouped sections, cleaner navigation, smoother page rhythm, and clearer summaries of each category before you tap in
+- **More page redesign** - turned More into a cleaner grouped utility center so workflow shortcuts, access tools, updates, help, and media utilities feel more intentional and easier to scan
+- **Support surface refresh** - aligned Help and Updates with the new preference-page layout so support, maintenance, and runtime management feel like part of the same UI family
+- **Access screen polish** - refreshed Cookies and YouTube access with smoother large-app-bar treatment and cleaner entry points from the new Access and network settings page
+- **Recovery copy cleanup** - updated onboarding and queue guidance so cookie and YouTube access directions point to the new Settings access path instead of the older More-only flow
+- **Typography tune-up** - expanded the app typography set so the new settings and support pages can use cleaner headline, label, and small-body styling without falling back to mismatched defaults
+
+### Technical
+- **Navigation split for settings** - added dedicated settings subroutes inside `DownloaderApp` to support the new hub-and-subpage structure without touching download, queue, or media-processing logic
+- **App version bump** - release metadata updated to `1.7.1.0-test`
+
 ## [1.7.1] - 2026-05-20
 
 ### Added

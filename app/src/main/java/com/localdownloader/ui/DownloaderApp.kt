@@ -65,6 +65,12 @@ import com.localdownloader.ui.screens.UpdateChangelogSections
 import com.localdownloader.ui.screens.UpdatesScreen
 import com.localdownloader.ui.screens.YoutubeAuthLoginScreen
 import com.localdownloader.ui.screens.YoutubeAuthScreen
+import com.localdownloader.ui.screens.settings.AboutSettingsScreen
+import com.localdownloader.ui.screens.settings.AccessSettingsScreen
+import com.localdownloader.ui.screens.settings.AppearanceSettingsScreen
+import com.localdownloader.ui.screens.settings.DownloadSettingsScreen
+import com.localdownloader.ui.screens.settings.NotificationsSettingsScreen
+import com.localdownloader.ui.screens.settings.StorageSettingsScreen
 import com.localdownloader.ui.model.ExternalOpenRequest
 import com.localdownloader.ui.model.buildVideoLibraryItems
 import com.localdownloader.ui.model.toAudioQueueItems
@@ -206,6 +212,7 @@ fun DownloaderApp(
     }
     val currentDestination = navController.currentBackStackEntryAsState().value?.destination
     val currentRoute = currentDestination?.route
+    val savedItemsCount = downloadState.tasks.count { it.status == DownloadStatus.COMPLETED }
 
     LaunchedEffect(formatState.themeMode, formatState.accentPreset, formatState.contrastMode) {
         onAppearanceUpdated?.invoke(
@@ -587,16 +594,51 @@ fun DownloaderApp(
             composable(Routes.Settings) {
                 SettingsScreen(
                     uiState = formatState,
-                    savedItemsCount = downloadState.tasks.count { it.status == com.localdownloader.domain.models.DownloadStatus.COMPLETED },
+                    savedItemsCount = savedItemsCount,
                     mediaInfoMessage = downloadState.infoMessage,
                     mediaErrorMessage = downloadState.errorMessage,
                     onDismissMediaLibraryMessage = downloadViewModel::dismissMessage,
+                    onOpenAppearance = { navController.navigate(Routes.SettingsAppearance) },
+                    onOpenDownloads = { navController.navigate(Routes.SettingsDownloads) },
+                    onOpenStorage = { navController.navigate(Routes.SettingsStorage) },
+                    onOpenNotifications = { navController.navigate(Routes.SettingsNotifications) },
+                    onOpenAccess = { navController.navigate(Routes.SettingsAccess) },
+                    onOpenAbout = { navController.navigate(Routes.SettingsAbout) },
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable(Routes.SettingsAppearance) {
+                AppearanceSettingsScreen(
+                    uiState = formatState,
                     onLanguageChanged = formatViewModel::onLanguageChanged,
                     onThemeModeChanged = formatViewModel::onThemeModeChanged,
                     onAccentPresetChanged = formatViewModel::onAccentPresetChanged,
                     onContrastModeChanged = formatViewModel::onContrastModeChanged,
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable(Routes.SettingsDownloads) {
+                DownloadSettingsScreen(
+                    uiState = formatState,
                     onDefaultVideoOutputTemplateChanged = formatViewModel::onDefaultVideoOutputTemplateChanged,
                     onDefaultAudioOutputTemplateChanged = formatViewModel::onDefaultAudioOutputTemplateChanged,
+                    onDefaultVideoContainerChanged = formatViewModel::onDefaultVideoContainerChanged,
+                    onDefaultAudioContainerChanged = formatViewModel::onDefaultAudioFormatChanged,
+                    onDefaultDownloadSubtitlesChanged = formatViewModel::onDefaultDownloadSubtitlesChanged,
+                    onDefaultEmbedSubtitlesChanged = formatViewModel::onDefaultEmbedSubtitlesChanged,
+                    onDefaultEmbedMetadataChanged = formatViewModel::onDefaultEmbedMetadataChanged,
+                    onDefaultEmbedThumbnailChanged = formatViewModel::onDefaultEmbedThumbnailChanged,
+                    onMaxConcurrentDownloadsChanged = formatViewModel::onMaxConcurrentDownloadsChanged,
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable(Routes.SettingsStorage) {
+                StorageSettingsScreen(
+                    uiState = formatState,
+                    savedItemsCount = savedItemsCount,
+                    mediaInfoMessage = downloadState.infoMessage,
+                    mediaErrorMessage = downloadState.errorMessage,
+                    onDismissMediaLibraryMessage = downloadViewModel::dismissMessage,
                     onDownloadsRootFolderNameChanged = formatViewModel::onDownloadsRootFolderNameChanged,
                     onVideoSubfolderNameChanged = formatViewModel::onVideoSubfolderNameChanged,
                     onAudioSubfolderNameChanged = formatViewModel::onAudioSubfolderNameChanged,
@@ -617,12 +659,6 @@ fun DownloaderApp(
                         pendingFolderBrowseTarget = FolderBrowseTarget.OTHER
                         folderTreePicker.launch(null)
                     },
-                    onDefaultVideoContainerChanged = formatViewModel::onDefaultVideoContainerChanged,
-                    onDefaultAudioContainerChanged = formatViewModel::onDefaultAudioFormatChanged,
-                    onDefaultDownloadSubtitlesChanged = formatViewModel::onDefaultDownloadSubtitlesChanged,
-                    onDefaultEmbedSubtitlesChanged = formatViewModel::onDefaultEmbedSubtitlesChanged,
-                    onDefaultEmbedMetadataChanged = formatViewModel::onDefaultEmbedMetadataChanged,
-                    onDefaultEmbedThumbnailChanged = formatViewModel::onDefaultEmbedThumbnailChanged,
                     onAutoRemoveMissingFilesFromLibraryChanged = formatViewModel::onAutoRemoveMissingFilesFromLibraryChanged,
                     onDeleteFromStorageWhenRemovedInAppChanged = formatViewModel::onDeleteFromStorageWhenRemovedInAppChanged,
                     onClearVideoTabEntries = downloadViewModel::clearCompletedLibraryEntries,
@@ -633,6 +669,28 @@ fun DownloaderApp(
                         cacheSize = 0L
                     },
                     cacheSize = cacheSize,
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable(Routes.SettingsNotifications) {
+                NotificationsSettingsScreen(
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable(Routes.SettingsAccess) {
+                AccessSettingsScreen(
+                    uiState = formatState,
+                    onCookiesEnabledChanged = formatViewModel::onCookiesEnabledChanged,
+                    onCookieUserAgentEnabledChanged = formatViewModel::onCookieUserAgentEnabledChanged,
+                    onOpenCookies = { navController.navigate(Routes.Cookies) },
+                    onOpenYoutubeAccess = { navController.navigate(Routes.YoutubeAuth) },
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable(Routes.SettingsAbout) {
+                AboutSettingsScreen(
+                    onOpenUpdates = { navController.navigate(Routes.Updates) },
+                    onResetSettings = formatViewModel::resetSettingsToDefaults,
                     onBack = { navController.popBackStack() },
                 )
             }
@@ -788,6 +846,12 @@ object Routes {
     const val Convert = "convert"
     const val Compress = "compress"
     const val Settings = "settings"
+    const val SettingsAppearance = "settings/appearance"
+    const val SettingsDownloads = "settings/downloads"
+    const val SettingsStorage = "settings/storage"
+    const val SettingsNotifications = "settings/notifications"
+    const val SettingsAccess = "settings/access"
+    const val SettingsAbout = "settings/about"
     const val Updates = "updates"
     const val UpdateChangelog = "updates/changelog/{section}"
     const val Help = "help"

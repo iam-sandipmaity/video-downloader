@@ -676,7 +676,7 @@ private fun DownloadSetupOnboardingSheet(
 
                 if (step == DownloadSetupSheetStep.Intro) {
                     Text(
-                        text = "You can download without cookies, but it is recommended to add cookies first from More > Cookies. For YouTube, PO generation from More > YouTube access helps with sign-in and playback checks.",
+                        text = "You can download without cookies, but it is recommended to add cookies first from Settings > Access and network or the More shortcuts. For YouTube, PO generation from YouTube access helps with sign-in and playback checks.",
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Text(
@@ -690,7 +690,7 @@ private fun DownloadSetupOnboardingSheet(
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Text(
-                        text = "You can still skip all of this and come back later from More whenever you need it.",
+                        text = "You can still skip all of this and come back later from Settings or More whenever you need it.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.88f),
                     )

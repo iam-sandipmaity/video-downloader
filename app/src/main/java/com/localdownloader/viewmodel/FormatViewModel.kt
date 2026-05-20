@@ -446,6 +446,13 @@ class FormatViewModel @Inject constructor(
         persistSettingsSilently()
     }
 
+    fun onMaxConcurrentDownloadsChanged(value: Int) {
+        _uiState.update { state ->
+            state.copy(maxConcurrentDownloads = value.coerceIn(1, 4))
+        }
+        persistSettingsSilently()
+    }
+
     fun onCookiesEnabledChanged(value: Boolean) {
         _uiState.update { state -> state.copy(cookiesEnabled = value) }
         persistSettings("Cookie preference saved.", FormatMessageScope.COOKIES)
@@ -820,6 +827,7 @@ class FormatViewModel @Inject constructor(
                 videoSubfolderName = defaults.videoSubfolderName,
                 audioSubfolderName = defaults.audioSubfolderName,
                 otherSubfolderName = defaults.otherSubfolderName,
+                maxConcurrentDownloads = defaults.maxConcurrentDownloads,
                 isDarkTheme = false,
                 infoMessage = null,
                 errorMessage = null,
@@ -873,6 +881,7 @@ class FormatViewModel @Inject constructor(
                 autoEmbedThumbnail = state.embedThumbnail,
                 autoRemoveMissingFilesFromLibrary = state.autoRemoveMissingFilesFromLibrary,
                 deleteFromStorageWhenRemovedInApp = state.deleteFromStorageWhenRemovedInApp,
+                maxConcurrentDownloads = state.maxConcurrentDownloads,
                 cookiesEnabled = state.cookiesEnabled,
                 cookieUserAgentEnabled = state.cookieUserAgentEnabled,
                 cookieProfiles = state.cookieProfiles,
@@ -1489,6 +1498,7 @@ class FormatViewModel @Inject constructor(
                 videoSubfolderName = settings.videoSubfolderName,
                 audioSubfolderName = settings.audioSubfolderName,
                 otherSubfolderName = settings.otherSubfolderName,
+                maxConcurrentDownloads = settings.maxConcurrentDownloads,
                 downloadSubtitles = settings.autoDownloadSubtitles,
                 embedSubtitles = settings.autoEmbedSubtitles,
                 embedMetadata = settings.autoEmbedMetadata,

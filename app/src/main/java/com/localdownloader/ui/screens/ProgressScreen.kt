@@ -1652,7 +1652,7 @@ private fun buildRecoveryGuidance(
             "This item has not updated for ${formatElapsedLabel(currentTimeMs - task.updatedAtEpochMs)}. Cookies can help if the site needs a signed-in or region-matched session."
 
         isYoutubeTask ->
-            "YouTube failures often improve after adding cookies and refreshing PO generation from More."
+            "YouTube failures often improve after adding cookies and refreshing PO generation from Settings or More."
 
         else ->
             "If this download failed after redirects, rate limits, or protected access, try cookies first. If it still fails, export the logs and report the issue."

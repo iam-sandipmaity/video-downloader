@@ -52,6 +52,7 @@ data class FormatUiState(
     val videoSubfolderName: String = "Videos",
     val audioSubfolderName: String = "Audio",
     val otherSubfolderName: String = "Files",
+    val maxConcurrentDownloads: Int = 2,
     val cookiesEnabled: Boolean = false,
     val cookieUserAgentEnabled: Boolean = false,
     val cookieProfiles: List<CookieProfile> = emptyList(),
