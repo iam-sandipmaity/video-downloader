@@ -109,8 +109,31 @@ class UpdatesViewModel @Inject constructor(
     }
 
     fun installAppUpdate() {
-        val check = _uiState.value.app.latestCheck ?: return
         viewModelScope.launch {
+            if (hasBlockingDownloads()) {
+                _uiState.value = _uiState.value.copy(
+                    errorMessage = "Finish, cancel, or resume queued downloads before installing app updates.",
+                    infoMessage = null,
+                )
+                return@launch
+            }
+            val existingPrepared = _uiState.value.pendingAppInstall
+                ?.let(appUpdateManager::refreshPreparedInstall)
+            if (existingPrepared != null) {
+                _uiState.value = _uiState.value.copy(
+                    app = _uiState.value.app.copy(isInstalling = false, progressPercent = 100),
+                    pendingAppInstall = existingPrepared,
+                    pendingAppInstallRequestId = _uiState.value.pendingAppInstallRequestId + 1,
+                    infoMessage = if (existingPrepared.requiresInstallPermission) {
+                        "Allow installs from this app, then tap Install app update again."
+                    } else {
+                        "App update is already downloaded. Opening the installer now."
+                    },
+                    errorMessage = null,
+                )
+                return@launch
+            }
+            val check = _uiState.value.app.latestCheck ?: return@launch
             _uiState.value = _uiState.value.copy(
                 app = _uiState.value.app.copy(isInstalling = true, progressPercent = 0),
                 infoMessage = null,
@@ -126,6 +149,7 @@ class UpdatesViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(
                     app = _uiState.value.app.copy(isInstalling = false, progressPercent = 100),
                     pendingAppInstall = prepared,
+                    pendingAppInstallRequestId = _uiState.value.pendingAppInstallRequestId + 1,
                     infoMessage = if (prepared.requiresInstallPermission) {
                         "Allow installs from this app, then tap Install app update again."
                     } else {
@@ -144,9 +168,9 @@ class UpdatesViewModel @Inject constructor(
     fun installYtDlpUpdate() {
         val channel = _uiState.value.preferences.ytDlpChannel
         viewModelScope.launch {
-            if (hasActiveDownloads()) {
+            if (hasBlockingDownloads()) {
                 _uiState.value = _uiState.value.copy(
-                    errorMessage = "Pause or finish active downloads before updating yt-dlp.",
+                    errorMessage = "Finish, cancel, or resume queued downloads before updating yt-dlp.",
                     infoMessage = null,
                 )
                 return@launch
@@ -183,9 +207,9 @@ class UpdatesViewModel @Inject constructor(
     fun installFfmpegUpdate() {
         val channel = _uiState.value.preferences.ffmpegChannel
         viewModelScope.launch {
-            if (hasActiveDownloads()) {
+            if (hasBlockingDownloads()) {
                 _uiState.value = _uiState.value.copy(
-                    errorMessage = "Pause or finish active downloads before updating FFmpeg.",
+                    errorMessage = "Finish, cancel, or resume queued downloads before updating FFmpeg.",
                     infoMessage = null,
                 )
                 return@launch
@@ -286,9 +310,11 @@ class UpdatesViewModel @Inject constructor(
         }
     }
 
-    private fun hasActiveDownloads(): Boolean {
+    private fun hasBlockingDownloads(): Boolean {
         return downloadTaskStore.getAllTasks().any { task ->
-            task.status == DownloadStatus.RUNNING
+            task.status == DownloadStatus.QUEUED ||
+                task.status == DownloadStatus.RUNNING ||
+                task.status == DownloadStatus.PAUSED
         }
     }
 }
@@ -308,6 +334,7 @@ data class UpdatesUiState(
         subtitle = "Install a stronger app-owned FFmpeg runtime overlay for newer media processing support.",
     ),
     val pendingAppInstall: PreparedAppUpdate? = null,
+    val pendingAppInstallRequestId: Long = 0L,
     val infoMessage: String? = null,
     val errorMessage: String? = null,
 )

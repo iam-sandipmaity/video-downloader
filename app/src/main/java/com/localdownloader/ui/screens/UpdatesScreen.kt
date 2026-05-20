@@ -81,7 +81,7 @@ fun UpdatesScreen(
     var ytDlpChannelDialog by remember { mutableStateOf(false) }
     var ffmpegChannelDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(uiState.pendingAppInstall) {
+    LaunchedEffect(uiState.pendingAppInstallRequestId) {
         val pendingInstall = uiState.pendingAppInstall ?: return@LaunchedEffect
         if (pendingInstall.requiresInstallPermission) {
             val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
@@ -91,8 +91,8 @@ fun UpdatesScreen(
             context.startActivity(intent)
         } else {
             launchApkInstaller(context = context, preparedUpdate = pendingInstall)
+            onConsumePendingAppInstall()
         }
-        onConsumePendingAppInstall()
     }
 
     if (ytDlpChannelDialog) {
@@ -171,12 +171,19 @@ fun UpdatesScreen(
                     subtitle = buildCheckSubtitle(uiState.app),
                     onClick = onRefreshApp,
                 )
-                if (uiState.app.updateAvailable) {
+                if (uiState.app.updateAvailable || uiState.app.isInstalling || uiState.pendingAppInstall != null) {
                     DividerInset()
                     UpdateActionRow(
                         icon = Icons.Outlined.FileDownload,
-                        title = "Install app update",
-                        subtitle = buildInstallSubtitle(uiState.app),
+                        title = if (uiState.pendingAppInstall != null) {
+                            "Continue app install"
+                        } else {
+                            "Install app update"
+                        },
+                        subtitle = buildInstallSubtitle(
+                            section = uiState.app,
+                            hasPreparedInstall = uiState.pendingAppInstall != null,
+                        ),
                         onClick = onInstallAppUpdate,
                     )
                 }
@@ -184,11 +191,7 @@ fun UpdatesScreen(
                 UpdateActionRow(
                     icon = Icons.Outlined.Description,
                     title = "Changelog",
-                    subtitle = if (uiState.app.releaseNotes.isNullOrBlank()) {
-                        "Open the documentation-style changelog page for the app."
-                    } else {
-                        "Read what changed in the latest app release."
-                    },
+                    subtitle = "Read the latest app release notes and the full bundled app changelog.",
                     onClick = { onOpenChangelog(UpdateChangelogSections.APP) },
                 )
             }
@@ -225,13 +228,15 @@ fun UpdatesScreen(
                     subtitle = buildCheckSubtitle(uiState.ytDlp),
                     onClick = onRefreshYtDlp,
                 )
-                DividerInset()
-                UpdateActionRow(
-                    icon = Icons.Outlined.FileDownload,
-                    title = "Install new version of yt-dlp",
-                    subtitle = buildInstallSubtitle(uiState.ytDlp),
-                    onClick = onInstallYtDlpUpdate,
-                )
+                if (uiState.ytDlp.updateAvailable || uiState.ytDlp.isInstalling) {
+                    DividerInset()
+                    UpdateActionRow(
+                        icon = Icons.Outlined.FileDownload,
+                        title = "Install new version of yt-dlp",
+                        subtitle = buildInstallSubtitle(section = uiState.ytDlp),
+                        onClick = onInstallYtDlpUpdate,
+                    )
+                }
                 DividerInset()
                 UpdateActionRow(
                     icon = Icons.Outlined.Description,
@@ -269,13 +274,22 @@ fun UpdatesScreen(
                     subtitle = buildCheckSubtitle(uiState.ffmpeg),
                     onClick = onRefreshFfmpeg,
                 )
-                DividerInset()
-                UpdateActionRow(
-                    icon = Icons.Outlined.FileDownload,
-                    title = "Install new version of FFmpeg",
-                    subtitle = buildInstallSubtitle(uiState.ffmpeg),
-                    onClick = onInstallFfmpegUpdate,
-                )
+                if (shouldShowFfmpegInstallRow(uiState.ffmpeg)) {
+                    DividerInset()
+                    UpdateActionRow(
+                        icon = Icons.Outlined.FileDownload,
+                        title = if (uiState.ffmpeg.latestCheck?.requiresInitialInstall == true) {
+                            "Install managed FFmpeg runtime"
+                        } else {
+                            "Update managed FFmpeg runtime"
+                        },
+                        subtitle = buildInstallSubtitle(
+                            section = uiState.ffmpeg,
+                            isInitialInstall = uiState.ffmpeg.latestCheck?.requiresInitialInstall == true,
+                        ),
+                        onClick = onInstallFfmpegUpdate,
+                    )
+                }
                 DividerInset()
                 UpdateActionRow(
                     icon = Icons.Outlined.Description,
@@ -562,12 +576,24 @@ private fun buildCheckSubtitle(section: UpdateSectionUiState): String {
     }
 }
 
-private fun buildInstallSubtitle(section: UpdateSectionUiState): String {
+private fun buildInstallSubtitle(
+    section: UpdateSectionUiState,
+    hasPreparedInstall: Boolean = false,
+    isInitialInstall: Boolean = false,
+): String {
     return when {
         section.isInstalling && section.progressPercent != null -> "Downloading... ${section.progressPercent}%"
+        hasPreparedInstall -> "The update APK is already downloaded and ready to install."
+        isInitialInstall -> "Install the optional managed runtime so FFmpeg can be updated directly in the app."
         section.updateAvailable -> "Install ${section.latestVersion ?: "the latest version"}"
         else -> section.summary
     }
+}
+
+private fun shouldShowFfmpegInstallRow(section: UpdateSectionUiState): Boolean {
+    return section.isInstalling ||
+        section.updateAvailable ||
+        section.latestCheck?.requiresInitialInstall == true
 }
 
 private fun launchApkInstaller(

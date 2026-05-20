@@ -85,6 +85,7 @@ data class ComponentUpdateCheck(
     val currentVersion: String?,
     val latestVersion: String?,
     val updateAvailable: Boolean,
+    val requiresInitialInstall: Boolean = false,
     val summary: String,
     val releaseNotes: String? = null,
     val releasePageUrl: String? = null,

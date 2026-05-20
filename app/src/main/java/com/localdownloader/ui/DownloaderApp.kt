@@ -750,13 +750,18 @@ fun DownloaderApp(
                     latestVersion = sectionState?.latestVersion,
                     summary = sectionState?.summary ?: "No update details are available.",
                     releaseNotes = sectionState?.releaseNotes,
-                    documentHeading = if (sectionKey == UpdateChangelogSections.APP) {
-                        "Full changelog"
+                    latestDocumentHeading = if (sectionKey == UpdateChangelogSections.APP) {
+                        "Latest app release notes"
                     } else {
                         "Recent release notes"
                     },
+                    bundledDocumentHeading = if (sectionKey == UpdateChangelogSections.APP) {
+                        "Full app changelog"
+                    } else {
+                        null
+                    },
                     overviewText = if (sectionKey == UpdateChangelogSections.APP) {
-                        "Browse the complete app release history in a cleaner documentation-style layout."
+                        "Read the newest app release notes first, then browse the bundled full changelog below."
                     } else {
                         "Read the latest release notes in a cleaner documentation-style view."
                     },

@@ -54,10 +54,9 @@ class FfmpegUpdateManager @Inject constructor(
         val installedPackageVersion = installedPackageVersion()
         val release = resolveLatestRelease(channel)
         val latestVersion = release.version
-        val updateAvailable = when {
-            installedPackageVersion.isNullOrBlank() -> true
-            else -> compareLooseVersions(installedPackageVersion, latestVersion) < 0
-        }
+        val requiresInitialInstall = installedPackageVersion.isNullOrBlank()
+        val updateAvailable = !requiresInitialInstall &&
+            compareLooseVersions(installedPackageVersion, latestVersion) < 0
         return ComponentUpdateCheck(
             currentVersion = buildDisplayVersion(
                 runtimeVersion = runtimeVersion,
@@ -65,13 +64,14 @@ class FfmpegUpdateManager @Inject constructor(
             ),
             latestVersion = latestVersion,
             updateAvailable = updateAvailable,
+            requiresInitialInstall = requiresInitialInstall,
             summary = when {
-                installedPackageVersion.isNullOrBlank() ->
-                    "Bundled FFmpeg is active. Install the managed runtime package to receive direct FFmpeg updates."
+                requiresInitialInstall ->
+                    "Bundled FFmpeg is active. Install the managed runtime package if you want direct in-app FFmpeg updates."
                 updateAvailable ->
-                    "A newer FFmpeg runtime package is available."
+                    "A newer managed FFmpeg runtime package is available."
                 else ->
-                    "FFmpeg is already on the latest stable runtime feed."
+                    "Managed FFmpeg runtime is already on the latest stable feed."
             },
             releaseNotes = release.release.body,
             releasePageUrl = release.release.html_url,
