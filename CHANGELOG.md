@@ -16,6 +16,7 @@
 ### Changed
 - **Queue screen redesign** - refreshed the queue into the newer hero-card layout with thumbnail-first previews, stronger empty states, and clearer top-level queue filtering
 - **Download card previews** - queued and running items now prefer analyzed remote thumbnails before a local output file exists, so users see the real media preview instead of a generic placeholder
+- **Safer app update handoff** - app updates now open the latest release in the browser instead of requesting APK-install privileges from inside the app
 - **Playlist control behavior** - pausing, canceling, or resuming one playlist item no longer applies that action to the entire remaining playlist queue by accident
 - **Queue batch controls** - added section-level pause/cancel actions for queued items and resume actions for scheduled items, keeping batch behavior separate from per-item controls
 - **Download sheet reliability** - made the Home screen scrollable and pinned the bottom-sheet `Download` button so it stays reachable on smaller screens and taller format-detail layouts

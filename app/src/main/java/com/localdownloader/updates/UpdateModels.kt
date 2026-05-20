@@ -92,12 +92,6 @@ data class ComponentUpdateCheck(
     val assetName: String? = null,
 )
 
-data class PreparedAppUpdate(
-    val apkPath: String,
-    val requiresInstallPermission: Boolean,
-    val assetName: String,
-)
-
 data class RuntimeInstallResult(
     val updated: Boolean,
     val version: String?,

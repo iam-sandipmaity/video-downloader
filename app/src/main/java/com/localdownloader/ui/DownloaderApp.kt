@@ -649,7 +649,6 @@ fun DownloaderApp(
                     onRefreshApp = updatesViewModel::refreshApp,
                     onRefreshYtDlp = updatesViewModel::refreshYtDlp,
                     onRefreshFfmpeg = updatesViewModel::refreshFfmpeg,
-                    onInstallAppUpdate = updatesViewModel::installAppUpdate,
                     onInstallYtDlpUpdate = updatesViewModel::installYtDlpUpdate,
                     onInstallFfmpegUpdate = updatesViewModel::installFfmpegUpdate,
                     onYtDlpChannelChanged = updatesViewModel::setYtDlpChannel,
@@ -659,7 +658,6 @@ fun DownloaderApp(
                     onOpenChangelog = { section ->
                         navController.navigate(Routes.updateChangelog(section))
                     },
-                    onConsumePendingAppInstall = updatesViewModel::consumePendingAppInstall,
                     onDismissMessage = updatesViewModel::dismissMessage,
                 )
             }

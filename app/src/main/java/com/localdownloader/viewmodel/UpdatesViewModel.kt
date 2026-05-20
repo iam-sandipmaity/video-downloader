@@ -8,7 +8,6 @@ import com.localdownloader.updates.AppUpdateManager
 import com.localdownloader.updates.ComponentUpdateCheck
 import com.localdownloader.updates.FfmpegReleaseChannel
 import com.localdownloader.updates.FfmpegUpdateManager
-import com.localdownloader.updates.PreparedAppUpdate
 import com.localdownloader.updates.UpdatePreferences
 import com.localdownloader.updates.UpdatePreferencesStore
 import com.localdownloader.updates.YtDlpReleaseChannel
@@ -108,39 +107,6 @@ class UpdatesViewModel @Inject constructor(
         refreshFfmpeg()
     }
 
-    fun installAppUpdate() {
-        val check = _uiState.value.app.latestCheck ?: return
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(
-                app = _uiState.value.app.copy(isInstalling = true, progressPercent = 0),
-                infoMessage = null,
-                errorMessage = null,
-            )
-            runCatching {
-                appUpdateManager.prepareInstall(check) { progress ->
-                    _uiState.value = _uiState.value.copy(
-                        app = _uiState.value.app.copy(progressPercent = progress),
-                    )
-                }
-            }.onSuccess { prepared ->
-                _uiState.value = _uiState.value.copy(
-                    app = _uiState.value.app.copy(isInstalling = false, progressPercent = 100),
-                    pendingAppInstall = prepared,
-                    infoMessage = if (prepared.requiresInstallPermission) {
-                        "Allow installs from this app, then tap Install app update again."
-                    } else {
-                        "App update downloaded. Opening the installer now."
-                    },
-                )
-            }.onFailure { error ->
-                _uiState.value = _uiState.value.copy(
-                    app = _uiState.value.app.copy(isInstalling = false, progressPercent = null),
-                    errorMessage = error.message ?: "Failed to prepare the app update.",
-                )
-            }
-        }
-    }
-
     fun installYtDlpUpdate() {
         val channel = _uiState.value.preferences.ytDlpChannel
         viewModelScope.launch {
@@ -214,10 +180,6 @@ class UpdatesViewModel @Inject constructor(
                 )
             }
         }
-    }
-
-    fun consumePendingAppInstall() {
-        _uiState.value = _uiState.value.copy(pendingAppInstall = null)
     }
 
     fun dismissMessage() {
@@ -297,7 +259,7 @@ data class UpdatesUiState(
     val preferences: UpdatePreferences = UpdatePreferences(),
     val app: UpdateSectionUiState = UpdateSectionUiState(
         title = "App update",
-        subtitle = "Check the installed app against the latest GitHub release and install a newer APK when available.",
+        subtitle = "Check the installed app against the latest GitHub release and open a newer APK in your browser when available.",
     ),
     val ytDlp: UpdateSectionUiState = UpdateSectionUiState(
         title = "yt-dlp update",
@@ -307,7 +269,6 @@ data class UpdatesUiState(
         title = "FFmpeg update",
         subtitle = "Install a stronger app-owned FFmpeg runtime overlay for newer media processing support.",
     ),
-    val pendingAppInstall: PreparedAppUpdate? = null,
     val infoMessage: String? = null,
     val errorMessage: String? = null,
 )

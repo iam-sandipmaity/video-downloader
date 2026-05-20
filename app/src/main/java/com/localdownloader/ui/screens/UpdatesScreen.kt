@@ -2,8 +2,6 @@ package com.localdownloader.ui.screens
 
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
-import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -40,7 +38,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,13 +49,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
 import com.localdownloader.viewmodel.UpdateSectionUiState
 import com.localdownloader.viewmodel.UpdatesUiState
 import com.localdownloader.updates.FfmpegReleaseChannel
-import com.localdownloader.updates.PreparedAppUpdate
 import com.localdownloader.updates.YtDlpReleaseChannel
-import java.io.File
 
 @Composable
 fun UpdatesScreen(
@@ -68,7 +62,6 @@ fun UpdatesScreen(
     onRefreshApp: () -> Unit,
     onRefreshYtDlp: () -> Unit,
     onRefreshFfmpeg: () -> Unit,
-    onInstallAppUpdate: () -> Unit,
     onInstallYtDlpUpdate: () -> Unit,
     onInstallFfmpegUpdate: () -> Unit,
     onYtDlpChannelChanged: (YtDlpReleaseChannel) -> Unit,
@@ -76,27 +69,12 @@ fun UpdatesScreen(
     onAutoUpdateYtDlpChanged: (Boolean) -> Unit,
     onIncludePrereleaseAppReleasesChanged: (Boolean) -> Unit,
     onOpenChangelog: (String) -> Unit,
-    onConsumePendingAppInstall: () -> Unit,
     onDismissMessage: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     var ytDlpChannelDialog by remember { mutableStateOf(false) }
     var ffmpegChannelDialog by remember { mutableStateOf(false) }
-
-    LaunchedEffect(uiState.pendingAppInstall) {
-        val pendingInstall = uiState.pendingAppInstall ?: return@LaunchedEffect
-        if (pendingInstall.requiresInstallPermission) {
-            val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
-                data = Uri.parse("package:${context.packageName}")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            context.startActivity(intent)
-        } else {
-            launchApkInstaller(context = context, preparedUpdate = pendingInstall)
-        }
-        onConsumePendingAppInstall()
-    }
 
     if (ytDlpChannelDialog) {
         ChoiceDialog(
@@ -173,9 +151,14 @@ fun UpdatesScreen(
                 DividerInset()
                 UpdateActionRow(
                     icon = Icons.Outlined.FileDownload,
-                    title = "Install app update",
-                    subtitle = buildInstallSubtitle(uiState.app),
-                    onClick = onInstallAppUpdate,
+                    title = "Open app update",
+                    subtitle = buildBrowserInstallSubtitle(uiState.app),
+                    onClick = {
+                        openExternalUrl(
+                            context = context,
+                            url = uiState.app.latestCheck?.downloadUrl ?: uiState.app.releasePageUrl,
+                        )
+                    },
                 )
             }
             DividerInset()
@@ -609,23 +592,21 @@ private fun buildInstallSubtitle(section: UpdateSectionUiState): String {
     }
 }
 
-private fun launchApkInstaller(
+private fun buildBrowserInstallSubtitle(section: UpdateSectionUiState): String {
+    return if (section.updateAvailable) {
+        "Open ${section.latestVersion ?: "the latest version"} in your browser for download."
+    } else {
+        section.summary
+    }
+}
+
+private fun openExternalUrl(
     context: android.content.Context,
-    preparedUpdate: PreparedAppUpdate,
+    url: String?,
 ) {
-    val apkFile = File(preparedUpdate.apkPath)
-    val uri = FileProvider.getUriForFile(
-        context,
-        "${context.packageName}.fileprovider",
-        apkFile,
-    )
-    val intent = Intent(Intent.ACTION_VIEW).apply {
-        setDataAndType(uri, "application/vnd.android.package-archive")
+    val normalizedUrl = url?.takeIf { it.isNotBlank() } ?: return
+    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(normalizedUrl)).apply {
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
-        }
     }
     context.startActivity(intent)
 }
