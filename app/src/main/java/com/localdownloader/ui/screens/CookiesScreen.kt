@@ -36,7 +36,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -45,7 +44,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -61,7 +59,6 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.viewinterop.AndroidView
 import com.localdownloader.domain.models.CookieProfile
 import com.localdownloader.ui.components.InlineFeedbackCard
@@ -92,7 +89,6 @@ fun CookiesScreen(
     val context = LocalContext.current
     val infoMessage = uiState.infoMessageFor(FormatMessageScope.COOKIES)
     val errorMessage = uiState.errorMessageFor(FormatMessageScope.COOKIES)
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     var showMenu by remember { mutableStateOf(false) }
     var editorState by remember { mutableStateOf<CookieEditorState?>(null) }
     var confirmDeleteAll by remember { mutableStateOf(false) }
@@ -156,9 +152,9 @@ fun CookiesScreen(
     }
 
     Scaffold(
-        modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = modifier,
         topBar = {
-            LargeTopAppBar(
+            TopAppBar(
                 title = { Text("Cookies") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -225,7 +221,6 @@ fun CookiesScreen(
                         }
                     }
                 },
-                scrollBehavior = scrollBehavior,
             )
         },
     ) { innerPadding ->
