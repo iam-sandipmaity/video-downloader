@@ -4,7 +4,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CloudDownload
 import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.material.icons.rounded.History
-import androidx.compose.material.icons.rounded.ManageAccounts
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.SwapHoriz
@@ -105,14 +104,6 @@ fun MoreScreen(
                     title = "Compressor",
                     subtitle = "Reduce file size before sharing or archiving.",
                     onClick = onOpenCompress,
-                )
-                PreferenceDivider()
-                PreferenceRow(
-                    icon = Icons.Rounded.ManageAccounts,
-                    title = "Support posture",
-                    subtitle = "The refreshed layout keeps settings, recovery tools, and updates easier to reach without crowding the main tabs.",
-                    value = "New UI",
-                    onClick = null,
                 )
             }
         }

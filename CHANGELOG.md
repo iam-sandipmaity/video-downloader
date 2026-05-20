@@ -8,6 +8,9 @@
 - **Seal-style settings architecture** - replaced the one-page settings wall with a dedicated settings hub plus focused pages for Appearance, Download defaults, Folders and storage, Notifications, Access and network, and About and support
 - **Concurrent download preference UI** - surfaced the stored `maxConcurrentDownloads` setting in the new Download defaults page so queue-slot intent is now visible in the UI ahead of deeper scheduler work
 - **Shared preference-page system** - introduced reusable large-app-bar settings scaffolds, grouped preference rows, hero cards, and shared dialogs to keep revamp work consistent across settings-related screens
+- **Android app-language handling** - added system-aware app language support so the app can follow Android's language setting cleanly and grow into per-app language selection later
+- **Real download network controls** - added Wi-Fi-only downloading by default, a cellular-download setting, and an in-app prompt when someone tries to queue downloads on mobile data
+- **Real queue slot scheduling** - wired the concurrent-download preference into the repository scheduler so the app now respects the configured maximum active downloads
 
 ### Changed
 - **Settings revamp** - rebuilt Settings around a lighter Seal-inspired preference flow with grouped sections, cleaner navigation, smoother page rhythm, and clearer summaries of each category before you tap in
@@ -16,6 +19,13 @@
 - **Access screen polish** - refreshed Cookies and YouTube access with smoother large-app-bar treatment and cleaner entry points from the new Access and network settings page
 - **Recovery copy cleanup** - updated onboarding and queue guidance so cookie and YouTube access directions point to the new Settings access path instead of the older More-only flow
 - **Typography tune-up** - expanded the app typography set so the new settings and support pages can use cleaner headline, label, and small-body styling without falling back to mismatched defaults
+- **Converter and compressor refresh** - simplified both media-tool screens around the same compact top-bar and grouped-card rhythm as Settings, with less filler copy and faster access to the useful controls
+- **More page cleanup** - removed the inactive support-posture row so every entry in More now leads somewhere useful
+
+### Fixed
+- **Notification toggle behavior** - completed, failed, and canceled download notifications now obey the in-app toggles again instead of depending on a broken duplicate settings path
+- **False download failures after success** - fixed the completion-path notification regression that could mark a finished download as failed after the file had already been saved
+- **Duplicate playlist worker launches** - fixed queue scheduling so one playlist item is no longer started twice and then forced into a rename/file-missing failure at the end
 
 ### Technical
 - **Navigation split for settings** - added dedicated settings subroutes inside `DownloaderApp` to support the new hub-and-subpage structure without touching download, queue, or media-processing logic
