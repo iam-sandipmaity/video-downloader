@@ -99,7 +99,7 @@ fun HelpScreen(
                     title = "Report with proof if it still fails",
                     body = "Export log.txt, take a screenshot of the failure state, and explain what you expected versus what happened. That usually saves a lot of back-and-forth.",
                 )
-            )
+            }
         }
         item {
             HelpSectionCard(
@@ -130,7 +130,7 @@ fun HelpScreen(
                     title = "Settings",
                     body = "Change folders, notifications, theme, contrast, download defaults, and cleanup behavior without cluttering the main tabs.",
                 )
-            )
+            }
         }
         item {
             HelpSectionCard(
@@ -161,7 +161,7 @@ fun HelpScreen(
                     title = "A playlist item behaves differently from one-off downloads",
                     body = "Use item actions for one playlist entry and tab-level batch actions when you mean the whole group. They are intentionally separate now.",
                 )
-            )
+            }
         }
         item {
             HelpSectionCard(
@@ -192,7 +192,7 @@ fun HelpScreen(
                     title = "Folders and cleanup",
                     body = "Downloads stay grouped under the folders you choose in Settings, and cache cleanup is separate from deleting real saved media.",
                 )
-            )
+            }
         }
         item {
             HelpSectionCard(
@@ -231,7 +231,7 @@ fun HelpScreen(
                         )
                     }
                 }
-            )
+            }
         }
     }
 }
