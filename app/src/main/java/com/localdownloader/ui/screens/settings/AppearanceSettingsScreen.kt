@@ -1,0 +1,174 @@
+package com.localdownloader.ui.screens.settings
+
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Language
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Style
+import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import com.localdownloader.domain.models.AccentPreset
+import com.localdownloader.domain.models.ContrastMode
+import com.localdownloader.domain.models.SYSTEM_LANGUAGE_TAG
+import com.localdownloader.domain.models.ThemeMode
+import com.localdownloader.ui.components.PreferenceDivider
+import com.localdownloader.ui.components.PreferenceGroup
+import com.localdownloader.ui.components.PreferencePageScaffold
+import com.localdownloader.ui.components.PreferenceRow
+import com.localdownloader.viewmodel.FormatUiState
+
+@Composable
+fun AppearanceSettingsScreen(
+    uiState: FormatUiState,
+    onLanguageChanged: (String) -> Unit,
+    onThemeModeChanged: (ThemeMode) -> Unit,
+    onAccentPresetChanged: (AccentPreset) -> Unit,
+    onContrastModeChanged: (ContrastMode) -> Unit,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var choiceDialog by remember { mutableStateOf<SettingChoiceDialogState?>(null) }
+
+    choiceDialog?.let { state ->
+        SettingChoiceDialog(
+            state = state,
+            onDismiss = { choiceDialog = null },
+        )
+    }
+
+    PreferencePageScaffold(
+        title = "Appearance",
+        onBack = onBack,
+        modifier = modifier,
+    ) {
+        item {
+            PreferenceGroup {
+                PreferenceRow(
+                    icon = Icons.Rounded.Style,
+                    title = "Theme mode",
+                    subtitle = "Choose whether the app follows the device, stays light, or stays dark.",
+                    value = themeModeLabel(uiState.themeMode),
+                    onClick = {
+                        choiceDialog = SettingChoiceDialogState(
+                            title = "Theme mode",
+                            selected = themeModeLabel(uiState.themeMode),
+                            options = listOf(
+                                ThemeMode.SYSTEM,
+                                ThemeMode.DARK,
+                                ThemeMode.LIGHT,
+                            ).map { mode ->
+                                SettingChoiceOption(
+                                    title = themeModeLabel(mode),
+                                    subtitle = when (mode) {
+                                        ThemeMode.SYSTEM -> "Follow the phone mode automatically."
+                                        ThemeMode.DARK -> "Always use the darker app surface."
+                                        ThemeMode.LIGHT -> "Always use the lighter app surface."
+                                    },
+                                    onSelect = { onThemeModeChanged(mode) },
+                                )
+                            },
+                        )
+                    },
+                )
+                PreferenceDivider()
+                PreferenceRow(
+                    icon = Icons.Rounded.Palette,
+                    title = "Accent palette",
+                    subtitle = "Shape the color language for highlights, buttons, playback details, and utility surfaces.",
+                    value = accentLabel(uiState.accentPreset),
+                    onClick = {
+                        val accentOrder = listOf(
+                            AccentPreset.AMBER,
+                            AccentPreset.OCEAN,
+                            AccentPreset.COBALT,
+                            AccentPreset.AQUA,
+                            AccentPreset.TEAL,
+                            AccentPreset.MINT,
+                            AccentPreset.EMERALD,
+                            AccentPreset.FOREST,
+                            AccentPreset.ROSE,
+                            AccentPreset.CRIMSON,
+                            AccentPreset.MAGENTA,
+                            AccentPreset.PURPLE,
+                            AccentPreset.YELLOW,
+                            AccentPreset.ORANGE,
+                            AccentPreset.COPPER,
+                            AccentPreset.MONOCHROME,
+                        )
+                        choiceDialog = SettingChoiceDialogState(
+                            title = "Accent palette",
+                            selected = accentLabel(uiState.accentPreset),
+                            options = accentOrder.map { preset ->
+                                SettingChoiceOption(
+                                    title = accentLabel(preset),
+                                    subtitle = accentSubtitle(preset),
+                                    onSelect = { onAccentPresetChanged(preset) },
+                                )
+                            },
+                        )
+                    },
+                )
+                PreferenceDivider()
+                PreferenceRow(
+                    icon = Icons.Rounded.Tune,
+                    title = "Contrast",
+                    subtitle = "Tune how gently or sharply cards, text, and backgrounds separate from each other.",
+                    value = contrastLabel(uiState.contrastMode),
+                    onClick = {
+                        choiceDialog = SettingChoiceDialogState(
+                            title = "Contrast",
+                            selected = contrastLabel(uiState.contrastMode),
+                            options = ContrastMode.entries.map { mode ->
+                                SettingChoiceOption(
+                                    title = contrastLabel(mode),
+                                    subtitle = contrastSubtitle(mode),
+                                    onSelect = { onContrastModeChanged(mode) },
+                                )
+                            },
+                        )
+                    },
+                )
+            }
+        }
+        item {
+            PreferenceGroup {
+                PreferenceRow(
+                    icon = Icons.Rounded.Language,
+                    title = "App language",
+                    subtitle = "Follow Android's app language or keep English pinned from here.",
+                    value = languageLabel(uiState.languageTag),
+                    onClick = {
+                        choiceDialog = SettingChoiceDialogState(
+                            title = "App language",
+                            selected = languageLabel(uiState.languageTag),
+                            options = listOf(
+                                SettingChoiceOption(
+                                    title = "System default",
+                                    subtitle = "Follow the language Android already uses for this app.",
+                                    onSelect = { onLanguageChanged(SYSTEM_LANGUAGE_TAG) },
+                                ),
+                                SettingChoiceOption(
+                                    title = "English",
+                                    subtitle = "Use the bundled English interface everywhere in the app.",
+                                    onSelect = { onLanguageChanged("en") },
+                                ),
+                            ),
+                        )
+                    },
+                )
+            }
+        }
+    }
+}
+
+private fun languageLabel(languageTag: String): String {
+    return when (languageTag) {
+        SYSTEM_LANGUAGE_TAG -> "System default"
+        "en" -> "English"
+        else -> languageTag
+    }
+}

@@ -13,6 +13,7 @@ import com.localdownloader.domain.models.AccentPreset
 import com.localdownloader.domain.models.AppSettings
 import com.localdownloader.domain.models.ContrastMode
 import com.localdownloader.domain.models.CookieProfile
+import com.localdownloader.domain.models.SYSTEM_LANGUAGE_TAG
 import com.localdownloader.domain.models.ThemeMode
 import com.localdownloader.domain.models.YoutubeAuthConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -54,12 +55,17 @@ class SettingsStore @Inject constructor(
         val autoEmbedThumbnail = booleanPreferencesKey("auto_embed_thumbnail")
         val autoRemoveMissingFilesFromLibrary = booleanPreferencesKey("auto_remove_missing_files_from_library")
         val deleteFromStorageWhenRemovedInApp = booleanPreferencesKey("delete_from_storage_when_removed_in_app")
+        val notifyCompletedDownloads = booleanPreferencesKey("notify_completed_downloads")
+        val notifyDownloadErrors = booleanPreferencesKey("notify_download_errors")
+        val notifyCanceledDownloads = booleanPreferencesKey("notify_canceled_downloads")
+        val notifyPromotions = booleanPreferencesKey("notify_promotions")
         val cookiesEnabled = booleanPreferencesKey("cookies_enabled")
         val cookieUserAgentEnabled = booleanPreferencesKey("cookie_user_agent_enabled")
         val cookieProfiles = stringPreferencesKey("cookie_profiles_json")
         val youtubeAuthConfig = stringPreferencesKey("youtube_auth_config_json")
         val hasSeenDownloadSetupNotice = booleanPreferencesKey("has_seen_download_setup_notice")
         val maxConcurrent = intPreferencesKey("max_concurrent")
+        val allowMeteredDownloads = booleanPreferencesKey("allow_metered_downloads")
         val darkTheme = booleanPreferencesKey("dark_theme")
     }
 
@@ -74,10 +80,10 @@ class SettingsStore @Inject constructor(
             }
             .map { prefs ->
                 AppSettings(
-                    languageTag = prefs[Keys.languageTag] ?: "en",
-                    themeMode = prefs[Keys.themeMode]?.toEnumOrDefault(ThemeMode.SYSTEM) ?: ThemeMode.SYSTEM,
-                    accentPreset = prefs[Keys.accentPreset]?.toEnumOrDefault(AccentPreset.AMBER) ?: AccentPreset.AMBER,
-                    contrastMode = prefs[Keys.contrastMode]?.toEnumOrDefault(ContrastMode.STANDARD) ?: ContrastMode.STANDARD,
+                    languageTag = prefs[Keys.languageTag] ?: SYSTEM_LANGUAGE_TAG,
+                    themeMode = prefs[Keys.themeMode]?.toEnumOrDefault(ThemeMode.LIGHT) ?: ThemeMode.LIGHT,
+                    accentPreset = prefs[Keys.accentPreset]?.toEnumOrDefault(AccentPreset.TEAL) ?: AccentPreset.TEAL,
+                    contrastMode = prefs[Keys.contrastMode]?.toEnumOrDefault(ContrastMode.ULTRA) ?: ContrastMode.ULTRA,
                     defaultOutputTemplate = prefs[Keys.template] ?: "%(title)s [%(id)s].%(ext)s",
                     defaultAudioOutputTemplate = prefs[Keys.audioTemplate] ?: "%(title)s [%(id)s].%(ext)s",
                     defaultMergeContainer = prefs[Keys.mergeContainer] ?: "mp4",
@@ -92,12 +98,17 @@ class SettingsStore @Inject constructor(
                     autoEmbedThumbnail = prefs[Keys.autoEmbedThumbnail] ?: false,
                     autoRemoveMissingFilesFromLibrary = prefs[Keys.autoRemoveMissingFilesFromLibrary] ?: true,
                     deleteFromStorageWhenRemovedInApp = prefs[Keys.deleteFromStorageWhenRemovedInApp] ?: true,
+                    notifyCompletedDownloads = prefs[Keys.notifyCompletedDownloads] ?: true,
+                    notifyDownloadErrors = prefs[Keys.notifyDownloadErrors] ?: true,
+                    notifyCanceledDownloads = prefs[Keys.notifyCanceledDownloads] ?: true,
+                    notifyPromotions = prefs[Keys.notifyPromotions] ?: true,
                     cookiesEnabled = prefs[Keys.cookiesEnabled] ?: false,
                     cookieUserAgentEnabled = prefs[Keys.cookieUserAgentEnabled] ?: false,
                     cookieProfiles = decodeCookieProfiles(prefs[Keys.cookieProfiles]),
                     youtubeAuthConfig = decodeYoutubeAuthConfig(prefs[Keys.youtubeAuthConfig]),
                     hasSeenDownloadSetupNotice = prefs[Keys.hasSeenDownloadSetupNotice] ?: false,
                     maxConcurrentDownloads = prefs[Keys.maxConcurrent] ?: 2,
+                    allowMeteredDownloads = prefs[Keys.allowMeteredDownloads] ?: false,
                     darkTheme = prefs[Keys.darkTheme] ?: false,
                 )
             }
@@ -123,12 +134,17 @@ class SettingsStore @Inject constructor(
             prefs[Keys.autoEmbedThumbnail] = settings.autoEmbedThumbnail
             prefs[Keys.autoRemoveMissingFilesFromLibrary] = settings.autoRemoveMissingFilesFromLibrary
             prefs[Keys.deleteFromStorageWhenRemovedInApp] = settings.deleteFromStorageWhenRemovedInApp
+            prefs[Keys.notifyCompletedDownloads] = settings.notifyCompletedDownloads
+            prefs[Keys.notifyDownloadErrors] = settings.notifyDownloadErrors
+            prefs[Keys.notifyCanceledDownloads] = settings.notifyCanceledDownloads
+            prefs[Keys.notifyPromotions] = settings.notifyPromotions
             prefs[Keys.cookiesEnabled] = settings.cookiesEnabled
             prefs[Keys.cookieUserAgentEnabled] = settings.cookieUserAgentEnabled
             prefs[Keys.cookieProfiles] = json.encodeToString(settings.cookieProfiles)
             prefs[Keys.youtubeAuthConfig] = json.encodeToString(settings.youtubeAuthConfig)
             prefs[Keys.hasSeenDownloadSetupNotice] = settings.hasSeenDownloadSetupNotice
             prefs[Keys.maxConcurrent] = settings.maxConcurrentDownloads
+            prefs[Keys.allowMeteredDownloads] = settings.allowMeteredDownloads
             prefs[Keys.darkTheme] = settings.darkTheme
         }
     }

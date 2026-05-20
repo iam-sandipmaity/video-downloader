@@ -12,9 +12,11 @@ import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.localdownloader.data.DownloadTaskStore
+import com.localdownloader.data.SettingsStore
 import com.localdownloader.domain.models.DownloadOptions
 import com.localdownloader.domain.models.DownloadStatus
 import com.localdownloader.domain.models.DownloadTask
+import com.localdownloader.domain.repositories.DownloaderRepository
 import com.localdownloader.downloader.CommandResult
 import com.localdownloader.downloader.DownloadEngine
 import com.localdownloader.downloader.YoutubeRequestPlanner
@@ -26,6 +28,7 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import androidx.hilt.work.HiltWorker
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.first
 
 @HiltWorker
 class DownloadWorker @AssistedInject constructor(
@@ -33,6 +36,8 @@ class DownloadWorker @AssistedInject constructor(
     @Assisted params: WorkerParameters,
     private val downloadEngine: DownloadEngine,
     private val downloadTaskStore: DownloadTaskStore,
+    private val settingsStore: SettingsStore,
+    private val repository: DownloaderRepository,
     private val ffmpegExecutor: FfmpegExecutor,
     private val fileUtils: FileUtils,
     private val logger: Logger,
@@ -540,6 +545,7 @@ class DownloadWorker @AssistedInject constructor(
                 outputPath = finalPath,
                 sizeLabel = finalSizeLabel,
             )
+            refillQueuedDownloadsSafely(taskId)
             return Result.success(workDataOf(WorkerKeys.OUTPUT_PATH to finalPath))
         }
 
@@ -1759,6 +1765,7 @@ class DownloadWorker @AssistedInject constructor(
                     url = url,
                     title = title,
                     status = DownloadStatus.RUNNING,
+                    activeWorkId = id.toString(),
                     errorMessage = null,
                     updatedAtEpochMs = System.currentTimeMillis(),
                 )
@@ -1950,10 +1957,11 @@ class DownloadWorker @AssistedInject constructor(
             (detail.contains("giving up after") && detail.contains("fragment"))
     }
 
-    private fun finishFailureResult(
+    private suspend fun finishFailureResult(
         shouldContinuePlaylistQueue: Boolean,
         failureMessage: String,
     ): Result {
+        refillQueuedDownloadsSafely(id.toString())
         val outputData = workDataOf(
             WorkerKeys.ERROR_MESSAGE to failureMessage,
             WorkerKeys.TERMINAL_STATUS to DownloadStatus.FAILED.name,
@@ -1968,12 +1976,20 @@ class DownloadWorker @AssistedInject constructor(
         return Result.success(outputData)
     }
 
-    private fun finishPausedResult(): Result {
+    private suspend fun finishPausedResult(): Result {
+        refillQueuedDownloadsSafely(id.toString())
         return Result.success(
             workDataOf(
                 WorkerKeys.TERMINAL_STATUS to DownloadStatus.PAUSED.name,
             ),
         )
+    }
+
+    private suspend fun refillQueuedDownloadsSafely(taskId: String) {
+        runCatching { repository.refillQueuedDownloads() }
+            .onFailure { error ->
+                logger.e("DownloadWorker", "Unable to refill queued downloads after terminal state for $taskId", error)
+            }
     }
 
     private fun shouldKeepPausedState(
@@ -2030,12 +2046,13 @@ class DownloadWorker @AssistedInject constructor(
         }
     }
 
-    private fun showCompletionNotification(
+    private suspend fun showCompletionNotification(
         taskId: String,
         title: String,
         outputPath: String?,
         sizeLabel: String?,
     ) {
+        if (!settingsStore.observeSettings().first().notifyCompletedDownloads) return
         AppNotifications.showDownloadCompleted(
             context = applicationContext,
             taskId = taskId,
@@ -2045,11 +2062,12 @@ class DownloadWorker @AssistedInject constructor(
         )
     }
 
-    private fun showFailureNotification(
+    private suspend fun showFailureNotification(
         taskId: String,
         title: String,
         message: String,
     ) {
+        if (!settingsStore.observeSettings().first().notifyDownloadErrors) return
         AppNotifications.showDownloadFailed(
             context = applicationContext,
             taskId = taskId,

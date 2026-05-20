@@ -233,10 +233,10 @@ fun CookiesScreen(
         ) {
             Surface(
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
-                shape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp),
+                shape = RoundedCornerShape(28.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp),
+                    .padding(horizontal = 18.dp),
             ) {
                 Column(
                     modifier = Modifier

@@ -4,11 +4,9 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -16,18 +14,14 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.ErrorOutline
@@ -42,7 +36,6 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
@@ -57,11 +50,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.viewmodel.AUDIO_BITRATE_PRESETS
 import com.localdownloader.viewmodel.MediaToolsUiState
 import com.localdownloader.viewmodel.RESOLUTION_PRESETS
@@ -81,21 +74,21 @@ private data class CompressionGoal(
 private val QUICK_COMPRESSION_GOALS = listOf(
     CompressionGoal(
         title = "Share fast",
-        body = "Great for messaging apps and faster uploads.",
+        body = "Smallest size",
         maxHeight = "480",
         videoBitrate = "500",
         audioBitrate = "96",
     ),
     CompressionGoal(
         title = "Balanced",
-        body = "A safer everyday choice for mixed content.",
+        body = "Everyday use",
         maxHeight = "720",
         videoBitrate = "1000",
         audioBitrate = "128",
     ),
     CompressionGoal(
         title = "Keep detail",
-        body = "Use when the image matters more than size savings.",
+        body = "Higher quality",
         maxHeight = "1080",
         videoBitrate = "2500",
         audioBitrate = "192",
@@ -119,365 +112,262 @@ fun CompressScreen(
     onBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
-    var showFineTuning by rememberSaveable { mutableStateOf(true) }
+    var showFineTuning by rememberSaveable { mutableStateOf(false) }
     val canCompress = uiState.compressInputFileInfo != null && !uiState.isCompressing
-    val selectedResolution = RESOLUTION_PRESETS
-        .getOrElse(uiState.compressResolutionPresetIndex.coerceIn(0, RESOLUTION_PRESETS.lastIndex)) {
-            RESOLUTION_PRESETS.first()
-        }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp),
+    PreferencePageScaffold(
+        title = "Compressor",
+        onBack = onBack,
+        modifier = modifier,
     ) {
-        CompressHeroCard(
-            selectedHeight = selectedResolution.label,
-            inputName = uiState.compressInputFileInfo?.name,
-            onBack = onBack,
-        )
-
-        CompressPanel {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                CompressEyebrow("File")
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    FilledTonalButton(
-                        onClick = onBrowseFile,
-                        modifier = Modifier.weight(1f),
+        item {
+            CompressPanel {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    CompressPanelHeader(title = "Source")
+                    CompressInputFileCard(
+                        fileName = uiState.compressInputFileInfo?.name,
+                        fileSizeBytes = uiState.compressInputFileInfo?.sizeBytes,
+                        filePath = uiState.compressInputFileInfo?.path,
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        Icon(Icons.Outlined.CloudDownload, contentDescription = null)
-                        Spacer(Modifier.size(8.dp))
-                        Text("Choose video")
-                    }
-                    if (uiState.compressInputFileInfo != null) {
-                        OutlinedButton(
-                            onClick = { onInputPathChanged("") },
-                            modifier = Modifier.widthIn(min = 96.dp),
+                        FilledTonalButton(
+                            onClick = onBrowseFile,
+                            modifier = Modifier.weight(1f),
                         ) {
-                            Text("Clear")
+                            Icon(Icons.Outlined.CloudDownload, contentDescription = null)
+                            Spacer(Modifier.size(8.dp))
+                            Text("Choose video")
                         }
-                    }
-                }
-                CompressInputFileCard(
-                    fileName = uiState.compressInputFileInfo?.name,
-                    fileSizeBytes = uiState.compressInputFileInfo?.sizeBytes,
-                    filePath = uiState.compressInputFileInfo?.path,
-                )
-            }
-        }
-
-        CompressPanel {
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                CompressEyebrow("Goals")
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    QUICK_COMPRESSION_GOALS.forEach { goal ->
-                        CompressionGoalCard(
-                            goal = goal,
-                            selected = uiState.compressMaxHeight == goal.maxHeight &&
-                                uiState.compressVideoBitrate == goal.videoBitrate &&
-                                uiState.compressAudioBitrate == goal.audioBitrate,
-                            onClick = {
-                                onCompressQuickPresetSelected(
-                                    goal.videoBitrate,
-                                    goal.audioBitrate,
-                                    goal.maxHeight,
-                                )
-                            },
-                        )
-                    }
-                }
-            }
-        }
-
-        CompressPanel {
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                CompressEyebrow("Output")
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    CompressSummaryChip("Max ${uiState.compressMaxHeight.ifBlank { "Auto" }}p")
-                    CompressSummaryChip("Video ${bitrateSummary(uiState.compressVideoBitrate)}")
-                    CompressSummaryChip("Audio ${bitrateSummary(uiState.compressAudioBitrate)}")
-                    CompressSummaryChip("Downloads output")
-                }
-                Surface(
-                    shape = RoundedCornerShape(22.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Text(
-                            text = "Filename",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Text(
-                            text = buildCompressedOutputPreview(uiState),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-                }
-            }
-        }
-
-        CompressPanel {
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
-                    ) {
-                        CompressEyebrow("Advanced")
-                    }
-                    OutlinedButton(onClick = { showFineTuning = !showFineTuning }) {
-                        Text(if (showFineTuning) "Hide" else "Edit")
-                    }
-                }
-                AnimatedVisibility(
-                    visible = showFineTuning,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
-                ) {
-                    Column(
-                        modifier = Modifier.animateContentSize(),
-                        verticalArrangement = Arrangement.spacedBy(14.dp),
-                    ) {
-                        Text(
-                            text = "Height",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            RESOLUTION_PRESETS.forEachIndexed { index, preset ->
-                                FilterChip(
-                                    selected = uiState.compressResolutionPresetIndex == index,
-                                    onClick = { onResolutionPresetSelected(index) },
-                                    label = { Text(preset.label) },
-                                )
+                        if (uiState.compressInputFileInfo != null) {
+                            OutlinedButton(
+                                onClick = { onInputPathChanged("") },
+                                modifier = Modifier.widthIn(min = 96.dp),
+                            ) {
+                                Text("Clear")
                             }
                         }
-                        OutlinedTextField(
-                            value = uiState.compressMaxHeight,
-                            onValueChange = onMaxHeightChanged,
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("Max height") },
-                            placeholder = { Text("720") },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        )
-                        CompressionDropdownField(
-                            label = "Video preset",
-                            options = VIDEO_BITRATE_PRESETS.map { it.label },
-                            selectedIndex = uiState.compressVideoBitratePresetIndex.coerceIn(0, VIDEO_BITRATE_PRESETS.lastIndex),
-                            onSelected = onVideoBitratePresetSelected,
-                            supportingText = "",
-                        )
-                        OutlinedTextField(
-                            value = uiState.compressVideoBitrate,
-                            onValueChange = onVideoBitrateChanged,
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("Video kbps") },
-                            placeholder = { Text("1000") },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        )
-                        CompressionDropdownField(
-                            label = "Audio preset",
-                            options = AUDIO_BITRATE_PRESETS.map { it.label },
-                            selectedIndex = uiState.compressAudioBitratePresetIndex.coerceIn(0, AUDIO_BITRATE_PRESETS.lastIndex),
-                            onSelected = onAudioBitratePresetSelected,
-                            supportingText = "",
-                        )
-                        OutlinedTextField(
-                            value = uiState.compressAudioBitrate,
-                            onValueChange = onAudioBitrateChanged,
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("Audio kbps") },
-                            placeholder = { Text("128") },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        )
                     }
                 }
             }
         }
-
-        AnimatedVisibility(
-            visible = uiState.isCompressing || uiState.compressResult != null || uiState.compressError != null,
-            enter = fadeIn(),
-            exit = fadeOut(),
-        ) {
-            CompressStatusCard(
-                title = when {
-                    uiState.isCompressing -> "Compressing"
-                    uiState.compressError != null -> "Stopped"
-                    else -> "Done"
-                },
-                body = uiState.compressError
-                    ?: uiState.compressResult
-                    ?: "Working...",
-                progress = uiState.compressProgress,
-                success = uiState.compressResult != null && uiState.compressError == null,
-                sourceBytes = uiState.compressSourceSizeBytes,
-                resultBytes = uiState.compressResultSizeBytes,
-            )
+        item {
+            CompressPanel {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    CompressPanelHeader(title = "Goal")
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        QUICK_COMPRESSION_GOALS.forEach { goal ->
+                            CompressionGoalCard(
+                                goal = goal,
+                                selected = uiState.compressMaxHeight == goal.maxHeight &&
+                                    uiState.compressVideoBitrate == goal.videoBitrate &&
+                                    uiState.compressAudioBitrate == goal.audioBitrate,
+                                onClick = {
+                                    onCompressQuickPresetSelected(
+                                        goal.videoBitrate,
+                                        goal.audioBitrate,
+                                        goal.maxHeight,
+                                    )
+                                },
+                            )
+                        }
+                    }
+                }
+            }
         }
-
-        Button(
-            onClick = onCompressClicked,
-            enabled = canCompress,
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(vertical = 16.dp),
-            shape = RoundedCornerShape(24.dp),
-        ) {
-            if (uiState.isCompressing) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary,
+        item {
+            CompressPanel {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    CompressPanelHeader(
+                        title = "Output",
+                        actionLabel = if (showFineTuning) "Hide advanced" else "Advanced",
+                        onAction = { showFineTuning = !showFineTuning },
+                    )
+                    CompressPreviewCard(
+                        label = "Will save as",
+                        value = buildCompressedOutputPreview(uiState),
+                    )
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        CompressSummaryChip("Max ${uiState.compressMaxHeight.ifBlank { "Auto" }}p")
+                        CompressSummaryChip("Video ${bitrateSummary(uiState.compressVideoBitrate)}")
+                        CompressSummaryChip("Audio ${bitrateSummary(uiState.compressAudioBitrate)}")
+                    }
+                    AnimatedVisibility(
+                        visible = showFineTuning,
+                        enter = fadeIn(),
+                        exit = fadeOut(),
+                    ) {
+                        Column(
+                            modifier = Modifier.animateContentSize(),
+                            verticalArrangement = Arrangement.spacedBy(14.dp),
+                        ) {
+                            Text(
+                                text = "Height",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                RESOLUTION_PRESETS.forEachIndexed { index, preset ->
+                                    FilterChip(
+                                        selected = uiState.compressResolutionPresetIndex == index,
+                                        onClick = { onResolutionPresetSelected(index) },
+                                        label = { Text(preset.label) },
+                                    )
+                                }
+                            }
+                            OutlinedTextField(
+                                value = uiState.compressMaxHeight,
+                                onValueChange = onMaxHeightChanged,
+                                modifier = Modifier.fillMaxWidth(),
+                                label = { Text("Max height") },
+                                placeholder = { Text("720") },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            )
+                            CompressionDropdownField(
+                                label = "Video preset",
+                                options = VIDEO_BITRATE_PRESETS.map { it.label },
+                                selectedIndex = uiState.compressVideoBitratePresetIndex.coerceIn(0, VIDEO_BITRATE_PRESETS.lastIndex),
+                                onSelected = onVideoBitratePresetSelected,
+                                supportingText = "",
+                            )
+                            OutlinedTextField(
+                                value = uiState.compressVideoBitrate,
+                                onValueChange = onVideoBitrateChanged,
+                                modifier = Modifier.fillMaxWidth(),
+                                label = { Text("Video kbps") },
+                                placeholder = { Text("1000") },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            )
+                            CompressionDropdownField(
+                                label = "Audio preset",
+                                options = AUDIO_BITRATE_PRESETS.map { it.label },
+                                selectedIndex = uiState.compressAudioBitratePresetIndex.coerceIn(0, AUDIO_BITRATE_PRESETS.lastIndex),
+                                onSelected = onAudioBitratePresetSelected,
+                                supportingText = "",
+                            )
+                            OutlinedTextField(
+                                value = uiState.compressAudioBitrate,
+                                onValueChange = onAudioBitrateChanged,
+                                modifier = Modifier.fillMaxWidth(),
+                                label = { Text("Audio kbps") },
+                                placeholder = { Text("128") },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        if (uiState.isCompressing || uiState.compressResult != null || uiState.compressError != null) {
+            item {
+                CompressStatusCard(
+                    title = when {
+                        uiState.isCompressing -> "Compressing"
+                        uiState.compressError != null -> "Stopped"
+                        else -> "Done"
+                    },
+                    body = uiState.compressError
+                        ?: uiState.compressResult
+                        ?: "Working...",
+                    progress = uiState.compressProgress,
+                    success = uiState.compressResult != null && uiState.compressError == null,
+                    sourceBytes = uiState.compressSourceSizeBytes,
+                    resultBytes = uiState.compressResultSizeBytes,
                 )
-                Spacer(Modifier.size(10.dp))
-                Text("Compressing")
-            } else {
-                Icon(Icons.Outlined.Transform, contentDescription = null)
-                Spacer(Modifier.size(10.dp))
-                Text(if (canCompress) "Compress" else "Pick video")
+            }
+        }
+        item {
+            Button(
+                onClick = onCompressClicked,
+                enabled = canCompress,
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(vertical = 16.dp),
+                shape = RoundedCornerShape(24.dp),
+            ) {
+                if (uiState.isCompressing) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                    )
+                    Spacer(Modifier.size(10.dp))
+                    Text("Compressing")
+                } else {
+                    Icon(Icons.Outlined.Transform, contentDescription = null)
+                    Spacer(Modifier.size(10.dp))
+                    Text(if (canCompress) "Compress" else "Pick video")
+                }
             }
         }
     }
 }
 
 @Composable
-private fun CompressHeroCard(
-    selectedHeight: String,
-    inputName: String?,
-    onBack: (() -> Unit)?,
+private fun CompressPanelHeader(
+    title: String,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold,
+        )
+        if (!actionLabel.isNullOrBlank() && onAction != null) {
+            OutlinedButton(onClick = onAction) {
+                Text(actionLabel)
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompressPreviewCard(
+    label: String,
+    value: String,
 ) {
     Surface(
-        shape = RoundedCornerShape(34.dp),
-        color = MaterialTheme.colorScheme.tertiaryContainer,
+        shape = RoundedCornerShape(22.dp),
+        color = MaterialTheme.colorScheme.surface,
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.tertiaryContainer,
-                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.88f),
-                        ),
-                    ),
-                ),
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (onBack != null) {
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f),
-                        ) {
-                            IconButton(onClick = onBack) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                                    contentDescription = "Back",
-                                )
-                            }
-                        }
-                    } else {
-                        Spacer(Modifier.size(48.dp))
-                    }
-                    CompressSummaryChip(selectedHeight)
-                }
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    verticalAlignment = Alignment.Top,
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(22.dp),
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.78f),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Transform,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.tertiary,
-                            modifier = Modifier.padding(16.dp).size(28.dp),
-                        )
-                    }
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(
-                            text = "Compressor",
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            text = "Shrink video for sharing.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-                Surface(
-                    shape = RoundedCornerShape(24.dp),
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.76f),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        Text(
-                            text = "Target",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.tertiary,
-                        )
-                        Text(
-                            text = "Max ${selectedHeight}",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            text = inputName?.let(::compactCompressPath) ?: "Quick size cut",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-            }
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
         }
     }
 }
@@ -717,15 +607,6 @@ private fun CompressInputFileCard(
             }
         }
     }
-}
-
-@Composable
-private fun CompressEyebrow(text: String) {
-    Text(
-        text = text.uppercase(),
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.tertiary,
-    )
 }
 
 @Composable

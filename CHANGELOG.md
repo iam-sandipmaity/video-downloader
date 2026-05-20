@@ -2,6 +2,38 @@
 
 ## [Unreleased]
 
+## [1.7.1.0-test] - 2026-05-20
+
+### Added
+- **Seal-style settings architecture** - replaced the one-page settings wall with a dedicated settings hub plus focused pages for Appearance, Download defaults, Folders and storage, Notifications, Access and network, and About and support
+- **Concurrent download preference UI** - surfaced the stored `maxConcurrentDownloads` setting in the new Download defaults page so queue-slot intent is now visible in the UI ahead of deeper scheduler work
+- **Shared preference-page system** - introduced reusable large-app-bar settings scaffolds, grouped preference rows, hero cards, and shared dialogs to keep revamp work consistent across settings-related screens
+- **Android app-language handling** - added system-aware app language support so the app can follow Android's language setting cleanly and grow into per-app language selection later
+- **Real download network controls** - added Wi-Fi-only downloading by default, a cellular-download setting, and an in-app prompt when someone tries to queue downloads on mobile data
+- **Real queue slot scheduling** - wired the concurrent-download preference into the repository scheduler so the app now respects the configured maximum active downloads
+
+### Changed
+- **Settings revamp** - rebuilt Settings around a lighter Seal-inspired preference flow with grouped sections, cleaner navigation, smoother page rhythm, and clearer summaries of each category before you tap in
+- **More page redesign** - turned More into a cleaner grouped utility center so workflow shortcuts, access tools, updates, help, and media utilities feel more intentional and easier to scan
+- **Support surface refresh** - aligned Help and Updates with the new preference-page layout so support, maintenance, and runtime management feel like part of the same UI family
+- **Access screen polish** - refreshed Cookies and YouTube access with smoother large-app-bar treatment and cleaner entry points from the new Access and network settings page
+- **Recovery copy cleanup** - updated onboarding and queue guidance so cookie and YouTube access directions point to the new Settings access path instead of the older More-only flow
+- **Typography tune-up** - expanded the app typography set so the new settings and support pages can use cleaner headline, label, and small-body styling without falling back to mismatched defaults
+- **Converter and compressor refresh** - simplified both media-tool screens around the same compact top-bar and grouped-card rhythm as Settings, with less filler copy and faster access to the useful controls
+- **More page cleanup** - removed the inactive support-posture row so every entry in More now leads somewhere useful
+- **Updates center clarity** - app updates now keep the downloaded APK ready across the unknown-sources permission handoff, FFmpeg first-time runtime installs are separated from real runtime updates, and install actions only appear when they are actually useful
+
+### Fixed
+- **Notification toggle behavior** - completed, failed, and canceled download notifications now obey the in-app toggles again instead of depending on a broken duplicate settings path
+- **False download failures after success** - fixed the completion-path notification regression that could mark a finished download as failed after the file had already been saved
+- **Duplicate playlist worker launches** - fixed queue scheduling so one playlist item is no longer started twice and then forced into a rename/file-missing failure at the end
+- **Changelog rendering and sourcing** - the Updates changelog page now shows the latest app release notes first, keeps the full bundled app changelog below, and renders common markdown styling instead of dumping raw formatting markers
+- **Runtime update safety gating** - updating the app, yt-dlp, or FFmpeg now blocks while downloads are queued, running, or paused so update actions do not race against active work
+
+### Technical
+- **Navigation split for settings** - added dedicated settings subroutes inside `DownloaderApp` to support the new hub-and-subpage structure without touching download, queue, or media-processing logic
+- **App version bump** - release metadata updated to `1.7.1.0-test`
+
 ## [1.7.1] - 2026-05-20
 
 ### Added
@@ -183,13 +215,13 @@
 - **Player gesture guidance** - the in-player hint now explains both horizontal seek and vertical brightness and volume swipes
 - **App version bump** - release metadata updated to `1.5.2`
 
-## [1.5.1] â€” 2026-05-02
+## [1.5.1] - 2026-05-02
 
 ### Added
-- **Modern player swipe controls** â€” swipe up or down on the left side of the player to adjust brightness, or on the right side to adjust volume, with an on-screen hint and level indicator so the gesture stays easy to discover
+- **Modern player swipe controls** - swipe up or down on the left side of the player to adjust brightness, or on the right side to adjust volume, with an on-screen hint and level indicator so the gesture stays easy to discover
 
 ### Changed
-- **App version bump** â€” release metadata updated to `1.5.1`
+- **App version bump** - release metadata updated to `1.5.1`
 
 ## [1.5.0] - 2026-05-01
 
@@ -226,69 +258,69 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ---
 
-## [1.4.0] — 2026-04-09
+## [1.4.0] - 2026-04-09
 
 ### Added
-- **Download button state management** — button disables after click to prevent duplicate downloads, shows "Please wait..." with faded appearance, re-enables when user changes format/quality/type/container/audio settings, auto-re-enables after 6-second timeout
-- **Cache management in Settings** — displays current cache size with clear button to free up storage
-- **Enhanced Help Screen** — comprehensive documentation covering Downloads, Converter, Compressor, Navigation tabs, Settings, Troubleshooting, and About sections
-- **YouTube DASH video+audio download support** — improved format selection for higher resolution downloads
-- **Artifact cleanup workflow** — GitHub Actions workflow automatically deletes artifacts older than 2 days
+- **Download button state management** - button disables after click to prevent duplicate downloads, shows "Please wait..." with faded appearance, re-enables when user changes format/quality/type/container/audio settings, auto-re-enables after 6-second timeout
+- **Cache management in Settings** - displays current cache size with clear button to free up storage
+- **Enhanced Help Screen** - comprehensive documentation covering Downloads, Converter, Compressor, Navigation tabs, Settings, Troubleshooting, and About sections
+- **YouTube DASH video+audio download support** - improved format selection for higher resolution downloads
+- **Artifact cleanup workflow** - GitHub Actions workflow automatically deletes artifacts older than 2 days
 
 ### Changed
-- **YouTube cookie authentication** — cookies are now applied when YouTube auth is enabled OR PO token is provided (previously only worked with PO token)
-- **Converter output location** — converted files now copied to public Downloads/LocalDownloader folder for easy access
-- **Compressor output location** — compressed files now copied to public Downloads/LocalDownloader folder for easy access
-- **Help page** — completely rewritten with much more detailed information
+- **YouTube cookie authentication** - cookies are now applied when YouTube auth is enabled OR PO token is provided (previously only worked with PO token)
+- **Converter output location** - converted files now copied to public Downloads/LocalDownloader folder for easy access
+- **Compressor output location** - compressed files now copied to public Downloads/LocalDownloader folder for easy access
+- **Help page** - completely rewritten with much more detailed information
 
 ### Fixed
-- **Cookie auth bug** — cookies were not being applied for age-gated YouTube content without PO tokens
-- **Output file visibility** — converted and compressed files were stored in app-private directory; now accessible via file managers
-- **Download state clarity** — users can now clearly see when download button is disabled vs enabled
-- **FFmpeg progress parsing** — removed duplicate code, now uses shared FfmpegProgressParser
+- **Cookie auth bug** - cookies were not being applied for age-gated YouTube content without PO tokens
+- **Output file visibility** - converted and compressed files were stored in app-private directory; now accessible via file managers
+- **Download state clarity** - users can now clearly see when download button is disabled vs enabled
+- **FFmpeg progress parsing** - removed duplicate code, now uses shared FfmpegProgressParser
 
 ### Technical
 - Added `isDownloadButtonDisabled`, `downloadButtonDisabledAt`, and tracking fields in FormatUiState
 - Added `clearCache()` and `getCacheSize()` methods in FileUtils
 - Added CacheCard composable in SettingsScreen
-- Created new .github/workflows/cleanup.yml for artifact management
-- Updated future-plan.md with embedded terminal, YouTube DASH, and app size optimization roadmap
+- Created new `.github/workflows/cleanup.yml` for artifact management
+- Updated `future-plan.md` with embedded terminal, YouTube DASH, and app size optimization roadmap
 
 ---
 
-## [1.3.0] — 2026-04-06
+## [1.3.0] - 2026-04-06
 
 ### Added
-- **Progress indicator during URL analysis** — a `LinearProgressIndicator` bar appears while yt-dlp fetches video info so users get visual feedback that something is happening
-- **Stable signing architecture hooks** — Gradle and GitHub Actions can now consume persistent debug/release keystores so APKs can continue installing as updates instead of conflicting with existing installs
+- **Progress indicator during URL analysis** - a `LinearProgressIndicator` bar appears while yt-dlp fetches video info so users get visual feedback that something is happening
+- **Stable signing architecture hooks** - Gradle and GitHub Actions can now consume persistent debug/release keystores so APKs can continue installing as updates instead of conflicting with existing installs
 
 ### Changed
-- **YouTube download quality locked to 360p** — YouTube downloads without a manual format selection are capped at 360p, skipping the previous multi-resolution fallback chain that always ended up at 360p anyway
-- **YouTube extraction simplified** — removed the 4-client extractor retry loop (default → android,web,ios,tv → web → android). A single default yt-dlp call is used instead, cutting down unnecessary network retries
+- **YouTube download quality locked to 360p** - YouTube downloads without a manual format selection are capped at 360p, skipping the previous multi-resolution fallback chain that always ended up at 360p anyway
+- **YouTube extraction simplified** - removed the 4-client extractor retry loop (default -> android,web,ios,tv -> web -> android). A single default yt-dlp call is used instead, cutting down unnecessary network retries
 
 ### Fixed
-- **APK update conflict** — same `applicationId` (`com.localdownloader`) retained across builds with incremented `versionCode` so new APKs install over old ones without requiring manual uninstall first
+- **APK update conflict** - same `applicationId` (`com.localdownloader`) retained across builds with incremented `versionCode` so new APKs install over old ones without requiring manual uninstall first
 
 ---
 
-## [1.2.0] — 2026-04-05
+## [1.2.0] - 2026-04-05
 
 ### Added
-- **Room database** for persistent download queue and history — tasks and completed downloads survive app kills and restarts
-- **Dark theme support** — toggle light/dark appearance in Settings; preference is saved and applied on next launch
-- **WorkManager exponential backoff** — transient network failures and CDN 403s retry with automatic exponential backoff (starts at 10s, max retries)
-- **R8 shrinking + minification** — release builds are now minified and shrunk with comprehensive ProGuard rules for Hilt, Compose, kotlinx-serialization, yt-dlp-android, and FFmpeg
-- **Media scan on download completion** — downloaded files are copied to the public `/sdcard/Download/LocalDownloader/` folder on Android 11+ (via `MediaStore`) so they appear in file managers
+- **Room database** for persistent download queue and history - tasks and completed downloads survive app kills and restarts
+- **Dark theme support** - toggle light/dark appearance in Settings; preference is saved and applied on next launch
+- **WorkManager exponential backoff** - transient network failures and CDN 403s retry with automatic exponential backoff (starts at 10s, max retries)
+- **R8 shrinking + minification** - release builds are now minified and shrunk with comprehensive ProGuard rules for Hilt, Compose, kotlinx-serialization, yt-dlp-android, and FFmpeg
+- **Media scan on download completion** - downloaded files are copied to the public `/sdcard/Download/LocalDownloader/` folder on Android 11+ (via `MediaStore`) so they appear in file managers
 - **JSON caching of download options** in Room for reliable resume capability after app restarts
 
 ### Changed
-- **Scoped Storage compliance** — removed deprecated `Environment.getExternalStoragePublicDirectory` for Android 10 and below; downloads use the appropriate storage path for each API level
-- **Removed use-case layer** — five thin pass-through use cases (AnalyzeUrl, StartDownload, ManageSettings, ObserveDownloadQueue, ConvertMedia) were replaced with direct repository calls for simpler, flatter code
-- **Non-blocking task store** — in-memory `MutableStateFlow` persists to Room asynchronously, eliminating blocking suspend calls from Worker callbacks
-- **Log privacy** — removed external storage log mirrors; logs now write only to internal storage (`filesDir/logs/`)
+- **Scoped Storage compliance** - removed deprecated `Environment.getExternalStoragePublicDirectory` for Android 10 and below; downloads use the appropriate storage path for each API level
+- **Removed use-case layer** - five thin pass-through use cases (AnalyzeUrl, StartDownload, ManageSettings, ObserveDownloadQueue, ConvertMedia) were replaced with direct repository calls for simpler, flatter code
+- **Non-blocking task store** - in-memory `MutableStateFlow` persists to Room asynchronously, eliminating blocking suspend calls from Worker callbacks
+- **Log privacy** - removed external storage log mirrors; logs now write only to internal storage (`filesDir/logs/`)
 
 ### Fixed
-- Kotlin serialization compatibility — aligned `kotlinx-serialization-json` to 1.6.3 for Kotlin 1.9.24
+- Kotlin serialization compatibility - aligned `kotlinx-serialization-json` to 1.6.3 for Kotlin 1.9.24
 - CameraX import accidentally left in `MainActivity`
 - Missing `File` import in `DownloadWorker`
 - Worker `suspend` calls to `DownloadTaskStore` resolved by making operations non-suspending with async Room persistence
@@ -302,7 +334,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ---
 
-## [1.1.0] — (pre-1.2.0 baseline)
+## [1.1.0] - (pre-1.2.0 baseline)
 
 Initial release with:
 - Video and audio downloading via yt-dlp

@@ -4,11 +4,9 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -16,19 +14,14 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.ErrorOutline
@@ -40,7 +33,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -54,7 +46,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -63,6 +54,7 @@ import com.localdownloader.ffmpeg.AUDIO_OUTPUT_FORMATS
 import com.localdownloader.ffmpeg.CONVERSION_PRESETS
 import com.localdownloader.ffmpeg.ConversionPreset
 import com.localdownloader.ffmpeg.VIDEO_OUTPUT_FORMATS
+import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.viewmodel.MediaToolsUiState
 import com.localdownloader.viewmodel.formatFileSize
 import kotlin.math.roundToInt
@@ -83,329 +75,229 @@ fun ConvertScreen(
 ) {
     var showAdvanced by rememberSaveable { mutableStateOf(false) }
     val selectedPresetIndex = uiState.convertPresetIndex.coerceIn(0, CONVERSION_PRESETS.lastIndex)
-    val selectedPreset = CONVERSION_PRESETS[selectedPresetIndex]
     val canConvert = uiState.convertInputFileInfo != null && !uiState.isConverting
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp),
+    PreferencePageScaffold(
+        title = "Converter",
+        onBack = onBack,
+        modifier = modifier,
     ) {
-        ConvertHeroCard(
-            preset = selectedPreset,
-            inputName = uiState.convertInputFileInfo?.name,
-            onBack = onBack,
-        )
-
-        ToolPanel {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                SectionEyebrow("File")
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    FilledTonalButton(
-                        onClick = onBrowseFile,
-                        modifier = Modifier.weight(1f),
+        item {
+            ToolPanel {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    ToolPanelHeader(title = "Source")
+                    InputFileCard(
+                        fileName = uiState.convertInputFileInfo?.name,
+                        fileSizeBytes = uiState.convertInputFileInfo?.sizeBytes,
+                        filePath = uiState.convertInputFileInfo?.path,
+                        emptyMessage = "No file chosen",
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        Icon(Icons.Outlined.CloudDownload, contentDescription = null)
-                        Spacer(Modifier.size(8.dp))
-                        Text("Choose file")
-                    }
-                    if (uiState.convertInputFileInfo != null) {
-                        OutlinedButton(
-                            onClick = { onInputPathChanged("") },
-                            modifier = Modifier.widthIn(min = 96.dp),
+                        FilledTonalButton(
+                            onClick = onBrowseFile,
+                            modifier = Modifier.weight(1f),
                         ) {
-                            Text("Clear")
+                            Icon(Icons.Outlined.CloudDownload, contentDescription = null)
+                            Spacer(Modifier.size(8.dp))
+                            Text("Choose file")
+                        }
+                        if (uiState.convertInputFileInfo != null) {
+                            OutlinedButton(
+                                onClick = { onInputPathChanged("") },
+                                modifier = Modifier.widthIn(min = 96.dp),
+                            ) {
+                                Text("Clear")
+                            }
                         }
                     }
                 }
-                InputFileCard(
-                    fileName = uiState.convertInputFileInfo?.name,
-                    fileSizeBytes = uiState.convertInputFileInfo?.sizeBytes,
-                    filePath = uiState.convertInputFileInfo?.path,
-                    emptyMessage = "No file yet",
-                )
             }
         }
-
-        ToolPanel {
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                SectionEyebrow("Presets")
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    CONVERSION_PRESETS.forEachIndexed { index, preset ->
-                        ConversionPresetCard(
-                            preset = preset,
-                            selected = index == selectedPresetIndex,
-                            onClick = { onConversionPresetSelected(index) },
-                        )
+        item {
+            ToolPanel {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    ToolPanelHeader(title = "Preset")
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        CONVERSION_PRESETS.forEachIndexed { index, preset ->
+                            ConversionPresetCard(
+                                preset = preset,
+                                selected = index == selectedPresetIndex,
+                                onClick = { onConversionPresetSelected(index) },
+                            )
+                        }
                     }
                 }
             }
         }
-
-        ToolPanel {
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                SectionEyebrow("Output")
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    SummaryChip("Format ${uiState.convertOutputFormat.uppercase()}")
-                    SummaryChip("Video ${bitrateLabel(uiState.convertVideoBitrate)}")
-                    SummaryChip("Audio ${bitrateLabel(uiState.convertAudioBitrate)}")
-                    SummaryChip("Downloads output")
-                }
-                Surface(
-                    shape = RoundedCornerShape(22.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
+        item {
+            ToolPanel {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    ToolPanelHeader(
+                        title = "Output",
+                        actionLabel = if (showAdvanced) "Hide advanced" else "Advanced",
+                        onAction = { showAdvanced = !showAdvanced },
+                    )
+                    ToolPreviewCard(
+                        label = "Will save as",
+                        value = buildConvertOutputPreview(uiState),
+                    )
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Text(
-                            text = "Filename",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Text(
-                            text = buildConvertOutputPreview(uiState),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
+                        SummaryChip(uiState.convertOutputFormat.uppercase())
+                        SummaryChip("Video ${bitrateLabel(uiState.convertVideoBitrate)}")
+                        SummaryChip("Audio ${bitrateLabel(uiState.convertAudioBitrate)}")
                     }
-                }
-            }
-        }
-
-        ToolPanel {
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    AnimatedVisibility(
+                        visible = showAdvanced,
+                        enter = fadeIn(),
+                        exit = fadeOut(),
                     ) {
-                        SectionEyebrow("Advanced")
-                    }
-                    OutlinedButton(onClick = { showAdvanced = !showAdvanced }) {
-                        Text(if (showAdvanced) "Hide" else "Edit")
-                    }
-                }
-                AnimatedVisibility(
-                    visible = showAdvanced,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
-                ) {
-                    Column(
-                        modifier = Modifier.animateContentSize(),
-                        verticalArrangement = Arrangement.spacedBy(14.dp),
-                    ) {
-                        FormatSelectorGroup(
-                            title = "Video",
-                            formats = VIDEO_OUTPUT_FORMATS,
-                            selectedFormat = uiState.convertOutputFormat,
-                            onSelect = onOutputFormatChanged,
-                        )
-                        FormatSelectorGroup(
-                            title = "Audio",
-                            formats = AUDIO_OUTPUT_FORMATS,
-                            selectedFormat = uiState.convertOutputFormat,
-                            onSelect = onOutputFormatChanged,
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        Column(
+                            modifier = Modifier.animateContentSize(),
+                            verticalArrangement = Arrangement.spacedBy(14.dp),
                         ) {
-                            OutlinedTextField(
-                                value = uiState.convertVideoBitrate,
-                                onValueChange = onVideoBitrateChanged,
-                                modifier = Modifier.weight(1f),
-                                label = { Text("Video") },
-                                placeholder = { Text("Auto") },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            FormatSelectorGroup(
+                                title = "Video format",
+                                formats = VIDEO_OUTPUT_FORMATS,
+                                selectedFormat = uiState.convertOutputFormat,
+                                onSelect = onOutputFormatChanged,
                             )
-                            OutlinedTextField(
-                                value = uiState.convertAudioBitrate,
-                                onValueChange = onAudioBitrateChanged,
-                                modifier = Modifier.weight(1f),
-                                label = { Text("Audio") },
-                                placeholder = { Text("Auto") },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            FormatSelectorGroup(
+                                title = "Audio format",
+                                formats = AUDIO_OUTPUT_FORMATS,
+                                selectedFormat = uiState.convertOutputFormat,
+                                onSelect = onOutputFormatChanged,
                             )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                OutlinedTextField(
+                                    value = uiState.convertVideoBitrate,
+                                    onValueChange = onVideoBitrateChanged,
+                                    modifier = Modifier.weight(1f),
+                                    label = { Text("Video kbps") },
+                                    placeholder = { Text("Auto") },
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                )
+                                OutlinedTextField(
+                                    value = uiState.convertAudioBitrate,
+                                    onValueChange = onAudioBitrateChanged,
+                                    modifier = Modifier.weight(1f),
+                                    label = { Text("Audio kbps") },
+                                    placeholder = { Text("Auto") },
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                )
+                            }
                         }
                     }
                 }
             }
         }
-
-        AnimatedVisibility(
-            visible = uiState.isConverting || uiState.convertResult != null || uiState.convertError != null,
-            enter = fadeIn(),
-            exit = fadeOut(),
-        ) {
-            ToolStatusCard(
-                title = when {
-                    uiState.isConverting -> "Converting"
-                    uiState.convertError != null -> "Stopped"
-                    else -> "Done"
-                },
-                body = uiState.convertError
-                    ?: uiState.convertResult
-                    ?: "Working...",
-                progress = uiState.convertProgress,
-                success = uiState.convertResult != null && uiState.convertError == null,
-                sourceBytes = uiState.convertSourceSizeBytes,
-                resultBytes = uiState.convertResultSizeBytes,
-            )
-        }
-
-        Button(
-            onClick = onConvertClicked,
-            enabled = canConvert,
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(vertical = 16.dp),
-            shape = RoundedCornerShape(24.dp),
-        ) {
-            if (uiState.isConverting) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary,
+        if (uiState.isConverting || uiState.convertResult != null || uiState.convertError != null) {
+            item {
+                ToolStatusCard(
+                    title = when {
+                        uiState.isConverting -> "Converting"
+                        uiState.convertError != null -> "Stopped"
+                        else -> "Done"
+                    },
+                    body = uiState.convertError
+                        ?: uiState.convertResult
+                        ?: "Working...",
+                    progress = uiState.convertProgress,
+                    success = uiState.convertResult != null && uiState.convertError == null,
+                    sourceBytes = uiState.convertSourceSizeBytes,
+                    resultBytes = uiState.convertResultSizeBytes,
                 )
-                Spacer(Modifier.size(10.dp))
-                Text("Converting")
-            } else {
-                Icon(Icons.Outlined.SwapHoriz, contentDescription = null)
-                Spacer(Modifier.size(10.dp))
-                Text(if (canConvert) "Convert" else "Pick file")
+            }
+        }
+        item {
+            Button(
+                onClick = onConvertClicked,
+                enabled = canConvert,
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(vertical = 16.dp),
+                shape = RoundedCornerShape(24.dp),
+            ) {
+                if (uiState.isConverting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                    )
+                    Spacer(Modifier.size(10.dp))
+                    Text("Converting")
+                } else {
+                    Icon(Icons.Outlined.SwapHoriz, contentDescription = null)
+                    Spacer(Modifier.size(10.dp))
+                    Text(if (canConvert) "Convert" else "Pick file")
+                }
             }
         }
     }
 }
 
 @Composable
-private fun ConvertHeroCard(
-    preset: ConversionPreset,
-    inputName: String?,
-    onBack: (() -> Unit)?,
+private fun ToolPanelHeader(
+    title: String,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold,
+        )
+        if (!actionLabel.isNullOrBlank() && onAction != null) {
+            OutlinedButton(onClick = onAction) {
+                Text(actionLabel)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ToolPreviewCard(
+    label: String,
+    value: String,
 ) {
     Surface(
-        shape = RoundedCornerShape(34.dp),
-        color = MaterialTheme.colorScheme.primaryContainer,
+        shape = RoundedCornerShape(22.dp),
+        color = MaterialTheme.colorScheme.surface,
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.primaryContainer,
-                            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.92f),
-                        ),
-                    ),
-                ),
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (onBack != null) {
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
-                        ) {
-                            IconButton(onClick = onBack) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                                    contentDescription = "Back",
-                                )
-                            }
-                        }
-                    } else {
-                        Spacer(Modifier.size(48.dp))
-                    }
-                    SummaryChip("FFmpeg")
-                }
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    verticalAlignment = Alignment.Top,
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(22.dp),
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.78f),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.SwapHoriz,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(16.dp).size(28.dp),
-                        )
-                    }
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(
-                            text = "Converter",
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            text = "Switch format or pull audio.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-                Surface(
-                    shape = RoundedCornerShape(24.dp),
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.76f),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        Text(
-                            text = "Preset",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                        Text(
-                            text = preset.label,
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            text = inputName?.let(::compactPath) ?: compactConvertPresetDescription(preset),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-            }
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
         }
     }
 }
@@ -428,7 +320,6 @@ private fun ConversionPresetCard(
         modifier = Modifier
             .widthIn(min = 220.dp, max = 240.dp)
             .animateContentSize()
-            .background(color = MaterialTheme.colorScheme.background)
             .clickable(onClick = onClick),
     ) {
         Column(
@@ -630,15 +521,6 @@ private fun InputFileCard(
             }
         }
     }
-}
-
-@Composable
-private fun SectionEyebrow(text: String) {
-    Text(
-        text = text.uppercase(),
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.primary,
-    )
 }
 
 @Composable

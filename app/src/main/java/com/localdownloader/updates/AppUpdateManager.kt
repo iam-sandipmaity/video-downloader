@@ -68,6 +68,12 @@ class AppUpdateManager @Inject constructor(
         )
     }
 
+    fun refreshPreparedInstall(preparedUpdate: PreparedAppUpdate): PreparedAppUpdate? {
+        val apkFile = File(preparedUpdate.apkPath)
+        if (!apkFile.exists() || !apkFile.isFile) return null
+        return preparedUpdate.copy(requiresInstallPermission = !canRequestPackageInstalls())
+    }
+
     fun canRequestPackageInstalls(): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             context.packageManager.canRequestPackageInstalls()

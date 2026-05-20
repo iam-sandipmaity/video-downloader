@@ -12,17 +12,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.FileDownload
@@ -53,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
+import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.viewmodel.UpdateSectionUiState
 import com.localdownloader.viewmodel.UpdatesUiState
 import com.localdownloader.updates.FfmpegReleaseChannel
@@ -84,7 +81,7 @@ fun UpdatesScreen(
     var ytDlpChannelDialog by remember { mutableStateOf(false) }
     var ffmpegChannelDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(uiState.pendingAppInstall) {
+    LaunchedEffect(uiState.pendingAppInstallRequestId) {
         val pendingInstall = uiState.pendingAppInstall ?: return@LaunchedEffect
         if (pendingInstall.requiresInstallPermission) {
             val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
@@ -94,8 +91,8 @@ fun UpdatesScreen(
             context.startActivity(intent)
         } else {
             launchApkInstaller(context = context, preparedUpdate = pendingInstall)
+            onConsumePendingAppInstall()
         }
-        onConsumePendingAppInstall()
     }
 
     if (ytDlpChannelDialog) {
@@ -128,199 +125,184 @@ fun UpdatesScreen(
         )
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 22.dp, vertical = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp),
-    ) {
-        if (uiState.infoMessage != null || uiState.errorMessage != null) {
-            FeedbackBanner(
-                message = uiState.errorMessage ?: uiState.infoMessage.orEmpty(),
-                isError = uiState.errorMessage != null,
-                onDismiss = onDismissMessage,
-            )
-        }
-
-        UpdatesHeader(onBack = onBack, onRefreshAll = onRefreshAll)
-
-        UpdateSectionCard(section = uiState.app) {
-            UpdateValueRow(
-                icon = Icons.Outlined.Info,
-                title = "Current version",
-                subtitle = "Installed app build on this device.",
-                value = uiState.app.currentVersion ?: "Unknown",
-                onClick = null,
-            )
-            DividerInset()
-            UpdateToggleRow(
-                icon = Icons.Outlined.Settings,
-                title = "Beta releases",
-                subtitle = "Include pre-release GitHub builds when checking for app updates.",
-                checked = uiState.preferences.includePrereleaseAppReleases,
-                onCheckedChange = onIncludePrereleaseAppReleasesChanged,
-            )
-            DividerInset()
-            UpdateActionRow(
-                icon = Icons.Outlined.Refresh,
-                title = "Check now",
-                subtitle = buildCheckSubtitle(uiState.app),
-                onClick = onRefreshApp,
-            )
-            if (uiState.app.updateAvailable) {
-                DividerInset()
-                UpdateActionRow(
-                    icon = Icons.Outlined.FileDownload,
-                    title = "Install app update",
-                    subtitle = buildInstallSubtitle(uiState.app),
-                    onClick = onInstallAppUpdate,
-                )
-            }
-            DividerInset()
-            UpdateActionRow(
-                icon = Icons.Outlined.Description,
-                title = "Changelog",
-                subtitle = if (uiState.app.releaseNotes.isNullOrBlank()) {
-                    "Open the documentation-style changelog page for the app."
-                } else {
-                    "Read what changed in the latest app release."
-                },
-                onClick = { onOpenChangelog(UpdateChangelogSections.APP) },
-            )
-        }
-
-        UpdateSectionCard(section = uiState.ytDlp) {
-            UpdateValueRow(
-                icon = Icons.Outlined.Code,
-                title = "Current version",
-                subtitle = "The embedded yt-dlp runtime currently used by the app.",
-                value = uiState.ytDlp.currentVersion ?: "Unknown",
-                onClick = null,
-            )
-            DividerInset()
-            UpdateValueRow(
-                icon = Icons.Outlined.Settings,
-                title = "yt-dlp Source",
-                subtitle = uiState.preferences.ytDlpChannel.description,
-                value = uiState.preferences.ytDlpChannel.id,
-                onClick = { ytDlpChannelDialog = true },
-            )
-            DividerInset()
-            UpdateToggleRow(
-                icon = Icons.Outlined.Sync,
-                title = "Auto-update yt-dlp",
-                subtitle = "Keep checking the selected source in the background when the app starts.",
-                checked = uiState.preferences.autoUpdateYtDlp,
-                onCheckedChange = onAutoUpdateYtDlpChanged,
-            )
-            DividerInset()
-            UpdateActionRow(
-                icon = Icons.Outlined.Refresh,
-                title = "Check now",
-                subtitle = buildCheckSubtitle(uiState.ytDlp),
-                onClick = onRefreshYtDlp,
-            )
-            DividerInset()
-            UpdateActionRow(
-                icon = Icons.Outlined.FileDownload,
-                title = "Install new version of yt-dlp",
-                subtitle = buildInstallSubtitle(uiState.ytDlp),
-                onClick = onInstallYtDlpUpdate,
-            )
-            DividerInset()
-            UpdateActionRow(
-                icon = Icons.Outlined.Description,
-                title = "Changelog",
-                subtitle = if (uiState.ytDlp.releaseNotes.isNullOrBlank()) {
-                    "Open the documentation-style changelog page for yt-dlp."
-                } else {
-                    "Read what changed in the latest yt-dlp release."
-                },
-                onClick = { onOpenChangelog(UpdateChangelogSections.YT_DLP) },
-            )
-        }
-
-        UpdateSectionCard(section = uiState.ffmpeg) {
-            UpdateValueRow(
-                icon = Icons.Outlined.Code,
-                title = "Current version",
-                subtitle = "The FFmpeg runtime currently resolving for merges and media processing.",
-                value = uiState.ffmpeg.currentVersion ?: "Unknown",
-                onClick = null,
-            )
-            DividerInset()
-            UpdateValueRow(
-                icon = Icons.Outlined.Settings,
-                title = "FFmpeg Source",
-                subtitle = uiState.preferences.ffmpegChannel.description,
-                value = uiState.preferences.ffmpegChannel.id,
-                onClick = { ffmpegChannelDialog = true },
-            )
-            DividerInset()
-            UpdateActionRow(
-                icon = Icons.Outlined.Refresh,
-                title = "Check now",
-                subtitle = buildCheckSubtitle(uiState.ffmpeg),
-                onClick = onRefreshFfmpeg,
-            )
-            DividerInset()
-            UpdateActionRow(
-                icon = Icons.Outlined.FileDownload,
-                title = "Install new version of FFmpeg",
-                subtitle = buildInstallSubtitle(uiState.ffmpeg),
-                onClick = onInstallFfmpegUpdate,
-            )
-            DividerInset()
-            UpdateActionRow(
-                icon = Icons.Outlined.Description,
-                title = "Changelog",
-                subtitle = if (uiState.ffmpeg.releaseNotes.isNullOrBlank()) {
-                    "Open the documentation-style changelog page for FFmpeg."
-                } else {
-                    "Read what changed in the latest FFmpeg runtime package."
-                },
-                onClick = { onOpenChangelog(UpdateChangelogSections.FFMPEG) },
-            )
-        }
-    }
-}
-
-@Composable
-private fun UpdatesHeader(
-    onBack: () -> Unit,
-    onRefreshAll: () -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                    contentDescription = "Back",
-                )
-            }
+    PreferencePageScaffold(
+        title = "Updates",
+        onBack = onBack,
+        modifier = modifier,
+        actions = {
             IconButton(onClick = onRefreshAll) {
                 Icon(
                     imageVector = Icons.Outlined.Refresh,
                     contentDescription = "Refresh all",
                 )
             }
+        },
+    ) {
+        if (uiState.infoMessage != null || uiState.errorMessage != null) {
+            item {
+                FeedbackBanner(
+                    message = uiState.errorMessage ?: uiState.infoMessage.orEmpty(),
+                    isError = uiState.errorMessage != null,
+                    onDismiss = onDismissMessage,
+                )
+            }
         }
-        Text(
-            text = "Updating",
-            style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Text(
-            text = "Manage app, yt-dlp, and FFmpeg update flows from one place without changing your download setup.",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        item {
+            UpdateSectionCard(section = uiState.app) {
+                UpdateValueRow(
+                    icon = Icons.Outlined.Info,
+                    title = "Current version",
+                    subtitle = "Installed app build on this device.",
+                    value = uiState.app.currentVersion ?: "Unknown",
+                    onClick = null,
+                )
+                DividerInset()
+                UpdateToggleRow(
+                    icon = Icons.Outlined.Settings,
+                    title = "Beta releases",
+                    subtitle = "Include pre-release GitHub builds when checking for app updates.",
+                    checked = uiState.preferences.includePrereleaseAppReleases,
+                    onCheckedChange = onIncludePrereleaseAppReleasesChanged,
+                )
+                DividerInset()
+                UpdateActionRow(
+                    icon = Icons.Outlined.Refresh,
+                    title = "Check now",
+                    subtitle = buildCheckSubtitle(uiState.app),
+                    onClick = onRefreshApp,
+                )
+                if (uiState.app.updateAvailable || uiState.app.isInstalling || uiState.pendingAppInstall != null) {
+                    DividerInset()
+                    UpdateActionRow(
+                        icon = Icons.Outlined.FileDownload,
+                        title = if (uiState.pendingAppInstall != null) {
+                            "Continue app install"
+                        } else {
+                            "Install app update"
+                        },
+                        subtitle = buildInstallSubtitle(
+                            section = uiState.app,
+                            hasPreparedInstall = uiState.pendingAppInstall != null,
+                        ),
+                        onClick = onInstallAppUpdate,
+                    )
+                }
+                DividerInset()
+                UpdateActionRow(
+                    icon = Icons.Outlined.Description,
+                    title = "Changelog",
+                    subtitle = "Read the latest app release notes and the full bundled app changelog.",
+                    onClick = { onOpenChangelog(UpdateChangelogSections.APP) },
+                )
+            }
+        }
+        item {
+            UpdateSectionCard(section = uiState.ytDlp) {
+                UpdateValueRow(
+                    icon = Icons.Outlined.Code,
+                    title = "Current version",
+                    subtitle = "The embedded yt-dlp runtime currently used by the app.",
+                    value = uiState.ytDlp.currentVersion ?: "Unknown",
+                    onClick = null,
+                )
+                DividerInset()
+                UpdateValueRow(
+                    icon = Icons.Outlined.Settings,
+                    title = "yt-dlp Source",
+                    subtitle = uiState.preferences.ytDlpChannel.description,
+                    value = uiState.preferences.ytDlpChannel.id,
+                    onClick = { ytDlpChannelDialog = true },
+                )
+                DividerInset()
+                UpdateToggleRow(
+                    icon = Icons.Outlined.Sync,
+                    title = "Auto-update yt-dlp",
+                    subtitle = "Keep checking the selected source in the background when the app starts.",
+                    checked = uiState.preferences.autoUpdateYtDlp,
+                    onCheckedChange = onAutoUpdateYtDlpChanged,
+                )
+                DividerInset()
+                UpdateActionRow(
+                    icon = Icons.Outlined.Refresh,
+                    title = "Check now",
+                    subtitle = buildCheckSubtitle(uiState.ytDlp),
+                    onClick = onRefreshYtDlp,
+                )
+                if (uiState.ytDlp.updateAvailable || uiState.ytDlp.isInstalling) {
+                    DividerInset()
+                    UpdateActionRow(
+                        icon = Icons.Outlined.FileDownload,
+                        title = "Install new version of yt-dlp",
+                        subtitle = buildInstallSubtitle(section = uiState.ytDlp),
+                        onClick = onInstallYtDlpUpdate,
+                    )
+                }
+                DividerInset()
+                UpdateActionRow(
+                    icon = Icons.Outlined.Description,
+                    title = "Changelog",
+                    subtitle = if (uiState.ytDlp.releaseNotes.isNullOrBlank()) {
+                        "Open the documentation-style changelog page for yt-dlp."
+                    } else {
+                        "Read what changed in the latest yt-dlp release."
+                    },
+                    onClick = { onOpenChangelog(UpdateChangelogSections.YT_DLP) },
+                )
+            }
+        }
+        item {
+            UpdateSectionCard(section = uiState.ffmpeg) {
+                UpdateValueRow(
+                    icon = Icons.Outlined.Code,
+                    title = "Current version",
+                    subtitle = "The FFmpeg runtime currently resolving for merges and media processing.",
+                    value = uiState.ffmpeg.currentVersion ?: "Unknown",
+                    onClick = null,
+                )
+                DividerInset()
+                UpdateValueRow(
+                    icon = Icons.Outlined.Settings,
+                    title = "FFmpeg Source",
+                    subtitle = uiState.preferences.ffmpegChannel.description,
+                    value = uiState.preferences.ffmpegChannel.id,
+                    onClick = { ffmpegChannelDialog = true },
+                )
+                DividerInset()
+                UpdateActionRow(
+                    icon = Icons.Outlined.Refresh,
+                    title = "Check now",
+                    subtitle = buildCheckSubtitle(uiState.ffmpeg),
+                    onClick = onRefreshFfmpeg,
+                )
+                if (shouldShowFfmpegInstallRow(uiState.ffmpeg)) {
+                    DividerInset()
+                    UpdateActionRow(
+                        icon = Icons.Outlined.FileDownload,
+                        title = if (uiState.ffmpeg.latestCheck?.requiresInitialInstall == true) {
+                            "Install managed FFmpeg runtime"
+                        } else {
+                            "Update managed FFmpeg runtime"
+                        },
+                        subtitle = buildInstallSubtitle(
+                            section = uiState.ffmpeg,
+                            isInitialInstall = uiState.ffmpeg.latestCheck?.requiresInitialInstall == true,
+                        ),
+                        onClick = onInstallFfmpegUpdate,
+                    )
+                }
+                DividerInset()
+                UpdateActionRow(
+                    icon = Icons.Outlined.Description,
+                    title = "Changelog",
+                    subtitle = if (uiState.ffmpeg.releaseNotes.isNullOrBlank()) {
+                        "Open the documentation-style changelog page for FFmpeg."
+                    } else {
+                        "Read what changed in the latest FFmpeg runtime package."
+                    },
+                    onClick = { onOpenChangelog(UpdateChangelogSections.FFMPEG) },
+                )
+            }
+        }
     }
 }
 
@@ -330,19 +312,12 @@ private fun UpdateSectionCard(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(
-                text = section.title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = section.subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        Text(
+            text = section.title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         Surface(
             shape = RoundedCornerShape(28.dp),
             color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -601,12 +576,24 @@ private fun buildCheckSubtitle(section: UpdateSectionUiState): String {
     }
 }
 
-private fun buildInstallSubtitle(section: UpdateSectionUiState): String {
+private fun buildInstallSubtitle(
+    section: UpdateSectionUiState,
+    hasPreparedInstall: Boolean = false,
+    isInitialInstall: Boolean = false,
+): String {
     return when {
         section.isInstalling && section.progressPercent != null -> "Downloading... ${section.progressPercent}%"
+        hasPreparedInstall -> "The update APK is already downloaded and ready to install."
+        isInitialInstall -> "Install the optional managed runtime so FFmpeg can be updated directly in the app."
         section.updateAvailable -> "Install ${section.latestVersion ?: "the latest version"}"
         else -> section.summary
     }
+}
+
+private fun shouldShowFfmpegInstallRow(section: UpdateSectionUiState): Boolean {
+    return section.isInstalling ||
+        section.updateAvailable ||
+        section.latestCheck?.requiresInitialInstall == true
 }
 
 private fun launchApkInstaller(

@@ -51,6 +51,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
@@ -141,6 +142,9 @@ fun BrowserScreen(
     onOpenHelp: () -> Unit,
     onDismissDownloadSetupNotice: () -> Unit,
     onDismissMessage: () -> Unit,
+    onDismissMeteredNetworkDialog: () -> Unit,
+    onQueueWhenWifiAvailable: () -> Unit,
+    onAllowCellularDownloadsAndQueue: () -> Unit,
     onDarkThemeChanged: (Boolean) -> Unit,
     isDownloadButtonEnabled: Boolean = true,
     modifier: Modifier = Modifier,
@@ -158,6 +162,28 @@ fun BrowserScreen(
     val homeScrollState = rememberScrollState()
     val errorMessage = uiState.errorMessageFor(FormatMessageScope.BROWSER)
     val infoMessage = uiState.infoMessageFor(FormatMessageScope.BROWSER)
+
+    if (uiState.showMeteredNetworkDialog) {
+        AlertDialog(
+            onDismissRequest = onDismissMeteredNetworkDialog,
+            title = { Text("Wi-Fi only is on") },
+            text = {
+                Text(
+                    "You're on a metered network right now. Keep this download queued until Wi-Fi is available, or allow cellular downloads now.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = onAllowCellularDownloadsAndQueue) {
+                    Text("Allow cellular")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onQueueWhenWifiAvailable) {
+                    Text("Wait for Wi-Fi")
+                }
+            },
+        )
+    }
 
     LaunchedEffect(uiState.videoInfo?.webpageUrl, uiState.shouldShowDownloadSetupNotice) {
         showOptionsSheet = uiState.videoInfo != null && !uiState.shouldShowDownloadSetupNotice
@@ -676,7 +702,7 @@ private fun DownloadSetupOnboardingSheet(
 
                 if (step == DownloadSetupSheetStep.Intro) {
                     Text(
-                        text = "You can download without cookies, but it is recommended to add cookies first from More > Cookies. For YouTube, PO generation from More > YouTube access helps with sign-in and playback checks.",
+                        text = "You can download without cookies, but it is recommended to add cookies first from Settings > Access and network or the More shortcuts. For YouTube, PO generation from YouTube access helps with sign-in and playback checks.",
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Text(
@@ -690,7 +716,7 @@ private fun DownloadSetupOnboardingSheet(
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Text(
-                        text = "You can still skip all of this and come back later from More whenever you need it.",
+                        text = "You can still skip all of this and come back later from Settings or More whenever you need it.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.88f),
                     )

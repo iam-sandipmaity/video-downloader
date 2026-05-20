@@ -1,6 +1,5 @@
 package com.localdownloader.ui.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -8,16 +7,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.GraphicEq
@@ -29,29 +24,25 @@ import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material.icons.outlined.Transform
 import androidx.compose.material.icons.outlined.Web
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.ui.support.openSupportIssue
 import com.localdownloader.ui.support.shareAppLogs
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun HelpScreen(
     onBack: () -> Unit,
@@ -61,44 +52,22 @@ fun HelpScreen(
 ) {
     val context = LocalContext.current
 
-    Scaffold(
+    PreferencePageScaffold(
+        title = "Help",
+        onBack = onBack,
         modifier = modifier,
-        topBar = {
-            TopAppBar(
-                title = { Text("Help") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                            contentDescription = "Back",
-                        )
-                    }
-                },
-            )
-        },
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 18.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp),
-        ) {
-            HelpHeroCard()
-
+    ) {
+        item {
             HelpActionGrid(
                 onOpenCookies = onOpenCookies,
                 onOpenYoutubeAccess = onOpenYoutubeAccess,
                 onExportLogs = { shareAppLogs(context) },
                 onReportIssue = { openSupportIssue(context) },
             )
-
+        }
+        item {
             HelpSectionCard(
-                eyebrow = "Recovery path",
                 title = "Best first move when a link acts up",
-                subtitle = "Most failures are recoverable without starting over from scratch.",
             ) {
                 HelpTimelineStep(
                     number = "1",
@@ -124,11 +93,10 @@ fun HelpScreen(
                     body = "Export log.txt, take a screenshot of the failure state, and explain what you expected versus what happened. That usually saves a lot of back-and-forth.",
                 )
             }
-
+        }
+        item {
             HelpSectionCard(
-                eyebrow = "App map",
                 title = "Know where each screen helps",
-                subtitle = "The tabs are meant to keep the workflow simple instead of making you hunt for tools.",
             ) {
                 HelpInfoRow(
                     icon = Icons.Outlined.Home,
@@ -145,7 +113,7 @@ fun HelpScreen(
                 HelpInfoRow(
                     icon = Icons.Outlined.Web,
                     title = "More",
-                    body = "This is where queue controls, Cookies, YouTube access, updates, converter, and compressor live.",
+                    body = "This is where quick shortcuts for queue, updates, help, and media tools live, while the deeper access setup also lives in Settings.",
                 )
                 DividerInset()
                 HelpInfoRow(
@@ -154,11 +122,10 @@ fun HelpScreen(
                     body = "Change folders, notifications, theme, contrast, download defaults, and cleanup behavior without cluttering the main tabs.",
                 )
             }
-
+        }
+        item {
             HelpSectionCard(
-                eyebrow = "Failure patterns",
                 title = "What usually fixes each type of problem",
-                subtitle = "These are the common recovery moves worth trying before giving up on a site.",
             ) {
                 HelpTipRow(
                     icon = Icons.Outlined.ErrorOutline,
@@ -184,11 +151,10 @@ fun HelpScreen(
                     body = "Use item actions for one playlist entry and tab-level batch actions when you mean the whole group. They are intentionally separate now.",
                 )
             }
-
+        }
+        item {
             HelpSectionCard(
-                eyebrow = "Useful extras",
                 title = "Built-in tools after the download is saved",
-                subtitle = "The app is not only a fetcher. It also helps clean up media after the file lands.",
             ) {
                 HelpInfoRow(
                     icon = Icons.Outlined.Transform,
@@ -214,11 +180,10 @@ fun HelpScreen(
                     body = "Downloads stay grouped under the folders you choose in Settings, and cache cleanup is separate from deleting real saved media.",
                 )
             }
-
+        }
+        item {
             HelpSectionCard(
-                eyebrow = "Reporting",
                 title = "What to include when you open an issue",
-                subtitle = "A short, clean report gets fixed much faster than a vague 'it doesn't work'.",
             ) {
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),
@@ -250,62 +215,6 @@ fun HelpScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun HelpHeroCard() {
-    Surface(
-        shape = RoundedCornerShape(32.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    Brush.linearGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
-                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.12f),
-                            MaterialTheme.colorScheme.secondary.copy(alpha = 0.08f),
-                            Color.Transparent,
-                        ),
-                    ),
-                )
-                .padding(20.dp),
-        ) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                Text(
-                    text = "Support hub",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = "Fix blocked downloads faster",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                )
-                Text(
-                    text = "Downloads can work without cookies, but tougher sites and tougher YouTube links often recover much faster once cookies, YouTube access, queue diagnostics, and logs are all one tap away.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    HelpBadge("Cookies optional")
-                    HelpBadge("PO generation")
-                    HelpBadge("Retry all failed")
-                    HelpBadge("Export log.txt")
                 }
             }
         }
@@ -421,9 +330,7 @@ private fun HelpActionTile(
 
 @Composable
 private fun HelpSectionCard(
-    eyebrow: String,
     title: String,
-    subtitle: String,
     content: @Composable () -> Unit,
 ) {
     Surface(
@@ -435,24 +342,11 @@ private fun HelpSectionCard(
             modifier = Modifier.padding(horizontal = 18.dp, vertical = 18.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    text = eyebrow,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
             content()
         }
     }

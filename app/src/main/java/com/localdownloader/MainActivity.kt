@@ -1,16 +1,20 @@
 package com.localdownloader
 
 import android.Manifest
+import android.app.LocaleManager
 import android.app.PictureInPictureParams
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.LocaleList
 import android.util.Rational
 import android.util.Patterns
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.os.LocaleListCompat
 import androidx.core.content.ContextCompat
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -18,6 +22,7 @@ import androidx.compose.runtime.setValue
 import com.localdownloader.domain.models.AccentPreset
 import com.localdownloader.domain.models.AppSettings
 import com.localdownloader.domain.models.ContrastMode
+import com.localdownloader.domain.models.SYSTEM_LANGUAGE_TAG
 import com.localdownloader.domain.models.ThemeMode
 import com.localdownloader.data.SettingsStore
 import com.localdownloader.notifications.AppNotifications
@@ -70,6 +75,7 @@ class MainActivity : Hilt_MainActivity() {
         val initialSettings = runCatching {
             runBlocking { settingsStore.observeSettings().first() }
         }.getOrDefault(AppSettings())
+        applyAppLanguage(initialSettings.languageTag, recreateIfChanged = false)
         themeMode = initialSettings.themeMode
         accentPreset = initialSettings.accentPreset
         contrastMode = initialSettings.contrastMode
@@ -95,6 +101,9 @@ class MainActivity : Hilt_MainActivity() {
                         themeMode = mode
                         accentPreset = accent
                         contrastMode = contrast
+                    },
+                    onLanguageUpdated = { languageTag ->
+                        applyAppLanguage(languageTag, recreateIfChanged = true)
                     },
                 )
             }
@@ -226,5 +235,32 @@ class MainActivity : Hilt_MainActivity() {
             }
         }
         return null
+    }
+
+    private fun applyAppLanguage(languageTag: String, recreateIfChanged: Boolean) {
+        val normalizedTag = if (languageTag == SYSTEM_LANGUAGE_TAG) "" else languageTag
+        val currentTags = currentAppLanguageTags()
+        if (currentTags == normalizedTag) {
+            return
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            getSystemService(LocaleManager::class.java)?.applicationLocales =
+                LocaleList.forLanguageTags(normalizedTag)
+        } else {
+            AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(normalizedTag))
+        }
+
+        if (recreateIfChanged) {
+            recreate()
+        }
+    }
+
+    private fun currentAppLanguageTags(): String {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            getSystemService(LocaleManager::class.java)?.applicationLocales?.toLanguageTags().orEmpty()
+        } else {
+            AppCompatDelegate.getApplicationLocales().toLanguageTags()
+        }
     }
 }

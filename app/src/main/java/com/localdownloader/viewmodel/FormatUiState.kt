@@ -5,6 +5,7 @@ import com.localdownloader.domain.models.AppSettings
 import com.localdownloader.domain.models.ContrastMode
 import com.localdownloader.domain.models.CookieProfile
 import com.localdownloader.domain.models.FormatChoice
+import com.localdownloader.domain.models.SYSTEM_LANGUAGE_TAG
 import com.localdownloader.domain.models.StreamType
 import com.localdownloader.domain.models.ThemeMode
 import com.localdownloader.domain.models.VideoInfo
@@ -39,12 +40,16 @@ data class FormatUiState(
     val embedMetadata: Boolean = true,
     val embedThumbnail: Boolean = false,
     val writeThumbnail: Boolean = false,
-    val languageTag: String = "en",
-    val themeMode: ThemeMode = ThemeMode.SYSTEM,
-    val accentPreset: AccentPreset = AccentPreset.AMBER,
-    val contrastMode: ContrastMode = ContrastMode.STANDARD,
+    val languageTag: String = SYSTEM_LANGUAGE_TAG,
+    val themeMode: ThemeMode = ThemeMode.LIGHT,
+    val accentPreset: AccentPreset = AccentPreset.TEAL,
+    val contrastMode: ContrastMode = ContrastMode.ULTRA,
     val autoRemoveMissingFilesFromLibrary: Boolean = true,
     val deleteFromStorageWhenRemovedInApp: Boolean = true,
+    val notifyCompletedDownloads: Boolean = true,
+    val notifyDownloadErrors: Boolean = true,
+    val notifyCanceledDownloads: Boolean = true,
+    val notifyPromotions: Boolean = true,
     val enablePlaylist: Boolean = false,
     val outputTemplate: String = "%(title)s [%(id)s].%(ext)s",
     val audioOutputTemplate: String = "%(title)s [%(id)s].%(ext)s",
@@ -52,6 +57,8 @@ data class FormatUiState(
     val videoSubfolderName: String = "Videos",
     val audioSubfolderName: String = "Audio",
     val otherSubfolderName: String = "Files",
+    val maxConcurrentDownloads: Int = 2,
+    val allowMeteredDownloads: Boolean = false,
     val cookiesEnabled: Boolean = false,
     val cookieUserAgentEnabled: Boolean = false,
     val cookieProfiles: List<CookieProfile> = emptyList(),
@@ -62,6 +69,7 @@ data class FormatUiState(
     val infoMessage: String? = null,
     val errorMessage: String? = null,
     val isDarkTheme: Boolean = false,
+    val showMeteredNetworkDialog: Boolean = false,
     // Download button state management
     val isDownloadButtonDisabled: Boolean = false,
     val downloadButtonDisabledAt: Long = 0L,

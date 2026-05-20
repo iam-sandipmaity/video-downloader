@@ -3,11 +3,13 @@ package com.localdownloader.domain.models
 /**
  * User preferences that influence yt-dlp argument generation.
  */
+const val SYSTEM_LANGUAGE_TAG = "system"
+
 data class AppSettings(
-    val languageTag: String = "en",
-    val themeMode: ThemeMode = ThemeMode.SYSTEM,
-    val accentPreset: AccentPreset = AccentPreset.AMBER,
-    val contrastMode: ContrastMode = ContrastMode.STANDARD,
+    val languageTag: String = SYSTEM_LANGUAGE_TAG,
+    val themeMode: ThemeMode = ThemeMode.LIGHT,
+    val accentPreset: AccentPreset = AccentPreset.TEAL,
+    val contrastMode: ContrastMode = ContrastMode.ULTRA,
     val defaultOutputTemplate: String = "%(title)s [%(id)s].%(ext)s",
     val defaultAudioOutputTemplate: String = "%(title)s [%(id)s].%(ext)s",
     val defaultMergeContainer: String = "mp4",
@@ -22,12 +24,17 @@ data class AppSettings(
     val autoEmbedThumbnail: Boolean = false,
     val autoRemoveMissingFilesFromLibrary: Boolean = true,
     val deleteFromStorageWhenRemovedInApp: Boolean = true,
+    val notifyCompletedDownloads: Boolean = true,
+    val notifyDownloadErrors: Boolean = true,
+    val notifyCanceledDownloads: Boolean = true,
+    val notifyPromotions: Boolean = true,
     val cookiesEnabled: Boolean = false,
     val cookieUserAgentEnabled: Boolean = false,
     val cookieProfiles: List<CookieProfile> = emptyList(),
     val youtubeAuthConfig: YoutubeAuthConfig = YoutubeAuthConfig(),
     val hasSeenDownloadSetupNotice: Boolean = false,
     val maxConcurrentDownloads: Int = 2,
+    val allowMeteredDownloads: Boolean = false,
     val darkTheme: Boolean = false,
 )
 
