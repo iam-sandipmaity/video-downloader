@@ -32,6 +32,7 @@
 - **Cross-screen feedback leak** - Browse/Home status messages no longer show up inside Settings, Cookies, or YouTube access because transient format messages are now scoped to the screen that created them
 - **Download options sheet scroll bounce** - stabilized the analyzed-format bottom sheet by removing the unstable size animation and skipping the partial sheet state, so reaching the bottom no longer triggers rapid jumpy up/down movement
 - **Media tool runtime handling** - converter and compressor now surface shorter FFmpeg guidance for unsupported codecs like AV1 and avoid incompatible compression output/container combinations
+- **Playlist concurrency setting** - queued playlist items now respect the selected concurrent-download limit instead of being forced back to one active playlist item at a time
 
 ### Technical
 - **Logic test coverage** - added unit coverage for first-run onboarding visibility, source-site detection, format size estimation fallback, and queue diagnostics parsing

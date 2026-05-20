@@ -585,12 +585,6 @@ class DownloadRepositoryImpl @Inject constructor(
             tasks.forEach { task ->
                 optionsByTaskId[task.id] = loadTaskOptions(task.id)
             }
-            val activePlaylistGroups = tasks.mapNotNull { task ->
-                if (!isActiveWorkTask(task)) return@mapNotNull null
-                optionsByTaskId[task.id]
-                    ?.takeIf { it.isPlaylistEnabled }
-                    ?.let(::playlistGroupKey)
-            }.toMutableSet()
 
             val queuedTasks = tasks
                 .filter { it.status == DownloadStatus.QUEUED && it.activeWorkId.isNullOrBlank() }
@@ -604,13 +598,7 @@ class DownloadRepositoryImpl @Inject constructor(
                 val options = optionsByTaskId[task.id] ?: return@forEach
                 if (!latestNetworkStatus.matches(options.networkMode)) return@forEach
 
-                val playlistKey = options.takeIf { it.isPlaylistEnabled }?.let(::playlistGroupKey)
-                if (playlistKey != null && playlistKey in activePlaylistGroups) return@forEach
-
                 startQueuedTask(task = task, options = options)
-                if (playlistKey != null) {
-                    activePlaylistGroups += playlistKey
-                }
                 availableSlots -= 1
             }
         }
@@ -966,10 +954,6 @@ class DownloadRepositoryImpl @Inject constructor(
         return !task.activeWorkId.isNullOrBlank() &&
             task.status != DownloadStatus.PAUSED &&
             !task.status.isTerminal
-    }
-
-    private fun playlistGroupKey(options: DownloadOptions): String {
-        return "${options.url}|${options.playlistFolderName.orEmpty()}"
     }
 
     private fun networkTypeFor(mode: DownloadNetworkMode): NetworkType {
