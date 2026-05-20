@@ -222,7 +222,7 @@ class DownloadTaskStore @Inject constructor(
                 else -> false
             }
 
-            if (keepCurrent) {
+            if (keepCurrent && currentTask != null) {
                 merged[taskId] = currentTask
             } else {
                 merged[taskId] = incomingTask
