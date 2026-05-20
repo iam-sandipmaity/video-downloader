@@ -1765,6 +1765,7 @@ class DownloadWorker @AssistedInject constructor(
                     url = url,
                     title = title,
                     status = DownloadStatus.RUNNING,
+                    activeWorkId = id.toString(),
                     errorMessage = null,
                     updatedAtEpochMs = System.currentTimeMillis(),
                 )

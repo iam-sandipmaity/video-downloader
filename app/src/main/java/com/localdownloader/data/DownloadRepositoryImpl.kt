@@ -65,23 +65,16 @@ class DownloadRepositoryImpl @Inject constructor(
     private val pauseExpiryJobs = ConcurrentHashMap<String, Job>()
     private val pauseExpiryDeadlines = ConcurrentHashMap<String, Long>()
     private val schedulingMutex = Mutex()
-    @Volatile
-    private var lastQueueSignature: String? = null
 
     init {
         repositoryScope.launch {
             downloadTaskStore.observeAll().collect { tasks ->
                 syncPauseExpiryTimers(tasks)
-                val nextSignature = tasks
-                    .sortedBy { it.id }
-                    .joinToString(separator = "|") { task ->
-                        "${task.id}:${task.status}:${task.activeWorkId.orEmpty()}"
-                    }
-                if (lastQueueSignature != nextSignature) {
-                    lastQueueSignature = nextSignature
-                    refillQueuedDownloads()
-                }
             }
+        }
+        repositoryScope.launch {
+            downloadTaskStore.awaitInitialLoad()
+            refillQueuedDownloads()
         }
     }
 
