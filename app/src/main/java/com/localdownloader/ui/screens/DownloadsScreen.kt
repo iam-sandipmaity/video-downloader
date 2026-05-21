@@ -216,8 +216,8 @@ fun DownloadsScreen(
                     stiffness = 500f,
                 ),
             )
-            .padding(horizontal = 18.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -248,7 +248,7 @@ fun DownloadsScreen(
                             "Completed downloads show up here once they are saved."
                         }
                     },
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.78f),
                 )
             }
@@ -306,8 +306,8 @@ fun DownloadsScreen(
 
         if (items.isNotEmpty()) {
             FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 FilterChip(
                     selected = sortNewestFirst,
@@ -410,9 +410,9 @@ fun DownloadsScreen(
                             }
                         }
                     },
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(22.dp),
+                    modifier = Modifier.padding(18.dp),
                 )
             }
         }
@@ -426,7 +426,7 @@ fun DownloadsScreen(
         ) {
             LazyColumn(
                 contentPadding = PaddingValues(bottom = 18.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 items(filteredItems, key = { it.task.id }) { item ->
                     DownloadHeroCard(
@@ -507,11 +507,11 @@ private fun MessageBanner(
 ) {
     Surface(
         color = color,
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(16.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -552,7 +552,7 @@ private fun QueueActionButton(
     )
 
     Surface(
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(16.dp),
         color = if (isActive) {
             MaterialTheme.colorScheme.primaryContainer
         } else {
@@ -561,12 +561,12 @@ private fun QueueActionButton(
         tonalElevation = if (isActive) 3.dp else 0.dp,
         modifier = Modifier
             .padding(end = 2.dp)
-            .widthIn(min = 104.dp, max = 132.dp)
+            .widthIn(min = 92.dp, max = 118.dp)
             .clickable(onClick = onClick),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(contentAlignment = Alignment.TopEnd) {
@@ -580,7 +580,7 @@ private fun QueueActionButton(
                     },
                     modifier = Modifier
                         .offset { IntOffset(0, iconLift.dp.roundToPx()) }
-                        .size((24.dp * pulseScale)),
+                        .size((22.dp * pulseScale)),
                 )
                 if (isActive) {
                     Box(
@@ -605,7 +605,7 @@ private fun QueueActionButton(
             }
             Text(
                 text = "Queue",
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelMedium,
                 color = if (isActive) {
                     MaterialTheme.colorScheme.onPrimaryContainer
                 } else {
@@ -628,7 +628,7 @@ private fun DownloadHeroCard(
     var showMenu by remember { mutableStateOf(false) }
 
     Surface(
-        shape = RoundedCornerShape(28.dp),
+        shape = RoundedCornerShape(24.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         tonalElevation = 1.dp,
         modifier = Modifier.fillMaxWidth(),
@@ -636,7 +636,7 @@ private fun DownloadHeroCard(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(212.dp),
+                .height(188.dp),
         ) {
             LocalVideoThumbnail(
                 filePath = item.file?.absolutePath,
@@ -652,7 +652,7 @@ private fun DownloadHeroCard(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(18.dp),
+                    .padding(14.dp),
                 verticalArrangement = Arrangement.SpaceBetween,
             ) {
                 Row(
@@ -662,11 +662,11 @@ private fun DownloadHeroCard(
                 ) {
                     Column(
                         modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         Text(
                             text = item.displayTitle,
-                            style = MaterialTheme.typography.headlineSmall,
+                            style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.SemiBold,
                             color = Color.White,
                             maxLines = 2,
@@ -677,7 +677,7 @@ private fun DownloadHeroCard(
                                 item.displaySize.ifBlank { null },
                                 formatMediaDate(item.task.updatedAtEpochMs),
                             ).joinToString(" | "),
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.bodySmall,
                             color = Color.White.copy(alpha = 0.92f),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -761,7 +761,7 @@ private fun DownloadHeroCard(
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Surface(
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(10.dp),
                             color = if (isPlayingNow) {
                                 MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
                             } else {
@@ -774,25 +774,25 @@ private fun DownloadHeroCard(
                                     isPlayingNow -> "Playing now"
                                     else -> item.mediaKind.label
                                 },
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                style = MaterialTheme.typography.labelLarge,
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                                style = MaterialTheme.typography.labelMedium,
                                 color = Color.White,
                             )
                         }
                         Text(
                             text = formatMediaDate(item.task.updatedAtEpochMs),
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.bodySmall,
                             color = Color.White.copy(alpha = 0.92f),
                         )
                     }
                     Surface(
-                        shape = RoundedCornerShape(22.dp),
+                        shape = RoundedCornerShape(20.dp),
                         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.92f),
                     ) {
                         IconButton(
                             onClick = onPrimaryPlay,
                             enabled = item.exists && item.mediaKind != MediaKind.OTHER,
-                            modifier = Modifier.size(64.dp),
+                            modifier = Modifier.size(56.dp),
                         ) {
                             Icon(
                                 imageVector = if (item.mediaKind == MediaKind.AUDIO && isPlayingNow) {
@@ -802,7 +802,7 @@ private fun DownloadHeroCard(
                                 },
                                 contentDescription = "Open media",
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.size(28.dp),
+                                modifier = Modifier.size(24.dp),
                             )
                         }
                     }

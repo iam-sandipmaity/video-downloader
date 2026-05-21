@@ -111,7 +111,8 @@ fun ProgressScreen(
         }
     }
     val isQueueMode = onBack != null
-    val allTasks = uiState.tasks.sortedByDescending { it.updatedAtEpochMs }
+    // Keep queue ordering stable while progress ticks update task timestamps.
+    val allTasks = uiState.tasks.sortedByDescending { it.createdAtEpochMs }
     val runningCount = allTasks.count { it.status == DownloadStatus.RUNNING }
     val queuedCount = allTasks.count { it.status == DownloadStatus.QUEUED }
     val pausedCount = allTasks.count { it.status == DownloadStatus.PAUSED }
