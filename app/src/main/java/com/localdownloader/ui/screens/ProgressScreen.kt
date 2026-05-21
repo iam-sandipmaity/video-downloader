@@ -77,6 +77,7 @@ import coil.compose.AsyncImage
 import coil.decode.SvgDecoder
 import com.localdownloader.domain.models.DownloadStatus
 import com.localdownloader.domain.models.DownloadTask
+import com.localdownloader.ui.components.AppBarContentTopPadding
 import com.localdownloader.ui.components.LocalVideoThumbnail
 import com.localdownloader.ui.components.rememberLocalMediaSnapshot
 import com.localdownloader.ui.support.openSupportIssue
@@ -158,7 +159,8 @@ fun ProgressScreen(
                 .padding(innerPadding)
                 .padding(
                     horizontal = if (isQueueMode) 14.dp else 18.dp,
-                    vertical = if (isQueueMode) 8.dp else 16.dp,
+                    top = if (isQueueMode) AppBarContentTopPadding else 16.dp,
+                    bottom = if (isQueueMode) 8.dp else 16.dp,
                 ),
             verticalArrangement = Arrangement.spacedBy(if (isQueueMode) 12.dp else 16.dp),
         ) {

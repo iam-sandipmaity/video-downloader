@@ -39,6 +39,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
+val AppBarContentTopPadding = 6.dp
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PreferencePageScaffold(
@@ -73,7 +75,7 @@ fun PreferencePageScaffold(
             contentPadding = PaddingValues(
                 start = 20.dp,
                 end = 20.dp,
-                top = innerPadding.calculateTopPadding() + 8.dp,
+                top = innerPadding.calculateTopPadding() + AppBarContentTopPadding,
                 bottom = innerPadding.calculateBottomPadding() + 32.dp,
             ),
             verticalArrangement = Arrangement.spacedBy(18.dp),

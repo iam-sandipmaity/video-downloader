@@ -42,6 +42,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import com.localdownloader.ui.components.AppBarContentTopPadding
 
 object UpdateChangelogSections {
     const val APP = "app"
@@ -95,7 +96,12 @@ fun UpdateChangelogScreen(
                 .background(MaterialTheme.colorScheme.background)
                 .verticalScroll(rememberScrollState())
                 .padding(innerPadding)
-                .padding(horizontal = 22.dp, vertical = 18.dp),
+                .padding(
+                    start = 22.dp,
+                    end = 22.dp,
+                    top = AppBarContentTopPadding,
+                    bottom = 18.dp,
+                ),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             Text(

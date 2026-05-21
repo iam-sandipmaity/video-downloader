@@ -64,6 +64,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.localdownloader.domain.models.DownloadStatus
 import com.localdownloader.domain.models.DownloadTask
+import com.localdownloader.ui.components.AppBarContentTopPadding
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -115,7 +116,12 @@ fun DownloadHistoryScreen(
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
                 .padding(innerPadding)
-                .padding(horizontal = 22.dp, vertical = 18.dp),
+                .padding(
+                    start = 22.dp,
+                    end = 22.dp,
+                    top = AppBarContentTopPadding,
+                    bottom = 18.dp,
+                ),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             Surface(

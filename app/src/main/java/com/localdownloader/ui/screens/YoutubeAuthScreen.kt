@@ -51,6 +51,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.localdownloader.domain.models.YoutubeAuthConfig
+import com.localdownloader.ui.components.AppBarContentTopPadding
 import com.localdownloader.ui.components.InlineFeedbackCard
 import com.localdownloader.utils.CookieTextCodec
 import com.localdownloader.utils.WebViewCookieExporter
@@ -103,7 +104,12 @@ fun YoutubeAuthScreen(
                 .background(MaterialTheme.colorScheme.background)
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 18.dp, vertical = 18.dp),
+                .padding(
+                    start = 18.dp,
+                    end = 18.dp,
+                    top = AppBarContentTopPadding,
+                    bottom = 18.dp,
+                ),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Surface(
