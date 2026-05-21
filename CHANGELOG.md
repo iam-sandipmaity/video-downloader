@@ -9,6 +9,7 @@
 - **Concurrent download preference UI** - surfaced the stored `maxConcurrentDownloads` setting in the new Download defaults page so queue-slot intent is now visible in the UI ahead of deeper scheduler work
 - **Shared preference-page system** - introduced reusable large-app-bar settings scaffolds, grouped preference rows, hero cards, and shared dialogs to keep revamp work consistent across settings-related screens
 - **Android app-language handling** - added system-aware app language support so the app can follow Android's language setting cleanly and grow into per-app language selection later
+- **Broader Android locale integration** - Appearance now links into Android's own app-language picker, syncs external language changes back into app settings, and exposes a wider list of supported locale tags
 - **Real download network controls** - added Wi-Fi-only downloading by default, a cellular-download setting, and an in-app prompt when someone tries to queue downloads on mobile data
 - **Real queue slot scheduling** - wired the concurrent-download preference into the repository scheduler so the app now respects the configured maximum active downloads
 - **Downloads batch selection mode** - the Downloads library now has a `Select` action so multiple saved files can be picked together and then shared, removed from the app, or permanently deleted in one go
