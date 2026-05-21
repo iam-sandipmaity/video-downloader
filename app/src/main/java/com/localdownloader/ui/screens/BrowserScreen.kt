@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.rememberScrollState
@@ -485,8 +486,10 @@ fun BrowserScreen(
     }
 
     if (showOptionsSheet && uiState.videoInfo != null && !uiState.shouldShowDownloadSetupNotice) {
-        val sheetScrollState = rememberScrollState()
         val optionsSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val containers = listOf("mp4", "webm", "mkv", "mov")
+        val audioFormats = listOf("mp3", "m4a", "aac", "opus", "flac", "wav")
+        val bitrates = listOf(64, 96, 128, 192, 256, 320)
         ModalBottomSheet(
             onDismissRequest = { showOptionsSheet = false },
             sheetState = optionsSheetState,
@@ -501,134 +504,142 @@ fun BrowserScreen(
                     .navigationBarsPadding()
                     .padding(horizontal = 18.dp, vertical = 6.dp),
             ) {
-                Column(
+                LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f)
-                        .verticalScroll(sheetScrollState),
+                        .weight(1f),
+                    contentPadding = PaddingValues(bottom = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = "Download options",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        IconButton(
-                            onClick = {
-                                showOptionsSheet = false
-                                onClearAnalyzedResult()
-                            },
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Clear,
-                                contentDescription = "Clear ready download",
+                            Text(
+                                text = "Download options",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.SemiBold,
                             )
+                            IconButton(
+                                onClick = {
+                                    showOptionsSheet = false
+                                    onClearAnalyzedResult()
+                                },
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Clear,
+                                    contentDescription = "Clear ready download",
+                                )
+                            }
                         }
                     }
-                    VideoCard(info = uiState.videoInfo)
-
-                    val containers = listOf("mp4", "webm", "mkv", "mov")
-                    val audioFormats = listOf("mp3", "m4a", "aac", "opus", "flac", "wav")
-                    val bitrates = listOf(64, 96, 128, 192, 256, 320)
+                    item {
+                        VideoCard(info = uiState.videoInfo)
+                    }
 
                     if (uiState.videoInfo.isPlaylist) {
-                        Text(
-                            text = "Global format",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        SelectionOptionsCard(
-                            streamType = uiState.selectedStreamType,
-                            onStreamTypeChanged = onStreamTypeChanged,
-                            choices = choicesForStreamType(
-                                streamType = uiState.selectedStreamType,
-                                videoAudioChoices = uiState.availableVideoAudioChoices,
-                                videoOnlyChoices = uiState.availableVideoOnlyChoices,
-                                audioOnlyChoices = uiState.availableAudioOnlyChoices,
-                            ),
-                            selectedFormatSelector = uiState.selectedFormatSelector,
-                            onFormatSelectorChanged = onFormatSelectorChanged,
-                            quality = uiState.selectedQuality,
-                            onQualityChanged = onQualityChanged,
-                            container = uiState.selectedContainer,
-                            onContainerChanged = onContainerChanged,
-                            audioFormat = uiState.selectedAudioFormat,
-                            onAudioFormatChanged = onAudioFormatChanged,
-                            audioBitrateKbps = uiState.audioBitrateKbps,
-                            onAudioBitrateChanged = onAudioBitrateChanged,
-                            containers = containers,
-                            audioFormats = audioFormats,
-                            bitrates = bitrates,
-                            emptyChoicesMessage = "If a file does not expose the exact same formats, the downloader will fall back to the closest matching selector for that item.",
-                        )
-
-                        val currentTemplate = if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
-                            uiState.audioOutputTemplate
-                        } else {
-                            uiState.outputTemplate
+                        item {
+                            Text(
+                                text = "Global format",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                            )
                         }
-                        OutlinedTextField(
-                            value = currentTemplate,
-                            onValueChange = { newValue ->
-                                if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
-                                    onAudioOutputTemplateChanged(newValue)
-                                } else {
-                                    onOutputTemplateChanged(newValue)
-                                }
-                            },
-                            label = {
-                                Text(
+                        item {
+                            SelectionOptionsCard(
+                                streamType = uiState.selectedStreamType,
+                                onStreamTypeChanged = onStreamTypeChanged,
+                                choices = choicesForStreamType(
+                                    streamType = uiState.selectedStreamType,
+                                    videoAudioChoices = uiState.availableVideoAudioChoices,
+                                    videoOnlyChoices = uiState.availableVideoOnlyChoices,
+                                    audioOnlyChoices = uiState.availableAudioOnlyChoices,
+                                ),
+                                selectedFormatSelector = uiState.selectedFormatSelector,
+                                onFormatSelectorChanged = onFormatSelectorChanged,
+                                quality = uiState.selectedQuality,
+                                onQualityChanged = onQualityChanged,
+                                container = uiState.selectedContainer,
+                                onContainerChanged = onContainerChanged,
+                                audioFormat = uiState.selectedAudioFormat,
+                                onAudioFormatChanged = onAudioFormatChanged,
+                                audioBitrateKbps = uiState.audioBitrateKbps,
+                                onAudioBitrateChanged = onAudioBitrateChanged,
+                                containers = containers,
+                                audioFormats = audioFormats,
+                                bitrates = bitrates,
+                                emptyChoicesMessage = "If a file does not expose the exact same formats, the downloader will fall back to the closest matching selector for that item.",
+                            )
+                        }
+                        item {
+                            val currentTemplate = if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
+                                uiState.audioOutputTemplate
+                            } else {
+                                uiState.outputTemplate
+                            }
+                            OutlinedTextField(
+                                value = currentTemplate,
+                                onValueChange = { newValue ->
                                     if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
-                                        "Playlist audio filename template"
+                                        onAudioOutputTemplateChanged(newValue)
                                     } else {
-                                        "Playlist filename template"
-                                    },
-                                )
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                        )
-
-                        ToggleChipRow(
-                            items = buildList {
-                                if (uiState.selectedStreamType != StreamType.AUDIO_ONLY) {
-                                    add(ToggleConfig("Subtitles", uiState.downloadSubtitles, onDownloadSubtitlesChanged))
-                                    add(ToggleConfig("Embed subs", uiState.embedSubtitles, onEmbedSubtitlesChanged))
-                                }
-                                add(ToggleConfig("Metadata", uiState.embedMetadata, onEmbedMetadataChanged))
-                                add(ToggleConfig("Embed thumb", uiState.embedThumbnail, onEmbedThumbnailChanged))
-                                add(ToggleConfig("Write thumb", uiState.writeThumbnail, onWriteThumbnailChanged))
-                            },
-                        )
-
-                        PlaylistSelectionSummaryCard(
-                            totalCount = uiState.playlistItems.size,
-                            selectedCount = uiState.selectedPlaylistItemCount,
-                            allSelected = uiState.areAllPlaylistItemsSelected,
-                            onSelectAllChanged = onPlaylistSelectAllChanged,
-                        )
-
-                        Text(
-                            text = "Files-wise format section",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            text = "Every selected file appears below. Keep global settings on, or expand one item to override its format for that file only.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            uiState.playlistItems.forEachIndexed { index, item ->
+                                        onOutputTemplateChanged(newValue)
+                                    }
+                                },
+                                label = {
+                                    Text(
+                                        if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
+                                            "Playlist audio filename template"
+                                        } else {
+                                            "Playlist filename template"
+                                        },
+                                    )
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                            )
+                        }
+                        item {
+                            ToggleChipRow(
+                                items = buildList {
+                                    if (uiState.selectedStreamType != StreamType.AUDIO_ONLY) {
+                                        add(ToggleConfig("Subtitles", uiState.downloadSubtitles, onDownloadSubtitlesChanged))
+                                        add(ToggleConfig("Embed subs", uiState.embedSubtitles, onEmbedSubtitlesChanged))
+                                    }
+                                    add(ToggleConfig("Metadata", uiState.embedMetadata, onEmbedMetadataChanged))
+                                    add(ToggleConfig("Embed thumb", uiState.embedThumbnail, onEmbedThumbnailChanged))
+                                    add(ToggleConfig("Write thumb", uiState.writeThumbnail, onWriteThumbnailChanged))
+                                },
+                            )
+                        }
+                        item {
+                            PlaylistSelectionSummaryCard(
+                                totalCount = uiState.playlistItems.size,
+                                selectedCount = uiState.selectedPlaylistItemCount,
+                                allSelected = uiState.areAllPlaylistItemsSelected,
+                                onSelectAllChanged = onPlaylistSelectAllChanged,
+                            )
+                        }
+                        item {
+                            Text(
+                                text = "Files-wise format section",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                        item {
+                            Text(
+                                text = "Every selected file appears below. Keep global settings on, or expand one item to override its format for that file only.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        uiState.playlistItems.forEachIndexed { index, playlistItem ->
+                            item {
                                 PlaylistItemCard(
-                                    item = item,
+                                    item = playlistItem,
                                     globalStreamType = uiState.selectedStreamType,
                                     globalFormatSelector = uiState.selectedFormatSelector,
                                     globalContainer = uiState.selectedContainer,
@@ -642,97 +653,104 @@ fun BrowserScreen(
                                     onUseGlobalChanged = { onPlaylistItemUseGlobalChanged(index, it) },
                                     onStreamTypeChanged = { onPlaylistItemStreamTypeChanged(index, it) },
                                     onFormatSelectorChanged = { onPlaylistItemFormatSelectorChanged(index, it) },
-                            onContainerChanged = { onPlaylistItemContainerChanged(index, it) },
-                            onAudioFormatChanged = { onPlaylistItemAudioFormatChanged(index, it) },
-                            onAudioBitrateChanged = { onPlaylistItemAudioBitrateChanged(index, it) },
-                            onFileNameChanged = { onPlaylistItemFileNameChanged(index, it) },
-                        )
+                                    onContainerChanged = { onPlaylistItemContainerChanged(index, it) },
+                                    onAudioFormatChanged = { onPlaylistItemAudioFormatChanged(index, it) },
+                                    onAudioBitrateChanged = { onPlaylistItemAudioBitrateChanged(index, it) },
+                                    onFileNameChanged = { onPlaylistItemFileNameChanged(index, it) },
+                                )
                             }
                         }
                     } else {
-                        SelectionOptionsCard(
-                            streamType = uiState.selectedStreamType,
-                            onStreamTypeChanged = onStreamTypeChanged,
-                            choices = choicesForStreamType(
+                        item {
+                            SelectionOptionsCard(
                                 streamType = uiState.selectedStreamType,
-                                videoAudioChoices = uiState.availableVideoAudioChoices,
-                                videoOnlyChoices = uiState.availableVideoOnlyChoices,
-                                audioOnlyChoices = uiState.availableAudioOnlyChoices,
-                            ),
-                            selectedFormatSelector = uiState.selectedFormatSelector,
-                            onFormatSelectorChanged = onFormatSelectorChanged,
-                            quality = uiState.selectedQuality,
-                            onQualityChanged = onQualityChanged,
-                            container = uiState.selectedContainer,
-                            onContainerChanged = onContainerChanged,
-                            audioFormat = uiState.selectedAudioFormat,
-                            onAudioFormatChanged = onAudioFormatChanged,
-                            audioBitrateKbps = uiState.audioBitrateKbps,
-                            onAudioBitrateChanged = onAudioBitrateChanged,
-                            containers = containers,
-                            audioFormats = audioFormats,
-                            bitrates = bitrates,
-                            emptyChoicesMessage = null,
-                        )
-
-                        OutlinedTextField(
-                            value = uiState.customFileName,
-                            onValueChange = onCustomFileNameChanged,
-                            label = { Text("File name") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            supportingText = {
-                                Text("Edit the saved file name before download, or keep the source title as-is.")
-                            },
-                        )
-
-                        val currentTemplate = if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
-                            uiState.audioOutputTemplate
-                        } else {
-                            uiState.outputTemplate
+                                onStreamTypeChanged = onStreamTypeChanged,
+                                choices = choicesForStreamType(
+                                    streamType = uiState.selectedStreamType,
+                                    videoAudioChoices = uiState.availableVideoAudioChoices,
+                                    videoOnlyChoices = uiState.availableVideoOnlyChoices,
+                                    audioOnlyChoices = uiState.availableAudioOnlyChoices,
+                                ),
+                                selectedFormatSelector = uiState.selectedFormatSelector,
+                                onFormatSelectorChanged = onFormatSelectorChanged,
+                                quality = uiState.selectedQuality,
+                                onQualityChanged = onQualityChanged,
+                                container = uiState.selectedContainer,
+                                onContainerChanged = onContainerChanged,
+                                audioFormat = uiState.selectedAudioFormat,
+                                onAudioFormatChanged = onAudioFormatChanged,
+                                audioBitrateKbps = uiState.audioBitrateKbps,
+                                onAudioBitrateChanged = onAudioBitrateChanged,
+                                containers = containers,
+                                audioFormats = audioFormats,
+                                bitrates = bitrates,
+                                emptyChoicesMessage = null,
+                            )
                         }
-                        OutlinedTextField(
-                            value = currentTemplate,
-                            onValueChange = { newValue ->
-                                if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
-                                    onAudioOutputTemplateChanged(newValue)
-                                } else {
-                                    onOutputTemplateChanged(newValue)
-                                }
-                            },
-                            label = {
-                                Text(
+                        item {
+                            OutlinedTextField(
+                                value = uiState.customFileName,
+                                onValueChange = onCustomFileNameChanged,
+                                label = { Text("File name") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                supportingText = {
+                                    Text("Edit the saved file name before download, or keep the source title as-is.")
+                                },
+                            )
+                        }
+                        item {
+                            val currentTemplate = if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
+                                uiState.audioOutputTemplate
+                            } else {
+                                uiState.outputTemplate
+                            }
+                            OutlinedTextField(
+                                value = currentTemplate,
+                                onValueChange = { newValue ->
                                     if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
-                                        "Audio filename template"
+                                        onAudioOutputTemplateChanged(newValue)
                                     } else {
-                                        "Video filename template"
-                                    },
-                                )
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                        )
-
-                        ToggleChipRow(
-                            items = buildList {
-                                if (uiState.selectedStreamType != StreamType.AUDIO_ONLY) {
-                                    add(ToggleConfig("Subtitles", uiState.downloadSubtitles, onDownloadSubtitlesChanged))
-                                    add(ToggleConfig("Embed subs", uiState.embedSubtitles, onEmbedSubtitlesChanged))
-                                }
-                                add(ToggleConfig("Metadata", uiState.embedMetadata, onEmbedMetadataChanged))
-                                add(ToggleConfig("Embed thumb", uiState.embedThumbnail, onEmbedThumbnailChanged))
-                                add(ToggleConfig("Write thumb", uiState.writeThumbnail, onWriteThumbnailChanged))
-                                add(ToggleConfig("Playlist", uiState.enablePlaylist, onPlaylistEnabledChanged))
-                            },
-                        )
+                                        onOutputTemplateChanged(newValue)
+                                    }
+                                },
+                                label = {
+                                    Text(
+                                        if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
+                                            "Audio filename template"
+                                        } else {
+                                            "Video filename template"
+                                        },
+                                    )
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                            )
+                        }
+                        item {
+                            ToggleChipRow(
+                                items = buildList {
+                                    if (uiState.selectedStreamType != StreamType.AUDIO_ONLY) {
+                                        add(ToggleConfig("Subtitles", uiState.downloadSubtitles, onDownloadSubtitlesChanged))
+                                        add(ToggleConfig("Embed subs", uiState.embedSubtitles, onEmbedSubtitlesChanged))
+                                    }
+                                    add(ToggleConfig("Metadata", uiState.embedMetadata, onEmbedMetadataChanged))
+                                    add(ToggleConfig("Embed thumb", uiState.embedThumbnail, onEmbedThumbnailChanged))
+                                    add(ToggleConfig("Write thumb", uiState.writeThumbnail, onWriteThumbnailChanged))
+                                    add(ToggleConfig("Playlist", uiState.enablePlaylist, onPlaylistEnabledChanged))
+                                },
+                            )
+                        }
                     }
 
                     if (!isDownloadButtonEnabled) {
-                        Text(
-                            text = "Wait for the active job to settle before starting another download.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        item {
+                            Text(
+                                text = "Wait for the active job to settle before starting another download.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 }
 

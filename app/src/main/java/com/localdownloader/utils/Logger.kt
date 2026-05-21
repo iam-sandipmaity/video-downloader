@@ -47,6 +47,13 @@ class Logger @Inject constructor(
 
     fun logFilePath(): String = currentLogFile().absolutePath
     fun crashLogFilePath(): String = currentCrashLogFile().absolutePath
+    fun appLogFiles(): List<File> {
+        val logsDir = File(context.filesDir, LOG_DIR_NAME)
+        return listOf(
+            File(logsDir, "$LOG_FILE_NAME.1"),
+            currentLogFile(),
+        ).filter { it.exists() && it.length() > 0L }
+    }
     // External file paths removed for privacy; logs are internal-only.
 
     fun ensureLogFilesExist() {

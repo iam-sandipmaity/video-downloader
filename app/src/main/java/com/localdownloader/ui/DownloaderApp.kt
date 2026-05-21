@@ -68,9 +68,11 @@ import com.localdownloader.ui.screens.YoutubeAuthScreen
 import com.localdownloader.ui.screens.settings.AboutSettingsScreen
 import com.localdownloader.ui.screens.settings.AccessSettingsScreen
 import com.localdownloader.ui.screens.settings.AppearanceSettingsScreen
+import com.localdownloader.ui.screens.settings.AppLogSettingsScreen
 import com.localdownloader.ui.screens.settings.DownloadSettingsScreen
 import com.localdownloader.ui.screens.settings.NotificationsSettingsScreen
 import com.localdownloader.ui.screens.settings.StorageSettingsScreen
+import com.localdownloader.viewmodel.AppLogViewModel
 import com.localdownloader.ui.model.ExternalOpenRequest
 import com.localdownloader.ui.model.buildVideoLibraryItems
 import com.localdownloader.ui.model.toAudioQueueItems
@@ -625,6 +627,7 @@ fun DownloaderApp(
                     onOpenNotifications = { navController.navigate(Routes.SettingsNotifications) },
                     onOpenAccess = { navController.navigate(Routes.SettingsAccess) },
                     onOpenAbout = { navController.navigate(Routes.SettingsAbout) },
+                    onOpenAppLog = { navController.navigate(Routes.SettingsAppLog) },
                     onBack = { navController.popBackStack() },
                 )
             }
@@ -718,6 +721,17 @@ fun DownloaderApp(
                 AboutSettingsScreen(
                     onOpenUpdates = { navController.navigate(Routes.Updates) },
                     onResetSettings = formatViewModel::resetSettingsToDefaults,
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable(Routes.SettingsAppLog) {
+                val appLogViewModel: AppLogViewModel = hiltViewModel()
+                val appLogState by appLogViewModel.uiState.collectAsStateWithLifecycle()
+                AppLogSettingsScreen(
+                    uiState = appLogState,
+                    onRefresh = appLogViewModel::refresh,
+                    onOutcomeFilterChanged = appLogViewModel::setOutcomeFilter,
+                    onDayFilterChanged = appLogViewModel::setDayFilter,
                     onBack = { navController.popBackStack() },
                 )
             }
@@ -884,6 +898,7 @@ object Routes {
     const val SettingsNotifications = "settings/notifications"
     const val SettingsAccess = "settings/access"
     const val SettingsAbout = "settings/about"
+    const val SettingsAppLog = "settings/app-log"
     const val Updates = "updates"
     const val UpdateChangelog = "updates/changelog/{section}"
     const val Help = "help"

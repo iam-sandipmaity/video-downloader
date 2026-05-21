@@ -12,6 +12,7 @@
 - **Real download network controls** - added Wi-Fi-only downloading by default, a cellular-download setting, and an in-app prompt when someone tries to queue downloads on mobile data
 - **Real queue slot scheduling** - wired the concurrent-download preference into the repository scheduler so the app now respects the configured maximum active downloads
 - **Downloads batch selection mode** - the Downloads library now has a `Select` action so multiple saved files can be picked together and then shared, removed from the app, or permanently deleted in one go
+- **Settings app-log reader** - added an in-app `App log reader` screen under Settings so internal `app.log` lines can be filtered by outcome or day, then copied or exported without leaving the app
 
 ### Changed
 - **Settings revamp** - rebuilt Settings around a lighter Seal-inspired preference flow with grouped sections, cleaner navigation, smoother page rhythm, and clearer summaries of each category before you tap in
@@ -34,6 +35,7 @@
 - **False download failures after success** - fixed the completion-path notification regression that could mark a finished download as failed after the file had already been saved
 - **Duplicate playlist worker launches** - fixed queue scheduling so one playlist item is no longer started twice and then forced into a rename/file-missing failure at the end
 - **Queue row stability during simultaneous downloads** - running items now keep a steady visual order in the queue instead of swapping positions every time progress updates arrive
+- **Bottom-sheet overscroll bounce** - download options and history log sheets now scroll through list-backed content instead of fighting the sheet drag gesture when you overscroll past the content edge
 - **Changelog rendering and sourcing** - the Updates changelog page now shows the latest app release notes first, keeps the full bundled app changelog below, and renders common markdown styling instead of dumping raw formatting markers
 - **Runtime update safety gating** - updating the app, yt-dlp, or FFmpeg now blocks while downloads are queued, running, or paused so update actions do not race against active work
 
