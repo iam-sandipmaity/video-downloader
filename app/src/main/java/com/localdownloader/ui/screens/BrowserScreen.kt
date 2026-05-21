@@ -517,265 +517,259 @@ fun BrowserScreen(
         ModalBottomSheet(
             onDismissRequest = { showOptionsSheet = false },
             sheetState = optionsSheetState,
+            dragHandle = null,
             shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
             containerColor = MaterialTheme.colorScheme.surface,
         ) {
-            Column(
+            LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
                     .fillMaxHeight(0.94f)
                     .imePadding()
                     .navigationBarsPadding()
-                    .padding(horizontal = 18.dp, vertical = 6.dp),
+                    .padding(horizontal = 18.dp, vertical = 6.dp)
+                    .nestedScroll(sheetScrollGuard),
+                state = optionsListState,
+                contentPadding = PaddingValues(bottom = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .nestedScroll(sheetScrollGuard),
-                    state = optionsListState,
-                    contentPadding = PaddingValues(bottom = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
+                item {
+                    OptionsSheetHeader(
+                        info = uiState.videoInfo,
+                        onClear = {
+                            showOptionsSheet = false
+                            onClearAnalyzedResult()
+                        },
+                    )
+                }
+
+                if (uiState.videoInfo.isPlaylist) {
                     item {
-                        OptionsSheetHeader(
-                            info = uiState.videoInfo,
-                            onClear = {
-                                showOptionsSheet = false
-                                onClearAnalyzedResult()
-                            },
-                        )
-                    }
-
-                    if (uiState.videoInfo.isPlaylist) {
-                        item {
-                            OptionSectionCard(title = "Global") {
-                                SelectionOptionsCard(
+                        OptionSectionCard(title = "Global") {
+                            SelectionOptionsCard(
+                                streamType = uiState.selectedStreamType,
+                                onStreamTypeChanged = onStreamTypeChanged,
+                                choices = choicesForStreamType(
                                     streamType = uiState.selectedStreamType,
-                                    onStreamTypeChanged = onStreamTypeChanged,
-                                    choices = choicesForStreamType(
-                                        streamType = uiState.selectedStreamType,
-                                        videoAudioChoices = uiState.availableVideoAudioChoices,
-                                        videoOnlyChoices = uiState.availableVideoOnlyChoices,
-                                        audioOnlyChoices = uiState.availableAudioOnlyChoices,
-                                    ),
-                                    selectedFormatSelector = uiState.selectedFormatSelector,
-                                    onFormatSelectorChanged = onFormatSelectorChanged,
-                                    quality = uiState.selectedQuality,
-                                    onQualityChanged = onQualityChanged,
-                                    container = uiState.selectedContainer,
-                                    onContainerChanged = onContainerChanged,
-                                    audioFormat = uiState.selectedAudioFormat,
-                                    onAudioFormatChanged = onAudioFormatChanged,
-                                    audioBitrateKbps = uiState.audioBitrateKbps,
-                                    onAudioBitrateChanged = onAudioBitrateChanged,
-                                    containers = containers,
-                                    audioFormats = audioFormats,
-                                    bitrates = bitrates,
-                                    emptyChoicesMessage = "Closest available format will be used.",
-                                )
-                            }
-                        }
-                        item {
-                            val currentTemplate = if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
-                                uiState.audioOutputTemplate
-                            } else {
-                                uiState.outputTemplate
-                            }
-                            OptionSectionCard(title = "Template") {
-                                OutlinedTextField(
-                                    value = currentTemplate,
-                                    onValueChange = { newValue ->
-                                        if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
-                                            onAudioOutputTemplateChanged(newValue)
-                                        } else {
-                                            onOutputTemplateChanged(newValue)
-                                        }
-                                    },
-                                    label = {
-                                        Text(
-                                            if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
-                                                "Playlist audio template"
-                                            } else {
-                                                "Playlist template"
-                                            },
-                                        )
-                                    },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    singleLine = true,
-                                )
-                                ToggleChipRow(
-                                    items = buildList {
-                                        if (uiState.selectedStreamType != StreamType.AUDIO_ONLY) {
-                                            add(ToggleConfig("Subtitles", uiState.downloadSubtitles, onDownloadSubtitlesChanged))
-                                            add(ToggleConfig("Embed subs", uiState.embedSubtitles, onEmbedSubtitlesChanged))
-                                        }
-                                        add(ToggleConfig("Metadata", uiState.embedMetadata, onEmbedMetadataChanged))
-                                        add(ToggleConfig("Embed thumb", uiState.embedThumbnail, onEmbedThumbnailChanged))
-                                        add(ToggleConfig("Write thumb", uiState.writeThumbnail, onWriteThumbnailChanged))
-                                    },
-                                )
-                            }
-                        }
-                        item {
-                            OptionSectionCard(title = "Files") {
-                                PlaylistSelectionSummaryCard(
-                                    totalCount = uiState.playlistItems.size,
-                                    selectedCount = uiState.selectedPlaylistItemCount,
-                                    allSelected = uiState.areAllPlaylistItemsSelected,
-                                    onSelectAllChanged = onPlaylistSelectAllChanged,
-                                )
-                            }
-                        }
-                        uiState.playlistItems.forEachIndexed { index, playlistItem ->
-                            item {
-                                PlaylistItemCard(
-                                    item = playlistItem,
-                                    globalStreamType = uiState.selectedStreamType,
-                                    globalFormatSelector = uiState.selectedFormatSelector,
-                                    globalContainer = uiState.selectedContainer,
-                                    globalAudioFormat = uiState.selectedAudioFormat,
-                                    globalAudioBitrateKbps = uiState.audioBitrateKbps,
-                                    containers = containers,
-                                    audioFormats = audioFormats,
-                                    bitrates = bitrates,
-                                    onSelectedChanged = { onPlaylistItemSelectedChanged(index, it) },
-                                    onExpandedChanged = { onPlaylistItemExpandedChanged(index, it) },
-                                    onUseGlobalChanged = { onPlaylistItemUseGlobalChanged(index, it) },
-                                    onStreamTypeChanged = { onPlaylistItemStreamTypeChanged(index, it) },
-                                    onFormatSelectorChanged = { onPlaylistItemFormatSelectorChanged(index, it) },
-                                    onContainerChanged = { onPlaylistItemContainerChanged(index, it) },
-                                    onAudioFormatChanged = { onPlaylistItemAudioFormatChanged(index, it) },
-                                    onAudioBitrateChanged = { onPlaylistItemAudioBitrateChanged(index, it) },
-                                    onFileNameChanged = { onPlaylistItemFileNameChanged(index, it) },
-                                )
-                            }
-                        }
-                    } else {
-                        item {
-                            OptionSectionCard(title = "Format") {
-                                SelectionOptionsCard(
-                                    streamType = uiState.selectedStreamType,
-                                    onStreamTypeChanged = onStreamTypeChanged,
-                                    choices = choicesForStreamType(
-                                        streamType = uiState.selectedStreamType,
-                                        videoAudioChoices = uiState.availableVideoAudioChoices,
-                                        videoOnlyChoices = uiState.availableVideoOnlyChoices,
-                                        audioOnlyChoices = uiState.availableAudioOnlyChoices,
-                                    ),
-                                    selectedFormatSelector = uiState.selectedFormatSelector,
-                                    onFormatSelectorChanged = onFormatSelectorChanged,
-                                    quality = uiState.selectedQuality,
-                                    onQualityChanged = onQualityChanged,
-                                    container = uiState.selectedContainer,
-                                    onContainerChanged = onContainerChanged,
-                                    audioFormat = uiState.selectedAudioFormat,
-                                    onAudioFormatChanged = onAudioFormatChanged,
-                                    audioBitrateKbps = uiState.audioBitrateKbps,
-                                    onAudioBitrateChanged = onAudioBitrateChanged,
-                                    containers = containers,
-                                    audioFormats = audioFormats,
-                                    bitrates = bitrates,
-                                    emptyChoicesMessage = null,
-                                )
-                            }
-                        }
-                        item {
-                            val currentTemplate = if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
-                                uiState.audioOutputTemplate
-                            } else {
-                                uiState.outputTemplate
-                            }
-                            OptionSectionCard(title = "Name") {
-                                OutlinedTextField(
-                                    value = uiState.customFileName,
-                                    onValueChange = onCustomFileNameChanged,
-                                    label = { Text("File name") },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    singleLine = true,
-                                )
-                                OutlinedTextField(
-                                    value = currentTemplate,
-                                    onValueChange = { newValue ->
-                                        if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
-                                            onAudioOutputTemplateChanged(newValue)
-                                        } else {
-                                            onOutputTemplateChanged(newValue)
-                                        }
-                                    },
-                                    label = {
-                                        Text(
-                                            if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
-                                                "Audio template"
-                                            } else {
-                                                "Video template"
-                                            },
-                                        )
-                                    },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    singleLine = true,
-                                )
-                            }
-                        }
-                        item {
-                            OptionSectionCard(title = "Extras") {
-                                ToggleChipRow(
-                                    items = buildList {
-                                        if (uiState.selectedStreamType != StreamType.AUDIO_ONLY) {
-                                            add(ToggleConfig("Subtitles", uiState.downloadSubtitles, onDownloadSubtitlesChanged))
-                                            add(ToggleConfig("Embed subs", uiState.embedSubtitles, onEmbedSubtitlesChanged))
-                                        }
-                                        add(ToggleConfig("Metadata", uiState.embedMetadata, onEmbedMetadataChanged))
-                                        add(ToggleConfig("Embed thumb", uiState.embedThumbnail, onEmbedThumbnailChanged))
-                                        add(ToggleConfig("Write thumb", uiState.writeThumbnail, onWriteThumbnailChanged))
-                                        add(ToggleConfig("Playlist", uiState.enablePlaylist, onPlaylistEnabledChanged))
-                                    },
-                                )
-                            }
+                                    videoAudioChoices = uiState.availableVideoAudioChoices,
+                                    videoOnlyChoices = uiState.availableVideoOnlyChoices,
+                                    audioOnlyChoices = uiState.availableAudioOnlyChoices,
+                                ),
+                                selectedFormatSelector = uiState.selectedFormatSelector,
+                                onFormatSelectorChanged = onFormatSelectorChanged,
+                                quality = uiState.selectedQuality,
+                                onQualityChanged = onQualityChanged,
+                                container = uiState.selectedContainer,
+                                onContainerChanged = onContainerChanged,
+                                audioFormat = uiState.selectedAudioFormat,
+                                onAudioFormatChanged = onAudioFormatChanged,
+                                audioBitrateKbps = uiState.audioBitrateKbps,
+                                onAudioBitrateChanged = onAudioBitrateChanged,
+                                containers = containers,
+                                audioFormats = audioFormats,
+                                bitrates = bitrates,
+                                emptyChoicesMessage = "Closest available format will be used.",
+                            )
                         }
                     }
-
-                    if (!isDownloadButtonEnabled) {
+                    item {
+                        val currentTemplate = if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
+                            uiState.audioOutputTemplate
+                        } else {
+                            uiState.outputTemplate
+                        }
+                        OptionSectionCard(title = "Template") {
+                            OutlinedTextField(
+                                value = currentTemplate,
+                                onValueChange = { newValue ->
+                                    if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
+                                        onAudioOutputTemplateChanged(newValue)
+                                    } else {
+                                        onOutputTemplateChanged(newValue)
+                                    }
+                                },
+                                label = {
+                                    Text(
+                                        if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
+                                            "Playlist audio template"
+                                        } else {
+                                            "Playlist template"
+                                        },
+                                    )
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                            )
+                            ToggleChipRow(
+                                items = buildList {
+                                    if (uiState.selectedStreamType != StreamType.AUDIO_ONLY) {
+                                        add(ToggleConfig("Subtitles", uiState.downloadSubtitles, onDownloadSubtitlesChanged))
+                                        add(ToggleConfig("Embed subs", uiState.embedSubtitles, onEmbedSubtitlesChanged))
+                                    }
+                                    add(ToggleConfig("Metadata", uiState.embedMetadata, onEmbedMetadataChanged))
+                                    add(ToggleConfig("Embed thumb", uiState.embedThumbnail, onEmbedThumbnailChanged))
+                                    add(ToggleConfig("Write thumb", uiState.writeThumbnail, onWriteThumbnailChanged))
+                                },
+                            )
+                        }
+                    }
+                    item {
+                        OptionSectionCard(title = "Files") {
+                            PlaylistSelectionSummaryCard(
+                                totalCount = uiState.playlistItems.size,
+                                selectedCount = uiState.selectedPlaylistItemCount,
+                                allSelected = uiState.areAllPlaylistItemsSelected,
+                                onSelectAllChanged = onPlaylistSelectAllChanged,
+                            )
+                        }
+                    }
+                    uiState.playlistItems.forEachIndexed { index, playlistItem ->
                         item {
-                            Text(
-                                text = "Wait for the current job to settle.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            PlaylistItemCard(
+                                item = playlistItem,
+                                globalStreamType = uiState.selectedStreamType,
+                                globalFormatSelector = uiState.selectedFormatSelector,
+                                globalContainer = uiState.selectedContainer,
+                                globalAudioFormat = uiState.selectedAudioFormat,
+                                globalAudioBitrateKbps = uiState.audioBitrateKbps,
+                                containers = containers,
+                                audioFormats = audioFormats,
+                                bitrates = bitrates,
+                                onSelectedChanged = { onPlaylistItemSelectedChanged(index, it) },
+                                onExpandedChanged = { onPlaylistItemExpandedChanged(index, it) },
+                                onUseGlobalChanged = { onPlaylistItemUseGlobalChanged(index, it) },
+                                onStreamTypeChanged = { onPlaylistItemStreamTypeChanged(index, it) },
+                                onFormatSelectorChanged = { onPlaylistItemFormatSelectorChanged(index, it) },
+                                onContainerChanged = { onPlaylistItemContainerChanged(index, it) },
+                                onAudioFormatChanged = { onPlaylistItemAudioFormatChanged(index, it) },
+                                onAudioBitrateChanged = { onPlaylistItemAudioBitrateChanged(index, it) },
+                                onFileNameChanged = { onPlaylistItemFileNameChanged(index, it) },
+                            )
+                        }
+                    }
+                } else {
+                    item {
+                        OptionSectionCard(title = "Format") {
+                            SelectionOptionsCard(
+                                streamType = uiState.selectedStreamType,
+                                onStreamTypeChanged = onStreamTypeChanged,
+                                choices = choicesForStreamType(
+                                    streamType = uiState.selectedStreamType,
+                                    videoAudioChoices = uiState.availableVideoAudioChoices,
+                                    videoOnlyChoices = uiState.availableVideoOnlyChoices,
+                                    audioOnlyChoices = uiState.availableAudioOnlyChoices,
+                                ),
+                                selectedFormatSelector = uiState.selectedFormatSelector,
+                                onFormatSelectorChanged = onFormatSelectorChanged,
+                                quality = uiState.selectedQuality,
+                                onQualityChanged = onQualityChanged,
+                                container = uiState.selectedContainer,
+                                onContainerChanged = onContainerChanged,
+                                audioFormat = uiState.selectedAudioFormat,
+                                onAudioFormatChanged = onAudioFormatChanged,
+                                audioBitrateKbps = uiState.audioBitrateKbps,
+                                onAudioBitrateChanged = onAudioBitrateChanged,
+                                containers = containers,
+                                audioFormats = audioFormats,
+                                bitrates = bitrates,
+                                emptyChoicesMessage = null,
+                            )
+                        }
+                    }
+                    item {
+                        val currentTemplate = if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
+                            uiState.audioOutputTemplate
+                        } else {
+                            uiState.outputTemplate
+                        }
+                        OptionSectionCard(title = "Name") {
+                            OutlinedTextField(
+                                value = uiState.customFileName,
+                                onValueChange = onCustomFileNameChanged,
+                                label = { Text("File name") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                            )
+                            OutlinedTextField(
+                                value = currentTemplate,
+                                onValueChange = { newValue ->
+                                    if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
+                                        onAudioOutputTemplateChanged(newValue)
+                                    } else {
+                                        onOutputTemplateChanged(newValue)
+                                    }
+                                },
+                                label = {
+                                    Text(
+                                        if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
+                                            "Audio template"
+                                        } else {
+                                            "Video template"
+                                        },
+                                    )
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                            )
+                        }
+                    }
+                    item {
+                        OptionSectionCard(title = "Extras") {
+                            ToggleChipRow(
+                                items = buildList {
+                                    if (uiState.selectedStreamType != StreamType.AUDIO_ONLY) {
+                                        add(ToggleConfig("Subtitles", uiState.downloadSubtitles, onDownloadSubtitlesChanged))
+                                        add(ToggleConfig("Embed subs", uiState.embedSubtitles, onEmbedSubtitlesChanged))
+                                    }
+                                    add(ToggleConfig("Metadata", uiState.embedMetadata, onEmbedMetadataChanged))
+                                    add(ToggleConfig("Embed thumb", uiState.embedThumbnail, onEmbedThumbnailChanged))
+                                    add(ToggleConfig("Write thumb", uiState.writeThumbnail, onWriteThumbnailChanged))
+                                    add(ToggleConfig("Playlist", uiState.enablePlaylist, onPlaylistEnabledChanged))
+                                },
                             )
                         }
                     }
                 }
 
-                HorizontalDivider(
-                    modifier = Modifier.padding(top = 4.dp),
-                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f),
-                )
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 10.dp, bottom = 12.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        downloadActionSummary?.let { summary ->
-                            Text(
-                                text = summary,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        Button(
-                            onClick = onQueueDownloadClicked,
-                            enabled = !uiState.isQueueing && isDownloadButtonEnabled,
-                            modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(vertical = 14.dp),
-                        ) {
-                            val buttonText = when {
-                                uiState.isQueueing -> "Queueing..."
-                                !isDownloadButtonEnabled -> "Please wait..."
-                                else -> "Download"
+                item {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(top = 4.dp),
+                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f),
+                    )
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 10.dp, bottom = 12.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (!isDownloadButtonEnabled) {
+                                Text(
+                                    text = "Wait for the current job to settle.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
                             }
-                            Text(buttonText)
+                            downloadActionSummary?.let { summary ->
+                                Text(
+                                    text = summary,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Button(
+                                onClick = onQueueDownloadClicked,
+                                enabled = !uiState.isQueueing && isDownloadButtonEnabled,
+                                modifier = Modifier.fillMaxWidth(),
+                                contentPadding = PaddingValues(vertical = 14.dp),
+                            ) {
+                                val buttonText = when {
+                                    uiState.isQueueing -> "Queueing..."
+                                    !isDownloadButtonEnabled -> "Please wait..."
+                                    else -> "Download"
+                                }
+                                Text(buttonText)
+                            }
                         }
                     }
                 }
@@ -956,6 +950,7 @@ private fun OptionsSheetHeader(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            BottomSheetGrip()
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,

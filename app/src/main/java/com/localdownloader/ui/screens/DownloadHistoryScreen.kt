@@ -557,6 +557,7 @@ private fun HistoryLogSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        dragHandle = null,
         containerColor = MaterialTheme.colorScheme.surface,
     ) {
         LazyColumn(
@@ -567,6 +568,10 @@ private fun HistoryLogSheet(
             state = logListState,
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            item {
+                BottomSheetGrip(modifier = Modifier.padding(bottom = 4.dp))
+            }
+
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
