@@ -50,15 +50,33 @@ class BinaryInstaller @Inject constructor(
 
     suspend fun ensureFfmpegRuntime(preferNative: Boolean = true): FfmpegRuntime = withContext(Dispatchers.IO) {
         val supportDir = ensureBundledFfmpegSupportDir()
+        val overlayCandidate = resolveDownloadedOverlayFfmpegCandidate()
+        val canUseBundledLinkedRuntime = canUseLinkedFfmpegRuntime(supportDir)
         val candidates = buildList {
-            resolveDownloadedOverlayFfmpegCandidate()?.let(::add)
-            resolveNativeLibraryBinary(listOf("libffmpeg.so"))?.let { nativeBinary ->
-                add(
-                    FfmpegCandidate(
-                        sourceBinary = nativeBinary,
-                        supportDir = supportDir,
-                        label = nativeBinary.name,
-                    ),
+            if (overlayCandidate != null) {
+                if (canUseLinkedFfmpegRuntime(overlayCandidate.supportDir)) {
+                    add(overlayCandidate)
+                } else {
+                    logger.i(
+                        "BinaryInstaller",
+                        "Skipping downloaded overlay libffmpeg.so because libc++_shared.so is unavailable for its support libraries",
+                    )
+                }
+            }
+            if (canUseBundledLinkedRuntime) {
+                resolveNativeLibraryBinary(listOf("libffmpeg.so"))?.let { nativeBinary ->
+                    add(
+                        FfmpegCandidate(
+                            sourceBinary = nativeBinary,
+                            supportDir = supportDir,
+                            label = nativeBinary.name,
+                        ),
+                    )
+                }
+            } else {
+                logger.i(
+                    "BinaryInstaller",
+                    "Skipping linked libffmpeg.so candidates because libc++_shared.so is not packaged in this build",
                 )
             }
             resolveNativeLibraryBinary(listOf("libffmpeg_exec.so"))?.let { nativeBinary ->
@@ -195,6 +213,18 @@ class BinaryInstaller @Inject constructor(
             supportDir = overlaySupportDir,
             label = "downloaded overlay",
         )
+    }
+
+    private fun canUseLinkedFfmpegRuntime(supportDir: File?): Boolean {
+        val appNativeDir = context.applicationInfo.nativeLibraryDir?.let(::File)
+        val appHasSharedCpp = appNativeDir?.let { File(it, "libc++_shared.so").exists() } == true
+        val supportHasSharedCpp = supportDir?.let { dir ->
+            listOf(
+                File(dir, "usr/lib/libc++_shared.so"),
+                File(dir, "libc++_shared.so"),
+            ).any { it.exists() }
+        } == true
+        return appHasSharedCpp || supportHasSharedCpp
     }
 
     private suspend fun verifyFfmpegBinary(binary: File, environment: Map<String, String>) {

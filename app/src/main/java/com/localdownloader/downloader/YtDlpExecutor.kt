@@ -23,6 +23,7 @@ class YtDlpExecutor @Inject constructor(
 
     suspend fun execute(
         args: List<String>,
+        logOutputLines: Boolean = false,
         onStdoutLine: ((String) -> Unit)? = null,
         onStderrLine: ((String) -> Unit)? = null,
     ): CommandResult {
@@ -43,6 +44,7 @@ class YtDlpExecutor @Inject constructor(
         return runProcess(
             command = command,
             environment = runtime.environment,
+            logOutputLines = logOutputLines,
             onStdoutLine = onStdoutLine,
             onStderrLine = onStderrLine,
         )
@@ -51,6 +53,7 @@ class YtDlpExecutor @Inject constructor(
     private suspend fun runProcess(
         command: List<String>,
         environment: Map<String, String>,
+        logOutputLines: Boolean,
         onStdoutLine: ((String) -> Unit)?,
         onStderrLine: ((String) -> Unit)?,
     ): CommandResult {
@@ -60,11 +63,15 @@ class YtDlpExecutor @Inject constructor(
                 command = command,
                 environment = environment,
                 onStdoutLine = { line ->
-                    logger.d("YtDlpExecutor/stdout", line)
+                    if (logOutputLines) {
+                        logger.d("YtDlpExecutor/stdout", line)
+                    }
                     onStdoutLine?.invoke(line)
                 },
                 onStderrLine = { line ->
-                    logger.d("YtDlpExecutor/stderr", line)
+                    if (logOutputLines) {
+                        logger.d("YtDlpExecutor/stderr", line)
+                    }
                     onStderrLine?.invoke(line)
                 },
             )

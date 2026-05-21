@@ -10,6 +10,8 @@ import com.localdownloader.domain.models.ContrastMode
 import com.localdownloader.domain.models.CookieProfile
 import com.localdownloader.domain.models.DownloadOptions
 import com.localdownloader.domain.models.FormatChoice
+import com.localdownloader.domain.models.MediaFormat
+import com.localdownloader.domain.models.PlaylistDownloadRequest
 import com.localdownloader.domain.models.SYSTEM_LANGUAGE_TAG
 import com.localdownloader.domain.models.StreamType
 import com.localdownloader.domain.models.ThemeMode
@@ -78,7 +80,9 @@ class FormatViewModel @Inject constructor(
                 availableVideoAudioChoices = emptyList(),
                 availableVideoOnlyChoices = emptyList(),
                 availableAudioOnlyChoices = emptyList(),
+                playlistItems = emptyList(),
                 selectedFormatSelector = null,
+                customFileName = "",
                 infoMessage = null,
                 errorMessage = null,
             )
@@ -94,7 +98,9 @@ class FormatViewModel @Inject constructor(
                 availableVideoAudioChoices = emptyList(),
                 availableVideoOnlyChoices = emptyList(),
                 availableAudioOnlyChoices = emptyList(),
+                playlistItems = emptyList(),
                 selectedFormatSelector = null,
+                customFileName = "",
                 infoMessage = null,
                 errorMessage = null,
             )
@@ -126,7 +132,9 @@ class FormatViewModel @Inject constructor(
                     availableVideoAudioChoices = emptyList(),
                     availableVideoOnlyChoices = emptyList(),
                     availableAudioOnlyChoices = emptyList(),
+                    playlistItems = emptyList(),
                     selectedFormatSelector = null,
+                    customFileName = "",
                 )
             }
 
@@ -159,6 +167,13 @@ class FormatViewModel @Inject constructor(
                         audioOnlyChoices = choiceBundle.audioOnlyChoices,
                     )
                     _uiState.update { state ->
+                        val playlistItems = buildPlaylistItemStates(
+                            info = info,
+                            streamType = state.selectedStreamType,
+                            container = state.selectedContainer,
+                            audioFormat = state.selectedAudioFormat,
+                            audioBitrateKbps = state.audioBitrateKbps,
+                        )
                         state.copy(
                             isAnalyzing = false,
                             messageScope = FormatMessageScope.BROWSER,
@@ -166,7 +181,9 @@ class FormatViewModel @Inject constructor(
                             availableVideoAudioChoices = choiceBundle.videoAudioChoices,
                             availableVideoOnlyChoices = choiceBundle.videoOnlyChoices,
                             availableAudioOnlyChoices = choiceBundle.audioOnlyChoices,
+                            playlistItems = playlistItems,
                             selectedFormatSelector = selectedSelector,
+                            customFileName = info.title,
                             enablePlaylist = state.enablePlaylist || info.isPlaylist,
                             infoMessage = when {
                                 info.isPlaylist -> {
@@ -340,12 +357,101 @@ class FormatViewModel @Inject constructor(
         _uiState.update { state -> state.copy(enablePlaylist = value) }
     }
 
+    fun onPlaylistSelectAllChanged(value: Boolean) {
+        _uiState.update { state ->
+            state.copy(
+                playlistItems = state.playlistItems.map { item ->
+                    item.copy(isSelected = value)
+                },
+            )
+        }
+    }
+
+    fun onPlaylistItemSelectedChanged(index: Int, value: Boolean) {
+        updatePlaylistItem(index) { item -> item.copy(isSelected = value) }
+    }
+
+    fun onPlaylistItemExpandedChanged(index: Int, value: Boolean) {
+        updatePlaylistItem(index) { item -> item.copy(isExpanded = value) }
+    }
+
+    fun onPlaylistItemUseGlobalChanged(index: Int, value: Boolean) {
+        val state = uiState.value
+        val item = state.playlistItems.getOrNull(index) ?: return
+        updatePlaylistItem(index) {
+            if (value) {
+                item.copy(useGlobalSettings = true)
+            } else {
+                seedPlaylistOverrideFromGlobal(item = item, state = state).copy(useGlobalSettings = false)
+            }
+        }
+    }
+
+    fun onPlaylistItemStreamTypeChanged(index: Int, streamType: StreamType) {
+        updatePlaylistItem(index) { item ->
+            item.copy(
+                useGlobalSettings = false,
+                selectedStreamType = streamType,
+                selectedFormatSelector = firstSelectorForStreamType(
+                    streamType = streamType,
+                    videoAudioChoices = item.availableVideoAudioChoices,
+                    videoOnlyChoices = item.availableVideoOnlyChoices,
+                    audioOnlyChoices = item.availableAudioOnlyChoices,
+                ),
+            )
+        }
+    }
+
+    fun onPlaylistItemFormatSelectorChanged(index: Int, selector: String) {
+        updatePlaylistItem(index) { item ->
+            item.copy(
+                useGlobalSettings = false,
+                selectedFormatSelector = selector,
+            )
+        }
+    }
+
+    fun onPlaylistItemContainerChanged(index: Int, container: String) {
+        updatePlaylistItem(index) { item ->
+            item.copy(
+                useGlobalSettings = false,
+                selectedContainer = container.lowercase(),
+            )
+        }
+    }
+
+    fun onPlaylistItemAudioFormatChanged(index: Int, value: String) {
+        updatePlaylistItem(index) { item ->
+            item.copy(
+                useGlobalSettings = false,
+                selectedAudioFormat = value.lowercase(),
+            )
+        }
+    }
+
+    fun onPlaylistItemAudioBitrateChanged(index: Int, value: Int) {
+        updatePlaylistItem(index) { item ->
+            item.copy(
+                useGlobalSettings = false,
+                audioBitrateKbps = value.coerceAtLeast(64),
+            )
+        }
+    }
+
     fun onOutputTemplateChanged(value: String) {
         _uiState.update { state -> state.copy(outputTemplate = value) }
     }
 
     fun onAudioOutputTemplateChanged(value: String) {
         _uiState.update { state -> state.copy(audioOutputTemplate = value) }
+    }
+
+    fun onCustomFileNameChanged(value: String) {
+        _uiState.update { state -> state.copy(customFileName = value) }
+    }
+
+    fun onPlaylistItemFileNameChanged(index: Int, value: String) {
+        updatePlaylistItem(index) { item -> item.copy(customFileName = value) }
     }
 
     fun onDefaultVideoOutputTemplateChanged(value: String) {
@@ -1041,6 +1147,16 @@ class FormatViewModel @Inject constructor(
             }
             return
         }
+        if (info.isPlaylist && state.selectedPlaylistItemCount == 0) {
+            _uiState.update { current ->
+                scopedMessageState(
+                    state = current,
+                    scope = FormatMessageScope.BROWSER,
+                    errorMessage = "Select at least one playlist item first.",
+                )
+            }
+            return
+        }
 
         _uiState.update { current ->
             current.copy(
@@ -1051,109 +1167,146 @@ class FormatViewModel @Inject constructor(
             )
         }
 
-        val selectedChoice = resolveSelectedChoice(state)
-        val formatSelector = if (info.isPlaylist) {
-            buildFormatSelector(
-                quality = state.selectedQuality,
-                streamType = state.selectedStreamType,
-                container = state.selectedContainer,
-            )
-        } else if (selectedChoice != null) {
-            selectedChoice.selector
-        } else if (isYoutubeUrl(info.webpageUrl)) {
-            val st = state.selectedStreamType
-            val boundedHeight = state.selectedQuality.maxHeight?.let { "[height<=$it]" }.orEmpty()
-            when (st) {
-                StreamType.AUDIO_ONLY -> "bestaudio/best"
-                StreamType.VIDEO_ONLY -> "bestvideo$boundedHeight/bestvideo"
-                StreamType.VIDEO_AUDIO -> "bestvideo$boundedHeight+bestaudio/best$boundedHeight/best"
-            }
-        } else {
-            buildFormatSelector(
-                quality = state.selectedQuality,
-                streamType = state.selectedStreamType,
-                container = state.selectedContainer,
-            )
-        }
-        val isAudioOnly = state.selectedStreamType == StreamType.AUDIO_ONLY
-        val shouldBypassMediaPostProcessing = !info.isPlaylist && selectedChoice?.isImageLike == true
-        val runtimeCookiesPath = resolveRuntimeCookiesPathForUrl(info.webpageUrl)
-        val mergeContainer = when {
-            isAudioOnly -> null
-            selectedChoice == null -> state.selectedContainer.ifBlank { null }
-            selectedChoice.streamType == StreamType.VIDEO_AUDIO && selectedChoice.selector.contains("+") ->
-                state.selectedContainer.ifBlank { selectedChoice.container.ifBlank { null } }
-            selectedChoice.isMerged -> selectedChoice.container.ifBlank { state.selectedContainer.ifBlank { null } }
-            else -> state.selectedContainer.ifBlank { null }
-        }
         val (downloadExtractorArgs, fallbackExtractorArgs) = resolveDownloadExtractorArgs(
             info = info,
-            cookiesAvailable = runtimeCookiesPath != null,
+            cookiesAvailable = resolveRuntimeCookiesPathForUrl(info.webpageUrl) != null,
         )
         val youtubeAuthConfig = state.youtubeAuthConfig.takeIf { it.enabled && it.isConfigured() }
-        val targetCategory = when {
-            info.isPlaylist -> FileUtils.MediaFolderCategory.PLAYLIST
-            isAudioOnly -> FileUtils.MediaFolderCategory.AUDIO
-            state.selectedStreamType == StreamType.VIDEO_ONLY || state.selectedStreamType == StreamType.VIDEO_AUDIO ->
-                FileUtils.MediaFolderCategory.VIDEO
-            else -> FileUtils.MediaFolderCategory.OTHER
-        }
-        val activeOutputTemplate = if (isAudioOnly) {
-            state.audioOutputTemplate
-        } else {
-            state.outputTemplate
-        }
-        val resolvedOutputTemplate = if (File(activeOutputTemplate).isAbsolute) {
-            activeOutputTemplate
-        } else {
-            fileUtils.createOutputTemplateWithDirectory(
-                template = activeOutputTemplate,
-                category = targetCategory,
+
+        fun buildOptionsForSelection(
+            sourceUrl: String,
+            sourceThumbnailUrl: String?,
+            streamType: StreamType,
+            selectedSelector: String?,
+            container: String,
+            audioFormat: String,
+            audioBitrateKbps: Int,
+            customFileName: String,
+            choiceBundle: ChoiceBundle,
+            targetCategory: FileUtils.MediaFolderCategory,
+        ): DownloadOptions {
+            val selectedChoice = resolveSelectedChoice(
+                streamType = streamType,
+                selectedSelector = selectedSelector,
+                choiceBundle = choiceBundle,
+            )
+            val formatSelector = when {
+                selectedChoice != null -> selectedChoice.selector
+                isYoutubeUrl(sourceUrl) -> {
+                    val boundedHeight = state.selectedQuality.maxHeight?.let { "[height<=$it]" }.orEmpty()
+                    when (streamType) {
+                        StreamType.AUDIO_ONLY -> "bestaudio/best"
+                        StreamType.VIDEO_ONLY -> "bestvideo$boundedHeight/bestvideo"
+                        StreamType.VIDEO_AUDIO -> "bestvideo$boundedHeight+bestaudio/best$boundedHeight/best"
+                    }
+                }
+                else -> buildFormatSelector(
+                    quality = state.selectedQuality,
+                    streamType = streamType,
+                    container = container,
+                )
+            }
+            val isAudioOnly = streamType == StreamType.AUDIO_ONLY
+            val shouldBypassMediaPostProcessing = !info.isPlaylist && selectedChoice?.isImageLike == true
+            val runtimeCookiesPath = resolveRuntimeCookiesPathForUrl(sourceUrl)
+            val mergeContainer = when {
+                isAudioOnly -> null
+                selectedChoice == null -> container.ifBlank { null }
+                selectedChoice.streamType == StreamType.VIDEO_AUDIO && selectedChoice.selector.contains("+") ->
+                    container.ifBlank { selectedChoice.container.ifBlank { null } }
+                selectedChoice.isMerged -> selectedChoice.container.ifBlank { container.ifBlank { null } }
+                else -> container.ifBlank { null }
+            }
+            val activeOutputTemplate = if (isAudioOnly) {
+                state.audioOutputTemplate
+            } else {
+                state.outputTemplate
+            }
+            val resolvedOutputTemplate = if (File(activeOutputTemplate).isAbsolute) {
+                activeOutputTemplate
+            } else {
+                fileUtils.createOutputTemplateWithDirectory(
+                    template = activeOutputTemplate,
+                    category = targetCategory,
+                )
+            }
+            val namedOutputTemplate = applyRequestedFileName(
+                outputTemplate = resolvedOutputTemplate,
+                requestedFileName = customFileName,
+            )
+            return DownloadOptions(
+                url = sourceUrl,
+                formatId = formatSelector,
+                outputTemplate = namedOutputTemplate,
+                thumbnailUrl = sourceThumbnailUrl,
+                extractorArgs = downloadExtractorArgs,
+                fallbackExtractorArgs = fallbackExtractorArgs,
+                loadInfoJsonPath = null,
+                userAgentHeader = if (state.cookiesEnabled && state.cookieUserAgentEnabled) {
+                    CookieTextCodec.COOKIE_USER_AGENT
+                } else {
+                    null
+                },
+                youtubeAuthEnabled = runtimeCookiesPath != null && youtubeAuthConfig != null,
+                youtubeCookiesPath = runtimeCookiesPath,
+                youtubePoToken = youtubeAuthConfig?.buildPoTokenValue(),
+                youtubePoTokenClientHint = youtubeAuthConfig?.clientHint ?: "web.gvs",
+                youtubeDataSyncId = youtubeAuthConfig?.dataSyncId?.ifBlank { null },
+                mergeOutputFormat = mergeContainer,
+                preferredVideoHeight = selectedChoice?.height ?: state.selectedQuality.maxHeight,
+                downloadVideoOnly = streamType == StreamType.VIDEO_ONLY,
+                isPlaylistEnabled = info.isPlaylist || state.enablePlaylist,
+                shouldDownloadSubtitles = state.downloadSubtitles || state.embedSubtitles,
+                shouldEmbedSubtitles = state.embedSubtitles && !isAudioOnly && !shouldBypassMediaPostProcessing,
+                shouldEmbedMetadata = state.embedMetadata && !shouldBypassMediaPostProcessing,
+                shouldEmbedThumbnail = state.embedThumbnail && !shouldBypassMediaPostProcessing,
+                shouldWriteThumbnail = state.writeThumbnail,
+                extractAudio = isAudioOnly,
+                audioFormat = if (isAudioOnly) audioFormat.ifBlank { null } else null,
+                audioBitrateKbps = if (isAudioOnly) audioBitrateKbps else null,
             )
         }
 
-        val options = DownloadOptions(
-            url = info.webpageUrl,
-            formatId = formatSelector,
-            outputTemplate = resolvedOutputTemplate,
-            thumbnailUrl = info.thumbnailUrl,
-            extractorArgs = downloadExtractorArgs,
-            fallbackExtractorArgs = fallbackExtractorArgs,
-            loadInfoJsonPath = null,
-            userAgentHeader = if (state.cookiesEnabled && state.cookieUserAgentEnabled) {
-                CookieTextCodec.COOKIE_USER_AGENT
-            } else {
-                null
-            },
-            youtubeAuthEnabled = runtimeCookiesPath != null && youtubeAuthConfig != null,
-            youtubeCookiesPath = runtimeCookiesPath,
-            youtubePoToken = youtubeAuthConfig?.buildPoTokenValue(),
-            youtubePoTokenClientHint = youtubeAuthConfig?.clientHint ?: "web.gvs",
-            youtubeDataSyncId = youtubeAuthConfig?.dataSyncId?.ifBlank { null },
-            mergeOutputFormat = mergeContainer,
-            preferredVideoHeight = selectedChoice?.height ?: state.selectedQuality.maxHeight,
-            downloadVideoOnly = state.selectedStreamType == StreamType.VIDEO_ONLY,
-            isPlaylistEnabled = info.isPlaylist || state.enablePlaylist,
-            shouldDownloadSubtitles = state.downloadSubtitles || state.embedSubtitles,
-            shouldEmbedSubtitles = state.embedSubtitles && !isAudioOnly && !shouldBypassMediaPostProcessing,
-            shouldEmbedMetadata = state.embedMetadata && !shouldBypassMediaPostProcessing,
-            shouldEmbedThumbnail = state.embedThumbnail && !shouldBypassMediaPostProcessing,
-            shouldWriteThumbnail = state.writeThumbnail,
-            extractAudio = isAudioOnly,
-            audioFormat = if (isAudioOnly) state.selectedAudioFormat.ifBlank { null } else null,
-            audioBitrateKbps = if (isAudioOnly) state.audioBitrateKbps else null,
-        )
-        logger.i(
-            "FormatViewModel",
-            "Queueing download for URL=${options.url}, formatSelector=$formatSelector, extractAudio=${options.extractAudio}",
-        )
-
         if (info.isPlaylist) {
+            val requests = state.playlistItems
+                .filter { it.isSelected }
+                .map { item ->
+                    val itemStreamType = if (item.useGlobalSettings) state.selectedStreamType else item.selectedStreamType
+                    val itemSelector = if (item.useGlobalSettings) state.selectedFormatSelector else item.selectedFormatSelector
+                    val itemContainer = if (item.useGlobalSettings) state.selectedContainer else item.selectedContainer
+                    val itemAudioFormat = if (item.useGlobalSettings) state.selectedAudioFormat else item.selectedAudioFormat
+                    val itemAudioBitrate = if (item.useGlobalSettings) state.audioBitrateKbps else item.audioBitrateKbps
+                    val itemChoiceBundle = ChoiceBundle(
+                        videoAudioChoices = item.availableVideoAudioChoices,
+                        videoOnlyChoices = item.availableVideoOnlyChoices,
+                        audioOnlyChoices = item.availableAudioOnlyChoices,
+                    )
+                    val options = buildOptionsForSelection(
+                        sourceUrl = item.entry.webpageUrl,
+                        sourceThumbnailUrl = item.entry.thumbnailUrl ?: info.thumbnailUrl,
+                        streamType = itemStreamType,
+                        selectedSelector = itemSelector,
+                        container = itemContainer,
+                        audioFormat = itemAudioFormat,
+                        audioBitrateKbps = itemAudioBitrate,
+                        customFileName = item.customFileName,
+                        choiceBundle = itemChoiceBundle,
+                        targetCategory = FileUtils.MediaFolderCategory.PLAYLIST,
+                    )
+                    logger.i(
+                        "FormatViewModel",
+                        "Queueing playlist item index=${item.entry.playlistItemIndex} url=${item.entry.webpageUrl} formatSelector=${options.formatId} extractAudio=${options.extractAudio}",
+                    )
+                    PlaylistDownloadRequest(
+                        entry = item.entry,
+                        options = options,
+                        titleHint = item.customFileName.trim().ifBlank { item.entry.title },
+                    )
+                }
             val playlistResult = runCatching {
                 repository.enqueuePlaylistDownload(
-                    options = options,
                     playlistTitle = info.title,
-                    entries = info.playlistEntries,
+                    requests = requests,
                 )
             }.getOrElse { throwable ->
                 Result.failure(IllegalStateException(throwable.message ?: "Unable to queue playlist.", throwable))
@@ -1198,7 +1351,38 @@ class FormatViewModel @Inject constructor(
             return
         }
 
-        val queueResult = runCatching { repository.enqueueDownload(options, info.title) }
+        val options = buildOptionsForSelection(
+            sourceUrl = info.webpageUrl,
+            sourceThumbnailUrl = info.thumbnailUrl,
+            streamType = state.selectedStreamType,
+            selectedSelector = state.selectedFormatSelector,
+            container = state.selectedContainer,
+            audioFormat = state.selectedAudioFormat,
+            audioBitrateKbps = state.audioBitrateKbps,
+            customFileName = state.customFileName,
+            choiceBundle = ChoiceBundle(
+                videoAudioChoices = state.availableVideoAudioChoices,
+                videoOnlyChoices = state.availableVideoOnlyChoices,
+                audioOnlyChoices = state.availableAudioOnlyChoices,
+            ),
+            targetCategory = when {
+                state.selectedStreamType == StreamType.AUDIO_ONLY -> FileUtils.MediaFolderCategory.AUDIO
+                state.selectedStreamType == StreamType.VIDEO_ONLY || state.selectedStreamType == StreamType.VIDEO_AUDIO ->
+                    FileUtils.MediaFolderCategory.VIDEO
+                else -> FileUtils.MediaFolderCategory.OTHER
+            },
+        )
+        logger.i(
+            "FormatViewModel",
+            "Queueing download for URL=${options.url}, formatSelector=${options.formatId}, extractAudio=${options.extractAudio}",
+        )
+
+        val queueResult = runCatching {
+            repository.enqueueDownload(
+                options,
+                state.customFileName.trim().ifBlank { info.title },
+            )
+        }
             .getOrElse { throwable ->
                 Result.failure(IllegalStateException(throwable.message ?: "Unable to queue download.", throwable))
             }
@@ -1325,25 +1509,79 @@ class FormatViewModel @Inject constructor(
         }
     }
 
-    private fun findChoice(state: FormatUiState, selector: String?): FormatChoice? {
+    private fun updatePlaylistItem(
+        index: Int,
+        transform: (PlaylistItemUiState) -> PlaylistItemUiState,
+    ) {
+        _uiState.update { state ->
+            if (index !in state.playlistItems.indices) return@update state
+            val updatedItems = state.playlistItems.toMutableList()
+            updatedItems[index] = transform(updatedItems[index])
+            state.copy(playlistItems = updatedItems)
+        }
+    }
+
+    private fun seedPlaylistOverrideFromGlobal(
+        item: PlaylistItemUiState,
+        state: FormatUiState,
+    ): PlaylistItemUiState {
+        return item.copy(
+            useGlobalSettings = false,
+            isExpanded = true,
+            selectedStreamType = state.selectedStreamType,
+            selectedFormatSelector = firstSelectorForStreamType(
+                streamType = state.selectedStreamType,
+                videoAudioChoices = item.availableVideoAudioChoices,
+                videoOnlyChoices = item.availableVideoOnlyChoices,
+                audioOnlyChoices = item.availableAudioOnlyChoices,
+            ),
+            selectedContainer = state.selectedContainer,
+            selectedAudioFormat = state.selectedAudioFormat,
+            audioBitrateKbps = state.audioBitrateKbps,
+        )
+    }
+
+    private fun applyRequestedFileName(
+        outputTemplate: String,
+        requestedFileName: String,
+    ): String {
+        val trimmed = requestedFileName.trim()
+        if (trimmed.isBlank()) return outputTemplate
+        val templateFile = File(outputTemplate)
+        val parent = templateFile.parentFile ?: return outputTemplate
+        val sanitized = fileUtils.sanitizeFileName(trimmed)
+        if (sanitized.isBlank()) return outputTemplate
+        val suffix = if (templateFile.name.contains(".%(ext)s")) ".%(ext)s" else ""
+        return File(parent, "$sanitized$suffix").absolutePath
+    }
+
+    private fun findChoice(
+        streamType: StreamType,
+        choiceBundle: ChoiceBundle,
+        selector: String?,
+    ): FormatChoice? {
         if (selector.isNullOrBlank()) return null
-        val choices = when (state.selectedStreamType) {
-            StreamType.VIDEO_AUDIO -> state.availableVideoAudioChoices
-            StreamType.VIDEO_ONLY -> state.availableVideoOnlyChoices
-            StreamType.AUDIO_ONLY -> state.availableAudioOnlyChoices
+        val choices = when (streamType) {
+            StreamType.VIDEO_AUDIO -> choiceBundle.videoAudioChoices
+            StreamType.VIDEO_ONLY -> choiceBundle.videoOnlyChoices
+            StreamType.AUDIO_ONLY -> choiceBundle.audioOnlyChoices
         }
         return choices.firstOrNull { it.selector == selector }
     }
 
-    private fun resolveSelectedChoice(state: FormatUiState): FormatChoice? {
-        val explicitChoice = findChoice(state, state.selectedFormatSelector)
+    private fun resolveSelectedChoice(
+        streamType: StreamType,
+        selectedSelector: String?,
+        choiceBundle: ChoiceBundle,
+    ): FormatChoice? {
+        val explicitChoice = findChoice(streamType, choiceBundle, selectedSelector)
         if (explicitChoice != null) return explicitChoice
 
-        return when (state.selectedStreamType) {
-            StreamType.VIDEO_AUDIO -> state.availableVideoAudioChoices.firstOrNull()
-                ?: state.availableVideoOnlyChoices.firstOrNull()
-            StreamType.VIDEO_ONLY -> state.availableVideoOnlyChoices.firstOrNull()
-            StreamType.AUDIO_ONLY -> state.availableAudioOnlyChoices.firstOrNull()
+        return when (streamType) {
+            StreamType.VIDEO_AUDIO -> choiceBundle.videoAudioChoices.firstOrNull()
+                ?: choiceBundle.videoOnlyChoices.firstOrNull()
+            StreamType.VIDEO_ONLY -> choiceBundle.videoOnlyChoices.firstOrNull()
+            StreamType.AUDIO_ONLY -> choiceBundle.audioOnlyChoices.firstOrNull()
         }
     }
 
@@ -1367,16 +1605,49 @@ class FormatViewModel @Inject constructor(
         val audioOnlyChoices: List<FormatChoice>,
     )
 
-    private fun buildChoices(info: VideoInfo): ChoiceBundle {
-        if (info.isPlaylist) {
-            return ChoiceBundle(
-                videoAudioChoices = emptyList(),
-                videoOnlyChoices = emptyList(),
-                audioOnlyChoices = emptyList(),
+    private fun buildPlaylistItemStates(
+        info: VideoInfo,
+        streamType: StreamType,
+        container: String,
+        audioFormat: String,
+        audioBitrateKbps: Int,
+    ): List<PlaylistItemUiState> {
+        return info.playlistEntries.map { entry ->
+            val itemChoiceBundle = buildChoiceBundle(
+                formats = entry.formats.ifEmpty { info.formats },
+                durationSeconds = entry.durationSeconds ?: info.durationSeconds,
+            )
+            PlaylistItemUiState(
+                entry = entry,
+                customFileName = entry.title,
+                selectedStreamType = streamType,
+                selectedFormatSelector = firstSelectorForStreamType(
+                    streamType = streamType,
+                    videoAudioChoices = itemChoiceBundle.videoAudioChoices,
+                    videoOnlyChoices = itemChoiceBundle.videoOnlyChoices,
+                    audioOnlyChoices = itemChoiceBundle.audioOnlyChoices,
+                ),
+                selectedContainer = container,
+                selectedAudioFormat = audioFormat,
+                audioBitrateKbps = audioBitrateKbps,
+                availableVideoAudioChoices = itemChoiceBundle.videoAudioChoices,
+                availableVideoOnlyChoices = itemChoiceBundle.videoOnlyChoices,
+                availableAudioOnlyChoices = itemChoiceBundle.audioOnlyChoices,
             )
         }
-        val formats = info.formats
-        val durationSeconds = info.durationSeconds
+    }
+
+    private fun buildChoices(info: VideoInfo): ChoiceBundle {
+        return buildChoiceBundle(
+            formats = info.formats,
+            durationSeconds = info.durationSeconds,
+        )
+    }
+
+    private fun buildChoiceBundle(
+        formats: List<MediaFormat>,
+        durationSeconds: Long?,
+    ): ChoiceBundle {
         val audioOnly = formats.filter { it.isAudioOnly }
         val videoOnly = formats.filter { it.isVideoOnly }
         val muxed = formats.filter { !it.isAudioOnly && !it.isVideoOnly }

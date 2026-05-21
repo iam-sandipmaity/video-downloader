@@ -6,7 +6,7 @@ import com.localdownloader.domain.models.ConversionRequest
 import com.localdownloader.domain.models.DownloadOptions
 import com.localdownloader.domain.models.DownloadTask
 import com.localdownloader.domain.models.MediaSyncResult
-import com.localdownloader.domain.models.PlaylistEntry
+import com.localdownloader.domain.models.PlaylistDownloadRequest
 import com.localdownloader.domain.models.VideoInfo
 import kotlinx.coroutines.flow.Flow
 
@@ -21,9 +21,8 @@ interface DownloaderRepository {
     ): Result<VideoInfo>
     suspend fun enqueueDownload(options: DownloadOptions, titleHint: String): Result<String>
     suspend fun enqueuePlaylistDownload(
-        options: DownloadOptions,
         playlistTitle: String,
-        entries: List<PlaylistEntry>,
+        requests: List<PlaylistDownloadRequest>,
     ): Result<List<String>>
     suspend fun pauseDownload(taskId: String)
     suspend fun resumeDownload(taskId: String): Result<String>
@@ -32,6 +31,8 @@ interface DownloaderRepository {
     suspend fun renameDownloadedFile(taskId: String, newName: String): Result<Unit>
     suspend fun deleteDownloadedFile(taskId: String): Result<Unit>
     suspend fun deleteDownloadedFiles(taskIds: List<String>): Result<Int>
+    suspend fun removeDownloadedFilesFromLibrary(taskIds: List<String>): Result<Int>
+    suspend fun permanentlyDeleteDownloadedFiles(taskIds: List<String>): Result<Int>
     suspend fun clearCompletedDownloads(): Result<Int>
     suspend fun clearCompletedLibraryEntries(): Result<Int>
     suspend fun deleteAllCompletedMedia(): Result<Int>

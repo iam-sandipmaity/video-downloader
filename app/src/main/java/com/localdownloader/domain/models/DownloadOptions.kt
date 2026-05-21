@@ -37,6 +37,15 @@ data class DownloadOptions(
 )
 
 /**
+ * One concrete playlist item plus the download options that should be queued for it.
+ */
+data class PlaylistDownloadRequest(
+    val entry: PlaylistEntry,
+    val options: DownloadOptions,
+    val titleHint: String,
+)
+
+/**
  * FFmpeg conversion operation on a local media file.
  */
 data class ConversionRequest(

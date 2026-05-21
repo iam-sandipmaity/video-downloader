@@ -11,4 +11,5 @@ data class PlaylistEntry(
     val uploader: String? = null,
     val durationSeconds: Long? = null,
     val thumbnailUrl: String? = null,
+    val formats: List<MediaFormat> = emptyList(),
 )

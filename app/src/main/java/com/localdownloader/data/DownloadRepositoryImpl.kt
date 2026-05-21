@@ -17,7 +17,7 @@ import com.localdownloader.domain.models.DownloadOptions
 import com.localdownloader.domain.models.DownloadStatus
 import com.localdownloader.domain.models.DownloadTask
 import com.localdownloader.domain.models.MediaSyncResult
-import com.localdownloader.domain.models.PlaylistEntry
+import com.localdownloader.domain.models.PlaylistDownloadRequest
 import com.localdownloader.domain.models.VideoInfo
 import com.localdownloader.domain.repositories.DownloaderRepository
 import com.localdownloader.downloader.FormatExtractor
@@ -131,33 +131,33 @@ class DownloadRepositoryImpl @Inject constructor(
     }
 
     override suspend fun enqueuePlaylistDownload(
-        options: DownloadOptions,
         playlistTitle: String,
-        entries: List<PlaylistEntry>,
+        requests: List<PlaylistDownloadRequest>,
     ): Result<List<String>> {
         return runCatching {
-            require(entries.isNotEmpty()) { "This playlist does not contain any downloadable items." }
+            require(requests.isNotEmpty()) { "Select at least one playlist item to queue." }
 
             val playlistDirectory = fileUtils.createUniquePlaylistDirectory(playlistTitle)
             schedulingMutex.withLock {
                 val settings = settingsStore.observeSettings().first()
                 val requiredNetworkType = requiredNetworkTypeFor(settings)
-                val queuedDownloads = entries.map { entry ->
+                val queuedDownloads = requests.map { request ->
+                    val entry = request.entry
                     val itemOutputTemplate = fileUtils.buildPlaylistItemOutputTemplate(
                         playlistDirectory = playlistDirectory,
-                        baseTemplate = options.outputTemplate,
+                        baseTemplate = request.options.outputTemplate,
                         playlistItemIndex = entry.playlistItemIndex,
                     )
                     prepareDownload(
                         taskId = UUID.randomUUID().toString(),
-                        options = options.copy(
+                        options = request.options.copy(
                             outputTemplate = itemOutputTemplate,
-                            thumbnailUrl = entry.thumbnailUrl ?: options.thumbnailUrl,
+                            thumbnailUrl = entry.thumbnailUrl ?: request.options.thumbnailUrl,
                             isPlaylistEnabled = true,
                             playlistItemIndex = entry.playlistItemIndex,
                             playlistFolderName = playlistDirectory.name,
                         ),
-                        titleHint = entry.title,
+                        titleHint = request.titleHint,
                         requiredNetworkType = requiredNetworkType,
                         assignWorkId = false,
                     )
@@ -390,6 +390,36 @@ class DownloadRepositoryImpl @Inject constructor(
             removeDownloadedTasks(ids, deleteFromStorage)
         }.onFailure { error ->
             logger.e("DownloadRepository", "deleteDownloadedFiles failed taskIds=${taskIds.size}", error)
+        }
+    }
+
+    override suspend fun removeDownloadedFilesFromLibrary(taskIds: List<String>): Result<Int> {
+        return runCatching {
+            val ids = taskIds.map { it.trim() }.filter { it.isNotBlank() }.distinct()
+            require(ids.isNotEmpty()) { "Select at least one saved item." }
+
+            removeDownloadedTasks(ids, deleteFromStorage = false)
+        }.onFailure { error ->
+            logger.e(
+                "DownloadRepository",
+                "removeDownloadedFilesFromLibrary failed taskIds=${taskIds.size}",
+                error,
+            )
+        }
+    }
+
+    override suspend fun permanentlyDeleteDownloadedFiles(taskIds: List<String>): Result<Int> {
+        return runCatching {
+            val ids = taskIds.map { it.trim() }.filter { it.isNotBlank() }.distinct()
+            require(ids.isNotEmpty()) { "Select at least one saved item." }
+
+            removeDownloadedTasks(ids, deleteFromStorage = true)
+        }.onFailure { error ->
+            logger.e(
+                "DownloadRepository",
+                "permanentlyDeleteDownloadedFiles failed taskIds=${taskIds.size}",
+                error,
+            )
         }
     }
 
