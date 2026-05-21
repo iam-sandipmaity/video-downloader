@@ -29,10 +29,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -512,17 +509,7 @@ fun BrowserScreen(
     if (showOptionsSheet && uiState.videoInfo != null && !uiState.shouldShowDownloadSetupNotice) {
         val optionsSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         val optionsListState = rememberLazyListState()
-        val blockBottomOverscroll = remember(optionsListState) {
-            object : NestedScrollConnection {
-                override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                    return if (!optionsListState.canScrollForward && available.y < 0f) {
-                        Offset(0f, available.y)
-                    } else {
-                        Offset.Zero
-                    }
-                }
-            }
-        }
+        val sheetScrollGuard = rememberBottomSheetScrollGuard(optionsListState)
         val containers = listOf("mp4", "webm", "mkv", "mov")
         val audioFormats = listOf("mp3", "m4a", "aac", "opus", "flac", "wav")
         val bitrates = listOf(64, 96, 128, 192, 256, 320)
@@ -545,7 +532,7 @@ fun BrowserScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
-                        .nestedScroll(blockBottomOverscroll),
+                        .nestedScroll(sheetScrollGuard),
                     state = optionsListState,
                     contentPadding = PaddingValues(bottom = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),

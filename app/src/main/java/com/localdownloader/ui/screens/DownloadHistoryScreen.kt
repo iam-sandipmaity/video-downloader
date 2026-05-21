@@ -50,9 +50,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -556,17 +553,7 @@ private fun HistoryLogSheet(
     val fullTrace = task.debugTrace.orEmpty().ifBlank { "No task-specific log captured for this item." }
     var copied by remember { mutableStateOf(false) }
     val logListState = rememberLazyListState()
-    val blockBottomOverscroll = remember(logListState) {
-        object : NestedScrollConnection {
-            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                return if (!logListState.canScrollForward && available.y < 0f) {
-                    Offset(0f, available.y)
-                } else {
-                    Offset.Zero
-                }
-            }
-        }
-    }
+    val sheetScrollGuard = rememberBottomSheetScrollGuard(logListState)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -576,7 +563,7 @@ private fun HistoryLogSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 8.dp)
-                .nestedScroll(blockBottomOverscroll),
+                .nestedScroll(sheetScrollGuard),
             state = logListState,
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
