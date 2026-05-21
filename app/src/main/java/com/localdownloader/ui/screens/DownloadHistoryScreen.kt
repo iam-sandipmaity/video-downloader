@@ -553,6 +553,7 @@ private fun HistoryLogSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        sheetGesturesEnabled = false,
         containerColor = MaterialTheme.colorScheme.surface,
     ) {
         LazyColumn(

@@ -493,6 +493,7 @@ fun BrowserScreen(
         ModalBottomSheet(
             onDismissRequest = { showOptionsSheet = false },
             sheetState = optionsSheetState,
+            sheetGesturesEnabled = false,
             shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
             containerColor = MaterialTheme.colorScheme.surface,
         ) {
