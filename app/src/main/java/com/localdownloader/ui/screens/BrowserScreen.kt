@@ -13,6 +13,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -28,14 +29,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -48,8 +46,6 @@ import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Shield
-import androidx.compose.material.icons.outlined.SwapHoriz
-import androidx.compose.material.icons.outlined.Transform
 import androidx.compose.material.icons.outlined.TravelExplore
 import androidx.compose.material.icons.outlined.Web
 import androidx.compose.material3.Button
@@ -85,18 +81,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.ImageLoader
 import coil.compose.AsyncImage
-import coil.decode.SvgDecoder
 import com.localdownloader.domain.models.FormatChoice
 import com.localdownloader.domain.models.StreamType
 import com.localdownloader.domain.models.VideoQuality
@@ -108,20 +99,6 @@ import com.localdownloader.viewmodel.FormatMessageScope
 import com.localdownloader.viewmodel.FormatUiState
 import com.localdownloader.viewmodel.PlaylistItemUiState
 import kotlinx.coroutines.launch
-
-private data class QuickLink(
-    val label: String,
-    val seedUrl: String,
-    val logoAssetPath: String,
-    val accent: Color,
-)
-
-private data class BrowserShortcut(
-    val title: String,
-    val subtitle: String,
-    val icon: ImageVector,
-    val onClick: () -> Unit,
-)
 
 private enum class DownloadSetupSheetStep {
     Intro,
@@ -179,13 +156,7 @@ fun BrowserScreen(
     modifier: Modifier = Modifier,
 ) {
     val clipboardManager = LocalClipboardManager.current
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val imageLoader = remember(context) {
-        ImageLoader.Builder(context)
-            .components { add(SvgDecoder.Factory()) }
-            .build()
-    }
     var showOptionsSheet by rememberSaveable { mutableStateOf(false) }
     var downloadSetupSheetStep by rememberSaveable { mutableStateOf(DownloadSetupSheetStep.Intro) }
     var showBrowseMenu by rememberSaveable { mutableStateOf(false) }
@@ -225,45 +196,6 @@ fun BrowserScreen(
         }
     }
 
-    val quickLinks = remember {
-        listOf(
-            QuickLink("YouTube", "https://youtube.com", "file:///android_asset/platform_logos/youtube.svg", Color(0xFFFF3B30)),
-            QuickLink("Instagram", "https://instagram.com", "file:///android_asset/platform_logos/instagram.svg", Color(0xFFE4405F)),
-            QuickLink("TikTok", "https://tiktok.com", "file:///android_asset/platform_logos/tiktok.svg", Color(0xFF25F4EE)),
-            QuickLink("X", "https://x.com", "file:///android_asset/platform_logos/x.svg", Color(0xFFB0A7BC)),
-            QuickLink("Facebook", "https://facebook.com", "file:///android_asset/platform_logos/facebook.svg", Color(0xFF1877F2)),
-            QuickLink("Dailymotion", "https://www.dailymotion.com", "file:///android_asset/platform_logos/dailymotion.svg", Color(0xFF0066DC)),
-            QuickLink("Pinterest", "https://pinterest.com", "file:///android_asset/platform_logos/pinterest.svg", Color(0xFFE60023)),
-            QuickLink("Twitch", "https://twitch.tv", "file:///android_asset/platform_logos/twitch.svg", Color(0xFF9146FF)),
-        )
-    }
-    val quickActions = listOf(
-        BrowserShortcut(
-            title = "Convert",
-            subtitle = "Change format",
-            icon = Icons.Outlined.SwapHoriz,
-            onClick = onOpenConvert,
-        ),
-        BrowserShortcut(
-            title = "Compress",
-            subtitle = "Shrink file size",
-            icon = Icons.Outlined.Transform,
-            onClick = onOpenCompress,
-        ),
-        BrowserShortcut(
-            title = "Cookies",
-            subtitle = "Saved sessions",
-            icon = Icons.Outlined.Shield,
-            onClick = onOpenCookies,
-        ),
-        BrowserShortcut(
-            title = "YouTube access",
-            subtitle = "Harder retries",
-            icon = Icons.Outlined.TravelExplore,
-            onClick = onOpenYoutubeAccess,
-        ),
-    )
-
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -290,8 +222,8 @@ fun BrowserScreen(
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = "Keep the download flow fast until you want the deeper options.",
-                    style = MaterialTheme.typography.bodyMedium,
+                    text = "Paste a link to start.",
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -363,39 +295,13 @@ fun BrowserScreen(
         ) {
             Column(
                 modifier = Modifier.padding(18.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text(
-                    text = "One link, then one clean path to download.",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = "Paste a page, reel, track, or playlist. We keep the first step compact, then open filename, format, and playlist controls only when you need them.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    BrowserMetaChip(
-                        text = if (uiState.allowMeteredDownloads) "Cellular allowed" else "Wi-Fi only",
-                    )
-                    BrowserMetaChip(text = "${uiState.maxConcurrentDownloads} queue slots")
-                    if (uiState.cookieProfiles.isNotEmpty()) {
-                        BrowserMetaChip(text = "${uiState.cookieProfiles.size} saved sessions")
-                    }
-                    if (uiState.youtubeAuthConfig.isConfigured()) {
-                        BrowserMetaChip(text = "YouTube access ready")
-                    }
-                }
                 OutlinedTextField(
                     value = uiState.urlInput,
                     onValueChange = onUrlChanged,
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("Paste or type a URL") },
-                    placeholder = { Text("https://example.com/...") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                     leadingIcon = {
@@ -427,11 +333,6 @@ fun BrowserScreen(
                         shrinkVertically(animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)),
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            text = "Checking formats, playlist entries, and downloadable variants...",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
                         LinearProgressIndicator(
                             modifier = Modifier.fillMaxWidth(),
                             color = MaterialTheme.colorScheme.tertiary,
@@ -507,89 +408,6 @@ fun BrowserScreen(
             }
         }
 
-        Card(
-            shape = RoundedCornerShape(28.dp),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Column(
-                modifier = Modifier.padding(18.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text(
-                    text = "Popular starting points",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = "Seed the input with a known site first, then replace it with the exact link you want.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(4),
-                    modifier = Modifier.height(192.dp),
-                    userScrollEnabled = false,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    items(quickLinks.size) { index ->
-                        val link = quickLinks[index]
-                        QuickLinkTile(
-                            label = link.label,
-                            logoAssetPath = link.logoAssetPath,
-                            accent = link.accent,
-                            imageLoader = imageLoader,
-                            onClick = { onUrlChanged(link.seedUrl) },
-                        )
-                    }
-                }
-            }
-        }
-
-        Card(
-            shape = RoundedCornerShape(28.dp),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Column(
-                modifier = Modifier.padding(18.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(
-                            text = "Quick tools",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            text = "Jump into the helpers people usually need before or after a download.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    TextButton(onClick = onOpenHelp) {
-                        Text("Help")
-                    }
-                }
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    modifier = Modifier.height(214.dp),
-                    userScrollEnabled = false,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    items(quickActions.size) { index ->
-                        val action = quickActions[index]
-                        BrowserShortcutTile(action = action)
-                    }
-                }
-            }
-        }
-
         AnimatedVisibility(
             visible = uiState.videoInfo != null,
             enter = fadeIn(animationSpec = tween(durationMillis = 220)) +
@@ -619,18 +437,11 @@ fun BrowserScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(
-                                    text = "Ready to download",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                )
-                                Text(
-                                    text = "Open the sheet for naming, format, subtitles, playlist selection, and per-file overrides.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
+                            Text(
+                                text = "Ready",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                            )
                             IconButton(
                                 onClick = {
                                     showOptionsSheet = false
@@ -741,66 +552,43 @@ fun BrowserScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = "Download options",
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            IconButton(
-                                onClick = {
-                                    showOptionsSheet = false
-                                    onClearAnalyzedResult()
-                                },
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Clear,
-                                    contentDescription = "Clear ready download",
-                                )
-                            }
-                        }
-                    }
-                    item {
-                        VideoCard(info = uiState.videoInfo)
+                        OptionsSheetHeader(
+                            info = uiState.videoInfo,
+                            onClear = {
+                                showOptionsSheet = false
+                                onClearAnalyzedResult()
+                            },
+                        )
                     }
 
                     if (uiState.videoInfo.isPlaylist) {
                         item {
-                            Text(
-                                text = "Global format",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                        }
-                        item {
-                            SelectionOptionsCard(
-                                streamType = uiState.selectedStreamType,
-                                onStreamTypeChanged = onStreamTypeChanged,
-                                choices = choicesForStreamType(
+                            OptionSectionCard(title = "Global") {
+                                SelectionOptionsCard(
                                     streamType = uiState.selectedStreamType,
-                                    videoAudioChoices = uiState.availableVideoAudioChoices,
-                                    videoOnlyChoices = uiState.availableVideoOnlyChoices,
-                                    audioOnlyChoices = uiState.availableAudioOnlyChoices,
-                                ),
-                                selectedFormatSelector = uiState.selectedFormatSelector,
-                                onFormatSelectorChanged = onFormatSelectorChanged,
-                                quality = uiState.selectedQuality,
-                                onQualityChanged = onQualityChanged,
-                                container = uiState.selectedContainer,
-                                onContainerChanged = onContainerChanged,
-                                audioFormat = uiState.selectedAudioFormat,
-                                onAudioFormatChanged = onAudioFormatChanged,
-                                audioBitrateKbps = uiState.audioBitrateKbps,
-                                onAudioBitrateChanged = onAudioBitrateChanged,
-                                containers = containers,
-                                audioFormats = audioFormats,
-                                bitrates = bitrates,
-                                emptyChoicesMessage = "If a file does not expose the exact same formats, the downloader will fall back to the closest matching selector for that item.",
-                            )
+                                    onStreamTypeChanged = onStreamTypeChanged,
+                                    choices = choicesForStreamType(
+                                        streamType = uiState.selectedStreamType,
+                                        videoAudioChoices = uiState.availableVideoAudioChoices,
+                                        videoOnlyChoices = uiState.availableVideoOnlyChoices,
+                                        audioOnlyChoices = uiState.availableAudioOnlyChoices,
+                                    ),
+                                    selectedFormatSelector = uiState.selectedFormatSelector,
+                                    onFormatSelectorChanged = onFormatSelectorChanged,
+                                    quality = uiState.selectedQuality,
+                                    onQualityChanged = onQualityChanged,
+                                    container = uiState.selectedContainer,
+                                    onContainerChanged = onContainerChanged,
+                                    audioFormat = uiState.selectedAudioFormat,
+                                    onAudioFormatChanged = onAudioFormatChanged,
+                                    audioBitrateKbps = uiState.audioBitrateKbps,
+                                    onAudioBitrateChanged = onAudioBitrateChanged,
+                                    containers = containers,
+                                    audioFormats = audioFormats,
+                                    bitrates = bitrates,
+                                    emptyChoicesMessage = "Closest available format will be used.",
+                                )
+                            }
                         }
                         item {
                             val currentTemplate = if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
@@ -808,62 +596,50 @@ fun BrowserScreen(
                             } else {
                                 uiState.outputTemplate
                             }
-                            OutlinedTextField(
-                                value = currentTemplate,
-                                onValueChange = { newValue ->
-                                    if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
-                                        onAudioOutputTemplateChanged(newValue)
-                                    } else {
-                                        onOutputTemplateChanged(newValue)
-                                    }
-                                },
-                                label = {
-                                    Text(
+                            OptionSectionCard(title = "Template") {
+                                OutlinedTextField(
+                                    value = currentTemplate,
+                                    onValueChange = { newValue ->
                                         if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
-                                            "Playlist audio filename template"
+                                            onAudioOutputTemplateChanged(newValue)
                                         } else {
-                                            "Playlist filename template"
-                                        },
-                                    )
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                            )
+                                            onOutputTemplateChanged(newValue)
+                                        }
+                                    },
+                                    label = {
+                                        Text(
+                                            if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
+                                                "Playlist audio template"
+                                            } else {
+                                                "Playlist template"
+                                            },
+                                        )
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true,
+                                )
+                                ToggleChipRow(
+                                    items = buildList {
+                                        if (uiState.selectedStreamType != StreamType.AUDIO_ONLY) {
+                                            add(ToggleConfig("Subtitles", uiState.downloadSubtitles, onDownloadSubtitlesChanged))
+                                            add(ToggleConfig("Embed subs", uiState.embedSubtitles, onEmbedSubtitlesChanged))
+                                        }
+                                        add(ToggleConfig("Metadata", uiState.embedMetadata, onEmbedMetadataChanged))
+                                        add(ToggleConfig("Embed thumb", uiState.embedThumbnail, onEmbedThumbnailChanged))
+                                        add(ToggleConfig("Write thumb", uiState.writeThumbnail, onWriteThumbnailChanged))
+                                    },
+                                )
+                            }
                         }
                         item {
-                            ToggleChipRow(
-                                items = buildList {
-                                    if (uiState.selectedStreamType != StreamType.AUDIO_ONLY) {
-                                        add(ToggleConfig("Subtitles", uiState.downloadSubtitles, onDownloadSubtitlesChanged))
-                                        add(ToggleConfig("Embed subs", uiState.embedSubtitles, onEmbedSubtitlesChanged))
-                                    }
-                                    add(ToggleConfig("Metadata", uiState.embedMetadata, onEmbedMetadataChanged))
-                                    add(ToggleConfig("Embed thumb", uiState.embedThumbnail, onEmbedThumbnailChanged))
-                                    add(ToggleConfig("Write thumb", uiState.writeThumbnail, onWriteThumbnailChanged))
-                                },
-                            )
-                        }
-                        item {
-                            PlaylistSelectionSummaryCard(
-                                totalCount = uiState.playlistItems.size,
-                                selectedCount = uiState.selectedPlaylistItemCount,
-                                allSelected = uiState.areAllPlaylistItemsSelected,
-                                onSelectAllChanged = onPlaylistSelectAllChanged,
-                            )
-                        }
-                        item {
-                            Text(
-                                text = "Files-wise format section",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                        }
-                        item {
-                            Text(
-                                text = "Every selected file appears below. Keep global settings on, or expand one item to override its format for that file only.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                            OptionSectionCard(title = "Files") {
+                                PlaylistSelectionSummaryCard(
+                                    totalCount = uiState.playlistItems.size,
+                                    selectedCount = uiState.selectedPlaylistItemCount,
+                                    allSelected = uiState.areAllPlaylistItemsSelected,
+                                    onSelectAllChanged = onPlaylistSelectAllChanged,
+                                )
+                            }
                         }
                         uiState.playlistItems.forEachIndexed { index, playlistItem ->
                             item {
@@ -891,42 +667,32 @@ fun BrowserScreen(
                         }
                     } else {
                         item {
-                            SelectionOptionsCard(
-                                streamType = uiState.selectedStreamType,
-                                onStreamTypeChanged = onStreamTypeChanged,
-                                choices = choicesForStreamType(
+                            OptionSectionCard(title = "Format") {
+                                SelectionOptionsCard(
                                     streamType = uiState.selectedStreamType,
-                                    videoAudioChoices = uiState.availableVideoAudioChoices,
-                                    videoOnlyChoices = uiState.availableVideoOnlyChoices,
-                                    audioOnlyChoices = uiState.availableAudioOnlyChoices,
-                                ),
-                                selectedFormatSelector = uiState.selectedFormatSelector,
-                                onFormatSelectorChanged = onFormatSelectorChanged,
-                                quality = uiState.selectedQuality,
-                                onQualityChanged = onQualityChanged,
-                                container = uiState.selectedContainer,
-                                onContainerChanged = onContainerChanged,
-                                audioFormat = uiState.selectedAudioFormat,
-                                onAudioFormatChanged = onAudioFormatChanged,
-                                audioBitrateKbps = uiState.audioBitrateKbps,
-                                onAudioBitrateChanged = onAudioBitrateChanged,
-                                containers = containers,
-                                audioFormats = audioFormats,
-                                bitrates = bitrates,
-                                emptyChoicesMessage = null,
-                            )
-                        }
-                        item {
-                            OutlinedTextField(
-                                value = uiState.customFileName,
-                                onValueChange = onCustomFileNameChanged,
-                                label = { Text("File name") },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                supportingText = {
-                                    Text("Edit the saved file name before download, or keep the source title as-is.")
-                                },
-                            )
+                                    onStreamTypeChanged = onStreamTypeChanged,
+                                    choices = choicesForStreamType(
+                                        streamType = uiState.selectedStreamType,
+                                        videoAudioChoices = uiState.availableVideoAudioChoices,
+                                        videoOnlyChoices = uiState.availableVideoOnlyChoices,
+                                        audioOnlyChoices = uiState.availableAudioOnlyChoices,
+                                    ),
+                                    selectedFormatSelector = uiState.selectedFormatSelector,
+                                    onFormatSelectorChanged = onFormatSelectorChanged,
+                                    quality = uiState.selectedQuality,
+                                    onQualityChanged = onQualityChanged,
+                                    container = uiState.selectedContainer,
+                                    onContainerChanged = onContainerChanged,
+                                    audioFormat = uiState.selectedAudioFormat,
+                                    onAudioFormatChanged = onAudioFormatChanged,
+                                    audioBitrateKbps = uiState.audioBitrateKbps,
+                                    onAudioBitrateChanged = onAudioBitrateChanged,
+                                    containers = containers,
+                                    audioFormats = audioFormats,
+                                    bitrates = bitrates,
+                                    emptyChoicesMessage = null,
+                                )
+                            }
                         }
                         item {
                             val currentTemplate = if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
@@ -934,48 +700,59 @@ fun BrowserScreen(
                             } else {
                                 uiState.outputTemplate
                             }
-                            OutlinedTextField(
-                                value = currentTemplate,
-                                onValueChange = { newValue ->
-                                    if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
-                                        onAudioOutputTemplateChanged(newValue)
-                                    } else {
-                                        onOutputTemplateChanged(newValue)
-                                    }
-                                },
-                                label = {
-                                    Text(
+                            OptionSectionCard(title = "Name") {
+                                OutlinedTextField(
+                                    value = uiState.customFileName,
+                                    onValueChange = onCustomFileNameChanged,
+                                    label = { Text("File name") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true,
+                                )
+                                OutlinedTextField(
+                                    value = currentTemplate,
+                                    onValueChange = { newValue ->
                                         if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
-                                            "Audio filename template"
+                                            onAudioOutputTemplateChanged(newValue)
                                         } else {
-                                            "Video filename template"
-                                        },
-                                    )
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                            )
+                                            onOutputTemplateChanged(newValue)
+                                        }
+                                    },
+                                    label = {
+                                        Text(
+                                            if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
+                                                "Audio template"
+                                            } else {
+                                                "Video template"
+                                            },
+                                        )
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true,
+                                )
+                            }
                         }
                         item {
-                            ToggleChipRow(
-                                items = buildList {
-                                    if (uiState.selectedStreamType != StreamType.AUDIO_ONLY) {
-                                        add(ToggleConfig("Subtitles", uiState.downloadSubtitles, onDownloadSubtitlesChanged))
-                                        add(ToggleConfig("Embed subs", uiState.embedSubtitles, onEmbedSubtitlesChanged))
-                                    }
-                                    add(ToggleConfig("Metadata", uiState.embedMetadata, onEmbedMetadataChanged))
-                                    add(ToggleConfig("Embed thumb", uiState.embedThumbnail, onEmbedThumbnailChanged))
-                                    add(ToggleConfig("Write thumb", uiState.writeThumbnail, onWriteThumbnailChanged))
-                                    add(ToggleConfig("Playlist", uiState.enablePlaylist, onPlaylistEnabledChanged))
-                                },
-                            )
+                            OptionSectionCard(title = "Extras") {
+                                ToggleChipRow(
+                                    items = buildList {
+                                        if (uiState.selectedStreamType != StreamType.AUDIO_ONLY) {
+                                            add(ToggleConfig("Subtitles", uiState.downloadSubtitles, onDownloadSubtitlesChanged))
+                                            add(ToggleConfig("Embed subs", uiState.embedSubtitles, onEmbedSubtitlesChanged))
+                                        }
+                                        add(ToggleConfig("Metadata", uiState.embedMetadata, onEmbedMetadataChanged))
+                                        add(ToggleConfig("Embed thumb", uiState.embedThumbnail, onEmbedThumbnailChanged))
+                                        add(ToggleConfig("Write thumb", uiState.writeThumbnail, onWriteThumbnailChanged))
+                                        add(ToggleConfig("Playlist", uiState.enablePlaylist, onPlaylistEnabledChanged))
+                                    },
+                                )
+                            }
                         }
                     }
 
                     if (!isDownloadButtonEnabled) {
                         item {
                             Text(
-                                text = "Wait for the active job to settle before starting another download.",
+                                text = "Wait for the current job to settle.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -983,20 +760,29 @@ fun BrowserScreen(
                     }
                 }
 
-                Button(
-                    onClick = onQueueDownloadClicked,
-                    enabled = !uiState.isQueueing && isDownloadButtonEnabled,
+                HorizontalDivider(
+                    modifier = Modifier.padding(top = 4.dp),
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f),
+                )
+                Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 14.dp, bottom = 12.dp),
-                    contentPadding = PaddingValues(vertical = 14.dp),
+                        .padding(top = 10.dp, bottom = 12.dp),
+                    color = MaterialTheme.colorScheme.surface,
                 ) {
-                    val buttonText = when {
-                        uiState.isQueueing -> "Queueing..."
-                        !isDownloadButtonEnabled -> "Please wait..."
-                        else -> "Download"
+                    Button(
+                        onClick = onQueueDownloadClicked,
+                        enabled = !uiState.isQueueing && isDownloadButtonEnabled,
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(vertical = 14.dp),
+                    ) {
+                        val buttonText = when {
+                            uiState.isQueueing -> "Queueing..."
+                            !isDownloadButtonEnabled -> "Please wait..."
+                            else -> "Download"
+                        }
+                        Text(buttonText)
                     }
-                    Text(buttonText)
                 }
             }
         }
@@ -1133,94 +919,62 @@ private fun DownloadSetupOnboardingSheet(
 
 
 @Composable
-private fun QuickLinkTile(
-    label: String,
-    logoAssetPath: String,
-    accent: Color,
-    imageLoader: ImageLoader,
-    onClick: () -> Unit,
+private fun OptionsSheetHeader(
+    info: VideoInfo,
+    onClear: () -> Unit,
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(90.dp),
-        shape = RoundedCornerShape(22.dp),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .padding(vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .background(accent.copy(alpha = 0.12f), CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                AsyncImage(
-                    model = logoAssetPath,
-                    imageLoader = imageLoader,
-                    contentDescription = "$label logo",
-                    modifier = Modifier.size(28.dp),
+            Text(
+                text = "Download",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            IconButton(onClick = onClear) {
+                Icon(
+                    imageVector = Icons.Outlined.Clear,
+                    contentDescription = "Clear ready download",
                 )
             }
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
         }
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            buildReadyDownloadChips(info).forEach { chip ->
+                BrowserMetaChip(text = chip)
+            }
+        }
+        VideoCard(info = info)
     }
 }
 
 @Composable
-private fun BrowserShortcutTile(
-    action: BrowserShortcut,
+private fun OptionSectionCard(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit,
 ) {
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(102.dp)
-            .clickable(onClick = action.onClick),
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(24.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.primaryContainer,
-            ) {
-                Icon(
-                    imageVector = action.icon,
-                    contentDescription = null,
-                    modifier = Modifier.padding(10.dp),
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            content = {
                 Text(
-                    text = action.title,
+                    text = title,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
                 )
-                Text(
-                    text = action.subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
+                content()
+            },
+        )
     }
 }
 
@@ -1296,70 +1050,74 @@ private fun SelectionOptionsCard(
     bitrates: List<Int>,
     emptyChoicesMessage: String?,
 ) {
-    FlowRow(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        StreamType.entries.forEach { item ->
-            FilterChip(
-                selected = item == streamType,
-                onClick = { onStreamTypeChanged(item) },
-                label = { Text(item.label) },
-            )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            StreamType.entries.forEach { item ->
+                FilterChip(
+                    selected = item == streamType,
+                    onClick = { onStreamTypeChanged(item) },
+                    label = { Text(item.label) },
+                )
+            }
         }
-    }
 
-    if (choices.isNotEmpty()) {
-        val selectedChoice = choices
-            .getOrNull(choices.indexOfFirst { it.selector == selectedFormatSelector })
-            ?: choices.first()
-        FormatChoiceDropdownRow(
-            label = "Format",
-            choices = choices,
-            selectedIndex = choices.indexOfFirst { it.selector == selectedFormatSelector }
-                .coerceAtLeast(0),
-            onSelected = { onFormatSelectorChanged(choices[it].selector) },
-        )
-        FormatChoiceInsightCard(choice = selectedChoice)
-    } else {
-        onQualityChanged?.let { qualityChanged ->
+        if (choices.isNotEmpty()) {
+            val selectedChoice = choices
+                .getOrNull(choices.indexOfFirst { it.selector == selectedFormatSelector })
+                ?: choices.first()
+            FormatChoiceDropdownRow(
+                label = "Format",
+                choices = choices,
+                selectedIndex = choices.indexOfFirst { it.selector == selectedFormatSelector }
+                    .coerceAtLeast(0),
+                onSelected = { onFormatSelectorChanged(choices[it].selector) },
+            )
+            FormatChoiceInsightCard(choice = selectedChoice)
+        } else {
+            onQualityChanged?.let { qualityChanged ->
+                BrowserDropdownRow(
+                    label = "Quality",
+                    options = VideoQuality.entries.map { it.label },
+                    selectedIndex = VideoQuality.entries.indexOf(quality).coerceAtLeast(0),
+                    onSelected = { qualityChanged(VideoQuality.entries[it]) },
+                )
+            }
+            emptyChoicesMessage?.let { message ->
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
+        if (streamType == StreamType.AUDIO_ONLY) {
             BrowserDropdownRow(
-                label = "Quality",
-                options = VideoQuality.entries.map { it.label },
-                selectedIndex = VideoQuality.entries.indexOf(quality).coerceAtLeast(0),
-                onSelected = { qualityChanged(VideoQuality.entries[it]) },
+                label = "Audio format",
+                options = audioFormats,
+                selectedIndex = audioFormats.indexOf(audioFormat).coerceAtLeast(0),
+                onSelected = { onAudioFormatChanged(audioFormats[it]) },
+            )
+            BrowserDropdownRow(
+                label = "Bitrate",
+                options = bitrates.map { "$it kbps" },
+                selectedIndex = bitrates.indexOf(audioBitrateKbps).coerceAtLeast(0),
+                onSelected = { onAudioBitrateChanged(bitrates[it]) },
+            )
+        } else {
+            BrowserDropdownRow(
+                label = "Container",
+                options = containers,
+                selectedIndex = containers.indexOf(container).coerceAtLeast(0),
+                onSelected = { onContainerChanged(containers[it]) },
             )
         }
-        emptyChoicesMessage?.let { message ->
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-
-    if (streamType == StreamType.AUDIO_ONLY) {
-        BrowserDropdownRow(
-            label = "Audio format",
-            options = audioFormats,
-            selectedIndex = audioFormats.indexOf(audioFormat).coerceAtLeast(0),
-            onSelected = { onAudioFormatChanged(audioFormats[it]) },
-        )
-        BrowserDropdownRow(
-            label = "Bitrate",
-            options = bitrates.map { "$it kbps" },
-            selectedIndex = bitrates.indexOf(audioBitrateKbps).coerceAtLeast(0),
-            onSelected = { onAudioBitrateChanged(bitrates[it]) },
-        )
-    } else {
-        BrowserDropdownRow(
-            label = "Container",
-            options = containers,
-            selectedIndex = containers.indexOf(container).coerceAtLeast(0),
-            onSelected = { onContainerChanged(containers[it]) },
-        )
     }
 }
 
@@ -1541,11 +1299,7 @@ private fun PlaylistItemCard(
                         ),
                     )
                     if (item.useGlobalSettings) {
-                        Text(
-                            text = "This file will use the global format, container, and bitrate settings above.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        BrowserMetaChip(text = "Using global format")
                     } else {
                         SelectionOptionsCard(
                             streamType = item.selectedStreamType,
@@ -1569,7 +1323,7 @@ private fun PlaylistItemCard(
                             containers = containers,
                             audioFormats = audioFormats,
                             bitrates = bitrates,
-                            emptyChoicesMessage = "This item did not expose a richer format list during playlist analysis, so the downloader will use an automatic selector for the chosen stream type.",
+                            emptyChoicesMessage = "Auto format will be used for this file.",
                         )
                     }
                 }
@@ -1712,29 +1466,24 @@ private fun buildFormatInsightChips(choice: FormatChoice): List<String> {
 
 private fun buildFormatChoiceHint(choice: FormatChoice): String {
     val baseHint = when (choice.streamType) {
-        StreamType.AUDIO_ONLY -> {
-            if ((choice.bitrateKbps ?: 0) >= 256) {
-                "Higher bitrate audio. Better quality, but it uses more storage."
-            } else {
-                "Lighter audio option. Good when you want to save storage space."
-            }
-        }
+        StreamType.AUDIO_ONLY ->
+            if ((choice.bitrateKbps ?: 0) >= 256) "Higher quality, larger file." else "Smaller audio file."
 
         StreamType.VIDEO_ONLY,
         StreamType.VIDEO_AUDIO,
         -> when {
             (choice.height ?: 0) >= 1080 || (choice.fps ?: 0.0) >= 50.0 ->
-                "Quality-first pick. Great for playback quality, but expect a larger download."
+                "Quality-first pick."
 
             (choice.fileSizeBytes ?: choice.estimatedSizeBytes ?: Long.MAX_VALUE) <= 80L * 1024L * 1024L ->
-                "Storage-friendlier pick. Good when you want a smaller file first."
+                "Storage-friendlier pick."
 
             else ->
-                "Balanced option. A good middle ground between quality and file size."
+                "Balanced pick."
         }
     }
     val estimateNote = if (choice.fileSizeBytes == null && choice.estimatedSizeBytes != null) {
-        " Estimated final size is based on bitrate and duration, so the finished file can vary a little."
+        " Size is estimated."
     } else {
         ""
     }

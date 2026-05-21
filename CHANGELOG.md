@@ -19,7 +19,7 @@
 - **Settings revamp** - rebuilt Settings around a lighter Seal-inspired preference flow with grouped sections, cleaner navigation, smoother page rhythm, and clearer summaries of each category before you tap in
 - **More page redesign** - turned More into a cleaner grouped utility center so workflow shortcuts, access tools, updates, help, and media utilities feel more intentional and easier to scan
 - **Support surface refresh** - aligned Help and Updates with the new preference-page layout so support, maintenance, and runtime management feel like part of the same UI family
-- **Browse screen polish** - refreshed Browse with a stronger link-input hero, tidier platform launchers, faster helper shortcuts, and a cleaner ready-to-download state before the sheet opens
+- **Browse sheet polish** - simplified Browse back to the main input flow and moved the visual upgrade into the download-options sheet with cleaner grouping, tighter copy, and a more compact options layout
 - **Access screen polish** - refreshed Cookies and YouTube access with smoother large-app-bar treatment and cleaner entry points from the new Access and network settings page
 - **Playlist download controls** - playlists now expose a real global format section plus a file-wise format section where each item stays visible, can be selected individually, and can override the shared format choice when needed
 - **Playlist sheet previews and naming** - the browse-sheet playlist picker now shows item thumbnails and lets each queued file keep the source title or be renamed before download
