@@ -39,6 +39,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -557,7 +558,7 @@ private fun HistoryLogSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        dragHandle = null,
+        dragHandle = { BottomSheetDefaults.DragHandle() },
         containerColor = MaterialTheme.colorScheme.surface,
     ) {
         LazyColumn(
@@ -568,10 +569,6 @@ private fun HistoryLogSheet(
             state = logListState,
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            item {
-                BottomSheetGrip(modifier = Modifier.padding(bottom = 4.dp))
-            }
-
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
