@@ -53,7 +53,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -78,6 +77,7 @@ import coil.decode.SvgDecoder
 import com.localdownloader.domain.models.DownloadStatus
 import com.localdownloader.domain.models.DownloadTask
 import com.localdownloader.ui.components.AppBarContentTopPadding
+import com.localdownloader.ui.components.CompactPageTopBar
 import com.localdownloader.ui.components.LocalVideoThumbnail
 import com.localdownloader.ui.components.rememberLocalMediaSnapshot
 import com.localdownloader.ui.support.openSupportIssue
@@ -356,13 +356,9 @@ fun ProgressScreen(
         Scaffold(
             modifier = modifier,
             topBar = {
-                TopAppBar(
-                    title = { Text("Download Queue") },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
-                        }
-                    },
+                CompactPageTopBar(
+                    title = "Download Queue",
+                    onBack = onBack,
                     actions = {
                         Box {
                             IconButton(onClick = { showTopMenu = true }) {

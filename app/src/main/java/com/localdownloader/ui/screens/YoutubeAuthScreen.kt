@@ -36,7 +36,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -52,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.localdownloader.domain.models.YoutubeAuthConfig
 import com.localdownloader.ui.components.AppBarContentTopPadding
+import com.localdownloader.ui.components.CompactPageTopBar
 import com.localdownloader.ui.components.InlineFeedbackCard
 import com.localdownloader.utils.CookieTextCodec
 import com.localdownloader.utils.WebViewCookieExporter
@@ -88,13 +88,9 @@ fun YoutubeAuthScreen(
     Scaffold(
         modifier = modifier,
         topBar = {
-            TopAppBar(
-                title = { Text("YouTube Access") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
-                    }
-                },
+            CompactPageTopBar(
+                title = "YouTube Access",
+                onBack = onBack,
             )
         },
     ) { innerPadding ->
