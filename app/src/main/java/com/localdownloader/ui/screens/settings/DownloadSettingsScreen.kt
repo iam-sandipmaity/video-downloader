@@ -32,6 +32,8 @@ fun DownloadSettingsScreen(
     onDefaultEmbedMetadataChanged: (Boolean) -> Unit,
     onDefaultEmbedThumbnailChanged: (Boolean) -> Unit,
     onMaxConcurrentDownloadsChanged: (Int) -> Unit,
+    onKeepAnalyzedLinkHistoryChanged: (Boolean) -> Unit,
+    onAnalyzedLinkHistoryRetentionDaysChanged: (Int) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -197,6 +199,47 @@ fun DownloadSettingsScreen(
                         )
                     },
                 )
+            }
+        }
+        item {
+            PreferenceGroup {
+                PreferenceSwitchRow(
+                    icon = Icons.Rounded.Description,
+                    title = "Keep analyzed links",
+                    subtitle = "Keep ready-to-download link cards on Home after closing the sheet or reopening the app.",
+                    checked = uiState.appSettings.keepAnalyzedLinkHistory,
+                    onCheckedChange = onKeepAnalyzedLinkHistoryChanged,
+                )
+                if (uiState.appSettings.keepAnalyzedLinkHistory) {
+                    PreferenceDivider()
+                    PreferenceRow(
+                        icon = Icons.Rounded.Queue,
+                        title = "Analyzed link retention",
+                        subtitle = "Choose how long ready link cards stay saved before they expire automatically.",
+                        value = "${uiState.appSettings.analyzedLinkHistoryRetentionDays} days",
+                        onClick = {
+                            val dayChoices = listOf(1, 3, 7, 15, 30, 90)
+                            choiceDialog = SettingChoiceDialogState(
+                                title = "Analyzed link retention",
+                                selected = "${uiState.appSettings.analyzedLinkHistoryRetentionDays} days",
+                                options = dayChoices.map { days ->
+                                    SettingChoiceOption(
+                                        title = "$days days",
+                                        subtitle = when (days) {
+                                            1 -> "Only keep the most recent short-term ready links."
+                                            3 -> "A quick rolling history for active download sessions."
+                                            7 -> "A light weekly history."
+                                            15 -> "A balanced half-month history."
+                                            30 -> "Keep ready links around for a full month."
+                                            else -> "A longer saved history for frequently reused links."
+                                        },
+                                        onSelect = { onAnalyzedLinkHistoryRetentionDaysChanged(days) },
+                                    )
+                                },
+                            )
+                        },
+                    )
+                }
             }
         }
     }

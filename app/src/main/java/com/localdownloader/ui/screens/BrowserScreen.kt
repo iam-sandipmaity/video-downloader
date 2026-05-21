@@ -88,8 +88,8 @@ import com.localdownloader.domain.models.FormatChoice
 import com.localdownloader.domain.models.StreamType
 import com.localdownloader.domain.models.VideoQuality
 import com.localdownloader.domain.models.VideoInfo
+import com.localdownloader.domain.models.AnalyzedLinkRecord
 import com.localdownloader.ui.components.InlineFeedbackCard
-import com.localdownloader.ui.components.VideoCard
 import com.localdownloader.ui.model.toReadableSize
 import com.localdownloader.viewmodel.FormatMessageScope
 import com.localdownloader.viewmodel.FormatUiState
@@ -134,6 +134,8 @@ fun BrowserScreen(
     onAudioOutputTemplateChanged: (String) -> Unit,
     onClearBrowserState: () -> Unit,
     onClearAnalyzedResult: () -> Unit,
+    onOpenReadyItem: (String) -> Unit,
+    onRemoveReadyItem: (String) -> Unit,
     onQueueDownloadClicked: () -> Unit,
     onOpenHistory: () -> Unit,
     onOpenCompress: () -> Unit,
@@ -405,81 +407,37 @@ fun BrowserScreen(
         }
 
         AnimatedVisibility(
-            visible = uiState.videoInfo != null,
+            visible = uiState.readyAnalyzedItems.isNotEmpty(),
             enter = fadeIn(animationSpec = tween(durationMillis = 220)) +
                 expandVertically(animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing)),
             exit = fadeOut(animationSpec = tween(durationMillis = 160)) +
                 shrinkVertically(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)),
         ) {
-            uiState.videoInfo?.let { info ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .animateContentSize(
-                            animationSpec = spring(
-                                dampingRatio = 0.9f,
-                                stiffness = 500f,
-                            ),
-                        )
-                        .clickable { showOptionsSheet = true },
-                    shape = RoundedCornerShape(26.dp),
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = "Ready",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            IconButton(
-                                onClick = {
-                                    showOptionsSheet = false
-                                    onClearAnalyzedResult()
-                                },
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Clear,
-                                    contentDescription = "Dismiss ready download",
-                                )
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                uiState.readyAnalyzedItems.forEach { item ->
+                    ReadyAnalyzedCard(
+                        item = item,
+                        isActive = uiState.videoInfo?.webpageUrl == item.webpageUrl,
+                        isLoading = uiState.restoringReadyItemUrl == item.webpageUrl && uiState.isAnalyzing,
+                        onOpen = {
+                            if (uiState.videoInfo?.webpageUrl == item.webpageUrl) {
+                                showOptionsSheet = true
+                            } else {
+                                onOpenReadyItem(item.webpageUrl)
                             }
-                        }
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            buildReadyDownloadChips(info).forEach { chip ->
-                                BrowserMetaChip(text = chip)
+                        },
+                        onQueue = onQueueDownloadClicked,
+                        onRemove = {
+                            showOptionsSheet = false
+                            if (uiState.videoInfo?.webpageUrl == item.webpageUrl) {
+                                onClearAnalyzedResult()
+                            } else {
+                                onRemoveReadyItem(item.webpageUrl)
                             }
-                        }
-                        VideoCard(info = info)
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Button(
-                                onClick = { showOptionsSheet = true },
-                                modifier = Modifier.weight(1f),
-                            ) {
-                                Text("Open options")
-                            }
-                            TextButton(
-                                onClick = onQueueDownloadClicked,
-                                enabled = !uiState.isQueueing && isDownloadButtonEnabled,
-                                modifier = Modifier.weight(1f),
-                            ) {
-                                val buttonText = when {
-                                    uiState.isQueueing -> "Queueing..."
-                                    !isDownloadButtonEnabled -> "Please wait..."
-                                    else -> "Queue now"
-                                }
-                                Text(buttonText)
-                            }
-                        }
-                    }
+                        },
+                        isQueueEnabled = !uiState.isQueueing && isDownloadButtonEnabled,
+                        isQueueing = uiState.isQueueing,
+                    )
                 }
             }
         }
@@ -545,7 +503,6 @@ fun BrowserScreen(
                             info = uiState.videoInfo,
                             onClear = {
                                 showOptionsSheet = false
-                                onClearAnalyzedResult()
                             },
                         )
                     }
@@ -812,6 +769,127 @@ private fun buildDownloadActionSummary(uiState: FormatUiState): String? {
             ).joinToString(" | ")
         }
     }.ifBlank { null }
+}
+
+@Composable
+private fun ReadyAnalyzedCard(
+    item: AnalyzedLinkRecord,
+    isActive: Boolean,
+    isLoading: Boolean,
+    onOpen: () -> Unit,
+    onQueue: () -> Unit,
+    onRemove: () -> Unit,
+    isQueueEnabled: Boolean,
+    isQueueing: Boolean,
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize(
+                animationSpec = spring(
+                    dampingRatio = 0.9f,
+                    stiffness = 500f,
+                ),
+            ),
+        shape = RoundedCornerShape(26.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = if (isActive) "Ready" else "Saved ready link",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                IconButton(onClick = onRemove) {
+                    Icon(
+                        imageVector = Icons.Outlined.Clear,
+                        contentDescription = "Remove ready download",
+                    )
+                }
+            }
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                buildReadyHistoryChips(item).forEach { chip ->
+                    BrowserMetaChip(text = chip)
+                }
+            }
+            Surface(
+                shape = RoundedCornerShape(22.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onOpen)
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    AsyncImage(
+                        model = item.thumbnailUrl,
+                        contentDescription = item.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(width = 120.dp, height = 68.dp),
+                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = item.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            text = item.uploader ?: "Unknown uploader",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Button(
+                    onClick = onOpen,
+                    enabled = !isLoading,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(
+                        when {
+                            isLoading -> "Loading..."
+                            isActive -> "Open options"
+                            else -> "Load"
+                        },
+                    )
+                }
+                if (isActive) {
+                    TextButton(
+                        onClick = onQueue,
+                        enabled = isQueueEnabled,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(
+                            when {
+                                isQueueing -> "Queueing..."
+                                !isQueueEnabled -> "Please wait..."
+                                else -> "Queue now"
+                            },
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -1084,6 +1162,17 @@ private fun buildReadyDownloadChips(info: VideoInfo): List<String> {
                 },
             )
         }
+    }
+}
+
+private fun buildReadyHistoryChips(item: AnalyzedLinkRecord): List<String> {
+    return buildList {
+        if (item.isPlaylist) {
+            add("${item.playlistCount ?: 0} files")
+        } else {
+            add("${item.formatCount} formats")
+        }
+        playlistDurationLabel(item.durationSeconds)?.let(::add)
     }
 }
 

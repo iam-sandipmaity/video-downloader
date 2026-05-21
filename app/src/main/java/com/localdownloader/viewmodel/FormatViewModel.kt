@@ -2,9 +2,11 @@ package com.localdownloader.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.localdownloader.data.AnalyzedLinkHistoryStore
 import com.localdownloader.domain.models.AccentPreset
 import com.localdownloader.downloader.FormatSelectorBuilder
 import com.localdownloader.downloader.YoutubeRequestPlanner
+import com.localdownloader.domain.models.AnalyzedLinkRecord
 import com.localdownloader.domain.models.AppSettings
 import com.localdownloader.domain.models.ContrastMode
 import com.localdownloader.domain.models.CookieProfile
@@ -37,6 +39,7 @@ import javax.inject.Inject
 @HiltViewModel
 class FormatViewModel @Inject constructor(
     private val repository: DownloaderRepository,
+    private val analyzedLinkHistoryStore: AnalyzedLinkHistoryStore,
     private val fileUtils: FileUtils,
     private val urlValidator: UrlValidator,
     private val logger: Logger,
@@ -60,6 +63,7 @@ class FormatViewModel @Inject constructor(
         viewModelScope.launch {
             repository.observeSettings().collect { settings ->
                 applySettings(settings)
+                syncPersistedReadyHistory(settings)
             }
         }
     }
@@ -85,30 +89,78 @@ class FormatViewModel @Inject constructor(
                 customFileName = "",
                 infoMessage = null,
                 errorMessage = null,
+                restoringReadyItemUrl = null,
             )
         }
     }
 
     fun clearAnalyzedResult() {
+        uiState.value.videoInfo?.webpageUrl?.let(::removeReadyItem)
+    }
+
+    fun removeReadyItem(webpageUrl: String) {
         _uiState.update { state ->
+            val removedCurrent = state.videoInfo?.webpageUrl == webpageUrl
             state.copy(
                 isAnalyzing = false,
                 isQueueing = false,
-                videoInfo = null,
-                availableVideoAudioChoices = emptyList(),
-                availableVideoOnlyChoices = emptyList(),
-                availableAudioOnlyChoices = emptyList(),
-                playlistItems = emptyList(),
-                selectedFormatSelector = null,
-                customFileName = "",
+                videoInfo = if (removedCurrent) null else state.videoInfo,
+                availableVideoAudioChoices = if (removedCurrent) emptyList() else state.availableVideoAudioChoices,
+                availableVideoOnlyChoices = if (removedCurrent) emptyList() else state.availableVideoOnlyChoices,
+                availableAudioOnlyChoices = if (removedCurrent) emptyList() else state.availableAudioOnlyChoices,
+                playlistItems = if (removedCurrent) emptyList() else state.playlistItems,
+                selectedFormatSelector = if (removedCurrent) null else state.selectedFormatSelector,
+                customFileName = if (removedCurrent) "" else state.customFileName,
+                readyAnalyzedItems = state.readyAnalyzedItems.filterNot { it.webpageUrl == webpageUrl },
+                restoringReadyItemUrl = if (state.restoringReadyItemUrl == webpageUrl) null else state.restoringReadyItemUrl,
                 infoMessage = null,
                 errorMessage = null,
             )
+        }
+        viewModelScope.launch {
+            val settings = uiState.value.appSettings
+            if (settings.keepAnalyzedLinkHistory) {
+                analyzedLinkHistoryStore.remove(
+                    webpageUrl = webpageUrl,
+                    retentionDays = settings.analyzedLinkHistoryRetentionDays,
+                )
+            }
         }
     }
 
     fun analyzeUrl() {
         val url = uiState.value.urlInput.trim()
+        analyzeUrlInternal(url = url, restoreIntoReady = false)
+    }
+
+    fun reopenReadyItem(webpageUrl: String) {
+        val trimmedUrl = webpageUrl.trim()
+        val current = uiState.value
+        if (current.videoInfo?.webpageUrl == trimmedUrl) {
+            _uiState.update { state ->
+                state.copy(
+                    urlInput = trimmedUrl,
+                    infoMessage = null,
+                    errorMessage = null,
+                )
+            }
+            return
+        }
+        _uiState.update { state ->
+            state.copy(
+                urlInput = trimmedUrl,
+                restoringReadyItemUrl = trimmedUrl,
+                infoMessage = null,
+                errorMessage = null,
+            )
+        }
+        analyzeUrlInternal(url = trimmedUrl, restoreIntoReady = true)
+    }
+
+    private fun analyzeUrlInternal(
+        url: String,
+        restoreIntoReady: Boolean,
+    ) {
         logger.i("FormatViewModel", "Analyze requested for URL: $url")
         if (!urlValidator.isValidHttpUrl(url)) {
             logger.w("FormatViewModel", "Rejected analyze request due to invalid URL: $url")
@@ -135,6 +187,7 @@ class FormatViewModel @Inject constructor(
                     playlistItems = emptyList(),
                     selectedFormatSelector = null,
                     customFileName = "",
+                    restoringReadyItemUrl = if (restoreIntoReady) url else state.restoringReadyItemUrl,
                 )
             }
 
@@ -185,6 +238,11 @@ class FormatViewModel @Inject constructor(
                             selectedFormatSelector = selectedSelector,
                             customFileName = info.title,
                             enablePlaylist = state.enablePlaylist || info.isPlaylist,
+                            readyAnalyzedItems = upsertReadyRecord(
+                                state.readyAnalyzedItems,
+                                buildReadyRecord(info),
+                            ),
+                            restoringReadyItemUrl = null,
                             infoMessage = when {
                                 info.isPlaylist -> {
                                     val itemCount = info.playlistCount ?: info.playlistEntries.size
@@ -194,6 +252,7 @@ class FormatViewModel @Inject constructor(
                             },
                         )
                     }
+                    persistReadyRecordIfNeeded(info)
                 },
                 onFailure = { error ->
                     logger.e("FormatViewModel", "Analyze failed for URL: $url", error)
@@ -208,6 +267,7 @@ class FormatViewModel @Inject constructor(
                                     append(" Ensure yt-dlp runtime is initialized and this device ABI is supported.")
                                 }
                             },
+                            restoringReadyItemUrl = null,
                         )
                     }
                 },
@@ -580,6 +640,48 @@ class FormatViewModel @Inject constructor(
             state.copy(maxConcurrentDownloads = value.coerceIn(1, 4))
         }
         persistSettingsSilently()
+    }
+
+    fun onKeepAnalyzedLinkHistoryChanged(value: Boolean) {
+        _uiState.update { state -> state.copy(appSettings = state.appSettings.copy(keepAnalyzedLinkHistory = value)) }
+        persistSettingsSilently()
+        if (!value) {
+            viewModelScope.launch { analyzedLinkHistoryStore.clear() }
+        } else {
+            viewModelScope.launch {
+                val state = uiState.value
+                val persisted = analyzedLinkHistoryStore.replaceAll(
+                    records = state.readyAnalyzedItems,
+                    retentionDays = state.appSettings.analyzedLinkHistoryRetentionDays,
+                )
+                _uiState.update { current ->
+                    current.copy(readyAnalyzedItems = upsertReadyRecords(current.readyAnalyzedItems, persisted))
+                }
+            }
+        }
+    }
+
+    fun onAnalyzedLinkHistoryRetentionDaysChanged(value: Int) {
+        val normalized = value.coerceAtLeast(1)
+        _uiState.update { state ->
+            state.copy(
+                appSettings = state.appSettings.copy(analyzedLinkHistoryRetentionDays = normalized),
+                readyAnalyzedItems = pruneReadyHistory(state.readyAnalyzedItems, normalized),
+            )
+        }
+        persistSettingsSilently()
+        if (uiState.value.appSettings.keepAnalyzedLinkHistory) {
+            viewModelScope.launch {
+                val state = uiState.value
+                val persisted = analyzedLinkHistoryStore.replaceAll(
+                    records = state.readyAnalyzedItems,
+                    retentionDays = normalized,
+                )
+                _uiState.update { current ->
+                    current.copy(readyAnalyzedItems = upsertReadyRecords(current.readyAnalyzedItems, persisted))
+                }
+            }
+        }
     }
 
     fun onAllowMeteredDownloadsChanged(value: Boolean) {
@@ -1031,6 +1133,8 @@ class FormatViewModel @Inject constructor(
                 notifyDownloadErrors = state.notifyDownloadErrors,
                 notifyCanceledDownloads = state.notifyCanceledDownloads,
                 notifyPromotions = state.notifyPromotions,
+                keepAnalyzedLinkHistory = state.appSettings.keepAnalyzedLinkHistory,
+                analyzedLinkHistoryRetentionDays = state.appSettings.analyzedLinkHistoryRetentionDays,
                 hasSeenDownloadSetupNotice = state.appSettings.hasSeenDownloadSetupNotice,
                 darkTheme = state.isDarkTheme,
             )
@@ -1916,6 +2020,11 @@ class FormatViewModel @Inject constructor(
                 notifyDownloadErrors = settings.notifyDownloadErrors,
                 notifyCanceledDownloads = settings.notifyCanceledDownloads,
                 notifyPromotions = settings.notifyPromotions,
+                readyAnalyzedItems = if (settings.keepAnalyzedLinkHistory) {
+                    pruneReadyHistory(state.readyAnalyzedItems, settings.analyzedLinkHistoryRetentionDays)
+                } else {
+                    state.readyAnalyzedItems
+                },
                 showMeteredNetworkDialog = false,
                 isDarkTheme = when (settings.themeMode) {
                     ThemeMode.DARK -> true
@@ -1969,5 +2078,72 @@ class FormatViewModel @Inject constructor(
             normalized.contains("exec format") ||
             normalized.contains("libpython") ||
             normalized.contains("not initialized")
+    }
+
+    private fun buildReadyRecord(info: VideoInfo): AnalyzedLinkRecord {
+        return AnalyzedLinkRecord(
+            webpageUrl = info.webpageUrl,
+            title = info.title,
+            uploader = info.uploader,
+            durationSeconds = info.durationSeconds,
+            thumbnailUrl = info.thumbnailUrl,
+            isPlaylist = info.isPlaylist,
+            playlistCount = info.playlistCount ?: info.playlistEntries.size.takeIf { info.isPlaylist },
+            formatCount = info.formats.size,
+            analyzedAtEpochMs = System.currentTimeMillis(),
+        )
+    }
+
+    private fun upsertReadyRecord(
+        existing: List<AnalyzedLinkRecord>,
+        record: AnalyzedLinkRecord,
+    ): List<AnalyzedLinkRecord> {
+        return pruneReadyHistory(
+            listOf(record) + existing.filterNot { it.webpageUrl == record.webpageUrl },
+            uiState.value.appSettings.analyzedLinkHistoryRetentionDays,
+        )
+    }
+
+    private fun pruneReadyHistory(
+        items: List<AnalyzedLinkRecord>,
+        retentionDays: Int,
+    ): List<AnalyzedLinkRecord> {
+        val cutoff = System.currentTimeMillis() - retentionDays.coerceAtLeast(1) * 24L * 60L * 60L * 1000L
+        return items
+            .filter { it.analyzedAtEpochMs >= cutoff }
+            .sortedByDescending { it.analyzedAtEpochMs }
+    }
+
+    private fun persistReadyRecordIfNeeded(info: VideoInfo) {
+        val settings = uiState.value.appSettings
+        if (!settings.keepAnalyzedLinkHistory) return
+        viewModelScope.launch {
+            val updated = analyzedLinkHistoryStore.upsert(
+                record = buildReadyRecord(info),
+                retentionDays = settings.analyzedLinkHistoryRetentionDays,
+            )
+            _uiState.update { state ->
+                state.copy(readyAnalyzedItems = upsertReadyRecords(state.readyAnalyzedItems, updated))
+            }
+        }
+    }
+
+    private suspend fun syncPersistedReadyHistory(settings: AppSettings) {
+        if (!settings.keepAnalyzedLinkHistory) return
+        val persisted = analyzedLinkHistoryStore.load(settings.analyzedLinkHistoryRetentionDays)
+        _uiState.update { state ->
+            state.copy(
+                readyAnalyzedItems = upsertReadyRecords(state.readyAnalyzedItems, persisted),
+            )
+        }
+    }
+
+    private fun upsertReadyRecords(
+        current: List<AnalyzedLinkRecord>,
+        incoming: List<AnalyzedLinkRecord>,
+    ): List<AnalyzedLinkRecord> {
+        return (incoming + current)
+            .distinctBy { it.webpageUrl }
+            .sortedByDescending { it.analyzedAtEpochMs }
     }
 }

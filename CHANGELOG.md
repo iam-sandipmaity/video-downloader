@@ -14,6 +14,7 @@
 - **Downloads batch selection mode** - the Downloads library now has a `Select` action so multiple saved files can be picked together and then shared, removed from the app, or permanently deleted in one go
 - **Settings app-log reader** - added an in-app `App log reader` screen under Settings so internal `app.log` lines can be filtered by outcome or day, then copied or exported without leaving the app
 - **App-log backup controls** - the App log reader now includes device-backup controls, a manual `Back up now` action, and internal log-retention settings for keeping rotated history under control
+- **Analyzed link ready history** - Home can now keep analyzed links stacked as reusable ready cards, with a Download-defaults setting for persistence and retention days across app restarts
 
 ### Changed
 - **Settings revamp** - rebuilt Settings around a lighter Seal-inspired preference flow with grouped sections, cleaner navigation, smoother page rhythm, and clearer summaries of each category before you tap in

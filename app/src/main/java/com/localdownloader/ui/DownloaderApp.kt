@@ -436,6 +436,8 @@ fun DownloaderApp(
                     onAudioOutputTemplateChanged = formatViewModel::onAudioOutputTemplateChanged,
                     onClearBrowserState = formatViewModel::clearBrowserState,
                     onClearAnalyzedResult = formatViewModel::clearAnalyzedResult,
+                    onOpenReadyItem = formatViewModel::reopenReadyItem,
+                    onRemoveReadyItem = formatViewModel::removeReadyItem,
                     onQueueDownloadClicked = formatViewModel::queueDownload,
                     onOpenHistory = { navController.navigate(Routes.History) },
                     onOpenCompress = { navController.navigate(Routes.Compress) },
@@ -653,6 +655,8 @@ fun DownloaderApp(
                     onDefaultEmbedMetadataChanged = formatViewModel::onDefaultEmbedMetadataChanged,
                     onDefaultEmbedThumbnailChanged = formatViewModel::onDefaultEmbedThumbnailChanged,
                     onMaxConcurrentDownloadsChanged = formatViewModel::onMaxConcurrentDownloadsChanged,
+                    onKeepAnalyzedLinkHistoryChanged = formatViewModel::onKeepAnalyzedLinkHistoryChanged,
+                    onAnalyzedLinkHistoryRetentionDaysChanged = formatViewModel::onAnalyzedLinkHistoryRetentionDaysChanged,
                     onBack = { navController.popBackStack() },
                 )
             }
