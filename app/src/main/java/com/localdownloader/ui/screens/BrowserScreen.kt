@@ -27,8 +27,13 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -487,13 +492,24 @@ fun BrowserScreen(
 
     if (showOptionsSheet && uiState.videoInfo != null && !uiState.shouldShowDownloadSetupNotice) {
         val optionsSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val optionsListState = rememberLazyListState()
+        val blockBottomOverscroll = remember(optionsListState) {
+            object : NestedScrollConnection {
+                override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                    return if (!optionsListState.canScrollForward && available.y < 0f) {
+                        Offset(0f, available.y)
+                    } else {
+                        Offset.Zero
+                    }
+                }
+            }
+        }
         val containers = listOf("mp4", "webm", "mkv", "mov")
         val audioFormats = listOf("mp3", "m4a", "aac", "opus", "flac", "wav")
         val bitrates = listOf(64, 96, 128, 192, 256, 320)
         ModalBottomSheet(
             onDismissRequest = { showOptionsSheet = false },
             sheetState = optionsSheetState,
-            sheetGesturesEnabled = false,
             shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
             containerColor = MaterialTheme.colorScheme.surface,
         ) {
@@ -508,7 +524,9 @@ fun BrowserScreen(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
+                        .weight(1f)
+                        .nestedScroll(blockBottomOverscroll),
+                    state = optionsListState,
                     contentPadding = PaddingValues(bottom = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
