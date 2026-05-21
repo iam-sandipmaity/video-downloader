@@ -11,6 +11,7 @@
 - **Android app-language handling** - added system-aware app language support so the app can follow Android's language setting cleanly and grow into per-app language selection later
 - **Real download network controls** - added Wi-Fi-only downloading by default, a cellular-download setting, and an in-app prompt when someone tries to queue downloads on mobile data
 - **Real queue slot scheduling** - wired the concurrent-download preference into the repository scheduler so the app now respects the configured maximum active downloads
+- **Downloads batch selection mode** - the Downloads library now has a `Select` action so multiple saved files can be picked together and then shared, removed from the app, or permanently deleted in one go
 
 ### Changed
 - **Settings revamp** - rebuilt Settings around a lighter Seal-inspired preference flow with grouped sections, cleaner navigation, smoother page rhythm, and clearer summaries of each category before you tap in
@@ -18,7 +19,10 @@
 - **Support surface refresh** - aligned Help and Updates with the new preference-page layout so support, maintenance, and runtime management feel like part of the same UI family
 - **Access screen polish** - refreshed Cookies and YouTube access with smoother large-app-bar treatment and cleaner entry points from the new Access and network settings page
 - **Playlist download controls** - playlists now expose a real global format section plus a file-wise format section where each item stays visible, can be selected individually, and can override the shared format choice when needed
+- **Playlist sheet previews and naming** - the browse-sheet playlist picker now shows item thumbnails and lets each queued file keep the source title or be renamed before download
 - **About and support credits** - refreshed the About page with the updated LinkedIn profile and a new credits section linking the app's open-source stack to their official sites or upstream repositories
+- **Pre-download filename editing** - single downloads now let people adjust the final file name right inside the format sheet while still defaulting to the source title when left unchanged
+- **Downloads card metadata polish** - saved files now surface format, quality, size, and fresher relative date labels like `today` or `yesterday` without changing the overall card style
 - **Recovery copy cleanup** - updated onboarding and queue guidance so cookie and YouTube access directions point to the new Settings access path instead of the older More-only flow
 - **Typography tune-up** - expanded the app typography set so the new settings and support pages can use cleaner headline, label, and small-body styling without falling back to mismatched defaults
 - **Converter and compressor refresh** - simplified both media-tool screens around the same compact top-bar and grouped-card rhythm as Settings, with less filler copy and faster access to the useful controls
@@ -29,6 +33,7 @@
 - **Notification toggle behavior** - completed, failed, and canceled download notifications now obey the in-app toggles again instead of depending on a broken duplicate settings path
 - **False download failures after success** - fixed the completion-path notification regression that could mark a finished download as failed after the file had already been saved
 - **Duplicate playlist worker launches** - fixed queue scheduling so one playlist item is no longer started twice and then forced into a rename/file-missing failure at the end
+- **Queue row stability during simultaneous downloads** - running items now keep a steady visual order in the queue instead of swapping positions every time progress updates arrive
 - **Changelog rendering and sourcing** - the Updates changelog page now shows the latest app release notes first, keeps the full bundled app changelog below, and renders common markdown styling instead of dumping raw formatting markers
 - **Runtime update safety gating** - updating the app, yt-dlp, or FFmpeg now blocks while downloads are queued, running, or paused so update actions do not race against active work
 

@@ -262,6 +262,60 @@ class DownloadViewModel @Inject constructor(
         }
     }
 
+    fun removeDownloadedFilesFromLibrary(taskIds: List<String>) {
+        logger.i("DownloadViewModel", "remove from library requested count=${taskIds.size}")
+        viewModelScope.launch {
+            repository.removeDownloadedFilesFromLibrary(taskIds)
+                .onSuccess { removedCount ->
+                    _uiState.update { state ->
+                        state.copy(
+                            infoMessage = if (removedCount == 0) {
+                                "No saved items selected."
+                            } else {
+                                "Removed $removedCount item(s) from the app library."
+                            },
+                            errorMessage = null,
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    logger.e(
+                        "DownloadViewModel",
+                        "remove from library failed count=${taskIds.size}",
+                        error,
+                    )
+                    _uiState.update { state -> state.copy(errorMessage = error.message) }
+                }
+        }
+    }
+
+    fun permanentlyDeleteDownloadedFiles(taskIds: List<String>) {
+        logger.i("DownloadViewModel", "permanent delete requested count=${taskIds.size}")
+        viewModelScope.launch {
+            repository.permanentlyDeleteDownloadedFiles(taskIds)
+                .onSuccess { removedCount ->
+                    _uiState.update { state ->
+                        state.copy(
+                            infoMessage = if (removedCount == 0) {
+                                "No saved media files selected."
+                            } else {
+                                "Deleted $removedCount saved media file(s) from the app and device."
+                            },
+                            errorMessage = null,
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    logger.e(
+                        "DownloadViewModel",
+                        "permanent delete failed count=${taskIds.size}",
+                        error,
+                    )
+                    _uiState.update { state -> state.copy(errorMessage = error.message) }
+                }
+        }
+    }
+
     fun clearCompletedDownloads() {
         logger.i("DownloadViewModel", "clear completed requested")
         viewModelScope.launch {

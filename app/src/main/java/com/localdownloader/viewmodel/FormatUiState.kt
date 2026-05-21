@@ -25,6 +25,7 @@ data class PlaylistItemUiState(
     val isSelected: Boolean = true,
     val useGlobalSettings: Boolean = true,
     val isExpanded: Boolean = false,
+    val customFileName: String = "",
     val selectedStreamType: StreamType = StreamType.VIDEO_AUDIO,
     val selectedFormatSelector: String? = null,
     val selectedContainer: String = "mp4",
@@ -63,6 +64,7 @@ data class FormatUiState(
     val selectedContainer: String = "mp4",
     val selectedAudioFormat: String = "mp3",
     val audioBitrateKbps: Int = 192,
+    val customFileName: String = "",
     // Advanced options
     val downloadSubtitles: Boolean = false,
     val embedSubtitles: Boolean = false,

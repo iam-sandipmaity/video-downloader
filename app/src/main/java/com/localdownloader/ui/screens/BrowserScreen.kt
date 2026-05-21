@@ -140,6 +140,8 @@ fun BrowserScreen(
     onPlaylistItemContainerChanged: (Int, String) -> Unit,
     onPlaylistItemAudioFormatChanged: (Int, String) -> Unit,
     onPlaylistItemAudioBitrateChanged: (Int, Int) -> Unit,
+    onCustomFileNameChanged: (String) -> Unit,
+    onPlaylistItemFileNameChanged: (Int, String) -> Unit,
     onOutputTemplateChanged: (String) -> Unit,
     onAudioOutputTemplateChanged: (String) -> Unit,
     onClearBrowserState: () -> Unit,
@@ -640,10 +642,11 @@ fun BrowserScreen(
                                     onUseGlobalChanged = { onPlaylistItemUseGlobalChanged(index, it) },
                                     onStreamTypeChanged = { onPlaylistItemStreamTypeChanged(index, it) },
                                     onFormatSelectorChanged = { onPlaylistItemFormatSelectorChanged(index, it) },
-                                    onContainerChanged = { onPlaylistItemContainerChanged(index, it) },
-                                    onAudioFormatChanged = { onPlaylistItemAudioFormatChanged(index, it) },
-                                    onAudioBitrateChanged = { onPlaylistItemAudioBitrateChanged(index, it) },
-                                )
+                            onContainerChanged = { onPlaylistItemContainerChanged(index, it) },
+                            onAudioFormatChanged = { onPlaylistItemAudioFormatChanged(index, it) },
+                            onAudioBitrateChanged = { onPlaylistItemAudioBitrateChanged(index, it) },
+                            onFileNameChanged = { onPlaylistItemFileNameChanged(index, it) },
+                        )
                             }
                         }
                     } else {
@@ -670,6 +673,17 @@ fun BrowserScreen(
                             audioFormats = audioFormats,
                             bitrates = bitrates,
                             emptyChoicesMessage = null,
+                        )
+
+                        OutlinedTextField(
+                            value = uiState.customFileName,
+                            onValueChange = onCustomFileNameChanged,
+                            label = { Text("File name") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            supportingText = {
+                                Text("Edit the saved file name before download, or keep the source title as-is.")
+                            },
                         )
 
                         val currentTemplate = if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
@@ -1081,6 +1095,7 @@ private fun PlaylistItemCard(
     onContainerChanged: (String) -> Unit,
     onAudioFormatChanged: (String) -> Unit,
     onAudioBitrateChanged: (Int) -> Unit,
+    onFileNameChanged: (String) -> Unit,
 ) {
     val activeStreamType = if (item.useGlobalSettings) globalStreamType else item.selectedStreamType
     val activeFormatSelector = if (item.useGlobalSettings) globalFormatSelector else item.selectedFormatSelector
@@ -1181,6 +1196,13 @@ private fun PlaylistItemCard(
             AnimatedVisibility(visible = item.isExpanded) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.18f))
+                    OutlinedTextField(
+                        value = item.customFileName,
+                        onValueChange = onFileNameChanged,
+                        label = { Text("File name") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                    )
                     ToggleChipRow(
                         items = listOf(
                             ToggleConfig("Use global settings", item.useGlobalSettings, onUseGlobalChanged),

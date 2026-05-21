@@ -157,7 +157,7 @@ class DownloadRepositoryImpl @Inject constructor(
                             playlistItemIndex = entry.playlistItemIndex,
                             playlistFolderName = playlistDirectory.name,
                         ),
-                        titleHint = entry.title,
+                        titleHint = request.titleHint,
                         requiredNetworkType = requiredNetworkType,
                         assignWorkId = false,
                     )
@@ -390,6 +390,36 @@ class DownloadRepositoryImpl @Inject constructor(
             removeDownloadedTasks(ids, deleteFromStorage)
         }.onFailure { error ->
             logger.e("DownloadRepository", "deleteDownloadedFiles failed taskIds=${taskIds.size}", error)
+        }
+    }
+
+    override suspend fun removeDownloadedFilesFromLibrary(taskIds: List<String>): Result<Int> {
+        return runCatching {
+            val ids = taskIds.map { it.trim() }.filter { it.isNotBlank() }.distinct()
+            require(ids.isNotEmpty()) { "Select at least one saved item." }
+
+            removeDownloadedTasks(ids, deleteFromStorage = false)
+        }.onFailure { error ->
+            logger.e(
+                "DownloadRepository",
+                "removeDownloadedFilesFromLibrary failed taskIds=${taskIds.size}",
+                error,
+            )
+        }
+    }
+
+    override suspend fun permanentlyDeleteDownloadedFiles(taskIds: List<String>): Result<Int> {
+        return runCatching {
+            val ids = taskIds.map { it.trim() }.filter { it.isNotBlank() }.distinct()
+            require(ids.isNotEmpty()) { "Select at least one saved item." }
+
+            removeDownloadedTasks(ids, deleteFromStorage = true)
+        }.onFailure { error ->
+            logger.e(
+                "DownloadRepository",
+                "permanentlyDeleteDownloadedFiles failed taskIds=${taskIds.size}",
+                error,
+            )
         }
     }
 

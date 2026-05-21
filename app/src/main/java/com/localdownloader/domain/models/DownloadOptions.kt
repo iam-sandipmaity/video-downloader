@@ -42,6 +42,7 @@ data class DownloadOptions(
 data class PlaylistDownloadRequest(
     val entry: PlaylistEntry,
     val options: DownloadOptions,
+    val titleHint: String,
 )
 
 /**

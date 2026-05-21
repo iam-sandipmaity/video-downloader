@@ -82,6 +82,7 @@ class FormatViewModel @Inject constructor(
                 availableAudioOnlyChoices = emptyList(),
                 playlistItems = emptyList(),
                 selectedFormatSelector = null,
+                customFileName = "",
                 infoMessage = null,
                 errorMessage = null,
             )
@@ -99,6 +100,7 @@ class FormatViewModel @Inject constructor(
                 availableAudioOnlyChoices = emptyList(),
                 playlistItems = emptyList(),
                 selectedFormatSelector = null,
+                customFileName = "",
                 infoMessage = null,
                 errorMessage = null,
             )
@@ -132,6 +134,7 @@ class FormatViewModel @Inject constructor(
                     availableAudioOnlyChoices = emptyList(),
                     playlistItems = emptyList(),
                     selectedFormatSelector = null,
+                    customFileName = "",
                 )
             }
 
@@ -180,6 +183,7 @@ class FormatViewModel @Inject constructor(
                             availableAudioOnlyChoices = choiceBundle.audioOnlyChoices,
                             playlistItems = playlistItems,
                             selectedFormatSelector = selectedSelector,
+                            customFileName = info.title,
                             enablePlaylist = state.enablePlaylist || info.isPlaylist,
                             infoMessage = when {
                                 info.isPlaylist -> {
@@ -440,6 +444,14 @@ class FormatViewModel @Inject constructor(
 
     fun onAudioOutputTemplateChanged(value: String) {
         _uiState.update { state -> state.copy(audioOutputTemplate = value) }
+    }
+
+    fun onCustomFileNameChanged(value: String) {
+        _uiState.update { state -> state.copy(customFileName = value) }
+    }
+
+    fun onPlaylistItemFileNameChanged(index: Int, value: String) {
+        updatePlaylistItem(index) { item -> item.copy(customFileName = value) }
     }
 
     fun onDefaultVideoOutputTemplateChanged(value: String) {
@@ -1169,6 +1181,7 @@ class FormatViewModel @Inject constructor(
             container: String,
             audioFormat: String,
             audioBitrateKbps: Int,
+            customFileName: String,
             choiceBundle: ChoiceBundle,
             targetCategory: FileUtils.MediaFolderCategory,
         ): DownloadOptions {
@@ -1217,10 +1230,14 @@ class FormatViewModel @Inject constructor(
                     category = targetCategory,
                 )
             }
+            val namedOutputTemplate = applyRequestedFileName(
+                outputTemplate = resolvedOutputTemplate,
+                requestedFileName = customFileName,
+            )
             return DownloadOptions(
                 url = sourceUrl,
                 formatId = formatSelector,
-                outputTemplate = resolvedOutputTemplate,
+                outputTemplate = namedOutputTemplate,
                 thumbnailUrl = sourceThumbnailUrl,
                 extractorArgs = downloadExtractorArgs,
                 fallbackExtractorArgs = fallbackExtractorArgs,
@@ -1272,6 +1289,7 @@ class FormatViewModel @Inject constructor(
                         container = itemContainer,
                         audioFormat = itemAudioFormat,
                         audioBitrateKbps = itemAudioBitrate,
+                        customFileName = item.customFileName,
                         choiceBundle = itemChoiceBundle,
                         targetCategory = FileUtils.MediaFolderCategory.PLAYLIST,
                     )
@@ -1282,6 +1300,7 @@ class FormatViewModel @Inject constructor(
                     PlaylistDownloadRequest(
                         entry = item.entry,
                         options = options,
+                        titleHint = item.customFileName.trim().ifBlank { item.entry.title },
                     )
                 }
             val playlistResult = runCatching {
@@ -1340,6 +1359,7 @@ class FormatViewModel @Inject constructor(
             container = state.selectedContainer,
             audioFormat = state.selectedAudioFormat,
             audioBitrateKbps = state.audioBitrateKbps,
+            customFileName = state.customFileName,
             choiceBundle = ChoiceBundle(
                 videoAudioChoices = state.availableVideoAudioChoices,
                 videoOnlyChoices = state.availableVideoOnlyChoices,
@@ -1357,7 +1377,12 @@ class FormatViewModel @Inject constructor(
             "Queueing download for URL=${options.url}, formatSelector=${options.formatId}, extractAudio=${options.extractAudio}",
         )
 
-        val queueResult = runCatching { repository.enqueueDownload(options, info.title) }
+        val queueResult = runCatching {
+            repository.enqueueDownload(
+                options,
+                state.customFileName.trim().ifBlank { info.title },
+            )
+        }
             .getOrElse { throwable ->
                 Result.failure(IllegalStateException(throwable.message ?: "Unable to queue download.", throwable))
             }
@@ -1516,6 +1541,20 @@ class FormatViewModel @Inject constructor(
         )
     }
 
+    private fun applyRequestedFileName(
+        outputTemplate: String,
+        requestedFileName: String,
+    ): String {
+        val trimmed = requestedFileName.trim()
+        if (trimmed.isBlank()) return outputTemplate
+        val templateFile = File(outputTemplate)
+        val parent = templateFile.parentFile ?: return outputTemplate
+        val sanitized = fileUtils.sanitizeFileName(trimmed)
+        if (sanitized.isBlank()) return outputTemplate
+        val suffix = if (templateFile.name.contains(".%(ext)s")) ".%(ext)s" else ""
+        return File(parent, "$sanitized$suffix").absolutePath
+    }
+
     private fun findChoice(
         streamType: StreamType,
         choiceBundle: ChoiceBundle,
@@ -1580,6 +1619,7 @@ class FormatViewModel @Inject constructor(
             )
             PlaylistItemUiState(
                 entry = entry,
+                customFileName = entry.title,
                 selectedStreamType = streamType,
                 selectedFormatSelector = firstSelectorForStreamType(
                     streamType = streamType,

@@ -31,6 +31,8 @@ interface DownloaderRepository {
     suspend fun renameDownloadedFile(taskId: String, newName: String): Result<Unit>
     suspend fun deleteDownloadedFile(taskId: String): Result<Unit>
     suspend fun deleteDownloadedFiles(taskIds: List<String>): Result<Int>
+    suspend fun removeDownloadedFilesFromLibrary(taskIds: List<String>): Result<Int>
+    suspend fun permanentlyDeleteDownloadedFiles(taskIds: List<String>): Result<Int>
     suspend fun clearCompletedDownloads(): Result<Int>
     suspend fun clearCompletedLibraryEntries(): Result<Int>
     suspend fun deleteAllCompletedMedia(): Result<Int>
