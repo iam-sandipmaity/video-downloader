@@ -86,6 +86,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
@@ -99,6 +100,7 @@ import coil.decode.SvgDecoder
 import com.localdownloader.domain.models.FormatChoice
 import com.localdownloader.domain.models.StreamType
 import com.localdownloader.domain.models.VideoQuality
+import com.localdownloader.domain.models.VideoInfo
 import com.localdownloader.ui.components.InlineFeedbackCard
 import com.localdownloader.ui.components.VideoCard
 import com.localdownloader.ui.model.toReadableSize
@@ -112,6 +114,13 @@ private data class QuickLink(
     val seedUrl: String,
     val logoAssetPath: String,
     val accent: Color,
+)
+
+private data class BrowserShortcut(
+    val title: String,
+    val subtitle: String,
+    val icon: ImageVector,
+    val onClick: () -> Unit,
 )
 
 private enum class DownloadSetupSheetStep {
@@ -179,6 +188,7 @@ fun BrowserScreen(
     }
     var showOptionsSheet by rememberSaveable { mutableStateOf(false) }
     var downloadSetupSheetStep by rememberSaveable { mutableStateOf(DownloadSetupSheetStep.Intro) }
+    var showBrowseMenu by rememberSaveable { mutableStateOf(false) }
     val homeScrollState = rememberScrollState()
     val errorMessage = uiState.errorMessageFor(FormatMessageScope.BROWSER)
     val infoMessage = uiState.infoMessageFor(FormatMessageScope.BROWSER)
@@ -227,6 +237,32 @@ fun BrowserScreen(
             QuickLink("Twitch", "https://twitch.tv", "file:///android_asset/platform_logos/twitch.svg", Color(0xFF9146FF)),
         )
     }
+    val quickActions = listOf(
+        BrowserShortcut(
+            title = "Convert",
+            subtitle = "Change format",
+            icon = Icons.Outlined.SwapHoriz,
+            onClick = onOpenConvert,
+        ),
+        BrowserShortcut(
+            title = "Compress",
+            subtitle = "Shrink file size",
+            icon = Icons.Outlined.Transform,
+            onClick = onOpenCompress,
+        ),
+        BrowserShortcut(
+            title = "Cookies",
+            subtitle = "Saved sessions",
+            icon = Icons.Outlined.Shield,
+            onClick = onOpenCookies,
+        ),
+        BrowserShortcut(
+            title = "YouTube access",
+            subtitle = "Harder retries",
+            icon = Icons.Outlined.TravelExplore,
+            onClick = onOpenYoutubeAccess,
+        ),
+    )
 
     Column(
         modifier = modifier
@@ -244,20 +280,80 @@ fun BrowserScreen(
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Start,
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = "Home",
+                    text = "Browse",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = "Paste a link and keep the same download engine underneath.",
+                    text = "Keep the download flow fast until you want the deeper options.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onOpenHistory) {
+                    Icon(
+                        imageVector = Icons.Outlined.History,
+                        contentDescription = "Open history",
+                    )
+                }
+                Box {
+                    IconButton(onClick = { showBrowseMenu = true }) {
+                        Icon(
+                            imageVector = Icons.Filled.MoreVert,
+                            contentDescription = "Browse actions",
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = showBrowseMenu,
+                        onDismissRequest = { showBrowseMenu = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Settings") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Outlined.Settings,
+                                    contentDescription = null,
+                                )
+                            },
+                            onClick = {
+                                showBrowseMenu = false
+                                onOpenSettings()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Help") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Outlined.Info,
+                                    contentDescription = null,
+                                )
+                            },
+                            onClick = {
+                                showBrowseMenu = false
+                                onOpenHelp()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(if (uiState.isDarkTheme) "Use light theme" else "Use dark theme") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Outlined.DarkMode,
+                                    contentDescription = null,
+                                )
+                            },
+                            onClick = {
+                                showBrowseMenu = false
+                                onDarkThemeChanged(!uiState.isDarkTheme)
+                            },
+                        )
+                    }
+                }
             }
         }
 
@@ -269,47 +365,57 @@ fun BrowserScreen(
                 modifier = Modifier.padding(18.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                Text(
+                    text = "One link, then one clean path to download.",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = "Paste a page, reel, track, or playlist. We keep the first step compact, then open filename, format, and playlist controls only when you need them.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    BrowserMetaChip(
+                        text = if (uiState.allowMeteredDownloads) "Cellular allowed" else "Wi-Fi only",
+                    )
+                    BrowserMetaChip(text = "${uiState.maxConcurrentDownloads} queue slots")
+                    if (uiState.cookieProfiles.isNotEmpty()) {
+                        BrowserMetaChip(text = "${uiState.cookieProfiles.size} saved sessions")
+                    }
+                    if (uiState.youtubeAuthConfig.isConfigured()) {
+                        BrowserMetaChip(text = "YouTube access ready")
+                    }
+                }
                 OutlinedTextField(
                     value = uiState.urlInput,
                     onValueChange = onUrlChanged,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Search or enter URL") },
+                    label = { Text("Paste or type a URL") },
+                    placeholder = { Text("https://example.com/...") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Outlined.Web,
+                            contentDescription = null,
+                        )
+                    },
                     trailingIcon = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(
-                                onClick = {
-                                    scope.launch {
-                                        clipboardManager.getText()?.text
-                                            ?.takeIf { it.isNotBlank() }
-                                            ?.let(onUrlChanged)
-                                    }
-                                },
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.ContentPaste,
-                                    contentDescription = "Paste URL",
-                                )
-                            }
-                            IconButton(
-                                onClick = {
-                                    showOptionsSheet = false
-                                    if (uiState.videoInfo != null) onClearBrowserState() else onUrlChanged("")
-                                },
-                                enabled = uiState.urlInput.isNotBlank() || uiState.videoInfo != null,
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Clear,
-                                    contentDescription = "Clear browser state",
-                                )
-                            }
-                            IconButton(onClick = onAnalyzeClicked, enabled = !uiState.isAnalyzing) {
-                                Icon(
-                                    imageVector = Icons.Outlined.TravelExplore,
-                                    contentDescription = "Analyze",
-                                )
-                            }
+                        IconButton(
+                            onClick = {
+                                showOptionsSheet = false
+                                if (uiState.videoInfo != null) onClearBrowserState() else onUrlChanged("")
+                            },
+                            enabled = uiState.urlInput.isNotBlank() || uiState.videoInfo != null,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Clear,
+                                contentDescription = "Clear browser state",
+                            )
                         }
                     },
                 )
@@ -320,18 +426,50 @@ fun BrowserScreen(
                     exit = fadeOut(animationSpec = tween(durationMillis = 140)) +
                         shrinkVertically(animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)),
                 ) {
-                    LinearProgressIndicator(
-                        modifier = Modifier.fillMaxWidth(),
-                        color = MaterialTheme.colorScheme.tertiary,
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "Checking formats, playlist entries, and downloadable variants...",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = MaterialTheme.colorScheme.tertiary,
+                        )
+                    }
                 }
-                Button(
-                    onClick = onAnalyzeClicked,
-                    enabled = !uiState.isAnalyzing,
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(vertical = 14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(if (uiState.isAnalyzing) "Analyzing..." else "Analyze link")
+                    TextButton(
+                        onClick = {
+                            scope.launch {
+                                clipboardManager.getText()?.text
+                                    ?.takeIf { it.isNotBlank() }
+                                    ?.let(onUrlChanged)
+                            }
+                        },
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.ContentPaste,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Text(
+                            text = "Paste",
+                            modifier = Modifier.padding(start = 8.dp),
+                        )
+                    }
+                    Button(
+                        onClick = onAnalyzeClicked,
+                        enabled = !uiState.isAnalyzing,
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(vertical = 14.dp),
+                    ) {
+                        Text(if (uiState.isAnalyzing) "Analyzing..." else "Analyze link")
+                    }
                 }
             }
         }
@@ -369,28 +507,85 @@ fun BrowserScreen(
             }
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(
-                text = "Quick links",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(4),
-                modifier = Modifier.height(236.dp),
-                userScrollEnabled = false,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+        Card(
+            shape = RoundedCornerShape(28.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(
+                modifier = Modifier.padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                items(quickLinks.size) { index ->
-                    val link = quickLinks[index]
-                    QuickLinkTile(
-                        label = link.label,
-                        logoAssetPath = link.logoAssetPath,
-                        accent = link.accent,
-                        imageLoader = imageLoader,
-                        onClick = { onUrlChanged(link.seedUrl) },
-                    )
+                Text(
+                    text = "Popular starting points",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = "Seed the input with a known site first, then replace it with the exact link you want.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(4),
+                    modifier = Modifier.height(192.dp),
+                    userScrollEnabled = false,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    items(quickLinks.size) { index ->
+                        val link = quickLinks[index]
+                        QuickLinkTile(
+                            label = link.label,
+                            logoAssetPath = link.logoAssetPath,
+                            accent = link.accent,
+                            imageLoader = imageLoader,
+                            onClick = { onUrlChanged(link.seedUrl) },
+                        )
+                    }
+                }
+            }
+        }
+
+        Card(
+            shape = RoundedCornerShape(28.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(
+                modifier = Modifier.padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = "Quick tools",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            text = "Jump into the helpers people usually need before or after a download.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    TextButton(onClick = onOpenHelp) {
+                        Text("Help")
+                    }
+                }
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    modifier = Modifier.height(214.dp),
+                    userScrollEnabled = false,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    items(quickActions.size) { index ->
+                        val action = quickActions[index]
+                        BrowserShortcutTile(action = action)
+                    }
                 }
             }
         }
@@ -424,11 +619,18 @@ fun BrowserScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text(
-                                text = "Ready to download",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                            )
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(
+                                    text = "Ready to download",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                                Text(
+                                    text = "Open the sheet for naming, format, subtitles, playlist selection, and per-file overrides.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                             IconButton(
                                 onClick = {
                                     showOptionsSheet = false
@@ -439,6 +641,14 @@ fun BrowserScreen(
                                     imageVector = Icons.Outlined.Clear,
                                     contentDescription = "Dismiss ready download",
                                 )
+                            }
+                        }
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            buildReadyDownloadChips(info).forEach { chip ->
+                                BrowserMetaChip(text = chip)
                             }
                         }
                         VideoCard(info = info)
@@ -457,7 +667,7 @@ fun BrowserScreen(
                                 val buttonText = when {
                                     uiState.isQueueing -> "Queueing..."
                                     !isDownloadButtonEnabled -> "Please wait..."
-                                    else -> "Quick download"
+                                    else -> "Queue now"
                                 }
                                 Text(buttonText)
                             }
@@ -933,20 +1143,20 @@ private fun QuickLinkTile(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(112.dp),
+            .height(90.dp),
         shape = RoundedCornerShape(22.dp),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable(onClick = onClick)
-                .padding(vertical = 14.dp),
+                .padding(vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Box(
                 modifier = Modifier
-                    .size(56.dp)
+                    .size(44.dp)
                     .background(accent.copy(alpha = 0.12f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
@@ -954,14 +1164,99 @@ private fun QuickLinkTile(
                     model = logoAssetPath,
                     imageLoader = imageLoader,
                     contentDescription = "$label logo",
-                    modifier = Modifier.size(36.dp),
+                    modifier = Modifier.size(28.dp),
                 )
             }
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelMedium,
-                maxLines = 2,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun BrowserShortcutTile(
+    action: BrowserShortcut,
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(102.dp)
+            .clickable(onClick = action.onClick),
+        shape = RoundedCornerShape(22.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer,
+            ) {
+                Icon(
+                    imageVector = action.icon,
+                    contentDescription = null,
+                    modifier = Modifier.padding(10.dp),
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = action.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = action.subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BrowserMetaChip(
+    text: String,
+) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+private fun buildReadyDownloadChips(info: VideoInfo): List<String> {
+    return buildList {
+        if (info.isPlaylist) {
+            val count = info.playlistCount ?: info.playlistEntries.size
+            add("$count files")
+        } else {
+            add("${info.formats.size} formats")
+        }
+        playlistDurationLabel(info.durationSeconds)?.let(::add)
+        info.uploader?.takeIf { it.isNotBlank() }?.let { uploader ->
+            add(
+                if (uploader.length <= 28) {
+                    uploader
+                } else {
+                    "${uploader.take(28)}..."
+                },
             )
         }
     }

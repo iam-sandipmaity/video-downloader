@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-## [1.7.1.0-test] - 2026-05-21
+## [1.7.1.0-beta] - 2026-05-21
 
 ### Added
 - **Seal-style settings architecture** - replaced the one-page settings wall with a dedicated settings hub plus focused pages for Appearance, Download defaults, Folders and storage, Notifications, Access and network, and About and support
@@ -19,6 +19,7 @@
 - **Settings revamp** - rebuilt Settings around a lighter Seal-inspired preference flow with grouped sections, cleaner navigation, smoother page rhythm, and clearer summaries of each category before you tap in
 - **More page redesign** - turned More into a cleaner grouped utility center so workflow shortcuts, access tools, updates, help, and media utilities feel more intentional and easier to scan
 - **Support surface refresh** - aligned Help and Updates with the new preference-page layout so support, maintenance, and runtime management feel like part of the same UI family
+- **Browse screen polish** - refreshed Browse with a stronger link-input hero, tidier platform launchers, faster helper shortcuts, and a cleaner ready-to-download state before the sheet opens
 - **Access screen polish** - refreshed Cookies and YouTube access with smoother large-app-bar treatment and cleaner entry points from the new Access and network settings page
 - **Playlist download controls** - playlists now expose a real global format section plus a file-wise format section where each item stays visible, can be selected individually, and can override the shared format choice when needed
 - **Playlist sheet previews and naming** - the browse-sheet playlist picker now shows item thumbnails and lets each queued file keep the source title or be renamed before download
@@ -43,7 +44,7 @@
 
 ### Technical
 - **Navigation split for settings** - added dedicated settings subroutes inside `DownloaderApp` to support the new hub-and-subpage structure without touching download, queue, or media-processing logic
-- **App version bump** - release metadata updated to `1.7.1.0-test`
+- **App version bump** - release metadata updated to `1.7.1.0-beta`
 
 ## [1.7.1] - 2026-05-20
 
