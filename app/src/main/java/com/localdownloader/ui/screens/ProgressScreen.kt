@@ -157,8 +157,8 @@ fun ProgressScreen(
                     ),
                 )
                 .padding(innerPadding)
+                .padding(horizontal = if (isQueueMode) 14.dp else 18.dp)
                 .padding(
-                    horizontal = if (isQueueMode) 14.dp else 18.dp,
                     top = if (isQueueMode) AppBarContentTopPadding else 16.dp,
                     bottom = if (isQueueMode) 8.dp else 16.dp,
                 ),
