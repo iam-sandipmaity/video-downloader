@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-## [1.7.1.0-test] - 2026-05-20
+## [1.7.1.0-test] - 2026-05-21
 
 ### Added
 - **Seal-style settings architecture** - replaced the one-page settings wall with a dedicated settings hub plus focused pages for Appearance, Download defaults, Folders and storage, Notifications, Access and network, and About and support
@@ -17,6 +17,8 @@
 - **More page redesign** - turned More into a cleaner grouped utility center so workflow shortcuts, access tools, updates, help, and media utilities feel more intentional and easier to scan
 - **Support surface refresh** - aligned Help and Updates with the new preference-page layout so support, maintenance, and runtime management feel like part of the same UI family
 - **Access screen polish** - refreshed Cookies and YouTube access with smoother large-app-bar treatment and cleaner entry points from the new Access and network settings page
+- **Playlist download controls** - playlists now expose a real global format section plus a file-wise format section where each item stays visible, can be selected individually, and can override the shared format choice when needed
+- **About and support credits** - refreshed the About page with the updated LinkedIn profile and a new credits section linking the app's open-source stack to their official sites or upstream repositories
 - **Recovery copy cleanup** - updated onboarding and queue guidance so cookie and YouTube access directions point to the new Settings access path instead of the older More-only flow
 - **Typography tune-up** - expanded the app typography set so the new settings and support pages can use cleaner headline, label, and small-body styling without falling back to mismatched defaults
 - **Converter and compressor refresh** - simplified both media-tool screens around the same compact top-bar and grouped-card rhythm as Settings, with less filler copy and faster access to the useful controls

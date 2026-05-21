@@ -1,6 +1,7 @@
 package com.localdownloader.viewmodel
 
 import com.localdownloader.domain.models.CookieProfile
+import com.localdownloader.domain.models.PlaylistEntry
 import com.localdownloader.domain.models.YoutubeAuthConfig
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -59,5 +60,34 @@ class FormatUiStateTest {
         assertEquals("Cookie saved.", state.infoMessageFor(FormatMessageScope.COOKIES))
         assertNull(state.infoMessageFor(FormatMessageScope.BROWSER))
         assertNull(state.errorMessageFor(FormatMessageScope.YOUTUBE_ACCESS))
+    }
+
+    @Test
+    fun playlistSelectionCounters_followSelectedItems() {
+        val state = FormatUiState(
+            playlistItems = listOf(
+                PlaylistItemUiState(
+                    entry = PlaylistEntry(
+                        playlistItemIndex = 1,
+                        id = "one",
+                        title = "First",
+                        webpageUrl = "https://example.com/1",
+                    ),
+                    isSelected = true,
+                ),
+                PlaylistItemUiState(
+                    entry = PlaylistEntry(
+                        playlistItemIndex = 2,
+                        id = "two",
+                        title = "Second",
+                        webpageUrl = "https://example.com/2",
+                    ),
+                    isSelected = false,
+                ),
+            ),
+        )
+
+        assertEquals(1, state.selectedPlaylistItemCount)
+        assertFalse(state.areAllPlaylistItemsSelected)
     }
 }

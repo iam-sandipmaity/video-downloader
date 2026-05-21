@@ -5,6 +5,7 @@ import com.localdownloader.domain.models.AppSettings
 import com.localdownloader.domain.models.ContrastMode
 import com.localdownloader.domain.models.CookieProfile
 import com.localdownloader.domain.models.FormatChoice
+import com.localdownloader.domain.models.PlaylistEntry
 import com.localdownloader.domain.models.SYSTEM_LANGUAGE_TAG
 import com.localdownloader.domain.models.StreamType
 import com.localdownloader.domain.models.ThemeMode
@@ -17,6 +18,34 @@ enum class FormatMessageScope {
     SETTINGS,
     COOKIES,
     YOUTUBE_ACCESS,
+}
+
+data class PlaylistItemUiState(
+    val entry: PlaylistEntry,
+    val isSelected: Boolean = true,
+    val useGlobalSettings: Boolean = true,
+    val isExpanded: Boolean = false,
+    val selectedStreamType: StreamType = StreamType.VIDEO_AUDIO,
+    val selectedFormatSelector: String? = null,
+    val selectedContainer: String = "mp4",
+    val selectedAudioFormat: String = "mp3",
+    val audioBitrateKbps: Int = 192,
+    val availableVideoAudioChoices: List<FormatChoice> = emptyList(),
+    val availableVideoOnlyChoices: List<FormatChoice> = emptyList(),
+    val availableAudioOnlyChoices: List<FormatChoice> = emptyList(),
+) {
+    fun choicesFor(streamType: StreamType): List<FormatChoice> {
+        return when (streamType) {
+            StreamType.VIDEO_AUDIO -> availableVideoAudioChoices.ifEmpty { availableVideoOnlyChoices }
+            StreamType.VIDEO_ONLY -> availableVideoOnlyChoices
+            StreamType.AUDIO_ONLY -> availableAudioOnlyChoices
+        }
+    }
+
+    val hasCustomChoices: Boolean
+        get() = availableVideoAudioChoices.isNotEmpty() ||
+            availableVideoOnlyChoices.isNotEmpty() ||
+            availableAudioOnlyChoices.isNotEmpty()
 }
 
 data class FormatUiState(
@@ -63,6 +92,7 @@ data class FormatUiState(
     val cookieUserAgentEnabled: Boolean = false,
     val cookieProfiles: List<CookieProfile> = emptyList(),
     val youtubeAuthConfig: YoutubeAuthConfig = YoutubeAuthConfig(),
+    val playlistItems: List<PlaylistItemUiState> = emptyList(),
     val appSettings: AppSettings = AppSettings(),
     val hasLoadedSettings: Boolean = false,
     val messageScope: FormatMessageScope = FormatMessageScope.BROWSER,
@@ -92,4 +122,10 @@ data class FormatUiState(
 
     fun errorMessageFor(scope: FormatMessageScope): String? =
         errorMessage?.takeIf { messageScope == scope }
+
+    val selectedPlaylistItemCount: Int
+        get() = playlistItems.count { it.isSelected }
+
+    val areAllPlaylistItemsSelected: Boolean
+        get() = playlistItems.isNotEmpty() && playlistItems.all { it.isSelected }
 }

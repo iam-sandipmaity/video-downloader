@@ -169,6 +169,7 @@ class FormatExtractor @Inject constructor(
                 uploader = item["uploader"]?.jsonPrimitive?.contentOrNull,
                 durationSeconds = item["duration"]?.jsonPrimitive?.longOrNull,
                 thumbnailUrl = item["thumbnail"]?.jsonPrimitive?.contentOrNull,
+                formats = parseFormats(item["formats"] as? JsonArray ?: JsonArray(emptyList())),
             )
         }
     }

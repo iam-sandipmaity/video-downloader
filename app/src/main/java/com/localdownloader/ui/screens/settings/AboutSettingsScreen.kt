@@ -40,6 +40,7 @@ import com.localdownloader.ui.components.PreferenceDivider
 import com.localdownloader.ui.components.PreferenceGroup
 import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.ui.components.PreferenceRow
+import com.localdownloader.ui.components.PreferenceSectionHeader
 
 @Composable
 fun AboutSettingsScreen(
@@ -54,6 +55,73 @@ fun AboutSettingsScreen(
             .components { add(SvgDecoder.Factory()) }
             .build()
     }
+    val openSourceCredits = listOf(
+        OpenSourceCredit(
+            title = "Android Jetpack Compose",
+            subtitle = "v2026.05.00 | Declarative UI foundation for the app.",
+            url = "https://developer.android.com/jetpack/compose",
+        ),
+        OpenSourceCredit(
+            title = "Kotlin",
+            subtitle = "v2.3.21 | Main application language and Compose tooling.",
+            url = "https://kotlinlang.org/",
+        ),
+        OpenSourceCredit(
+            title = "Kotlin Coroutines",
+            subtitle = "v1.11.0 | Async work, flows, and background coordination.",
+            url = "https://github.com/Kotlin/kotlinx.coroutines",
+        ),
+        OpenSourceCredit(
+            title = "Kotlin Serialization",
+            subtitle = "v1.11.0 | JSON parsing for yt-dlp metadata and app state.",
+            url = "https://github.com/Kotlin/kotlinx.serialization",
+        ),
+        OpenSourceCredit(
+            title = "Media3 ExoPlayer",
+            subtitle = "v1.10.1 | Local video and audio playback inside the app.",
+            url = "https://developer.android.com/media/media3",
+        ),
+        OpenSourceCredit(
+            title = "Coil",
+            subtitle = "v2.7.0 | Image, GIF, and SVG loading across the UI.",
+            url = "https://coil-kt.github.io/coil/",
+        ),
+        OpenSourceCredit(
+            title = "yt-dlp Android Runtime",
+            subtitle = "v0.18.1 | Embedded downloader runtime via youtubedl-android.",
+            url = "https://github.com/yausername/youtubedl-android",
+        ),
+        OpenSourceCredit(
+            title = "yt-dlp",
+            subtitle = "Managed runtime | Core extractor/downloader engine used by the app.",
+            url = "https://github.com/yt-dlp/yt-dlp",
+        ),
+        OpenSourceCredit(
+            title = "FFmpeg",
+            subtitle = "Managed runtime | Media merge, remux, convert, and compression support.",
+            url = "https://ffmpeg.org/",
+        ),
+        OpenSourceCredit(
+            title = "Hilt",
+            subtitle = "v2.59.2 / AndroidX Hilt 1.3.0 | Dependency injection and worker wiring.",
+            url = "https://dagger.dev/hilt/",
+        ),
+        OpenSourceCredit(
+            title = "WorkManager",
+            subtitle = "v2.11.2 | Download queue scheduling and background maintenance.",
+            url = "https://developer.android.com/topic/libraries/architecture/workmanager",
+        ),
+        OpenSourceCredit(
+            title = "Room",
+            subtitle = "v2.8.4 | Persistent queue, history, and local task storage.",
+            url = "https://developer.android.com/jetpack/androidx/releases/room",
+        ),
+        OpenSourceCredit(
+            title = "Material 3",
+            subtitle = "Material Components 1.14.0 | App theming, components, and motion language.",
+            url = "https://m3.material.io/",
+        ),
+    )
     var confirmDialog by remember { mutableStateOf<SettingConfirmDialogState?>(null) }
 
     fun openUrl(url: String) {
@@ -155,9 +223,30 @@ fun AboutSettingsScreen(
                     assetPath = "file:///android_asset/platform_logos/linkedin.svg",
                     imageLoader = svgImageLoader,
                     title = "Developer LinkedIn",
-                    subtitle = "sandip-maity",
-                    onClick = { openUrl("https://www.linkedin.com/in/sandip-maity") },
+                    subtitle = "iam-sandipmaity",
+                    onClick = { openUrl("https://www.linkedin.com/in/iam-sandipmaity") },
                 )
+            }
+        }
+        item {
+            PreferenceSectionHeader(
+                title = "Credits",
+                subtitle = "Tap any project to open its official website or upstream source.",
+            )
+        }
+        item {
+            PreferenceGroup {
+                openSourceCredits.forEachIndexed { index, credit ->
+                    PreferenceRow(
+                        icon = Icons.Rounded.Description,
+                        title = credit.title,
+                        subtitle = credit.subtitle,
+                        onClick = { openUrl(credit.url) },
+                    )
+                    if (index != openSourceCredits.lastIndex) {
+                        PreferenceDivider()
+                    }
+                }
             }
         }
         item {
@@ -182,6 +271,12 @@ fun AboutSettingsScreen(
         }
     }
 }
+
+private data class OpenSourceCredit(
+    val title: String,
+    val subtitle: String,
+    val url: String,
+)
 
 @Composable
 private fun AboutAssetRow(
