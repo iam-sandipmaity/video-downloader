@@ -732,6 +732,11 @@ fun DownloaderApp(
                     onRefresh = appLogViewModel::refresh,
                     onOutcomeFilterChanged = appLogViewModel::setOutcomeFilter,
                     onDayFilterChanged = appLogViewModel::setDayFilter,
+                    onBackupLogsToDeviceChanged = appLogViewModel::setBackupLogsToDevice,
+                    onAutoDeleteOldAppLogsChanged = appLogViewModel::setAutoDeleteOldAppLogs,
+                    onAppLogRetentionDaysChanged = appLogViewModel::setAppLogRetentionDays,
+                    onBackupNow = appLogViewModel::backupLogsNow,
+                    onDismissFeedback = appLogViewModel::clearFeedback,
                     onBack = { navController.popBackStack() },
                 )
             }

@@ -34,10 +34,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.localdownloader.ui.components.InlineFeedbackCard
+import com.localdownloader.ui.components.PreferenceDivider
 import com.localdownloader.ui.components.PreferenceGroup
 import com.localdownloader.ui.components.PreferenceHeroCard
 import com.localdownloader.ui.components.PreferencePageScaffold
+import com.localdownloader.ui.components.PreferenceRow
 import com.localdownloader.ui.components.PreferenceSectionHeader
+import com.localdownloader.ui.components.PreferenceSwitchRow
 import com.localdownloader.viewmodel.AppLogEntry
 import com.localdownloader.viewmodel.AppLogEntryCategory
 import com.localdownloader.viewmodel.AppLogOutcomeFilter
@@ -55,6 +58,11 @@ fun AppLogSettingsScreen(
     onRefresh: () -> Unit,
     onOutcomeFilterChanged: (AppLogOutcomeFilter) -> Unit,
     onDayFilterChanged: (String?) -> Unit,
+    onBackupLogsToDeviceChanged: (Boolean) -> Unit,
+    onAutoDeleteOldAppLogsChanged: (Boolean) -> Unit,
+    onAppLogRetentionDaysChanged: (Int) -> Unit,
+    onBackupNow: () -> Unit,
+    onDismissFeedback: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -70,9 +78,17 @@ fun AppLogSettingsScreen(
         uiState.entries.count { it.category == AppLogEntryCategory.SUCCESSFUL }
     }
     var copied by remember { mutableStateOf(false) }
+    var retentionDialog by remember { mutableStateOf<SettingChoiceDialogState?>(null) }
 
     LaunchedEffect(filteredText) {
         copied = false
+    }
+
+    retentionDialog?.let { state ->
+        SettingChoiceDialog(
+            state = state,
+            onDismiss = { retentionDialog = null },
+        )
     }
 
     PreferencePageScaffold(
@@ -203,12 +219,84 @@ fun AppLogSettingsScreen(
             }
         }
 
+        item {
+            PreferenceSectionHeader(
+                title = "Storage",
+                subtitle = "Manage device backups and how long rotated app logs stay inside the app.",
+            )
+        }
+
+        item {
+            PreferenceGroup {
+                PreferenceSwitchRow(
+                    icon = Icons.Outlined.Share,
+                    title = "Back up logs to device",
+                    subtitle = "Automatically copy rotated log archives into a device backup folder.",
+                    checked = uiState.backupLogsToDevice,
+                    onCheckedChange = onBackupLogsToDeviceChanged,
+                )
+                PreferenceDivider()
+                PreferenceSwitchRow(
+                    icon = Icons.Outlined.Refresh,
+                    title = "Auto-delete old app logs",
+                    subtitle = "Clean older rotated app logs from internal app storage after the retention window passes.",
+                    checked = uiState.autoDeleteOldAppLogs,
+                    onCheckedChange = onAutoDeleteOldAppLogsChanged,
+                )
+                PreferenceDivider()
+                PreferenceRow(
+                    icon = Icons.Outlined.Refresh,
+                    title = "Keep rotated logs for",
+                    subtitle = "Choose how many days of archived log history stay inside the app.",
+                    value = "${uiState.appLogRetentionDays} days",
+                    onClick = {
+                        retentionDialog = SettingChoiceDialogState(
+                            title = "App log retention",
+                            selected = "${uiState.appLogRetentionDays} days",
+                            options = listOf(3, 7, 15, 30, 60, 90).map { days ->
+                                SettingChoiceOption(
+                                    title = "$days days",
+                                    subtitle = when {
+                                        days <= 7 -> "Smaller footprint with lighter history."
+                                        days <= 30 -> "Balanced for everyday troubleshooting."
+                                        else -> "Longer history for harder-to-reproduce bugs."
+                                    },
+                                    onSelect = { onAppLogRetentionDaysChanged(days) },
+                                )
+                            },
+                        )
+                    },
+                )
+                PreferenceDivider()
+                PreferenceRow(
+                    icon = Icons.Outlined.Share,
+                    title = "Back up now",
+                    subtitle = uiState.deviceBackupPath?.let { path ->
+                        "Write a snapshot of the current logs into $path"
+                    } ?: "Write a snapshot of the current logs into the device backup folder.",
+                    onClick = onBackupNow,
+                )
+            }
+        }
+
+        if (!uiState.infoMessage.isNullOrBlank()) {
+            item {
+                InlineFeedbackCard(
+                    label = "App log",
+                    message = uiState.infoMessage,
+                    isError = false,
+                    onDismiss = onDismissFeedback,
+                )
+            }
+        }
+
         if (!uiState.errorMessage.isNullOrBlank()) {
             item {
                 InlineFeedbackCard(
                     label = "App log",
                     message = uiState.errorMessage,
                     isError = true,
+                    onDismiss = onDismissFeedback,
                 )
             }
         }

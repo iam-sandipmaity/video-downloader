@@ -112,7 +112,7 @@ fun SettingsScreen(
                 PreferenceRow(
                     icon = Icons.Rounded.Description,
                     title = "App log reader",
-                    subtitle = "Read app.log inside the app, filter lines by failures, successes, or day, then copy or export the result.",
+                    subtitle = "Read app.log inside the app, filter lines by failures, successes, or day, then copy, export, back up, or manage retention.",
                     onClick = onOpenAppLog,
                 )
             }

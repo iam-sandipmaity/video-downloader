@@ -59,6 +59,9 @@ class SettingsStore @Inject constructor(
         val notifyDownloadErrors = booleanPreferencesKey("notify_download_errors")
         val notifyCanceledDownloads = booleanPreferencesKey("notify_canceled_downloads")
         val notifyPromotions = booleanPreferencesKey("notify_promotions")
+        val backupLogsToDevice = booleanPreferencesKey("backup_logs_to_device")
+        val autoDeleteOldAppLogs = booleanPreferencesKey("auto_delete_old_app_logs")
+        val appLogRetentionDays = intPreferencesKey("app_log_retention_days")
         val cookiesEnabled = booleanPreferencesKey("cookies_enabled")
         val cookieUserAgentEnabled = booleanPreferencesKey("cookie_user_agent_enabled")
         val cookieProfiles = stringPreferencesKey("cookie_profiles_json")
@@ -102,6 +105,9 @@ class SettingsStore @Inject constructor(
                     notifyDownloadErrors = prefs[Keys.notifyDownloadErrors] ?: true,
                     notifyCanceledDownloads = prefs[Keys.notifyCanceledDownloads] ?: true,
                     notifyPromotions = prefs[Keys.notifyPromotions] ?: true,
+                    backupLogsToDevice = prefs[Keys.backupLogsToDevice] ?: false,
+                    autoDeleteOldAppLogs = prefs[Keys.autoDeleteOldAppLogs] ?: false,
+                    appLogRetentionDays = prefs[Keys.appLogRetentionDays] ?: 15,
                     cookiesEnabled = prefs[Keys.cookiesEnabled] ?: false,
                     cookieUserAgentEnabled = prefs[Keys.cookieUserAgentEnabled] ?: false,
                     cookieProfiles = decodeCookieProfiles(prefs[Keys.cookieProfiles]),
@@ -138,6 +144,9 @@ class SettingsStore @Inject constructor(
             prefs[Keys.notifyDownloadErrors] = settings.notifyDownloadErrors
             prefs[Keys.notifyCanceledDownloads] = settings.notifyCanceledDownloads
             prefs[Keys.notifyPromotions] = settings.notifyPromotions
+            prefs[Keys.backupLogsToDevice] = settings.backupLogsToDevice
+            prefs[Keys.autoDeleteOldAppLogs] = settings.autoDeleteOldAppLogs
+            prefs[Keys.appLogRetentionDays] = settings.appLogRetentionDays
             prefs[Keys.cookiesEnabled] = settings.cookiesEnabled
             prefs[Keys.cookieUserAgentEnabled] = settings.cookieUserAgentEnabled
             prefs[Keys.cookieProfiles] = json.encodeToString(settings.cookieProfiles)

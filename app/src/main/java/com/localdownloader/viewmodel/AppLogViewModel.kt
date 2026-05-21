@@ -2,12 +2,15 @@ package com.localdownloader.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.localdownloader.data.SettingsStore
+import com.localdownloader.domain.models.AppSettings
 import com.localdownloader.utils.Logger
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -18,18 +21,41 @@ import javax.inject.Inject
 @HiltViewModel
 class AppLogViewModel @Inject constructor(
     private val logger: Logger,
+    private val settingsStore: SettingsStore,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(AppLogUiState())
     val uiState: StateFlow<AppLogUiState> = _uiState.asStateFlow()
 
+    @Volatile
+    private var latestSettings: AppSettings = AppSettings()
+
     init {
+        viewModelScope.launch {
+            settingsStore.observeSettings().collect { settings ->
+                latestSettings = settings
+                _uiState.update { state ->
+                    state.copy(
+                        backupLogsToDevice = settings.backupLogsToDevice,
+                        autoDeleteOldAppLogs = settings.autoDeleteOldAppLogs,
+                        appLogRetentionDays = settings.appLogRetentionDays.coerceIn(MIN_RETENTION_DAYS, MAX_RETENTION_DAYS),
+                        deviceBackupPath = logger.deviceLogBackupDirPath(),
+                    )
+                }
+            }
+        }
         refresh()
     }
 
     fun refresh() {
-        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+        _uiState.update {
+            it.copy(
+                isLoading = true,
+                errorMessage = null,
+            )
+        }
         viewModelScope.launch(Dispatchers.IO) {
             runCatching {
+                logger.runMaintenance()
                 val entries = parseLogEntries(
                     logger.appLogFiles().flatMap { file ->
                         runCatching { file.readText() }
@@ -56,6 +82,11 @@ class AppLogViewModel @Inject constructor(
                     selectedDay = selectedDay,
                     errorMessage = null,
                     lastUpdatedAt = System.currentTimeMillis(),
+                    backupLogsToDevice = _uiState.value.backupLogsToDevice,
+                    autoDeleteOldAppLogs = _uiState.value.autoDeleteOldAppLogs,
+                    appLogRetentionDays = _uiState.value.appLogRetentionDays,
+                    deviceBackupPath = logger.deviceLogBackupDirPath(),
+                    infoMessage = _uiState.value.infoMessage,
                 )
             }.onSuccess { state ->
                 _uiState.value = state
@@ -93,6 +124,101 @@ class AppLogViewModel @Inject constructor(
                     day = day,
                 ),
             )
+        }
+    }
+
+    fun setBackupLogsToDevice(enabled: Boolean) {
+        persistLogSettings(
+            update = { settings -> settings.copy(backupLogsToDevice = enabled) },
+            successMessage = if (enabled) {
+                "Automatic device backup is on for future rotated logs."
+            } else {
+                "Automatic device backup is off."
+            },
+        )
+    }
+
+    fun setAutoDeleteOldAppLogs(enabled: Boolean) {
+        persistLogSettings(
+            update = { settings -> settings.copy(autoDeleteOldAppLogs = enabled) },
+            successMessage = if (enabled) {
+                "Old rotated app logs will now clean themselves up."
+            } else {
+                "Old rotated app logs will stay until you remove them."
+            },
+            runMaintenanceAfterSave = enabled,
+        )
+    }
+
+    fun setAppLogRetentionDays(days: Int) {
+        val normalizedDays = days.coerceIn(MIN_RETENTION_DAYS, MAX_RETENTION_DAYS)
+        persistLogSettings(
+            update = { settings -> settings.copy(appLogRetentionDays = normalizedDays) },
+            successMessage = "App logs will keep rotated history for $normalizedDays days.",
+            runMaintenanceAfterSave = latestSettings.autoDeleteOldAppLogs,
+        )
+    }
+
+    fun backupLogsNow() {
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching { logger.backupLogsToDevice() }
+                .onSuccess { backupFile ->
+                    _uiState.update { state ->
+                        state.copy(
+                            infoMessage = "Saved a device backup to ${backupFile.absolutePath}",
+                            errorMessage = null,
+                            deviceBackupPath = backupFile.parentFile?.absolutePath ?: state.deviceBackupPath,
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _uiState.update { state ->
+                        state.copy(
+                            errorMessage = error.message ?: "Unable to save a device backup right now.",
+                        )
+                    }
+                }
+            refresh()
+        }
+    }
+
+    fun clearFeedback() {
+        _uiState.update { state ->
+            state.copy(
+                infoMessage = null,
+                errorMessage = null,
+            )
+        }
+    }
+
+    private fun persistLogSettings(
+        update: (AppSettings) -> AppSettings,
+        successMessage: String,
+        runMaintenanceAfterSave: Boolean = false,
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val updatedSettings = update(latestSettings)
+            runCatching {
+                settingsStore.updateSettings(updatedSettings)
+                latestSettings = updatedSettings
+                if (runMaintenanceAfterSave) {
+                    logger.runMaintenance()
+                }
+            }.onSuccess {
+                _uiState.update { state ->
+                    state.copy(
+                        infoMessage = successMessage,
+                        errorMessage = null,
+                    )
+                }
+                refresh()
+            }.onFailure { error ->
+                _uiState.update { state ->
+                    state.copy(
+                        errorMessage = error.message ?: "Unable to save app log settings.",
+                    )
+                }
+            }
         }
     }
 
@@ -212,6 +338,9 @@ class AppLogViewModel @Inject constructor(
     }
 
     private companion object {
+        private const val MIN_RETENTION_DAYS = 3
+        private const val MAX_RETENTION_DAYS = 90
+
         val LOG_LINE_PATTERN = Regex(
             """^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2}\.\d{3}) ([A-Z])/([^\s]+) \[([^\]]+)] (.*)$""",
         )
@@ -225,8 +354,13 @@ data class AppLogUiState(
     val availableDays: List<String> = emptyList(),
     val selectedOutcome: AppLogOutcomeFilter = AppLogOutcomeFilter.ALL,
     val selectedDay: String? = null,
+    val infoMessage: String? = null,
     val errorMessage: String? = null,
     val lastUpdatedAt: Long? = null,
+    val backupLogsToDevice: Boolean = false,
+    val autoDeleteOldAppLogs: Boolean = false,
+    val appLogRetentionDays: Int = 15,
+    val deviceBackupPath: String? = null,
 )
 
 data class AppLogEntry(

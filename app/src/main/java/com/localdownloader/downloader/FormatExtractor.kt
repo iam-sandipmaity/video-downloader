@@ -398,11 +398,11 @@ class FormatExtractor @Inject constructor(
 
     private suspend fun executeAnalyzeCommand(args: List<String>): CommandResult {
         return runCatching {
-            ytDlpExecutor.execute(args = args)
+            ytDlpExecutor.execute(args = args, logOutputLines = false)
         }.recoverCatching { error ->
             if (error.matchesClosedStreamFailure()) {
                 logger.w("FormatExtractor", "Analyze command hit closed-stream race; retrying once", error)
-                ytDlpExecutor.execute(args = args)
+                ytDlpExecutor.execute(args = args, logOutputLines = false)
             } else {
                 throw error
             }

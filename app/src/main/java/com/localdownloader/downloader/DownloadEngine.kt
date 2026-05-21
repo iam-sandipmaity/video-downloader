@@ -105,12 +105,10 @@ class DownloadEngine @Inject constructor(
         val result = ytDlpExecutor.execute(
             args = args,
             onStdoutLine = { line ->
-                logger.d("DownloadEngine/stdout", line)
                 onOutputLine(line)
                 ProgressParser.parse(line)?.let(onProgress)
             },
             onStderrLine = { line ->
-                logger.d("DownloadEngine/stderr", line)
                 onOutputLine(line)
                 ProgressParser.parse(line)?.let(onProgress)
             },
@@ -181,11 +179,9 @@ class DownloadEngine @Inject constructor(
         return ytDlpExecutor.execute(
             args = args,
             onStdoutLine = { line ->
-                logger.d("DownloadEngine/stdout", line)
                 onOutputLine(line)
             },
             onStderrLine = { line ->
-                logger.d("DownloadEngine/stderr", line)
                 onOutputLine(line)
             },
         ).also { result ->
