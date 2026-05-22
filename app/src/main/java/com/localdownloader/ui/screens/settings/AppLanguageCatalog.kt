@@ -11,39 +11,18 @@ data class AppLanguageOption(
 
 private val supportedLanguageTags = listOf(
     "en",
-    "ar",
     "bn",
-    "de",
-    "es",
-    "fr",
-    "gu",
     "hi",
-    "id",
-    "it",
-    "ja",
-    "kn",
-    "ko",
-    "ml",
-    "mr",
-    "ne",
-    "nl",
-    "pa",
-    "pl",
-    "pt-BR",
-    "pt-PT",
-    "ru",
     "ta",
     "te",
-    "th",
-    "tr",
-    "uk",
-    "ur",
-    "vi",
+    "kn",
+    "ml",
+    "ko",
+    "ja",
     "zh-CN",
-    "zh-TW",
 )
 
-fun supportedAppLanguageOptions(): List<AppLanguageOption> {
+fun supportedAppLanguageOptions(interfaceLanguageLabel: String): List<AppLanguageOption> {
     return supportedLanguageTags.map { tag ->
         val locale = Locale.forLanguageTag(tag)
         val nativeLabel = locale.readableDisplayName(locale)
@@ -52,7 +31,7 @@ fun supportedAppLanguageOptions(): List<AppLanguageOption> {
             tag = tag,
             title = nativeLabel,
             subtitle = if (nativeLabel.equals(englishLabel, ignoreCase = true)) {
-                "Interface language"
+                interfaceLanguageLabel
             } else {
                 englishLabel
             },
@@ -60,16 +39,11 @@ fun supportedAppLanguageOptions(): List<AppLanguageOption> {
     }
 }
 
-fun appLanguageLabel(languageTag: String): String {
-    if (languageTag == SYSTEM_LANGUAGE_TAG) return "System default"
+fun appLanguageLabel(languageTag: String, systemDefaultLabel: String): String {
+    if (languageTag == SYSTEM_LANGUAGE_TAG) return systemDefaultLabel
     val locale = Locale.forLanguageTag(languageTag)
     val nativeLabel = locale.readableDisplayName(locale)
-    val englishLabel = locale.readableDisplayName(Locale.ENGLISH)
-    return if (nativeLabel.equals(englishLabel, ignoreCase = true)) {
-        nativeLabel
-    } else {
-        "$nativeLabel • $englishLabel"
-    }
+    return nativeLabel
 }
 
 private fun Locale.readableDisplayName(displayLocale: Locale): String {

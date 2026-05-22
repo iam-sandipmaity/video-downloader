@@ -3,80 +3,111 @@
 ## Prerequisites
 
 - JDK 17
-- Android SDK + platform tools
-- Gradle available in PATH (or add wrapper)
+- Android SDK and platform tools
+- Gradle available in `PATH`
 
 ## Setup
 
-1. Clone repo.
-2. If you are building for a custom FFmpeg ABI, add binaries under `app/src/main/assets/ffmpeg/*` and `app/src/main/jniLibs/*` as described in `COMPATIBILITY.md`.
-3. Open in Android Studio or build from terminal.
+```bash
+git clone https://github.com/iam-sandipmaity/video-downloader
+cd video-downloader
+gradle :app:assembleDebug
+```
 
-## Build commands
+If you are working on custom FFmpeg ABI packaging, also review
+[../COMPATIBILITY.md](../COMPATIBILITY.md).
+
+## Common Commands
 
 ```bash
 gradle :app:assembleDebug
 gradle :app:testDebugUnitTest
 ```
 
-## Coding standards used in this project
+## Working Style For This Repo
 
-- Keep files small and focused
-- Use constructor injection everywhere practical
-- Separate command construction from command execution
-- Keep UI declarative and state-driven
-- Keep command I/O parsing centralized (`ProgressParser`)
+This project is currently on a stable `1.7.2` baseline. Most good work falls
+into one of these groups:
 
-## Adding new yt-dlp options
+- fixing downloader/runtime regressions
+- tightening queue and recovery behavior
+- improving docs or translation quality
+- adding targeted tests
+- refining internal logic without disrupting the stable UI structure
 
-1. Add field to `DownloadOptions`.
-2. Map field in `FormatViewModel`.
-3. Persist the default in `AppSettings` and `SettingsStore` if needed.
-4. Add CLI mapping in `DownloadEngine`.
-5. Add UI toggle/input.
+## Practical Code Guidelines
 
-## Working on update flows
+- keep user-visible behavior stable unless the change solves a real problem
+- keep command construction separate from command execution
+- keep UI state-driven and declarative
+- preserve the local-first execution model
+- prefer clear, maintainable fixes over clever shortcuts
 
-- Update release-channel or preference models in `updates/UpdateModels.kt`.
-- Keep UI wiring in `viewmodel/UpdatesViewModel.kt`.
-- Use `updates/GitHubReleaseClient.kt` for GitHub metadata or asset downloads.
-- Background yt-dlp maintenance belongs in `worker/YtDlpUpdateScheduler.kt` and `worker/YtDlpUpdateWorker.kt`.
-- Guard runtime replacement when downloads are active; current behavior intentionally blocks manual runtime installs in that case.
+## Adding New Download Options
 
-## Refreshing YouTube PO-token constants
+Typical path:
 
-- `utils/YoutubePoTokenGenerator.kt` currently mirrors LibreTube's BotGuard implementation.
-- `GOOGLE_API_KEY` maps to LibreTube's `api/ExternalApi.kt`; `REQUEST_KEY` maps to `api/poToken/PoTokenWebView.kt`.
-- Before changing either constant, compare against both LibreTube files and then verify the full PO-token flow still matches upstream behavior.
-- PowerShell check:
+1. add a field to the relevant options model
+2. wire it through the ViewModel state
+3. persist it in settings if it is a default
+4. map it into the downloader command path
+5. expose it in UI only where it belongs
 
-```powershell
-Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/libre-tube/LibreTube/main/app/src/main/java/com/github/libretube/api/ExternalApi.kt' |
-    Select-String -Pattern 'GOOGLE_API_KEY'
-Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/libre-tube/LibreTube/main/app/src/main/java/com/github/libretube/api/poToken/PoTokenWebView.kt' |
-    Select-String -Pattern 'REQUEST_KEY'
-```
+## Working On Localization
 
-## Adding new FFmpeg operations
+When adding or updating translations:
 
-1. Add domain request model if needed.
-2. Add wrapper in `ffmpeg/`.
-3. Expose operation through repository.
-4. Add use case and UI action.
+1. keep keys aligned with `app/src/main/res/values/strings.xml`
+2. preserve placeholders like `%1$d` and `%1$s`
+3. review plural blocks too, not just plain strings
+4. leave raw log content and some technical labels untranslated when accuracy
+   matters more than localization
 
-## Debugging binary issues
+If a new language is added structurally, also update:
 
-- Confirm whether the app is using a managed FFmpeg overlay, embedded runtime package, bundled `libffmpeg_exec.so`, or copied asset fallback (see `BinaryInstaller` logs).
-- Verify the fallback asset exists for the active ABI under `app/src/main/assets/ffmpeg/<abi>/ffmpeg` if you are building custom ABI support.
-- If fallback copy is used, ensure the copied binary in app-owned storage is executable.
-- For yt-dlp issues, inspect the runtime version shown in the app's Updates screen or by running `--version` through `YtDlpExecutor`.
-- Inspect `stderr` captured in `CommandResult`.
-- Confirm command args by checking logcat (`YtDlpExecutor`, `FfmpegExecutor`).
+- the app language catalog
+- locale config
 
-## Recommended next steps for production hardening
+## Working On Update Flows
 
-- Persist queue/history in Room
-- Add retry/backoff policy per task type
-- Add notification actions (pause/resume/cancel)
-- Add signed binary verification (hash check)
-- Add integration tests around command generation
+Relevant files:
+
+- `updates/UpdateModels.kt`
+- `updates/GitHubReleaseClient.kt`
+- `updates/AppUpdateManager.kt`
+- `updates/YtDlpUpdateManager.kt`
+- `updates/FfmpegUpdateManager.kt`
+- `viewmodel/UpdatesViewModel.kt`
+- `worker/YtDlpUpdateScheduler.kt`
+- `worker/YtDlpUpdateWorker.kt`
+
+Keep manual runtime installs guarded when downloads are active.
+
+## Debugging Binary Or Runtime Issues
+
+Check:
+
+- which FFmpeg path was selected by `BinaryInstaller`
+- whether the fallback asset exists for the active ABI
+- whether the copied fallback binary is executable when used
+- the runtime version shown by the Updates flow
+- `stderr` captured in `CommandResult`
+- runtime/download logs in `YtDlpExecutor` and `FfmpegExecutor`
+
+## YouTube Access Notes
+
+The current PO-token path is best-effort and upstream-sensitive.
+
+When touching it:
+
+- keep WebView session, cookies, and generated values aligned
+- verify the saved recovery data still matches the request path that uses it
+- document any upstream constant refreshes clearly
+
+## Good Near-Term Engineering Targets
+
+- queue/update test coverage
+- runtime warning cleanup
+- download recovery fixes
+- translation polish
+- documentation accuracy

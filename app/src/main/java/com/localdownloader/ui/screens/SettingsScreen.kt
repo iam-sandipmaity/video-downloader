@@ -11,7 +11,10 @@ import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import com.localdownloader.BuildConfig
+import com.localdownloader.R
 import com.localdownloader.ui.components.InlineFeedbackCard
 import com.localdownloader.ui.components.PreferenceDivider
 import com.localdownloader.ui.components.PreferenceGroup
@@ -39,11 +42,12 @@ fun SettingsScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
     val settingsInfoMessage = uiState.infoMessageFor(FormatMessageScope.SETTINGS)
     val settingsErrorMessage = uiState.errorMessageFor(FormatMessageScope.SETTINGS)
 
     PreferencePageScaffold(
-        title = "Settings",
+        title = stringResource(R.string.settings_title),
         onBack = onBack,
         modifier = modifier,
     ) {
@@ -58,9 +62,9 @@ fun SettingsScreen(
             PreferenceGroup {
                 PreferenceRow(
                     icon = Icons.Rounded.Palette,
-                    title = "Appearance",
-                    subtitle = "Theme mode, accent palette, contrast, and language.",
-                    value = "${themeModeLabel(uiState.themeMode)} / ${accentLabel(uiState.accentPreset)}",
+                    title = stringResource(R.string.settings_appearance_title),
+                    subtitle = stringResource(R.string.settings_appearance_subtitle),
+                    value = "${themeModeLabel(context, uiState.themeMode)} / ${accentLabel(context, uiState.accentPreset)}",
                     onClick = onOpenAppearance,
                 )
             }
@@ -69,24 +73,24 @@ fun SettingsScreen(
             PreferenceGroup {
                 PreferenceRow(
                     icon = Icons.Rounded.CloudDownload,
-                    title = "Download defaults",
-                    subtitle = "Templates, containers, subtitles, metadata, artwork, and queue slot preference.",
+                    title = stringResource(R.string.settings_download_defaults_title),
+                    subtitle = stringResource(R.string.settings_download_defaults_subtitle),
                     value = uiState.selectedContainer.uppercase(),
                     onClick = onOpenDownloads,
                 )
                 PreferenceDivider()
                 PreferenceRow(
                     icon = Icons.Rounded.Folder,
-                    title = "Folders and storage",
-                    subtitle = "Root folders, cleanup behavior, cache tools, and library maintenance.",
-                    value = "${savedItemsCount} saved",
+                    title = stringResource(R.string.settings_storage_title),
+                    subtitle = stringResource(R.string.settings_storage_subtitle),
+                    value = stringResource(R.string.settings_saved_count, savedItemsCount),
                     onClick = onOpenStorage,
                 )
                 PreferenceDivider()
                 PreferenceRow(
                     icon = Icons.Rounded.NotificationsActive,
-                    title = "Notifications",
-                    subtitle = "Completion, error, cancel, and playback alerts.",
+                    title = stringResource(R.string.settings_notifications_title),
+                    subtitle = stringResource(R.string.settings_notifications_subtitle),
                     onClick = onOpenNotifications,
                 )
             }
@@ -95,24 +99,24 @@ fun SettingsScreen(
             PreferenceGroup {
                 PreferenceRow(
                     icon = Icons.Rounded.Security,
-                    title = "Access and network",
-                    subtitle = buildAccessSummary(uiState),
-                    value = accessValue(uiState),
+                    title = stringResource(R.string.settings_access_title),
+                    subtitle = buildAccessSummary(uiState, context),
+                    value = accessValue(uiState, context),
                     onClick = onOpenAccess,
                 )
                 PreferenceDivider()
                 PreferenceRow(
                     icon = Icons.Rounded.Info,
-                    title = "About and support",
-                    subtitle = "Version details, links, updates center, developer pages, and preference reset actions.",
+                    title = stringResource(R.string.settings_about_title),
+                    subtitle = stringResource(R.string.settings_about_subtitle),
                     value = BuildConfig.VERSION_NAME,
                     onClick = onOpenAbout,
                 )
                 PreferenceDivider()
                 PreferenceRow(
                     icon = Icons.Rounded.Description,
-                    title = "App log reader",
-                    subtitle = "Read app.log inside the app, filter lines by failures, successes, or day, then copy, export, back up, or manage retention.",
+                    title = stringResource(R.string.settings_app_log_title),
+                    subtitle = stringResource(R.string.settings_app_log_subtitle),
                     onClick = onOpenAppLog,
                 )
             }
@@ -130,7 +134,7 @@ private fun LazyListScope.settingsMessages(
     if (!settingsInfoMessage.isNullOrBlank()) {
         item {
             InlineFeedbackCard(
-                label = "Settings",
+                label = stringResource(R.string.settings_feedback_label),
                 message = settingsInfoMessage,
                 isError = false,
             )
@@ -139,7 +143,7 @@ private fun LazyListScope.settingsMessages(
     if (!settingsErrorMessage.isNullOrBlank()) {
         item {
             InlineFeedbackCard(
-                label = "Settings",
+                label = stringResource(R.string.settings_feedback_label),
                 message = settingsErrorMessage,
                 isError = true,
             )
@@ -148,7 +152,7 @@ private fun LazyListScope.settingsMessages(
     if (!mediaInfoMessage.isNullOrBlank()) {
         item {
             InlineFeedbackCard(
-                label = "Library",
+                label = stringResource(R.string.settings_library_label),
                 message = mediaInfoMessage,
                 isError = false,
                 onDismiss = onDismissMediaLibraryMessage,
@@ -158,7 +162,7 @@ private fun LazyListScope.settingsMessages(
     if (!mediaErrorMessage.isNullOrBlank()) {
         item {
             InlineFeedbackCard(
-                label = "Library",
+                label = stringResource(R.string.settings_library_label),
                 message = mediaErrorMessage,
                 isError = true,
                 onDismiss = onDismissMediaLibraryMessage,
@@ -167,28 +171,33 @@ private fun LazyListScope.settingsMessages(
     }
 }
 
-private fun buildAccessSummary(uiState: FormatUiState): String {
+private fun buildAccessSummary(uiState: FormatUiState, context: android.content.Context): String {
+    val resources = context.resources
     val networkSummary = if (uiState.allowMeteredDownloads) {
-        "Cellular downloads are allowed."
+        resources.getString(R.string.settings_access_summary_cellular)
     } else {
-        "Downloads wait for Wi-Fi."
+        resources.getString(R.string.settings_access_summary_wifi)
     }
     val cookieSummary = if (uiState.cookieProfiles.isEmpty()) {
-        "No site sessions saved yet."
+        resources.getString(R.string.settings_access_summary_no_cookies)
     } else {
-        "${uiState.cookieProfiles.size} saved site session${if (uiState.cookieProfiles.size == 1) "" else "s"} ready to reuse."
+        resources.getQuantityString(
+            R.plurals.settings_access_summary_cookie_count,
+            uiState.cookieProfiles.size,
+            uiState.cookieProfiles.size,
+        )
     }
     val youtubeSummary = if (uiState.youtubeAuthConfig.isConfigured()) {
-        "YouTube access is configured for tougher retries."
+        resources.getString(R.string.settings_access_summary_youtube_configured)
     } else {
-        "YouTube access is not configured yet."
+        resources.getString(R.string.settings_access_summary_youtube_missing)
     }
     return "$networkSummary $cookieSummary $youtubeSummary"
 }
 
-private fun accessValue(uiState: FormatUiState): String {
+private fun accessValue(uiState: FormatUiState, context: android.content.Context): String {
     return when {
-        uiState.allowMeteredDownloads -> "Cellular allowed"
-        else -> "Wi-Fi only"
+        uiState.allowMeteredDownloads -> context.getString(R.string.settings_access_value_cellular)
+        else -> context.getString(R.string.settings_access_value_wifi)
     }
 }

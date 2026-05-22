@@ -2,135 +2,176 @@
 
 ## Version Scope
 
-- Baseline feature release: `1.7.0`
-- Current maintenance line: `1.7.0.1`
-- Current feature branch work: onboarding, queue troubleshooting polish, smarter format estimates, and AGP 9 cleanup on top of `1.7.0.1`
+- current stable UI baseline: `1.7.2`
+- current engineering emphasis: reliability, runtime maintenance, translation
+  quality, and internal logic hardening
+
+This document is meant to describe what the app is doing now, not an older
+mid-transition snapshot.
 
 ---
 
-## 1. In-App YouTube Access Implementation
+## 1. Download Flow
 
-The project no longer uses the removed desktop `youtube-auth-helper` flow.
+The primary download path is:
 
-Current implementation:
-
-1. The user opens the in-app YouTube access screen.
-2. A dedicated WebView loads `YoutubePoTokenGenerator.SAMPLE_VIDEO_URL`.
-3. The app reads `VISITOR_DATA` and `DATASYNC_ID` from the active YouTube page.
-4. `WebViewCookieExporter` exports the matching YouTube and Google cookies from the app WebView session.
-5. `YoutubePoTokenGenerator` runs the BotGuard flow locally and produces:
-   - GVS token
-   - player token
-   - subtitle token
-6. `FormatViewModel` stores the generated `YoutubeAuthConfig` together with the exported cookie text so later download requests can reuse it.
-
-Important points:
-
-- auth data is generated on-device
-- the login session, cookies, and PO tokens come from the same WebView flow
-- the Android app does not depend on Node.js, Playwright, or any desktop handoff
-- current BotGuard constants are documented as mirrored from LibreTube for future maintenance tracking
+1. User pastes or shares a URL into Home / Browse.
+2. `FormatViewModel` requests analysis.
+3. `FormatExtractor` runs `yt-dlp -J ...` locally.
+4. The app builds a format-selection sheet from the returned media data.
+5. The user confirms output format, naming, playlist behavior, and optional
+   metadata/subtitle settings.
+6. The repository schedules work through WorkManager.
+7. `DownloadWorker` calls `DownloadEngine`.
+8. `DownloadEngine` invokes `yt-dlp` locally and coordinates FFmpeg when
+   post-processing is needed.
+9. The queue, history, and downloads surfaces are updated from task state and
+   saved output data.
 
 Relevant files:
 
-- `app/src/main/java/com/localdownloader/ui/screens/YoutubeAuthScreen.kt`
-- `app/src/main/java/com/localdownloader/utils/WebViewCookieExporter.kt`
-- `app/src/main/java/com/localdownloader/utils/YoutubePoTokenGenerator.kt`
 - `app/src/main/java/com/localdownloader/viewmodel/FormatViewModel.kt`
+- `app/src/main/java/com/localdownloader/downloader/FormatExtractor.kt`
+- `app/src/main/java/com/localdownloader/downloader/DownloadEngine.kt`
+- `app/src/main/java/com/localdownloader/worker/DownloadWorker.kt`
 
 ---
 
-## 2. Update System Implementation
+## 2. Runtime Resolution
 
-The app now has a dedicated update subsystem for:
+### yt-dlp
 
-- app APK updates
+The app uses the embedded `youtubedl-android` runtime and can replace that
+runtime through the Updates flow.
+
+### FFmpeg
+
+FFmpeg resolution now follows a layered path:
+
+1. managed overlay package downloaded by the app
+2. embedded runtime package when present
+3. bundled `libffmpeg_exec.so`
+4. copied executable fallback from assets
+
+This layered strategy is important because device/runtime behavior is not
+perfectly uniform across Android versions and ABI layouts.
+
+Relevant files:
+
+- `app/src/main/java/com/localdownloader/downloader/BinaryInstaller.kt`
+- `app/src/main/java/com/localdownloader/downloader/YtDlpExecutor.kt`
+- `app/src/main/java/com/localdownloader/ffmpeg/FfmpegExecutor.kt`
+
+---
+
+## 3. Queue And Download State
+
+The app currently treats queue state as a product-level feature, not a simple
+"fire and forget" worker wrapper.
+
+Current queue implementation includes:
+
+- active/scheduled/paused/done/error/canceled views
+- concurrency controls
+- retry and cancellation actions
+- per-task logs and diagnostics
+- playlist item stability improvements
+- guard rails around runtime updates while tasks are active
+
+Relevant files:
+
+- `app/src/main/java/com/localdownloader/data/DownloadTaskStore.kt`
+- `app/src/main/java/com/localdownloader/data/DownloadRepositoryImpl.kt`
+- `app/src/main/java/com/localdownloader/ui/screens/ProgressScreen.kt`
+- `app/src/main/java/com/localdownloader/ui/screens/DownloadHistoryScreen.kt`
+
+---
+
+## 4. Cookies And YouTube Access
+
+The repository no longer depends on the removed desktop helper path.
+
+Current in-app approach:
+
+1. user saves site cookies through the Cookies screen or targeted capture flows
+2. YouTube access uses an in-app WebView-based login/generation path
+3. the app exports matching cookie/session information locally
+4. generated YouTube access data is reused in later recovery-prone requests
+
+This implementation should still be treated as best-effort because upstream
+YouTube and BotGuard behavior can change without notice.
+
+Relevant files:
+
+- `app/src/main/java/com/localdownloader/ui/screens/CookiesScreen.kt`
+- `app/src/main/java/com/localdownloader/ui/screens/YoutubeAuthScreen.kt`
+- `app/src/main/java/com/localdownloader/utils/WebViewCookieExporter.kt`
+- `app/src/main/java/com/localdownloader/utils/YoutubePoTokenGenerator.kt`
+
+---
+
+## 5. Update System
+
+The app includes a dedicated update subsystem for:
+
+- app release checks
 - `yt-dlp` runtime updates
 - FFmpeg runtime updates
 
 Main pieces:
 
 - `updates/GitHubReleaseClient.kt`
-  Fetches GitHub release metadata and downloads assets.
 - `updates/AppUpdateManager.kt`
-  Chooses the best APK asset for the device ABI and prepares installs.
 - `updates/YtDlpUpdateManager.kt`
-  Installs `yt-dlp` runtime updates from the selected channel.
 - `updates/FfmpegUpdateManager.kt`
-  Handles FFmpeg overlay and runtime replacement.
 - `viewmodel/UpdatesViewModel.kt`
-  Keeps Updates screen state and user actions together.
-- `worker/YtDlpUpdateScheduler.kt` and `worker/YtDlpUpdateWorker.kt`
-  Run background `yt-dlp` maintenance with retry and defer handling.
+- `worker/YtDlpUpdateScheduler.kt`
+- `worker/YtDlpUpdateWorker.kt`
 
-The project `CHANGELOG.md` is copied into app assets through `syncBundledChangelog`, which lets the app show release notes in the Updates flow.
-
----
-
-## 3. Build And CI Implementation
-
-Current build state:
-
-- AGP `9.2.1`
-- Kotlin `2.3.21`
-- Compose Gradle plugin enabled
-- KSP-based annotation processing for Hilt, Hilt Work, and Room
-- `compileSdk = 36`
-- `targetSdk = 35`
-- Java and Kotlin target = `17`
-
-Recent compatibility work:
-
-- GitHub Actions updated to newer action major versions
-- CI Gradle version moved to `9.4.1`
-- `compileSdk` raised to `36` for the newer AndroidX stack
-- Hilt Gradle plugin transform dependency removed
-- `DownloaderApplication`, `MainActivity`, and `AudioPlaybackService` now use the explicit generated-base-class pattern for Hilt compatibility on AGP 9
-- temporary AGP bridge flags removed after switching the project off `kapt`
-- generated changelog asset wiring moved off the older deprecated source-set call path
-
-Relevant files:
-
-- `build.gradle.kts`
-- `app/build.gradle.kts`
-- `.github/workflows/android-build.yml`
-- `.github/workflows/cleanup.yml`
-- `gradle.properties`
+Manual runtime installs are intentionally guarded when downloads are active so
+runtime replacement does not race against ongoing work.
 
 ---
 
-## 4. Security And Maintenance Surface
+## 6. Localization
 
-Repository-level maintenance additions now include:
+The app now uses Android string resources as the real localization foundation.
 
-- `SECURITY.md` for vulnerability reporting guidance
-- `.github/dependabot.yml` for Gradle and GitHub Actions update monitoring
-- code comments and development notes that document where the current BotGuard constants came from
+That means new languages are no longer a screen-by-screen code rewrite. The
+normal path is:
 
-The old npm and Playwright helper was removed, so the repo no longer needs an npm maintenance track just to support YouTube auth.
+1. add locale resources
+2. expose the locale in the language catalog
+3. keep placeholders and plural blocks aligned
 
----
-
-## 5. Temporary Compatibility Layer
-
-The earlier AGP 9 migration bridge flags have now been removed:
-
-- `android.builtInKotlin=false`
-- `android.newDsl=false`
-- `android.sourceset.disallowProvider=false`
-- `android.enableJetifier=true`
-
-What remains now is normal follow-up cleanup rather than a forced bridge layer:
-
-- validate the KSP-based AGP 9 build on a machine with a configured Android SDK
-- clean the remaining native `*.zip.so` strip warnings in CI
-- keep Hilt / Room processor versions aligned with future Kotlin and AGP updates
+The App log reader intentionally remains mostly untranslated in content because
+raw logs should stay readable and faithful to the original runtime output.
 
 ---
 
-## 6. Known Follow-Up Work
+## 7. Stable UI Baseline
 
-1. Expand automated coverage around update flows, auth persistence, playlist queue handling, and media-tool validation.
-2. Clean CI warnings related to native `*.zip.so` stripping.
-3. Validate the post-kapt AGP 9 setup on a fully configured Android SDK environment.
-4. Keep release docs aligned with the in-app onboarding, queue recovery, and in-app-only YouTube access implementation.
+The current beta line treats the following as stable surfaces:
+
+- Home / Browse
+- Downloads
+- More
+- queue/history
+- settings hub and settings subpages
+- access tools
+- help and updates pages
+
+Future changes can still improve these screens, but large structural resets are
+not the expected default path right now.
+
+---
+
+## 8. Remaining Practical Engineering Work
+
+The highest-value future work is not a broad feature scramble. It is:
+
+1. stronger download/runtime regression handling
+2. more tests around queue and update flows
+3. translation refinement
+4. CI warning cleanup
+5. ongoing documentation accuracy

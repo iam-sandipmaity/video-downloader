@@ -3,6 +3,7 @@ package com.localdownloader.ui.screens
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutLinearInEasing
@@ -70,11 +71,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
+import com.localdownloader.R
 import com.localdownloader.audio.AudioPlaybackState
 import com.localdownloader.domain.models.DownloadStatus
 import com.localdownloader.ui.components.LocalVideoThumbnail
@@ -162,16 +166,22 @@ fun DownloadsScreen(
             it.status == DownloadStatus.PAUSED
     }
     val hasActiveDownloads = activeDownloadsCount > 0
+    val downloadsTitle = stringResource(R.string.downloads_title)
+    val selectedTitle = pluralStringResource(
+        R.plurals.downloads_selected_count_title,
+        selectedTaskIds.size,
+        selectedTaskIds.size,
+    )
 
     if (renameTarget != null) {
         AlertDialog(
             onDismissRequest = { renameTarget = null },
-            title = { Text("Rename file") },
+            title = { Text(stringResource(R.string.downloads_rename_file)) },
             text = {
                 OutlinedTextField(
                     value = renameValue,
                     onValueChange = { renameValue = it },
-                    label = { Text("New name") },
+                    label = { Text(stringResource(R.string.downloads_new_name)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -183,10 +193,10 @@ fun DownloadsScreen(
                         renameTarget = null
                     },
                     enabled = renameValue.isNotBlank(),
-                ) { Text("Save") }
+                ) { Text(stringResource(R.string.common_save)) }
             },
             dismissButton = {
-                TextButton(onClick = { renameTarget = null }) { Text("Cancel") }
+                TextButton(onClick = { renameTarget = null }) { Text(stringResource(R.string.common_cancel)) }
             },
         )
     }
@@ -194,14 +204,16 @@ fun DownloadsScreen(
     if (deleteTarget != null) {
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
-            title = { Text("Delete file") },
+            title = { Text(stringResource(R.string.downloads_delete_file)) },
             text = {
                 Text(
-                    if (uiState.deleteFromStorageWhenRemovedInApp) {
-                        "This removes the saved media item from the library and deletes the device file when it still exists."
-                    } else {
-                        "This removes the saved media item from the app library but leaves the real device file untouched."
-                    },
+                    stringResource(
+                        if (uiState.deleteFromStorageWhenRemovedInApp) {
+                            R.string.downloads_delete_file_and_storage
+                        } else {
+                            R.string.downloads_delete_file_only_app
+                        },
+                    ),
                 )
             },
             confirmButton = {
@@ -210,10 +222,10 @@ fun DownloadsScreen(
                         deleteTarget?.let { onDelete(it.task.id) }
                         deleteTarget = null
                     },
-                ) { Text("Delete") }
+                ) { Text(stringResource(R.string.common_delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { deleteTarget = null }) { Text("Cancel") }
+                TextButton(onClick = { deleteTarget = null }) { Text(stringResource(R.string.common_cancel)) }
             },
         )
     }
@@ -223,15 +235,23 @@ fun DownloadsScreen(
         val selectedCount = selectedTaskIds.size
         AlertDialog(
             onDismissRequest = { selectionAction = null },
-            title = { Text(action.title) },
+            title = { Text(stringResource(action.titleRes)) },
             text = {
                 Text(
                     when (action) {
                         SelectedDownloadsAction.REMOVE_FROM_APP -> {
-                            "Remove $selectedCount selected item(s) from the app library and keep the real device files untouched?"
+                            pluralStringResource(
+                                R.plurals.downloads_remove_selected_body,
+                                selectedCount,
+                                selectedCount,
+                            )
                         }
                         SelectedDownloadsAction.PERMANENT_DELETE -> {
-                            "Permanently delete $selectedCount selected item(s) from both the app and device storage?"
+                            pluralStringResource(
+                                R.plurals.downloads_delete_selected_body,
+                                selectedCount,
+                                selectedCount,
+                            )
                         }
                     },
                 )
@@ -253,10 +273,10 @@ fun DownloadsScreen(
                         selectedTaskIds = emptyList()
                     },
                     enabled = selectedTaskIds.isNotEmpty(),
-                ) { Text(action.confirmLabel) }
+                ) { Text(stringResource(action.confirmLabelRes)) }
             },
             dismissButton = {
-                TextButton(onClick = { selectionAction = null }) { Text("Cancel") }
+                TextButton(onClick = { selectionAction = null }) { Text(stringResource(R.string.common_cancel)) }
             },
         )
     }
@@ -265,8 +285,8 @@ fun DownloadsScreen(
         val action = bulkAction!!
         AlertDialog(
             onDismissRequest = { bulkAction = null },
-            title = { Text(action.title) },
-            text = { Text(action.body) },
+            title = { Text(stringResource(action.titleRes)) },
+            text = { Text(stringResource(action.bodyRes)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -276,10 +296,10 @@ fun DownloadsScreen(
                         }
                         bulkAction = null
                     },
-                ) { Text(action.confirmLabel) }
+                ) { Text(stringResource(action.confirmLabelRes)) }
             },
             dismissButton = {
-                TextButton(onClick = { bulkAction = null }) { Text("Cancel") }
+                TextButton(onClick = { bulkAction = null }) { Text(stringResource(R.string.common_cancel)) }
             },
         )
     }
@@ -310,9 +330,9 @@ fun DownloadsScreen(
             ) {
                 Text(
                     text = if (selectionMode) {
-                        "${selectedTaskIds.size} selected"
+                        selectedTitle
                     } else {
-                        "Downloads"
+                        downloadsTitle
                     },
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.SemiBold,
@@ -321,16 +341,20 @@ fun DownloadsScreen(
                 Text(
                     text = when {
                         selectionMode -> {
-                            "Pick saved files to share them, remove them from the app, or permanently delete them."
+                            stringResource(R.string.downloads_selection_help)
                         }
                         items.isNotEmpty() -> {
-                            "${items.size} saved ${if (items.size == 1) "item" else "items"} ready to open"
+                            pluralStringResource(R.plurals.downloads_saved_ready, items.size, items.size)
                         }
                         hasActiveDownloads -> {
-                            "$activeDownloadsCount download${if (activeDownloadsCount == 1) " is" else "s are"} in progress. Finished items will appear here automatically."
+                            pluralStringResource(
+                                R.plurals.downloads_active_in_progress,
+                                activeDownloadsCount,
+                                activeDownloadsCount,
+                            )
                         }
                         else -> {
-                            "Completed downloads show up here once they are saved."
+                            stringResource(R.string.downloads_empty_help)
                         }
                     },
                     style = MaterialTheme.typography.bodySmall,
@@ -354,7 +378,7 @@ fun DownloadsScreen(
                     ) {
                         Icon(
                             Icons.Default.MoreVert,
-                            contentDescription = "Open bulk actions",
+                            contentDescription = stringResource(R.string.downloads_open_bulk_actions),
                             tint = MaterialTheme.colorScheme.onBackground.copy(
                                 alpha = if (items.isNotEmpty()) 1f else 0.38f,
                             ),
@@ -365,7 +389,17 @@ fun DownloadsScreen(
                         onDismissRequest = { showHeaderMenu = false },
                     ) {
                         androidx.compose.material3.DropdownMenuItem(
-                            text = { Text(if (selectionMode) "Done selecting" else "Select") },
+                            text = {
+                                Text(
+                                    stringResource(
+                                        if (selectionMode) {
+                                            R.string.downloads_done_selecting
+                                        } else {
+                                            R.string.common_select
+                                        },
+                                    ),
+                                )
+                            },
                             leadingIcon = {
                                 Icon(
                                     if (selectionMode) {
@@ -386,7 +420,7 @@ fun DownloadsScreen(
                         )
                         if (!selectionMode) {
                             androidx.compose.material3.DropdownMenuItem(
-                                text = { Text("Remove from app") },
+                                text = { Text(stringResource(R.string.downloads_remove_from_app)) },
                                 leadingIcon = {
                                     Icon(Icons.Outlined.DeleteOutline, contentDescription = null)
                                 },
@@ -396,7 +430,7 @@ fun DownloadsScreen(
                                 },
                             )
                             androidx.compose.material3.DropdownMenuItem(
-                                text = { Text("Permanent delete") },
+                                text = { Text(stringResource(R.string.downloads_permanent_delete)) },
                                 leadingIcon = {
                                     Icon(Icons.Outlined.DeleteForever, contentDescription = null)
                                 },
@@ -419,7 +453,17 @@ fun DownloadsScreen(
                 FilterChip(
                     selected = sortNewestFirst,
                     onClick = { sortNewestFirst = !sortNewestFirst },
-                    label = { Text(if (sortNewestFirst) "Newest first" else "Oldest first") },
+                    label = {
+                        Text(
+                            stringResource(
+                                if (sortNewestFirst) {
+                                    R.string.downloads_newest_first
+                                } else {
+                                    R.string.downloads_oldest_first
+                                },
+                            ),
+                        )
+                    },
                 )
                 DownloadsFilter.entries.filter { it != DownloadsFilter.All }.forEach { filter ->
                     FilterChip(
@@ -431,7 +475,7 @@ fun DownloadsScreen(
                                 filter.name
                             }
                         },
-                        label = { Text(filter.label) },
+                        label = { Text(stringResource(filter.labelRes)) },
                     )
                 }
             }
@@ -455,9 +499,13 @@ fun DownloadsScreen(
                 ) {
                     Text(
                         text = if (selectedTaskIds.isEmpty()) {
-                            "Select files to unlock batch actions."
+                            stringResource(R.string.downloads_select_files_to_unlock)
                         } else {
-                            "${selectedTaskIds.size} file${if (selectedTaskIds.size == 1) "" else "s"} selected"
+                            pluralStringResource(
+                                R.plurals.downloads_selected_files_count,
+                                selectedTaskIds.size,
+                                selectedTaskIds.size,
+                            )
                         },
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.onSurface,
@@ -475,13 +523,23 @@ fun DownloadsScreen(
                                     (selectedTaskIds + visibleItemIds).distinct()
                                 }
                             },
-                            label = { Text(if (allVisibleSelected) "Clear visible" else "Select visible") },
+                            label = {
+                                Text(
+                                    stringResource(
+                                        if (allVisibleSelected) {
+                                            R.string.downloads_clear_visible
+                                        } else {
+                                            R.string.downloads_select_visible
+                                        },
+                                    ),
+                                )
+                            },
                         )
                         TextButton(
                             onClick = { selectedTaskIds = emptyList() },
                             enabled = selectedTaskIds.isNotEmpty(),
                         ) {
-                            Text("Clear")
+                            Text(stringResource(R.string.common_clear))
                         }
                         FilledTonalButton(
                             onClick = { shareDownloadedFiles(context, selectedShareableItems) },
@@ -489,7 +547,7 @@ fun DownloadsScreen(
                         ) {
                             Icon(Icons.Outlined.Share, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
-                            Text("Share")
+                            Text(stringResource(R.string.common_share))
                         }
                         FilledTonalButton(
                             onClick = { selectionAction = SelectedDownloadsAction.REMOVE_FROM_APP },
@@ -497,7 +555,7 @@ fun DownloadsScreen(
                         ) {
                             Icon(Icons.Outlined.DeleteOutline, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
-                            Text("Remove from app")
+                            Text(stringResource(R.string.downloads_remove_from_app))
                         }
                         FilledTonalButton(
                             onClick = { selectionAction = SelectedDownloadsAction.PERMANENT_DELETE },
@@ -505,7 +563,7 @@ fun DownloadsScreen(
                         ) {
                             Icon(Icons.Outlined.DeleteForever, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
-                            Text("Delete forever")
+                            Text(stringResource(R.string.downloads_delete_forever))
                         }
                     }
                 }
@@ -579,16 +637,17 @@ fun DownloadsScreen(
                     text = when (currentFilter) {
                         DownloadsFilter.All -> {
                             if (hasActiveDownloads) {
-                                "Downloads are still running. Completed files will show up here automatically."
+                                stringResource(R.string.downloads_running_empty_all)
                             } else {
-                                "No downloads yet. Finish one from Home and it will show up here automatically."
+                                stringResource(R.string.downloads_empty_all)
                             }
                         }
                         else -> {
+                            val filterLabel = stringResource(currentFilter.labelRes).lowercase()
                             if (hasActiveDownloads) {
-                                "No ${currentFilter.label.lowercase()} files are finished yet. Your active downloads are still moving through the queue."
+                                stringResource(R.string.downloads_no_finished_for_filter, filterLabel)
                             } else {
-                                "No ${currentFilter.label.lowercase()} downloads yet. Finish one from Home and it will show up here automatically."
+                                stringResource(R.string.downloads_no_saved_for_filter, filterLabel)
                             }
                         }
                     },
@@ -670,8 +729,12 @@ private fun MusicLaunchButton(
         Spacer(Modifier.width(8.dp))
         Text(
             currentTitle?.let {
-                if (isPlaying) "Open music player" else "Resume music player"
-            } ?: "Play music ($trackCount)",
+                if (isPlaying) {
+                    stringResource(R.string.downloads_open_music_player)
+                } else {
+                    stringResource(R.string.downloads_resume_music_player)
+                }
+            } ?: pluralStringResource(R.plurals.downloads_play_music_count, trackCount, trackCount),
         )
     }
 }
@@ -698,7 +761,7 @@ private fun MessageBanner(
                 modifier = Modifier.weight(1f),
                 color = textColor,
             )
-            TextButton(onClick = onDismiss) { Text("Close") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_close)) }
         }
     }
 }
@@ -750,7 +813,7 @@ private fun QueueActionButton(
             Box(contentAlignment = Alignment.TopEnd) {
                 Icon(
                     imageVector = Icons.Outlined.CloudDownload,
-                    contentDescription = "Open download queue",
+                    contentDescription = stringResource(R.string.downloads_open_download_queue),
                     tint = if (isActive) {
                         MaterialTheme.colorScheme.onPrimaryContainer
                     } else {
@@ -782,7 +845,7 @@ private fun QueueActionButton(
                 }
             }
             Text(
-                text = "Queue",
+                text = stringResource(R.string.downloads_queue),
                 style = MaterialTheme.typography.labelMedium,
                 color = if (isActive) {
                     MaterialTheme.colorScheme.onPrimaryContainer
@@ -881,9 +944,9 @@ private fun DownloadHeroCard(
                                     Icons.Outlined.RadioButtonUnchecked
                                 },
                                 contentDescription = if (isSelected) {
-                                    "Deselect download"
+                                    stringResource(R.string.downloads_deselect_item)
                                 } else {
-                                    "Select download"
+                                    stringResource(R.string.downloads_select_item)
                                 },
                                 tint = Color.White,
                             )
@@ -893,7 +956,7 @@ private fun DownloadHeroCard(
                             IconButton(onClick = { showMenu = true }) {
                                 Icon(
                                     Icons.Default.MoreVert,
-                                    contentDescription = "Download actions",
+                                    contentDescription = stringResource(R.string.downloads_actions),
                                     tint = Color.White,
                                 )
                             }
@@ -906,9 +969,9 @@ private fun DownloadHeroCard(
                                         text = {
                                             Text(
                                                 when {
-                                                    item.mediaKind == MediaKind.AUDIO && isPlayingNow -> "Open music player"
-                                                    item.mediaKind == MediaKind.AUDIO -> "Play in music player"
-                                                    else -> "Play"
+                                                    item.mediaKind == MediaKind.AUDIO && isPlayingNow -> stringResource(R.string.downloads_open_music_player)
+                                                    item.mediaKind == MediaKind.AUDIO -> stringResource(R.string.downloads_play_in_music_player)
+                                                    else -> stringResource(R.string.downloads_play)
                                                 },
                                             )
                                         },
@@ -930,7 +993,7 @@ private fun DownloadHeroCard(
                                 }
                                 if (item.exists) {
                                     androidx.compose.material3.DropdownMenuItem(
-                                        text = { Text("Share") },
+                                        text = { Text(stringResource(R.string.common_share)) },
                                         leadingIcon = { Icon(Icons.Outlined.Share, contentDescription = null) },
                                         onClick = {
                                             showMenu = false
@@ -938,7 +1001,7 @@ private fun DownloadHeroCard(
                                         },
                                     )
                                     androidx.compose.material3.DropdownMenuItem(
-                                        text = { Text("Rename") },
+                                        text = { Text(stringResource(R.string.common_rename)) },
                                         leadingIcon = {
                                             Icon(Icons.Outlined.DriveFileRenameOutline, contentDescription = null)
                                         },
@@ -949,7 +1012,17 @@ private fun DownloadHeroCard(
                                     )
                                 }
                                 androidx.compose.material3.DropdownMenuItem(
-                                    text = { Text(if (item.exists) "Delete" else "Remove entry") },
+                                    text = {
+                                        Text(
+                                            stringResource(
+                                                if (item.exists) {
+                                                    R.string.common_delete
+                                                } else {
+                                                    R.string.downloads_remove_entry
+                                                },
+                                            ),
+                                        )
+                                    },
                                     leadingIcon = {
                                         Icon(Icons.Outlined.DeleteOutline, contentDescription = null)
                                     },
@@ -981,11 +1054,11 @@ private fun DownloadHeroCard(
                         ) {
                             Text(
                                 text = when {
-                                    selectionMode && isSelected -> "Selected"
-                                    selectionMode -> "Tap to select"
-                                    !item.exists -> "File unavailable"
-                                    isPlayingNow -> "Playing now"
-                                    else -> item.mediaKind.label
+                                    selectionMode && isSelected -> stringResource(R.string.downloads_selected_chip)
+                                    selectionMode -> stringResource(R.string.downloads_tap_to_select)
+                                    !item.exists -> stringResource(R.string.downloads_file_unavailable)
+                                    isPlayingNow -> stringResource(R.string.downloads_playing_now)
+                                    else -> localizedMediaKindLabel(item.mediaKind)
                                 },
                                 modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
                                 style = MaterialTheme.typography.labelMedium,
@@ -1019,9 +1092,13 @@ private fun DownloadHeroCard(
                                     Icons.Outlined.PlayCircle
                                 },
                                 contentDescription = if (selectionMode) {
-                                    if (isSelected) "Deselect download" else "Select download"
+                                    if (isSelected) {
+                                        stringResource(R.string.downloads_deselect_item)
+                                    } else {
+                                        stringResource(R.string.downloads_select_item)
+                                    }
                                 } else {
-                                    "Open media"
+                                    stringResource(R.string.downloads_open_media)
                                 },
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                 modifier = Modifier.size(24.dp),
@@ -1034,6 +1111,18 @@ private fun DownloadHeroCard(
     }
 }
 
+@Composable
+private fun localizedMediaKindLabel(kind: MediaKind): String {
+    return stringResource(
+        when (kind) {
+            MediaKind.VIDEO -> R.string.downloads_filter_video
+            MediaKind.AUDIO -> R.string.downloads_filter_audio
+            MediaKind.OTHER -> R.string.downloads_filter_other
+        },
+    )
+}
+
+@Composable
 private fun buildDownloadMetaLine(
     item: VideoLibraryItem,
     formatLabel: String?,
@@ -1053,12 +1142,13 @@ private fun compactDownloadQualityLabel(value: String?): String? {
     return raw.substringBefore(" ").substringBefore("(").trim().ifBlank { null }
 }
 
+@Composable
 private fun formatDownloadRelativeDate(epochMs: Long): String {
     val today = LocalDate.now()
     val itemDate = Instant.ofEpochMilli(epochMs).atZone(ZoneId.systemDefault()).toLocalDate()
     return when (ChronoUnit.DAYS.between(itemDate, today)) {
-        0L -> "today"
-        1L -> "yesterday"
+        0L -> stringResource(R.string.downloads_today)
+        1L -> stringResource(R.string.downloads_yesterday)
         else -> formatMediaDate(epochMs)
     }
 }
@@ -1092,14 +1182,14 @@ private fun shareDownloadedFiles(context: Context, items: List<VideoLibraryItem>
         }
     }
 
-    context.startActivity(Intent.createChooser(shareIntent, "Share media"))
+    context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.downloads_share_media)))
 }
 
-private enum class DownloadsFilter(val label: String) {
-    All("All"),
-    Audio("Audio"),
-    Video("Video"),
-    Other("Other");
+private enum class DownloadsFilter(@StringRes val labelRes: Int) {
+    All(R.string.downloads_filter_all),
+    Audio(R.string.downloads_filter_audio),
+    Video(R.string.downloads_filter_video),
+    Other(R.string.downloads_filter_other);
 
     fun matches(kind: MediaKind): Boolean {
         return when (this) {
@@ -1112,32 +1202,32 @@ private enum class DownloadsFilter(val label: String) {
 }
 
 private enum class DownloadsBulkAction(
-    val title: String,
-    val body: String,
-    val confirmLabel: String,
+    @StringRes val titleRes: Int,
+    @StringRes val bodyRes: Int,
+    @StringRes val confirmLabelRes: Int,
 ) {
     REMOVE_FROM_APP(
-        title = "Remove completed items from app",
-        body = "This removes completed items from the app list and keeps the real device files untouched.",
-        confirmLabel = "Remove from app",
+        titleRes = R.string.downloads_remove_completed_title,
+        bodyRes = R.string.downloads_remove_completed_body,
+        confirmLabelRes = R.string.downloads_remove_from_app,
     ),
     PERMANENT_DELETE(
-        title = "Permanently delete completed files",
-        body = "This removes completed items from the app and deletes the real device files from storage too.",
-        confirmLabel = "Delete forever",
+        titleRes = R.string.downloads_delete_completed_title,
+        bodyRes = R.string.downloads_delete_completed_body,
+        confirmLabelRes = R.string.downloads_delete_forever,
     ),
 }
 
 private enum class SelectedDownloadsAction(
-    val title: String,
-    val confirmLabel: String,
+    @StringRes val titleRes: Int,
+    @StringRes val confirmLabelRes: Int,
 ) {
     REMOVE_FROM_APP(
-        title = "Remove selected items from app",
-        confirmLabel = "Remove from app",
+        titleRes = R.string.downloads_remove_selected_items_title,
+        confirmLabelRes = R.string.downloads_remove_selected_items_confirm,
     ),
     PERMANENT_DELETE(
-        title = "Permanently delete selected files",
-        confirmLabel = "Delete forever",
+        titleRes = R.string.downloads_delete_selected_items_title,
+        confirmLabelRes = R.string.downloads_delete_selected_items_confirm,
     ),
 }

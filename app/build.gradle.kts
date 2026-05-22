@@ -105,7 +105,6 @@ android {
         }
         debug {
             applicationIdSuffix = ".debug"
-            versionNameSuffix = "-debug"
             if (hasInternalDebugSigning) {
                 signingConfig = signingConfigs.getByName("internalDebugStable")
             }

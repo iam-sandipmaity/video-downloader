@@ -1,10 +1,11 @@
-# Project Audit Report: Video Downloader (Android)
+# Project Audit Report: Video Downloader
 
 ## Audit Scope
 
-- Audit date: 2026-05-20
-- Current app version in `gradle.properties`: `1.7.0.1`
-- Focus: repo state after `1.7.0`, build and CI migration, in-app YouTube access, queue recovery UX, and current maintenance risks
+- audit date: 2026-05-22
+- current app version in `gradle.properties`: `1.7.2`
+- focus: current stable-beta repo posture, runtime maintenance surface,
+  documentation maturity, and remaining engineering risk
 
 ---
 
@@ -14,130 +15,148 @@ Video Downloader is now a local-first Android app built around:
 
 - Jetpack Compose UI
 - Hilt-based dependency injection
-- KSP-based annotation processing
-- Room persistence plus DataStore-backed settings
-- `youtubedl-android` runtime plus FFmpeg integration
-- in-app YouTube cookie capture and PO-token generation
-- app / `yt-dlp` / FFmpeg update management from a dedicated Updates flow
-- first-run setup guidance plus in-queue troubleshooting shortcuts
+- Room plus DataStore persistence
+- WorkManager-managed background downloads
+- embedded `youtubedl-android` runtime
+- packaged and managed FFmpeg runtime paths
+- in-app Cookies and YouTube access recovery
+- an in-app Updates center for app, `yt-dlp`, and FFmpeg maintenance
+- multi-language UI resource coverage across the currently supported locale set
 
-The biggest architectural correction since the older audit is that the project no longer depends on a desktop auth handoff. The removed `tools/youtube-auth-helper` path has been replaced by an Android-native flow using `YoutubeAuthScreen`, `WebViewCookieExporter`, and `YoutubePoTokenGenerator`.
-
----
-
-## Post-1.7.0 Change Summary
-
-The repo picked up 6 maintenance commits after `1.7.0`, then a feature branch focused on download UX and AGP cleanup:
-
-1. Added security policy and maintenance docs
-2. Bumped the app to the `1.7.0.1` line
-3. Applied Dependabot-driven Android, Gradle, and GitHub Actions upgrades
-4. Raised `compileSdk` to `36` for the newer AndroidX dependency set
-5. Removed the old Hilt Gradle plugin transform dependency for AGP 9 compatibility
-6. Removed the unused desktop YouTube auth helper and its npm / Playwright maintenance surface
-
-Current branch-level upgrades on top of that:
-
-1. Added a two-step onboarding sheet for first-run cookie and YouTube access guidance
-2. Added queue-level recovery shortcuts and in-app log export / issue-report actions
-3. Refined queue cards with source branding and clearer retry affordances
-4. Added estimated format size fallback when exact yt-dlp size metadata is missing
-5. Migrated annotation processing from kapt to KSP and removed AGP 9 bridge flags
-
-This is now a mixed maintenance and product-polish line rather than a pure maintenance-only patch line.
+The product is no longer in a "find the basic shape" phase. The current app
+line already has a stable navigation model, stable primary screens, and a
+clearer settings/help/recovery surface.
 
 ---
 
-## What Is Stronger Now
+## What Is Strong Right Now
 
-### 1. YouTube access is self-contained in the app
+### 1. The app is operationally local-first
 
-- the app captures YouTube login state in its own WebView
-- cookies are exported locally through `WebViewCookieExporter`
-- PO tokens are generated on-device through `YoutubePoTokenGenerator`
-- no external Node.js or desktop browser tooling is required anymore
+- download analysis and execution stay on-device
+- runtime updates are managed from inside the app
+- cookies and YouTube access recovery are handled in-app
+- saved media is written into user-visible storage rather than hidden behind a
+  server handoff or cloud dependency
 
-### 2. Updates are now a real subsystem
+### 2. The UI is meaningfully consolidated
 
-- `GitHubReleaseClient`, `AppUpdateManager`, `YtDlpUpdateManager`, and `FfmpegUpdateManager` give the app a structured runtime-update path
-- `YtDlpUpdateScheduler` and `YtDlpUpdateWorker` allow `yt-dlp` maintenance without shipping a full APK for every extractor fix
-- the bundled changelog gives the update flow something useful to show in-app
+The current beta line has reached a stable user-facing shape:
 
-### 3. Build and CI are much more current
+- Home / Browse as the primary entry point
+- Downloads as the saved-media workspace
+- More as the access point to queue, history, settings, help, and tools
+- a consistent header and settings-page system
+- a more compact and reusable download-options overlay
 
-- root build now uses AGP `9.2.1` and Kotlin `2.3.21`
-- the app module moved to the Compose plugin path expected by Kotlin 2.x
-- GitHub Actions versions were refreshed and CI now uses Gradle `9.4.1`
-- `compileSdk` is now `36`, which matches the requirements of the upgraded AndroidX stack
+This matters because it lowers future maintenance cost. Internal logic can
+continue to evolve without forcing repeated UI pattern resets.
 
-### 4. Security and maintenance posture improved
+### 3. Runtime maintenance is now a real subsystem
 
-- `SECURITY.md` is now present at the repo root
-- Dependabot now tracks Gradle and GitHub Actions updates
-- BotGuard constant provenance is documented in code so future refreshes are easier to trace
+The project has structured update management for:
 
-### 5. Download troubleshooting is much more actionable
+- the app APK
+- `yt-dlp`
+- FFmpeg
 
-- first-run users now get a cleaner setup path instead of a passive reminder card
-- failed or stuck queue items now surface cookies, PO generation, log export, and issue reporting where users actually need them
-- queue cards identify known source sites visually, which makes mixed download lists easier to scan
+That is a major improvement over ad hoc runtime replacement paths.
 
-### 5. The repo is no longer test-free
+### 4. Support and recovery flows are much better than earlier lines
 
-There is still only light coverage, but the repo now has targeted unit tests for:
+The repo now supports:
 
-- `FormatSelectorBuilder`
-- `YoutubeRequestPlanner`
-- `YoutubeAuthConfig`
+- queue diagnostics and logs
+- in-app app-log viewing and export
+- cookies management
+- YouTube access regeneration
+- help and issue-report guidance that points users toward practical recovery
+
+### 5. Localization has become a real product feature
+
+The project is no longer English-only in structure. The resource system now
+supports:
+
+- English
+- Hindi
+- Bengali
+- Tamil
+- Telugu
+- Kannada
+- Malayalam
+- Korean
+- Japanese
+- Simplified Chinese
+
+This does not guarantee perfect translation quality everywhere forever, but the
+ app now has a maintainable locale structure instead of one-off hardcoded text.
 
 ---
 
 ## Active Risks And Technical Debt
 
-### 1. CI still has packaging warnings
+### 1. Runtime compatibility remains the highest practical risk
 
-Recent build logs still show non-fatal warnings around:
+The app depends on external websites, extractor behavior, and runtime tooling.
+That means the most likely future regressions are still:
 
-- stripping `libffmpeg.zip.so` and `libpython.zip.so`
+- site-specific download failures
+- extractor changes
+- FFmpeg runtime edge cases
+- authenticated YouTube recovery changes
 
-These are not release blockers today, but they reduce signal quality in CI.
+This is expected for the problem space and should remain the top maintenance
+priority.
 
-### 2. Build verification is environment-blocked locally
+### 2. CI still carries native-library warning noise
 
-The AGP cleanup is in better shape now, but this machine still has no Android SDK path configured. That means local verification currently stops at SDK detection instead of running the full Android compile.
+Current builds still emit non-fatal strip warnings around packaged
+`*.zip.so` runtime artifacts. They are not blocking release generation, but
+they reduce signal quality in CI output.
 
-### 3. The YouTube BotGuard path is operationally fragile
+### 3. The repo is healthier than before, but not test-heavy
 
-The current PO-token flow depends on:
+There is now better structure and more deliberate behavior, but automated
+coverage still does not fully match the complexity of:
 
-- BotGuard challenge endpoints
-- shared constants mirrored from LibreTube
-- WebView-readable YouTube configuration values
+- queue scheduling
+- runtime replacement
+- update flows
+- cookie/YouTube recovery
+- media conversion/compression edge cases
 
-That is workable, but it is not a stable contract. The app should continue to treat PO-token generation as a best-effort recovery path and fail gracefully when upstream changes land.
+### 4. Documentation used to lag the product
 
-### 4. Automated coverage is still narrow
-
-There is no visible `androidTest` source tree in the current snapshot, and unit coverage does not yet touch several higher-risk areas:
-
-- update-manager logic
-- auth persistence boundaries
-- onboarding visibility rules
-- queue recovery affordances
-- media-tool validation and recovery
-- runtime fallback behavior
+This refresh improves that significantly, but the repo should keep treating
+documentation drift as a real maintenance risk, especially after UI or runtime
+behavior changes.
 
 ---
 
-## Recommended Next Steps
+## Recommended Near-Term Direction
 
-1. Validate the post-kapt, KSP-based AGP 9 build on a fully configured Android SDK machine.
-2. Clean the remaining native-library packaging warnings from CI.
-3. Expand automated coverage around updates, onboarding visibility, queue recovery, and media-tool request validation.
-4. Keep release docs aligned with the onboarding sheet, queue recovery UX, and in-app-only YouTube access flow.
+1. Keep the current UI structure stable unless a real usability issue appears.
+2. Prioritize download/runtime compatibility fixes over new visual experiments.
+3. Expand automated coverage around queue scheduling, updates, and recovery
+   paths.
+4. Continue tightening translation quality where user-visible wording still
+   feels awkward.
+5. Reduce CI warning noise so future release blockers stand out more clearly.
 
 ---
 
 ## Conclusion
 
-The project is healthier than the older audit suggested. The biggest architectural mismatch is gone: YouTube auth is now an in-app workflow instead of a desktop-helper workflow, and the AGP 9 migration no longer relies on the older bridge flags. The remaining concerns are mostly CI hygiene, environment-specific verification, and limited automated coverage rather than broken core product architecture.
+The project is now in a much healthier place than a rapid-iteration beta app
+normally is at this stage. Its biggest strength is no longer just feature
+count; it is the combination of:
+
+- stable user-facing structure
+- local-first execution
+- practical maintenance tooling
+- growing localization support
+- clearer repository standards
+
+The next wave of work should be disciplined maintenance work: better reliability,
+better tests, clearer translations, and faster recovery from extractor/runtime
+breakage.

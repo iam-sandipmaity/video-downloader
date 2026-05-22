@@ -1,8 +1,6 @@
 # Changelog
 
-## [Unreleased]
-
-## [1.7.1.0-beta] - 2026-05-21
+## [1.7.2] - 2026-05-22
 
 ### Added
 - **Seal-style settings architecture** - replaced the one-page settings wall with a dedicated settings hub plus focused pages for Appearance, Download defaults, Folders and storage, Notifications, Access and network, and About and support
@@ -16,6 +14,7 @@
 - **Settings app-log reader** - added an in-app `App log reader` screen under Settings so internal `app.log` lines can be filtered by outcome or day, then copied or exported without leaving the app
 - **App-log backup controls** - the App log reader now includes device-backup controls, a manual `Back up now` action, and internal log-retention settings for keeping rotated history under control
 - **Analyzed link ready history** - Home can now keep analyzed links stacked as reusable ready cards, with a Download-defaults setting for persistence and retention days across app restarts
+- **Repository standards files** - added `LICENSE`, `CODE_OF_CONDUCT.md`, and `CONTRIBUTING.md` so the project now ships with clear licensing, contribution guidance, and collaboration expectations
 
 ### Changed
 - **Settings revamp** - rebuilt Settings around a lighter Seal-inspired preference flow with grouped sections, cleaner navigation, smoother page rhythm, and clearer summaries of each category before you tap in
@@ -29,12 +28,19 @@
 - **About and support credits** - refreshed the About page with the updated LinkedIn profile and a new credits section linking the app's open-source stack to their official sites or upstream repositories
 - **Pre-download filename editing** - single downloads now let people adjust the final file name right inside the format sheet while still defaulting to the source title when left unchanged
 - **Media default polish** - embedded thumbnails are now enabled by default so saved downloads keep their source artwork unless a user turns that off
+- **Localization rollout, phase 1** - trimmed app-language choices down to the currently supported set (`System default`, `English`, `Bengali`, `Hindi`), removed the redundant Android language-settings shortcut, and moved the More plus core Settings pages onto real translated string resources
+- **Localization rollout, phase 2** - extended translated resources into the queue, history, updates, help, converter, compressor, cookies, YouTube access, and changelog surfaces while intentionally leaving the raw App log reader output untranslated
+- **Localization rollout, phase 3** - filled the remaining Hindi and Bengali UI-resource gaps so the current base string set now has full locale coverage without falling back to English on queue, history, updates, help, converter, compressor, cookies, or YouTube access screens
+- **Localization rollout, phase 4** - added Tamil, Telugu, Kannada, Malayalam, Korean, Japanese, and Simplified Chinese to the app-language picker and Android locale config, seeded from the current English resource set so those languages can be completed incrementally without touching app logic
+- **Localization rollout, phase 5** - completed full resource coverage for Tamil, Telugu, Kannada, Malayalam, Korean, Japanese, and Simplified Chinese so those app-language options now map to real translated string sets instead of English-seeded placeholders
 - **Downloads card metadata polish** - saved files now surface format, quality, size, and fresher relative date labels like `today` or `yesterday` without changing the overall card style
 - **Recovery copy cleanup** - updated onboarding and queue guidance so cookie and YouTube access directions point to the new Settings access path instead of the older More-only flow
 - **Typography tune-up** - expanded the app typography set so the new settings and support pages can use cleaner headline, label, and small-body styling without falling back to mismatched defaults
 - **Converter and compressor refresh** - simplified both media-tool screens around the same compact top-bar and grouped-card rhythm as Settings, with less filler copy and faster access to the useful controls
 - **More page cleanup** - removed the inactive support-posture row so every entry in More now leads somewhere useful
 - **Updates center clarity** - app updates now keep the downloaded APK ready across the unknown-sources permission handoff, FFmpeg first-time runtime installs are separated from real runtime updates, and install actions only appear when they are actually useful
+- **Repository standards refresh** - refreshed the core markdown set so README, audit notes, implementation notes, compatibility guidance, development docs, architecture notes, and roadmap language now match the current stable `1.7.2` product posture instead of the older rapid-iteration framing
+- **README preview gallery refresh** - replaced the outdated screenshot references with the current `public/demo` gallery so the repository preview now reflects the latest Home, playlist, queue, downloads, settings, access, media-tool, and localization screens
 
 ### Fixed
 - **Notification toggle behavior** - completed, failed, and canceled download notifications now obey the in-app toggles again instead of depending on a broken duplicate settings path
@@ -49,7 +55,7 @@
 
 ### Technical
 - **Navigation split for settings** - added dedicated settings subroutes inside `DownloaderApp` to support the new hub-and-subpage structure without touching download, queue, or media-processing logic
-- **App version bump** - release metadata updated to `1.7.1.0-beta`
+- **App version bump** - release metadata updated to `1.7.2`
 
 ## [1.7.1] - 2026-05-20
 

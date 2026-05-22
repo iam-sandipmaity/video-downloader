@@ -8,6 +8,9 @@ import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.localdownloader.R
 import com.localdownloader.ui.components.PreferenceDivider
 import com.localdownloader.ui.components.PreferenceGroup
 import com.localdownloader.ui.components.PreferencePageScaffold
@@ -30,7 +33,7 @@ fun AccessSettingsScreen(
     val cookieCount = uiState.cookieProfiles.size
 
     PreferencePageScaffold(
-        title = "Access and network",
+        title = stringResource(R.string.settings_access_title),
         onBack = onBack,
         modifier = modifier,
     ) {
@@ -38,37 +41,41 @@ fun AccessSettingsScreen(
             PreferenceGroup {
                 PreferenceSwitchRow(
                     icon = Icons.Rounded.SignalCellularAlt,
-                    title = "Download using cellular",
-                    subtitle = "Allow downloads on metered networks instead of waiting for Wi-Fi.",
+                    title = stringResource(R.string.access_download_cellular_title),
+                    subtitle = stringResource(R.string.access_download_cellular_subtitle),
                     checked = uiState.allowMeteredDownloads,
                     onCheckedChange = onAllowMeteredDownloadsChanged,
                 )
                 PreferenceDivider()
                 PreferenceSwitchRow(
                     icon = Icons.Rounded.Cookie,
-                    title = "Use cookies",
-                    subtitle = "Attach saved website cookies automatically when a matching link is analyzed or downloaded.",
+                    title = stringResource(R.string.access_use_cookies_title),
+                    subtitle = stringResource(R.string.access_use_cookies_subtitle),
                     checked = uiState.cookiesEnabled,
                     onCheckedChange = onCookiesEnabledChanged,
                 )
                 PreferenceDivider()
                 PreferenceSwitchRow(
                     icon = Icons.Rounded.Security,
-                    title = "Send User-Agent with cookies",
-                    subtitle = "Helpful when a site expects requests to look closer to a normal signed-in browser session.",
+                    title = stringResource(R.string.access_user_agent_title),
+                    subtitle = stringResource(R.string.access_user_agent_subtitle),
                     checked = uiState.cookieUserAgentEnabled,
                     onCheckedChange = onCookieUserAgentEnabledChanged,
                 )
                 PreferenceDivider()
                 PreferenceRow(
                     icon = Icons.Rounded.OpenInNew,
-                    title = "Saved cookies",
+                    title = stringResource(R.string.access_saved_cookies_title),
                     subtitle = if (cookieCount == 0) {
-                        "Add a site session once, then refresh it whenever that login changes."
+                        stringResource(R.string.access_saved_cookies_empty)
                     } else {
-                        "$cookieCount saved site session${if (cookieCount == 1) "" else "s"} ready to inspect, update, import, or export."
+                        pluralStringResource(
+                            R.plurals.access_saved_cookies_count,
+                            cookieCount,
+                            cookieCount,
+                        )
                     },
-                    value = if (cookieCount == 0) "Open" else "$cookieCount",
+                    value = if (cookieCount == 0) stringResource(R.string.common_open) else "$cookieCount",
                     onClick = onOpenCookies,
                 )
             }
@@ -77,16 +84,20 @@ fun AccessSettingsScreen(
             PreferenceGroup {
                 PreferenceRow(
                     icon = Icons.Rounded.Shield,
-                    title = "YouTube access",
+                    title = stringResource(R.string.more_youtube_access_title),
                     subtitle = if (youtubeConfigured) {
-                        "Saved PO tokens are ready, so you can refresh or inspect the current setup when retries get blocked."
+                        stringResource(R.string.access_youtube_configured)
                     } else {
-                        "Generate YouTube access once to capture the saved session and PO tokens used on stricter retries."
+                        stringResource(R.string.access_youtube_missing)
                     },
                     value = if (youtubeConfigured) {
-                        if (uiState.youtubeAuthConfig.enabled) "Enabled" else "Ready"
+                        if (uiState.youtubeAuthConfig.enabled) {
+                            stringResource(R.string.common_enabled)
+                        } else {
+                            stringResource(R.string.common_ready)
+                        }
                     } else {
-                        "Set up"
+                        stringResource(R.string.common_set_up)
                     },
                     onClick = onOpenYoutubeAccess,
                 )

@@ -111,6 +111,8 @@ private fun AccentPreset.primary(): Color = when (this) {
     AccentPreset.AMBER -> Ember
     AccentPreset.OCEAN -> Ocean
     AccentPreset.COBALT -> Cobalt
+    AccentPreset.INDIGO -> Indigo
+    AccentPreset.SKY -> Sky
     AccentPreset.AQUA -> Aqua
     AccentPreset.TEAL -> Teal
     AccentPreset.MINT -> Mint
@@ -121,7 +123,9 @@ private fun AccentPreset.primary(): Color = when (this) {
     AccentPreset.MAGENTA -> Magenta
     AccentPreset.PURPLE -> Violet
     AccentPreset.YELLOW -> Gold
+    AccentPreset.LIME -> Lime
     AccentPreset.ORANGE -> Tangerine
+    AccentPreset.PEACH -> Peach
     AccentPreset.COPPER -> Copper
     AccentPreset.MONOCHROME -> Graphite
 }
@@ -130,6 +134,8 @@ private fun AccentPreset.primaryContainerLight(): Color = when (this) {
     AccentPreset.AMBER -> Color(0xFFF0D4C1)
     AccentPreset.OCEAN -> Color(0xFFD0E8FF)
     AccentPreset.COBALT -> Color(0xFFD9E2FF)
+    AccentPreset.INDIGO -> Color(0xFFE0E2FF)
+    AccentPreset.SKY -> Color(0xFFD8ECFF)
     AccentPreset.AQUA -> Color(0xFFCEEFFE)
     AccentPreset.TEAL -> Color(0xFFCDEEEB)
     AccentPreset.MINT -> Color(0xFFD8F2E2)
@@ -140,7 +146,9 @@ private fun AccentPreset.primaryContainerLight(): Color = when (this) {
     AccentPreset.MAGENTA -> Color(0xFFF3D8FB)
     AccentPreset.PURPLE -> Color(0xFFE7DDFF)
     AccentPreset.YELLOW -> Color(0xFFF8E7AE)
+    AccentPreset.LIME -> Color(0xFFE6F1B8)
     AccentPreset.ORANGE -> Color(0xFFFFDEBF)
+    AccentPreset.PEACH -> Color(0xFFFFE0D5)
     AccentPreset.COPPER -> Color(0xFFF5DDCC)
     AccentPreset.MONOCHROME -> Color(0xFFE1E3E8)
 }
@@ -149,6 +157,8 @@ private fun AccentPreset.primaryContainerDark(): Color = when (this) {
     AccentPreset.AMBER -> EmberContainer
     AccentPreset.OCEAN -> Color(0xFF0C3A63)
     AccentPreset.COBALT -> Color(0xFF182D6B)
+    AccentPreset.INDIGO -> Color(0xFF28317A)
+    AccentPreset.SKY -> Color(0xFF12466F)
     AccentPreset.AQUA -> Color(0xFF0B4B5E)
     AccentPreset.TEAL -> Color(0xFF0F4541)
     AccentPreset.MINT -> Color(0xFF134E35)
@@ -159,7 +169,9 @@ private fun AccentPreset.primaryContainerDark(): Color = when (this) {
     AccentPreset.MAGENTA -> Color(0xFF5B286E)
     AccentPreset.PURPLE -> Color(0xFF37256C)
     AccentPreset.YELLOW -> Color(0xFF4D3900)
+    AccentPreset.LIME -> Color(0xFF344E00)
     AccentPreset.ORANGE -> Color(0xFF5C2F00)
+    AccentPreset.PEACH -> Color(0xFF6B2E18)
     AccentPreset.COPPER -> Color(0xFF5A3416)
     AccentPreset.MONOCHROME -> Color(0xFF3A3D44)
 }
@@ -168,6 +180,8 @@ private fun AccentPreset.secondaryLight(): Color = when (this) {
     AccentPreset.AMBER -> DawnSecondary
     AccentPreset.OCEAN -> Color(0xFF546E90)
     AccentPreset.COBALT -> Color(0xFF596DA3)
+    AccentPreset.INDIGO -> Color(0xFF646E99)
+    AccentPreset.SKY -> Color(0xFF58708D)
     AccentPreset.AQUA -> Color(0xFF4E7580)
     AccentPreset.TEAL -> Color(0xFF4E7672)
     AccentPreset.MINT -> Color(0xFF587462)
@@ -178,7 +192,9 @@ private fun AccentPreset.secondaryLight(): Color = when (this) {
     AccentPreset.MAGENTA -> Color(0xFF7D5A86)
     AccentPreset.PURPLE -> Color(0xFF6A5C8D)
     AccentPreset.YELLOW -> Color(0xFF76633D)
+    AccentPreset.LIME -> Color(0xFF68724A)
     AccentPreset.ORANGE -> Color(0xFF7B604A)
+    AccentPreset.PEACH -> Color(0xFF8A6557)
     AccentPreset.COPPER -> Color(0xFF7B6152)
     AccentPreset.MONOCHROME -> Color(0xFF60646C)
 }
@@ -187,6 +203,8 @@ private fun AccentPreset.secondaryContainerLight(): Color = when (this) {
     AccentPreset.AMBER -> Color(0xFFE4DAF0)
     AccentPreset.OCEAN -> Color(0xFFE0E8F6)
     AccentPreset.COBALT -> Color(0xFFE2E7F8)
+    AccentPreset.INDIGO -> Color(0xFFE4E6F6)
+    AccentPreset.SKY -> Color(0xFFE0E9F5)
     AccentPreset.AQUA -> Color(0xFFDDECF3)
     AccentPreset.TEAL -> Color(0xFFDDECE9)
     AccentPreset.MINT -> Color(0xFFE0EEDF)
@@ -197,7 +215,9 @@ private fun AccentPreset.secondaryContainerLight(): Color = when (this) {
     AccentPreset.MAGENTA -> Color(0xFFF1E0F5)
     AccentPreset.PURPLE -> Color(0xFFE9E1F7)
     AccentPreset.YELLOW -> Color(0xFFF1E7CE)
+    AccentPreset.LIME -> Color(0xFFE8ECD7)
     AccentPreset.ORANGE -> Color(0xFFF3E1D2)
+    AccentPreset.PEACH -> Color(0xFFF6E2DB)
     AccentPreset.COPPER -> Color(0xFFF2E3DA)
     AccentPreset.MONOCHROME -> Color(0xFFE7E8EC)
 }
@@ -206,6 +226,8 @@ private fun AccentPreset.secondaryContainerDark(): Color = when (this) {
     AccentPreset.AMBER -> Color(0xFF4D4558)
     AccentPreset.OCEAN -> Color(0xFF34485E)
     AccentPreset.COBALT -> Color(0xFF394766)
+    AccentPreset.INDIGO -> Color(0xFF464D69)
+    AccentPreset.SKY -> Color(0xFF394C61)
     AccentPreset.AQUA -> Color(0xFF34545E)
     AccentPreset.TEAL -> Color(0xFF345550)
     AccentPreset.MINT -> Color(0xFF375446)
@@ -216,7 +238,9 @@ private fun AccentPreset.secondaryContainerDark(): Color = when (this) {
     AccentPreset.MAGENTA -> Color(0xFF573F60)
     AccentPreset.PURPLE -> Color(0xFF4B4161)
     AccentPreset.YELLOW -> Color(0xFF594C30)
+    AccentPreset.LIME -> Color(0xFF4A5236)
     AccentPreset.ORANGE -> Color(0xFF5E4737)
+    AccentPreset.PEACH -> Color(0xFF65483F)
     AccentPreset.COPPER -> Color(0xFF59473D)
     AccentPreset.MONOCHROME -> Color(0xFF474B53)
 }
@@ -225,6 +249,8 @@ private fun AccentPreset.tertiary(): Color = when (this) {
     AccentPreset.AMBER -> LimeAccent
     AccentPreset.OCEAN -> Color(0xFF52D1C8)
     AccentPreset.COBALT -> Color(0xFF7AB8FF)
+    AccentPreset.INDIGO -> Color(0xFF98A5FF)
+    AccentPreset.SKY -> Color(0xFF67D7FF)
     AccentPreset.AQUA -> Color(0xFF7BE1FF)
     AccentPreset.TEAL -> Color(0xFF49D7C4)
     AccentPreset.MINT -> Color(0xFF8DDBA7)
@@ -235,7 +261,9 @@ private fun AccentPreset.tertiary(): Color = when (this) {
     AccentPreset.MAGENTA -> Color(0xFFFF8FDB)
     AccentPreset.PURPLE -> Color(0xFFE18FFF)
     AccentPreset.YELLOW -> Color(0xFFE3B53B)
+    AccentPreset.LIME -> Color(0xFFC6E35A)
     AccentPreset.ORANGE -> Color(0xFFFF9C52)
+    AccentPreset.PEACH -> Color(0xFFFFB27A)
     AccentPreset.COPPER -> Color(0xFFFFB07A)
     AccentPreset.MONOCHROME -> Color(0xFFB7BCC7)
 }

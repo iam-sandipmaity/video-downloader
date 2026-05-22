@@ -30,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -39,6 +40,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.localdownloader.R
 import com.localdownloader.AppLaunchRouter
 import com.localdownloader.AppOpenRequest
 import com.localdownloader.domain.models.AccentPreset
@@ -312,17 +314,17 @@ fun DownloaderApp(
         listOf(
             PrimaryDestination(
                 route = Routes.Browser,
-                label = "Home",
+                labelRes = R.string.nav_home,
                 icon = { Icon(Icons.Outlined.Home, contentDescription = null) },
             ),
             PrimaryDestination(
                 route = Routes.Downloads,
-                label = "Downloads",
+                labelRes = R.string.nav_downloads,
                 icon = { Icon(Icons.Outlined.CloudDownload, contentDescription = null) },
             ),
             PrimaryDestination(
                 route = Routes.More,
-                label = "More",
+                labelRes = R.string.nav_more,
                 icon = { Icon(Icons.Outlined.MoreHoriz, contentDescription = null) },
             ),
         )
@@ -359,7 +361,7 @@ fun DownloaderApp(
                                 }
                             },
                             icon = destination.icon,
-                            label = { Text(destination.label) },
+                            label = { Text(stringResource(destination.labelRes)) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
                                 selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -921,7 +923,7 @@ object Routes {
 
 private data class PrimaryDestination(
     val route: String,
-    val label: String,
+    val labelRes: Int,
     val icon: @Composable () -> Unit,
 )
 

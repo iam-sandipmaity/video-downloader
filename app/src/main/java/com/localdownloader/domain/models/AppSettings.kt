@@ -53,6 +53,8 @@ enum class AccentPreset {
     AMBER,
     OCEAN,
     COBALT,
+    INDIGO,
+    SKY,
     AQUA,
     TEAL,
     MINT,
@@ -63,7 +65,9 @@ enum class AccentPreset {
     MAGENTA,
     PURPLE,
     YELLOW,
+    LIME,
     ORANGE,
+    PEACH,
     COPPER,
     MONOCHROME,
 }

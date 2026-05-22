@@ -55,11 +55,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.localdownloader.R
 import com.localdownloader.domain.models.DownloadStatus
 import com.localdownloader.domain.models.DownloadTask
 import com.localdownloader.ui.components.PreferencePageScaffold
@@ -74,6 +78,7 @@ fun DownloadHistoryScreen(
     onBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
     val historyItems = remember(tasks) {
         tasks.filter {
             it.status == DownloadStatus.COMPLETED ||
@@ -92,7 +97,7 @@ fun DownloadHistoryScreen(
     val canceledCount = historyItems.count { it.status == DownloadStatus.CANCELED }
 
     PreferencePageScaffold(
-        title = "History",
+        title = stringResource(R.string.history_title),
         onBack = onBack,
         modifier = modifier,
     ) {
@@ -119,12 +124,17 @@ fun DownloadHistoryScreen(
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
-                                text = "Task summary",
+                                text = stringResource(R.string.history_task_summary),
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.SemiBold,
                             )
                             Text(
-                                text = "Showing ${filteredItems.size} of ${historyItems.size} finished tasks in ${currentFilter.label.lowercase(Locale.getDefault())}.",
+                                text = stringResource(
+                                    R.string.history_summary_showing,
+                                    filteredItems.size,
+                                    historyItems.size,
+                                    historyFilterLabel(currentFilter, context).lowercase(Locale.getDefault()),
+                                ),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -134,21 +144,21 @@ fun DownloadHistoryScreen(
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
                             HistorySummaryChip(
-                                label = "Completed",
+                                label = stringResource(R.string.history_filter_completed),
                                 value = completedCount,
                                 containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                                 contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
                                 modifier = Modifier.weight(1f),
                             )
                             HistorySummaryChip(
-                                label = "Failed",
+                                label = stringResource(R.string.history_filter_failed),
                                 value = failedCount,
                                 containerColor = MaterialTheme.colorScheme.errorContainer,
                                 contentColor = MaterialTheme.colorScheme.onErrorContainer,
                                 modifier = Modifier.weight(1f),
                             )
                             HistorySummaryChip(
-                                label = "Canceled",
+                                label = stringResource(R.string.history_filter_canceled),
                                 value = canceledCount,
                                 containerColor = MaterialTheme.colorScheme.surface,
                                 contentColor = MaterialTheme.colorScheme.onSurface,
@@ -169,7 +179,7 @@ fun DownloadHistoryScreen(
                     FilterChip(
                         selected = currentFilter == filter,
                         onClick = { selectedFilter = filter.name },
-                        label = { Text(filter.label) },
+                        label = { Text(historyFilterLabel(filter, context)) },
                     )
                 }
             }
@@ -201,12 +211,12 @@ fun DownloadHistoryScreen(
                             }
                         }
                         Text(
-                            text = "No matching history yet",
+                            text = stringResource(R.string.history_empty_title),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.SemiBold,
                         )
                         Text(
-                            text = "Change the filter or finish a few downloads from Home and the full task history will build up here.",
+                            text = stringResource(R.string.history_empty_body),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -269,9 +279,10 @@ private fun HistoryCard(
     task: DownloadTask,
     onOpenLog: () -> Unit,
 ) {
+    val context = LocalContext.current
     val statusColors = statusPalette(task.status)
     val sourceLabel = remember(task.url) { historySourceLabel(task.url) }
-    val outputName = task.outputPath?.substringAfterLast('/') ?: "No output file"
+    val outputName = task.outputPath?.substringAfterLast('/') ?: context.getString(R.string.common_unknown)
     val previewLog = task.debugTrace
         ?.lines()
         ?.takeLast(3)
@@ -307,10 +318,10 @@ private fun HistoryCard(
                     )
                     Text(
                         text = when (task.status) {
-                            DownloadStatus.COMPLETED -> "Finished successfully"
-                            DownloadStatus.FAILED -> "Stopped with an error"
-                            DownloadStatus.CANCELED -> "Canceled before completion"
-                            else -> historyStatusLabel(task.status)
+                            DownloadStatus.COMPLETED -> stringResource(R.string.history_finished_successfully)
+                            DownloadStatus.FAILED -> stringResource(R.string.history_stopped_with_error)
+                            DownloadStatus.CANCELED -> stringResource(R.string.history_canceled_before_completion)
+                            else -> historyStatusLabel(task.status, context)
                         },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -331,7 +342,7 @@ private fun HistoryCard(
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 HistoryStatusBadge(
-                    text = historyStatusLabel(task.status),
+                    text = historyStatusLabel(task.status, context),
                     background = statusColors.container,
                     foreground = statusColors.content,
                 )
@@ -343,7 +354,7 @@ private fun HistoryCard(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 HistoryMetaPill(
-                    label = task.totalSizeStr ?: task.downloadedStr ?: "Unknown size",
+                    label = task.totalSizeStr ?: task.downloadedStr ?: stringResource(R.string.common_unknown),
                     icon = Icons.Outlined.Storage,
                 )
                 HistoryMetaPill(
@@ -352,7 +363,11 @@ private fun HistoryCard(
                 )
                 if (task.subtitlePaths.isNotEmpty()) {
                     HistoryMetaPill(
-                        label = "${task.subtitlePaths.size} subtitle file${if (task.subtitlePaths.size == 1) "" else "s"}",
+                        label = pluralStringResource(
+                            R.plurals.history_subtitle_files,
+                            task.subtitlePaths.size,
+                            task.subtitlePaths.size,
+                        ),
                         icon = Icons.Outlined.Article,
                     )
                 }
@@ -369,7 +384,7 @@ private fun HistoryCard(
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         Text(
-                            text = "Failure reason",
+                            text = stringResource(R.string.history_failure_reason),
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onErrorContainer,
                             fontWeight = FontWeight.SemiBold,
@@ -385,13 +400,13 @@ private fun HistoryCard(
 
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
-                    text = "Saved path",
+                    text = stringResource(R.string.history_saved_path),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = task.outputPath ?: "No saved path",
+                    text = task.outputPath ?: stringResource(R.string.common_unknown),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
@@ -410,7 +425,7 @@ private fun HistoryCard(
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         Text(
-                            text = "Recent log lines",
+                            text = stringResource(R.string.history_recent_log_lines),
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.SemiBold,
@@ -435,7 +450,7 @@ private fun HistoryCard(
                 ) {
                     Icon(Icons.Outlined.Visibility, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("View log")
+                    Text(stringResource(R.string.history_view_log))
                 }
             }
         }
@@ -525,8 +540,9 @@ private fun HistoryLogSheet(
     task: DownloadTask,
     onDismiss: () -> Unit,
 ) {
+    val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
-    val fullTrace = task.debugTrace.orEmpty().ifBlank { "No task-specific log captured for this item." }
+    val fullTrace = task.debugTrace.orEmpty().ifBlank { context.getString(R.string.history_no_task_log) }
     var copied by remember { mutableStateOf(false) }
     val logListState = rememberLazyListState()
     val sheetScrollGuard = rememberBottomSheetScrollGuard(logListState)
@@ -547,7 +563,7 @@ private fun HistoryLogSheet(
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
-                        text = "Full log",
+                        text = stringResource(R.string.history_full_log),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -559,7 +575,7 @@ private fun HistoryLogSheet(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = "${historyStatusLabel(task.status)} | ${formatDate(task.updatedAtEpochMs)}",
+                        text = "${historyStatusLabel(task.status, context)} | ${formatDate(task.updatedAtEpochMs)}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -599,13 +615,13 @@ private fun HistoryLogSheet(
                     ) {
                         Icon(Icons.Outlined.ContentCopy, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(if (copied) "Copied" else "Copy log")
+                        Text(if (copied) stringResource(R.string.common_copied) else stringResource(R.string.history_copy_log))
                     }
                     TextButton(
                         onClick = onDismiss,
                         modifier = Modifier.weight(1f),
                     ) {
-                        Text("Close")
+                        Text(stringResource(R.string.common_close))
                     }
                 }
             }
@@ -647,15 +663,24 @@ private fun historySourceLabel(url: String): String {
     return Uri.parse(url).host
         ?.removePrefix("www.")
         ?.takeIf { it.isNotBlank() }
-        ?: "Unknown source"
+        ?: ""
 }
 
-private fun historyStatusLabel(status: DownloadStatus): String {
+private fun historyStatusLabel(status: DownloadStatus, context: android.content.Context): String {
     return when (status) {
-        DownloadStatus.COMPLETED -> "Completed"
-        DownloadStatus.FAILED -> "Failed"
-        DownloadStatus.CANCELED -> "Canceled"
+        DownloadStatus.COMPLETED -> context.getString(R.string.history_filter_completed)
+        DownloadStatus.FAILED -> context.getString(R.string.history_filter_failed)
+        DownloadStatus.CANCELED -> context.getString(R.string.history_filter_canceled)
         else -> status.name.lowercase().replaceFirstChar(Char::uppercase)
+    }
+}
+
+private fun historyFilterLabel(filter: HistoryFilter, context: android.content.Context): String {
+    return when (filter) {
+        HistoryFilter.All -> context.getString(R.string.history_filter_all)
+        HistoryFilter.Completed -> context.getString(R.string.history_filter_completed)
+        HistoryFilter.Failed -> context.getString(R.string.history_filter_failed)
+        HistoryFilter.Canceled -> context.getString(R.string.history_filter_canceled)
     }
 }
 

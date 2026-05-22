@@ -1,0 +1,63 @@
+name: Feature request
+description: Suggest an improvement for the app or repository
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please suggest focused improvements. For this project, reliability,
+        compatibility, translation quality, and practical UX improvements are
+        generally more useful than vague redesign requests.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      placeholder: It is hard to understand which playlist item will use which format...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like to happen?
+      placeholder: Add a compact summary row under each playlist item...
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Why would this help users?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Download flow
+        - Queue / History
+        - Downloads library
+        - Cookies / YouTube access
+        - Converter / Compressor
+        - Localization
+        - Documentation
+        - Developer tooling
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: mockup
+    attributes:
+      label: Mockups, references, or examples
+      description: Link screenshots, drawings, or repo examples if you have them.
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Extra context

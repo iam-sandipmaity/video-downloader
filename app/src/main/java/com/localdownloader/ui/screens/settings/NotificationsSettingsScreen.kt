@@ -9,6 +9,8 @@ import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.NotificationsOff
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import com.localdownloader.R
 import com.localdownloader.ui.components.PreferenceDivider
 import com.localdownloader.ui.components.PreferenceGroup
 import com.localdownloader.ui.components.PreferencePageScaffold
@@ -27,7 +29,7 @@ fun NotificationsSettingsScreen(
     modifier: Modifier = Modifier,
 ) {
     PreferencePageScaffold(
-        title = "Notifications",
+        title = stringResource(R.string.settings_notifications_title),
         onBack = onBack,
         modifier = modifier,
     ) {
@@ -35,32 +37,32 @@ fun NotificationsSettingsScreen(
             PreferenceGroup {
                 PreferenceSwitchRow(
                     icon = Icons.Rounded.CheckCircle,
-                    title = "Completed downloads",
-                    subtitle = "Show a notification when a download finishes.",
+                    title = stringResource(R.string.notifications_completed_title),
+                    subtitle = stringResource(R.string.notifications_completed_subtitle),
                     checked = uiState.notifyCompletedDownloads,
                     onCheckedChange = onNotifyCompletedDownloadsChanged,
                 )
                 PreferenceDivider()
                 PreferenceSwitchRow(
                     icon = Icons.Rounded.ErrorOutline,
-                    title = "Download errors",
-                    subtitle = "Show a notification when a download fails.",
+                    title = stringResource(R.string.notifications_errors_title),
+                    subtitle = stringResource(R.string.notifications_errors_subtitle),
                     checked = uiState.notifyDownloadErrors,
                     onCheckedChange = onNotifyDownloadErrorsChanged,
                 )
                 PreferenceDivider()
                 PreferenceSwitchRow(
                     icon = Icons.Rounded.NotificationsOff,
-                    title = "Canceled downloads",
-                    subtitle = "Show a notification when you cancel a download.",
+                    title = stringResource(R.string.notifications_canceled_title),
+                    subtitle = stringResource(R.string.notifications_canceled_subtitle),
                     checked = uiState.notifyCanceledDownloads,
                     onCheckedChange = onNotifyCanceledDownloadsChanged,
                 )
                 PreferenceDivider()
                 PreferenceSwitchRow(
                     icon = Icons.Rounded.Campaign,
-                    title = "Promotions and updates",
-                    subtitle = "Allow optional product announcements and update alerts.",
+                    title = stringResource(R.string.notifications_promotions_title),
+                    subtitle = stringResource(R.string.notifications_promotions_subtitle),
                     checked = uiState.notifyPromotions,
                     onCheckedChange = onNotifyPromotionsChanged,
                 )
@@ -70,15 +72,15 @@ fun NotificationsSettingsScreen(
             PreferenceGroup {
                 PreferenceRow(
                     icon = Icons.Rounded.NotificationsActive,
-                    title = "Active downloads",
-                    subtitle = "Shown automatically while a download is running.",
+                    title = stringResource(R.string.notifications_active_title),
+                    subtitle = stringResource(R.string.notifications_active_subtitle),
                     onClick = null,
                 )
                 PreferenceDivider()
                 PreferenceRow(
                     icon = Icons.Rounded.MusicNote,
-                    title = "Music player controls",
-                    subtitle = "Shown automatically during audio playback.",
+                    title = stringResource(R.string.notifications_music_title),
+                    subtitle = stringResource(R.string.notifications_music_subtitle),
                     onClick = null,
                 )
             }

@@ -49,7 +49,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.res.stringResource
 import com.localdownloader.domain.models.YoutubeAuthConfig
+import com.localdownloader.R
 import com.localdownloader.ui.components.InlineFeedbackCard
 import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.utils.CookieTextCodec
@@ -84,7 +86,7 @@ fun YoutubeAuthScreen(
     }
 
     PreferencePageScaffold(
-        title = "YouTube Access",
+        title = stringResource(R.string.youtube_access_title),
         onBack = onBack,
         modifier = modifier,
     ) {
@@ -109,12 +111,12 @@ fun YoutubeAuthScreen(
                             verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             Text(
-                                text = "Use saved YouTube access",
+                                text = stringResource(R.string.youtube_access_use_saved),
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.SemiBold,
                             )
                             Text(
-                                text = "Applies your YouTube cookies, PO tokens, and data-sync session hints on tougher downloads.",
+                                text = stringResource(R.string.youtube_access_use_saved_body),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -125,14 +127,14 @@ fun YoutubeAuthScreen(
                         )
                     }
                     StatusChip(
-                        title = if (authConfig.isConfigured()) "Ready for long-form retries" else "Not configured yet",
+                        title = if (authConfig.isConfigured()) stringResource(R.string.youtube_access_ready_title) else stringResource(R.string.youtube_access_not_ready_title),
                         subtitle = when {
                             authConfig.isConfigured() && hasYoutubeCookie ->
-                                "Cookies and PO tokens are both saved."
+                                stringResource(R.string.youtube_access_ready_body)
                             authConfig.isConfigured() ->
-                                "PO tokens are saved, but the YouTube cookie is missing."
+                                stringResource(R.string.youtube_access_missing_cookie_body)
                             else ->
-                                "Generate access once, then retry the blocked YouTube link."
+                                stringResource(R.string.youtube_access_not_ready_body)
                         },
                     )
                     Button(
@@ -141,10 +143,10 @@ fun YoutubeAuthScreen(
                         contentPadding = PaddingValues(vertical = 14.dp),
                     ) {
                         Icon(Icons.Outlined.Lock, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Text("Login & Generate Access", modifier = Modifier.padding(start = 8.dp))
+                        Text(stringResource(R.string.youtube_access_login_generate), modifier = Modifier.padding(start = 8.dp))
                     }
                     Text(
-                        text = "This opens a dedicated YouTube sign-in page, captures the matching cookie session, and generates the Web client PO tokens that yt-dlp needs for higher-quality retries.",
+                        text = stringResource(R.string.youtube_access_intro_body),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -159,22 +161,22 @@ fun YoutubeAuthScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         Text(
-                            text = "Saved Details",
+                            text = stringResource(R.string.youtube_access_saved_details),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                         )
-                        DetailRow("Client", authConfig.clientHint)
-                        DetailRow("Cookie saved", if (hasYoutubeCookie) "Yes" else "No")
-                        DetailRow("GVS token", previewToken(authConfig.gvsToken))
-                        DetailRow("Player token", previewToken(authConfig.playerToken))
-                        DetailRow("Subtitle token", previewToken(authConfig.subsToken.ifBlank { authConfig.playerToken }))
-                        DetailRow("Data sync ID", previewToken(authConfig.dataSyncId))
+                        DetailRow(stringResource(R.string.youtube_access_client), authConfig.clientHint)
+                        DetailRow(stringResource(R.string.youtube_access_cookie_saved), if (hasYoutubeCookie) stringResource(R.string.common_yes) else stringResource(R.string.common_no))
+                        DetailRow(stringResource(R.string.youtube_access_gvs_token), previewToken(authConfig.gvsToken))
+                        DetailRow(stringResource(R.string.youtube_access_player_token), previewToken(authConfig.playerToken))
+                        DetailRow(stringResource(R.string.youtube_access_subtitle_token), previewToken(authConfig.subsToken.ifBlank { authConfig.playerToken }))
+                        DetailRow(stringResource(R.string.youtube_access_data_sync_id), previewToken(authConfig.dataSyncId))
                         DetailRow(
-                            "Updated",
+                            stringResource(R.string.youtube_access_updated),
                             if (authConfig.updatedAtEpochMs > 0L) {
                                 DateFormat.getDateTimeInstance().format(authConfig.updatedAtEpochMs)
                             } else {
-                                "Unknown"
+                                stringResource(R.string.common_unknown)
                             },
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -183,13 +185,13 @@ fun YoutubeAuthScreen(
                                 modifier = Modifier.weight(1f),
                             ) {
                                 Icon(Icons.Outlined.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Text("Regenerate", modifier = Modifier.padding(start = 8.dp))
+                                Text(stringResource(R.string.youtube_access_regenerate), modifier = Modifier.padding(start = 8.dp))
                             }
                             TextButton(
                                 onClick = onClear,
                                 modifier = Modifier.weight(1f),
                             ) {
-                                Text("Clear tokens")
+                                Text(stringResource(R.string.youtube_access_clear_tokens))
                             }
                         }
                     }
@@ -199,7 +201,7 @@ fun YoutubeAuthScreen(
         infoMessage?.let { message ->
             item {
                 InlineFeedbackCard(
-                    label = "YouTube access",
+                    label = stringResource(R.string.youtube_access_feedback_label),
                     message = message,
                     isError = false,
                     onDismiss = onDismissMessage,
@@ -209,7 +211,7 @@ fun YoutubeAuthScreen(
         errorMessage?.let { message ->
             item {
                 InlineFeedbackCard(
-                    label = "YouTube access",
+                    label = stringResource(R.string.youtube_access_feedback_label),
                     message = message,
                     isError = true,
                     onDismiss = onDismissMessage,
@@ -226,8 +228,9 @@ fun YoutubeAuthLoginScreen(
     onConfirm: (String, YoutubeAuthConfig) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    var title by rememberSaveable { mutableStateOf("YouTube Login") }
+    var title by rememberSaveable { mutableStateOf(context.getString(R.string.youtube_access_login_title)) }
     var isSaving by rememberSaveable { mutableStateOf(false) }
     var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var webView by remember { mutableStateOf<WebView?>(null) }
@@ -247,7 +250,7 @@ fun YoutubeAuthLoginScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
                 actions = {
@@ -273,7 +276,7 @@ fun YoutubeAuthLoginScreen(
                                         """.trimIndent(),
                                     )
                                     check(visitorData.isNotBlank()) {
-                                        "YouTube visitor data is not ready yet. Let the sample video page finish loading, then try Save Access again."
+                                        context.getString(R.string.youtube_access_login_not_ready)
                                     }
                                     val dataSyncId = currentWebView.awaitJavascriptString(
                                         """
@@ -310,12 +313,12 @@ fun YoutubeAuthLoginScreen(
                                     onConfirm(cookieText, authConfig)
                                 }.onFailure { error ->
                                     isSaving = false
-                                    errorMessage = error.message ?: "Unable to generate YouTube access."
+                                    errorMessage = error.message ?: context.getString(R.string.youtube_access_login_error)
                                 }
                             }
                         },
                     ) {
-                        Text(if (isSaving) "Saving..." else "Save Access")
+                        Text(if (isSaving) stringResource(R.string.youtube_access_login_saving) else stringResource(R.string.youtube_access_login_save))
                     }
                 },
             )
@@ -344,12 +347,12 @@ fun YoutubeAuthLoginScreen(
                     ) {
                         Icon(Icons.Outlined.Shield, contentDescription = null)
                         Text(
-                            text = "Sign in if needed, let the sample YouTube page load, then tap Save Access.",
+                            text = stringResource(R.string.youtube_access_login_intro),
                             style = MaterialTheme.typography.bodyMedium,
                         )
                     }
                     Text(
-                        text = "This screen refreshes its own WebView session so the saved cookie and generated tokens belong to the same YouTube login flow.",
+                        text = stringResource(R.string.youtube_access_login_body),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

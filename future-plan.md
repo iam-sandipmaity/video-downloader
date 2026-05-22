@@ -1,249 +1,132 @@
-# Future Plan: video-downloader Roadmap
+# Future Plan: Maintenance Roadmap
+
+This document reflects the project's current direction after the `1.7.2`
+stabilization work.
+
+The app is no longer in a broad "figure out the product shape" phase. The main
+UI, navigation, queue surfaces, settings structure, and access tools are now
+considered stable enough that future work should mostly improve reliability,
+compatibility, and internal quality.
 
 ---
 
-## What Stays the Same
+## What Is Considered Stable For Now
 
-- Download approach: paste URL → yt-dlp analyzes → format selection → download
-- Download engine: `DownloadEngine`, `ProcessRunner`, `YtDlpExecutor` — no changes
-- Backend architecture: Room DB, WorkManager, Hilt DI, DataStore — no changes
-- Package name: `com.localdownloader` — maintain update compatibility
-- Core downloader architecture stays as-is even as maintenance and update features are layered on top
+These parts are expected to stay structurally stable unless a real usability
+problem or bug forces change:
 
----
+- Home / Browse primary flow
+- Downloads library
+- More hub
+- Queue and History layout direction
+- Settings hub and subpages
+- Cookies and YouTube access entry points
+- Help / Updates / App log placement
+- Converter and Compressor tool positioning
 
-## Phase 1: UI Overhaul — 3 Bottom Tabs Layout (COMPLETED in v1.4.0)
-
-### ✅ Completed Features
-
-| Feature | Status |
-|---|---|
-| 3 Bottom Tabs (Browser, Progress, Video) | ✅ Complete |
-| Browser Tab with URL bar + quick shortcuts | ✅ Complete |
-| Progress Tab with active downloads | ✅ Complete |
-| Video Tab with completed downloads + player | ✅ Complete |
-| Overflow menu (History, Compressor, Converter, Settings, Help, Dark Mode) | ✅ Complete |
-| Dark/Light theme toggle | ✅ Complete |
+This does not mean the screens are frozen forever. It means the repo should not
+default to redesigning them for the sake of redesign.
 
 ---
 
-## Phase 2: YouTube Download Enhancement (MEDIUM PRIORITY)
+## Highest Priority Work
 
-### 2.1 YouTube DASH Video+Audio for Higher Resolution
+### 1. Download Compatibility Maintenance
 
-**Problem:** Currently YouTube downloads without manual selection are capped at 360p. Users want higher resolutions (720p, 1080p, etc.).
+This is the most important ongoing track.
 
-**Solution:**
-- Enable proper DASH format selection via `bestvideo[height<=X]+bestaudio` selector
-- Add resolution picker in format selection UI (360p, 480p, 720p, 1080p, 1440p, 4K)
-- Parse available DASH formats from yt-dlp analysis response
-- Display available resolutions based on video's actual available formats
+Focus areas:
 
-**Technical approach:**
-- Modify `FormatViewModel` to parse height information from video formats
-- Add resolution dropdown in `BrowserScreen` options sheet
-- Use yt-dlp format selector: `bestvideo[height<=720]+bestaudio/best[height<=720]`
+- extractor breakage from upstream site changes
+- YouTube recovery reliability
+- playlist edge cases
+- metadata and subtitle download regressions
+- FFmpeg post-processing compatibility
 
-### 2.2 Auto-update yt-dlp (COMPLETED in v1.7.0)
-**What it does:**
-- Checks GitHub for the selected yt-dlp release channel on app start when auto-update is enabled
-- Downloads and replaces the embedded yt-dlp runtime in app-owned storage
-- Exposes manual checks and installs through the Updates screen so extractor fixes can land without APK updates
+### 2. Queue And Runtime Reliability
 
-**Technical approach:**
-- `updates/YtDlpUpdateManager.kt` — release checks and runtime replacement
-- `worker/YtDlpUpdateScheduler.kt` and `worker/YtDlpUpdateWorker.kt` — guarded startup scheduling and retries
-- `viewmodel/UpdatesViewModel.kt` — user-facing update orchestration
+Focus areas:
 
-### 2.3 Enhanced PO Token Support
-**What exists:** Has PO token + cookies path + context hint input
-**What to improve:**
-- Per-player-client PO tokens (android, web, ios, tv)
-- Let user assign different tokens to different clients
+- scheduling consistency
+- retry and resume correctness
+- runtime-update safety
+- clearer recovery signals when tasks fail
+- stronger diagnostics without noisy logs
 
-### 2.4 Cookie Management via WebView
-**What it does:**
-- User logs into YouTube via a small embedded WebView (settings screen only)
-- Cookies extracted and saved as Netscape format
-- yt-dlp uses them for authenticated downloads
+### 3. Translation Quality
 
----
+The app now supports a larger locale set, so the next translation work should
+be quality-focused:
 
-## Phase 3: Embedded Terminal Feature (NEW - HIGH PRIORITY)
+- wording review
+- consistency review
+- missing new-string backfill as the app evolves
+- plural and placeholder correctness
 
-### 3.1 Embedded Terminal for Downloads
+### 4. Test Coverage
 
-**Problem:** Users want more control over downloads with custom yt-dlp commands.
+The repository still needs stronger automated protection around:
 
-**Solution:**
-- Add embedded terminal in app where users can run yt-dlp commands directly
-- Pre-filled command templates for common operations
-- Real-time output streaming
-- Command history
-
-**Features:**
-```
-Terminal Commands:
-- ytdlp <url>                           # Download with default options
-- ytdlp <url> -f bestvideo[height<=1080]+bestaudio  # 1080p
-- ytdlp <url> --cookies-from-browser chrome        # Use browser cookies
-- ytdlp <url> -x --audio-format mp3                # Extract audio as MP3
-- ytdlp -U                               # Update yt-dlp to latest
-```
-
-**Technical approach:**
-- New `TerminalScreen.kt` composable
-- Use same `ProcessRunner` as downloads for command execution
-- Output displayed in scrollable terminal-style view
-- Pre-built command templates as quick-action buttons
+- queue logic
+- runtime selection
+- updates and install gating
+- cookie and YouTube access flows
+- media-tool validation
 
 ---
 
-## Phase 4: Compressor & Converter Improvements (MEDIUM PRIORITY)
+## Medium Priority Work
 
-### 4.1 Compressor Enhancements
+### 1. CI And Build Hygiene
 
-**Current state:** Basic compression with resolution/bitrate sliders
+- reduce native strip warning noise
+- keep SDK/AGP/Kotlin lines current
+- preserve release/install compatibility
 
-**Improvements needed:**
-- Add compression presets (Small, Medium, Large, Custom)
-- Show estimated output size before compression
-- Add more resolution options (144p, 240p, 360p, 480p, 720p, 1080p)
-- Add audio quality options (64kbps, 128kbps, 192kbps, 320kbps)
-- Show before/after file size comparison
-- Add cancel button during compression
+### 2. Documentation Accuracy
 
-### 4.2 Converter Enhancements
+- keep README aligned with the real product state
+- update implementation docs when runtime behavior changes
+- keep compatibility docs accurate when ABI/runtime packaging shifts
 
-**Current state:** Basic format conversion
+### 3. Smaller UX Fixes
 
-**Improvements needed:**
-- Add format presets for common conversions
-- Show estimated output size
-- Support more output formats
-- Batch conversion capability
+Allowed and useful:
 
----
+- compactness improvements
+- copy clarity
+- better empty states
+- alignment and spacing fixes
+- recovery/action discoverability fixes
 
-## Phase 5: Bug Fixes & Stability (ONGOING)
+Not the default priority:
 
-### 5.1 Known Issues to Fix
-
-| Priority | Issue | Status |
-|---|---|---|
-| HIGH | Cookie auth - cookies not applied without PO token | ✅ Fixed v1.4.0 |
-| HIGH | Download button - confusing state during download | ✅ Fixed v1.4.0 |
-| MEDIUM | Converter output not visible in file manager | ✅ Fixed v1.4.0 |
-| MEDIUM | Compressor output not visible in file manager | ✅ Fixed v1.4.0 |
-| MEDIUM | No FFmpeg operation cancellation | ⚠️ Partial |
-| MEDIUM | Unbounded cache growth from URI import | ⚠️ Partial |
-| LOW | Help page needs more information | ✅ Fixed v1.4.0 |
-| LOW | Settings missing cache clearing | ✅ Fixed v1.4.0 |
+- large navigation resets
+- full visual restyling of already-stable areas
 
 ---
 
-## Phase 6: App Size Optimization (LONG-TERM)
+## Lower Priority / Optional Work
 
-### 6.1 Current APK Size Issues
+These are possible later, but not the current repo priority:
 
-The app includes:
-- yt-dlp Python binary (~15MB)
-- FFmpeg binary (~25MB)
-- Python runtime (~8MB)
-- Extras (~5MB)
-
-**Total: ~50MB+ in native libraries**
-
-### 6.2 Optimization Strategies
-
-| Strategy | Potential Savings |
-|---|---|
-| Strip unused Python modules | 3-5MB |
-| Use yt-dlp minimal build | 5-8MB |
-| Compress FFmpeg binary | 2-3MB |
-| Remove unused ABIs (keep only arm64-v8a) | 10-15MB |
-| Enable R8 aggressive minification | 2-3MB |
-| Use App Bundle (split APKs) | User downloads less |
-
-**Target:** Reduce from ~50MB to ~30MB APK
+- new media-tool presets beyond the existing practical set
+- major UI experiments
+- broad feature expansion unrelated to download reliability
+- exotic ABI packaging improvements beyond current realistic user demand
 
 ---
 
-## Phase 7: Help & Documentation (ONGOING)
+## Release Posture
 
-### 7.1 Help Screen Improvements (v1.4.0 - COMPLETED)
+For the near future, new app updates are expected to happen mainly when one of
+these is true:
 
-Added comprehensive sections:
-- ✅ Downloads: How downloads work, where files are saved
-- ✅ Converter: How to convert, supported formats
-- ✅ Compressor: How to compress, settings explained
-- ✅ Navigation: Browser, Progress, Video tabs
-- ✅ Settings: Dark mode, YouTube auth, download location
-- ✅ Troubleshooting: Common issues and solutions
-- ✅ About: Credits to yt-dlp and FFmpeg
+- a download issue appears
+- a runtime/update path needs fixing
+- a regression is found
+- translation or docs need correction
+- internal logic needs reshaping for reliability
 
-### 7.2 Future Help Improvements
-
-- Video tutorials for common tasks
-- In-app tooltip explanations
-- FAQ expandable sections
-- Error code reference guide
-
----
-
-## Priority Summary
-
-| Priority | What | Phase | Status |
-|---|---|---|---|
-| **P0** | 3 bottom tabs layout | Phase 1 | ✅ Complete |
-| **P0** | YouTube DASH higher resolution downloads | Phase 2 | 🔄 In Progress |
-| **P1** | Embedded terminal for yt-dlp commands | Phase 3 | 📋 Planned |
-| **P1** | Compressor improvements | Phase 4 | 📋 Planned |
-| **P1** | Converter improvements | Phase 4 | 📋 Planned |
-| **P2** | App size optimization | Phase 6 | 📋 Planned |
-| **P2** | Auto-update yt-dlp | Phase 2 | ✅ Complete |
-| **P3** | Cookie management via WebView | Phase 2 | 📋 Planned |
-
----
-
-## Implementation File Map
-
-### New Files to Create
-
-| File | Phase | Description |
-|---|---|---|
-| `ui/screens/TerminalScreen.kt` | Phase 3 | Embedded terminal for yt-dlp commands |
-| `ui/components/TerminalOutput.kt` | Phase 3 | Terminal output display component |
-| `ui/components/CompressionPresetCard.kt` | Phase 4 | Compression preset selection |
-| `ui/components/FormatPresetCard.kt` | Phase 4 | Converter format presets |
-
-### Files to Modify
-
-| File | Changes |
-|---|---|
-| `FormatViewModel.kt` | Add resolution picker, DASH format selection |
-| `BrowserScreen.kt` | Add resolution dropdown in options |
-| `CompressScreen.kt` | Add presets, estimated size, cancel button |
-| `ConvertScreen.kt` | Add format presets, estimated size |
-| `DownloaderApp.kt` | Add Terminal tab/screen navigation |
-
-### Completed Files (v1.4.0)
-
-- `BrowserScreen.kt` ✅
-- `ProgressScreen.kt` ✅
-- `VideoScreen.kt` ✅
-- `PlayerScreen.kt` ✅
-- `HelpScreen.kt` ✅
-- `SettingsScreen.kt` ✅
-- `MediaToolsViewModel.kt` ✅
-- `FormatViewModel.kt` ✅
-- `DownloadEngine.kt` ✅
-- `FileUtils.kt` ✅
-
-### Completed Files (v1.7.0)
-
-- `updates/YtDlpUpdateManager.kt` ✅
-- `worker/YtDlpUpdateScheduler.kt` ✅
-- `worker/YtDlpUpdateWorker.kt` ✅
-- `viewmodel/UpdatesViewModel.kt` ✅
-- `ui/screens/UpdatesScreen.kt` ✅
+That is the intended posture of the current line: stable user-facing structure,
+active maintenance underneath it.

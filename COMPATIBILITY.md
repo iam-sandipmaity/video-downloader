@@ -1,199 +1,170 @@
 # Compatibility Guide
 
-This document explains which Android versions and CPU architectures are supported, how the binary system works internally, and how to build a custom APK for unsupported devices.
+This document explains the Android versions and CPU architectures the app
+supports, how runtime binaries are resolved, and what to do if you need a
+custom build for a non-default ABI.
 
 ---
 
 ## Android Version Support
 
-| Android Version | API Level | Released | Support |
-|---|---|---|---|
-| Android 15 | 35 | 2024 | ✅ Full (target SDK) |
-| Android 14 | 34 | 2023 | ✅ Full |
-| Android 13 | 33 | 2022 | ✅ Full |
-| Android 12 / 12L | 31–32 | 2021–2022 | ✅ Full |
-| Android 11 | 30 | 2020 | ✅ Full |
-| Android 10 | 29 | 2019 | ✅ Full |
-| Android 9 (Pie) | 28 | 2018 | ✅ Full |
-| Android 8.0 / 8.1 (Oreo) | 26–27 | 2017 | ✅ Minimum supported |
-| Android 7.x (Nougat) | 24–25 | 2016 | ❌ Not supported |
-| Android 6 and below | ≤ 23 | ≤ 2015 | ❌ Not supported |
-
-> **Coverage:** ~90% of active Android devices worldwide.
+| Android version | API | Support |
+| --- | --- | --- |
+| Android 15 | 35 | Full |
+| Android 14 | 34 | Full |
+| Android 13 | 33 | Full |
+| Android 12 / 12L | 31-32 | Full |
+| Android 11 | 30 | Full |
+| Android 10 | 29 | Full |
+| Android 9 | 28 | Full |
+| Android 8.0 / 8.1 | 26-27 | Minimum supported |
+| Android 7.x and below | 25 and below | Not supported |
 
 ---
 
 ## CPU Architecture Support
 
-Every Android device has a CPU architecture. The app packages pre-built binaries for specific architectures:
+Default shipped target:
 
-| ABI | Architecture | Real devices | Shipped by default |
-|---|---|---|---|
-| **arm64-v8a** | 64-bit ARM | All modern phones & tablets (Snapdragon, Dimensity, Exynos, …) sold since ~2015 | ✅ Yes |
-| **armeabi-v7a** | 32-bit ARM | Old budget phones (2012–2018) | ⚠️ No (< 1% of devices) |
-| **x86_64** | 64-bit Intel | Android emulators, Intel Chromebooks, rare Intel tablets | ⚠️ No (dev use only) |
-| **x86** | 32-bit Intel | Emulators only — no real phones | ❌ Dead |
+- `arm64-v8a`
 
-### How to check your CPU architecture
+This covers the large majority of modern Android phones and tablets.
 
-**Option 1 — Settings:**
-> Settings → About phone → Processor (or CPU info)
-> - Contains "ARM64" / "Cortex-A" / "Kryo" / "Exynos" → you are **arm64-v8a** ✅
+Other ABIs are possible through custom builds, but are not packaged by default
+in the normal release flow.
 
-**Option 2 — ADB (developer):**
+| ABI | Typical use | Shipped by default |
+| --- | --- | --- |
+| `arm64-v8a` | modern phones and tablets | Yes |
+| `armeabi-v7a` | older 32-bit ARM devices | No |
+| `x86_64` | emulators and some Intel devices | No |
+| `x86` | older emulators | No |
+
+---
+
+## How Runtime Resolution Works
+
+### yt-dlp
+
+`yt-dlp` runs through the embedded `youtubedl-android` runtime and can be
+updated in-app through the Updates screen.
+
+### FFmpeg
+
+FFmpeg is resolved in this order:
+
+1. managed overlay package downloaded by the app
+2. embedded runtime package if available
+3. bundled `libffmpeg_exec.so`
+4. copied executable fallback from `assets/ffmpeg/<abi>/ffmpeg`
+
+This layered approach exists because device/runtime behavior differs across
+vendors, Android versions, and ABI packaging styles.
+
+---
+
+## Public Download Location
+
+Default public save root:
+
+```text
+Download/LocalDownloader/
+```
+
+The root folder and media-specific folders can also be changed from Settings.
+
+On older Android versions with storage restrictions or denied legacy storage
+permission, the app may fall back to an app-owned external directory.
+
+---
+
+## Building For Another ABI
+
+If you need support for an ABI that is not packaged by default:
+
+1. clone the repository
+2. add compatible FFmpeg artifacts for that ABI
+3. place the raw fallback binary under `assets/ffmpeg/<abi>/ffmpeg`
+4. place the packaged native fallback under `jniLibs/<abi>/libffmpeg_exec.so`
+5. build the APK normally
+
+Example layout for `x86_64`:
+
+```text
+app/src/main/assets/ffmpeg/x86_64/ffmpeg
+app/src/main/jniLibs/x86_64/libffmpeg_exec.so
+```
+
+Example layout for `armeabi-v7a`:
+
+```text
+app/src/main/assets/ffmpeg/armeabi-v7a/ffmpeg
+app/src/main/jniLibs/armeabi-v7a/libffmpeg_exec.so
+```
+
+If you are packaging a fuller embedded runtime instead of a single fallback
+executable, the app can also use `libffmpeg.so` and related runtime-support
+artifacts when present.
+
+---
+
+## How To Check Your ABI
+
+### Option 1: device info app
+
+Use any device-info style app and look for `CPU ABI`.
+
+### Option 2: ADB
+
 ```bash
 adb shell getprop ro.product.cpu.abi
 ```
 
-**Option 3 — App:**
-Install any "Device Info" app from the Play Store and look for "CPU ABI".
+### Option 3: device specs
+
+If your device uses a recent Snapdragon, Dimensity, Tensor, or Exynos chipset,
+it is almost certainly `arm64-v8a`.
 
 ---
 
-## How the Binary System Works
+## Android Behavior Notes
 
-When you open the app:
-
-- `yt-dlp` runs through the embedded `youtubedl-android` runtime and can be updated in-app
-- `ffmpeg` follows the managed runtime resolution chain below
-
-```
-Step 1: Check downloaded FFmpeg overlay
-        (/data/user/0/<package>/no_backup/localdownloader_runtime/downloaded_packages/ffmpeg/)
-        ↓ found? → verify it → use it
-        ↓ not found?
-
-Step 2: Check packaged native runtimes in nativeLibraryDir
-        Prefer libffmpeg.so (+ optional libffmpeg.zip.so support archive)
-        Fall back to libffmpeg_exec.so
-        ↓ found? → verify it → use it directly
-        ↓ not found or launch fails?
-
-Step 3: Retry with asset fallback
-        assets/ffmpeg/<abi>/ffmpeg
-        ↓ copy to app-owned storage → chmod +x → use it
-        ↓ not found?
-
-Step 4: FAIL with clear error message listing what was searched
-```
-
-The `nativeLibraryDir` path is populated from packaged runtime dependencies and `jniLibs/` during APK installation. The asset fallback is only used when native execution is unavailable or blocked on a device.
-
----
-
-## Building for a Non-Standard Architecture
-
-If your device uses **x86_64**, **armeabi-v7a**, or another ABI not bundled in the default release, follow these steps to build your own APK.
-
-### Step 1 — Fork / clone the repository
-
-```bash
-git clone https://github.com/your-username/video-downloader
-cd video-downloader
-```
-
-### Step 2 — Obtain compatible binaries
-
-You need an `ffmpeg` binary compiled for your target ABI. The simplest supported custom-build layout is still a raw executable plus the asset fallback, but the app can also work with the newer embedded runtime package layout when available.
-
-#### ffmpeg
-
-| ABI | Download source |
-|---|---|
-| x86_64 | [ffmpeg-android-maker](https://github.com/Javernaut/ffmpeg-android-maker) or [termux packages](https://packages.termux.dev/apt/termux-main/binary-x86_64/) |
-| armeabi-v7a | Same sources, pick `arm` flavour |
-
-Make sure the binary is **statically linked** (no shared lib dependencies) and has **execute permission**.
-
-If you only have a single standalone binary, package it as `libffmpeg_exec.so` plus the raw `assets/ffmpeg/.../ffmpeg` fallback. That remains the easiest custom-build path.
-
-### Step 3 — Place the binaries
-
-Depending on your ABI, place files in the following paths:
-
-#### For x86_64
-
-```
-app/src/main/assets/ffmpeg/x86_64/ffmpeg
-
-app/src/main/jniLibs/x86_64/libffmpeg_exec.so   ← rename ffmpeg → libffmpeg_exec.so
-```
-
-#### For armeabi-v7a
-
-```
-app/src/main/assets/ffmpeg/armeabi-v7a/ffmpeg
-
-app/src/main/jniLibs/armeabi-v7a/libffmpeg_exec.so
-```
-
-If you are packaging the newer embedded FFmpeg runtime instead of a single standalone executable, the runtime may also provide `libffmpeg.so` and `libffmpeg.zip.so` for the same ABI. The app will prefer those automatically when present.
-
----
-
-## Building with GitHub Actions (Recommended)
-
-The easiest way to get a compiled APK without setting up Android Studio locally:
-
-### Step 1 — Fork the repo on GitHub
-
-Click **Fork** at the top-right of the repository page.
-
-### Step 2 — Add your binary files
-
-Upload your ABI-specific binaries to the correct paths in your fork (see Step 3 above).  
-You can do this via the GitHub web UI: navigate to the folder → "Add file" → "Upload files".
-
-### Step 3 — Enable GitHub Actions
-
-1. Go to your forked repository
-2. Click the **Actions** tab
-3. Click **"I understand my workflows, go ahead and enable them"**
-
-### Step 4 — Trigger a build
-
-Either:
-- Push any commit to the repository, **or**
-- Go to **Actions → Android Build → Run workflow** (manual trigger)
-
-### Step 5 — Download your APK
-
-1. Go to **Actions** tab
-2. Click the latest **Android Build** workflow run
-3. Scroll to **Artifacts** at the bottom
-4. Download **`app-debug-apk`**
-
-The APK inside is compiled with your binaries and will work on your device.
-
----
-
-## Version-specific Runtime Behaviour
-
-Some Android versions need special handling that is already implemented in the app:
+Some Android versions require specific platform handling that the app already
+implements:
 
 | Android | Requirement | Status |
-|---|---|---|
-| 14+ (API 34+) | `foregroundServiceType` must be declared | ✅ Done |
-| 13+ (API 33+) | `POST_NOTIFICATIONS` runtime permission | ✅ Done |
-| 10+ (API 29+) | `requestLegacyExternalStorage` for public Downloads | ✅ Done |
-| 8–9 (API 26–28) | `WRITE_EXTERNAL_STORAGE` with `maxSdkVersion=28` | ✅ Done |
+| --- | --- | --- |
+| 14+ | declared foreground service type | Done |
+| 13+ | notification runtime permission | Done |
+| 10+ | public download/storage handling adjustments | Done |
+| 8-9 | legacy external storage permission path | Done |
 
 ---
 
-## Download Folder
+## Build Advice
 
-Files are saved to:
+If you only want the standard app:
 
-```
-/sdcard/Download/LocalDownloader/
-```
-
-This folder is visible in the system **Files** app and any file manager.  
-The root folder and per-media subfolders can also be changed from the app's Settings screen.  
-On Android 8–9 with storage permission denied, the app falls back to:
-
-```
-/sdcard/Android/data/com.localdownloader/files/Download/
+```bash
+gradle :app:assembleDebug
 ```
 
-(Visible in Files app under "Internal storage → Android → data → …")
+If you want to test a custom ABI path, verify:
+
+- the fallback asset exists for that ABI
+- the packaged native file is present
+- the runtime is executable when copied
+- the app logs show the expected runtime path being selected
+
+---
+
+## Practical Recommendation
+
+For most users and releases, stay with:
+
+- Android 8+
+- `arm64-v8a`
+- default public download folders
+
+Only use custom ABI builds when you specifically need emulator, Intel, or older
+32-bit ARM support.

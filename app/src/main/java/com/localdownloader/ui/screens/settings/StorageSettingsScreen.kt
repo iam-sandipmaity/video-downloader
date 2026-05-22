@@ -21,10 +21,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import com.localdownloader.R
 import com.localdownloader.ui.components.InlineFeedbackCard
 import com.localdownloader.ui.components.PreferenceDivider
 import com.localdownloader.ui.components.PreferenceGroup
@@ -60,6 +63,7 @@ fun StorageSettingsScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
     val settingsInfoMessage = uiState.infoMessageFor(FormatMessageScope.SETTINGS)
     val settingsErrorMessage = uiState.errorMessageFor(FormatMessageScope.SETTINGS)
     val defaults = remember { com.localdownloader.domain.models.AppSettings() }
@@ -81,14 +85,14 @@ fun StorageSettingsScreen(
     }
 
     PreferencePageScaffold(
-        title = "Folders and storage",
+        title = stringResource(R.string.settings_storage_title),
         onBack = onBack,
         modifier = modifier,
     ) {
         if (!settingsInfoMessage.isNullOrBlank()) {
             item {
                 InlineFeedbackCard(
-                    label = "Settings",
+                    label = stringResource(R.string.settings_feedback_label),
                     message = settingsInfoMessage,
                     isError = false,
                 )
@@ -97,7 +101,7 @@ fun StorageSettingsScreen(
         if (!settingsErrorMessage.isNullOrBlank()) {
             item {
                 InlineFeedbackCard(
-                    label = "Settings",
+                    label = stringResource(R.string.settings_feedback_label),
                     message = settingsErrorMessage,
                     isError = true,
                 )
@@ -106,7 +110,7 @@ fun StorageSettingsScreen(
         if (!mediaInfoMessage.isNullOrBlank()) {
             item {
                 InlineFeedbackCard(
-                    label = "Library",
+                    label = stringResource(R.string.settings_library_label),
                     message = mediaInfoMessage,
                     isError = false,
                     onDismiss = onDismissMediaLibraryMessage,
@@ -116,7 +120,7 @@ fun StorageSettingsScreen(
         if (!mediaErrorMessage.isNullOrBlank()) {
             item {
                 InlineFeedbackCard(
-                    label = "Library",
+                    label = stringResource(R.string.settings_library_label),
                     message = mediaErrorMessage,
                     isError = true,
                     onDismiss = onDismissMediaLibraryMessage,
@@ -126,16 +130,18 @@ fun StorageSettingsScreen(
         item {
             PreferenceGroup {
                 FolderPreferenceRow(
-                    title = "Downloads root",
-                    subtitle = "Type a folder path under Downloads or browse to a subfolder you want the app to use as its main root.",
-                    value = uiState.downloadsRootFolderName.folderPreview("Default root"),
+                    title = stringResource(R.string.storage_root_title),
+                    subtitle = stringResource(R.string.storage_root_subtitle),
+                    value = uiState.downloadsRootFolderName.folderPreview(
+                        stringResource(R.string.storage_default_root),
+                    ),
                     onEditClick = {
                         textDialog = SettingTextDialogState(
-                            title = "Downloads root",
+                            title = context.getString(R.string.storage_root_title),
                             value = uiState.downloadsRootFolderName,
-                            label = "Folder path under Downloads",
-                            supporting = "Examples: LocalDownloader or Media/LocalDownloader",
-                            confirmLabel = "Save",
+                            label = context.getString(R.string.storage_folder_label_root),
+                            supporting = context.getString(R.string.storage_root_supporting),
+                            confirmLabel = context.getString(R.string.common_save),
                             onConfirm = onDownloadsRootFolderNameChanged,
                         )
                     },
@@ -143,16 +149,18 @@ fun StorageSettingsScreen(
                 )
                 PreferenceDivider()
                 FolderPreferenceRow(
-                    title = "Video folder",
-                    subtitle = "Type a subfolder path or browse to a folder inside the current downloads root for videos.",
-                    value = uiState.videoSubfolderName.folderPreview("Downloads root"),
+                    title = stringResource(R.string.storage_video_title),
+                    subtitle = stringResource(R.string.storage_video_subtitle),
+                    value = uiState.videoSubfolderName.folderPreview(
+                        stringResource(R.string.storage_downloads_root),
+                    ),
                     onEditClick = {
                         textDialog = SettingTextDialogState(
-                            title = "Video folder",
+                            title = context.getString(R.string.storage_video_title),
                             value = uiState.videoSubfolderName,
-                            label = "Folder path inside the downloads root",
-                            supporting = "Examples: Videos or Media/Videos. Leave blank to save videos directly in the downloads root.",
-                            confirmLabel = "Save",
+                            label = context.getString(R.string.storage_folder_label_inside_root),
+                            supporting = context.getString(R.string.storage_video_supporting),
+                            confirmLabel = context.getString(R.string.common_save),
                             onConfirm = onVideoSubfolderNameChanged,
                         )
                     },
@@ -160,16 +168,18 @@ fun StorageSettingsScreen(
                 )
                 PreferenceDivider()
                 FolderPreferenceRow(
-                    title = "Audio folder",
-                    subtitle = "Type a subfolder path or browse to a folder inside the current downloads root for audio.",
-                    value = uiState.audioSubfolderName.folderPreview("Downloads root"),
+                    title = stringResource(R.string.storage_audio_title),
+                    subtitle = stringResource(R.string.storage_audio_subtitle),
+                    value = uiState.audioSubfolderName.folderPreview(
+                        stringResource(R.string.storage_downloads_root),
+                    ),
                     onEditClick = {
                         textDialog = SettingTextDialogState(
-                            title = "Audio folder",
+                            title = context.getString(R.string.storage_audio_title),
                             value = uiState.audioSubfolderName,
-                            label = "Folder path inside the downloads root",
-                            supporting = "Examples: Audio or Music/Tracks. Leave blank to save audio directly in the downloads root.",
-                            confirmLabel = "Save",
+                            label = context.getString(R.string.storage_folder_label_inside_root),
+                            supporting = context.getString(R.string.storage_audio_supporting),
+                            confirmLabel = context.getString(R.string.common_save),
                             onConfirm = onAudioSubfolderNameChanged,
                         )
                     },
@@ -177,16 +187,18 @@ fun StorageSettingsScreen(
                 )
                 PreferenceDivider()
                 FolderPreferenceRow(
-                    title = "Other files folder",
-                    subtitle = "Type a subfolder path or browse to a folder inside the current downloads root for anything else.",
-                    value = uiState.otherSubfolderName.folderPreview("Downloads root"),
+                    title = stringResource(R.string.storage_other_title),
+                    subtitle = stringResource(R.string.storage_other_subtitle),
+                    value = uiState.otherSubfolderName.folderPreview(
+                        stringResource(R.string.storage_downloads_root),
+                    ),
                     onEditClick = {
                         textDialog = SettingTextDialogState(
-                            title = "Other files folder",
+                            title = context.getString(R.string.storage_other_title),
                             value = uiState.otherSubfolderName,
-                            label = "Folder path inside the downloads root",
-                            supporting = "Examples: Files or Archives/Misc. Leave blank to save these files directly in the downloads root.",
-                            confirmLabel = "Save",
+                            label = context.getString(R.string.storage_folder_label_inside_root),
+                            supporting = context.getString(R.string.storage_other_supporting),
+                            confirmLabel = context.getString(R.string.common_save),
                             onConfirm = onOtherSubfolderNameChanged,
                         )
                     },
@@ -195,8 +207,8 @@ fun StorageSettingsScreen(
                 PreferenceDivider()
                 PreferenceRow(
                     icon = Icons.Rounded.Refresh,
-                    title = "Reset folder names",
-                    subtitle = "Restore the default root, video, audio, and other folder names.",
+                    title = stringResource(R.string.storage_reset_folders_title),
+                    subtitle = stringResource(R.string.storage_reset_folders_subtitle),
                     onClick = {
                         onDownloadsRootFolderNameChanged(defaults.downloadsRootFolderName)
                         onVideoSubfolderNameChanged(defaults.videoSubfolderName)
@@ -210,32 +222,32 @@ fun StorageSettingsScreen(
             PreferenceGroup {
                 PreferenceSwitchRow(
                     icon = Icons.Rounded.AutoDelete,
-                    title = "Auto-remove missing files",
-                    subtitle = "Clean broken library entries when files disappear outside the app.",
+                    title = stringResource(R.string.storage_auto_remove_title),
+                    subtitle = stringResource(R.string.storage_auto_remove_subtitle),
                     checked = uiState.autoRemoveMissingFilesFromLibrary,
                     onCheckedChange = onAutoRemoveMissingFilesFromLibraryChanged,
                 )
                 PreferenceDivider()
                 PreferenceSwitchRow(
                     icon = Icons.Rounded.DeleteSweep,
-                    title = "Delete from storage when removed in app",
-                    subtitle = "When you remove an item here, also delete the real device file.",
+                    title = stringResource(R.string.storage_delete_storage_title),
+                    subtitle = stringResource(R.string.storage_delete_storage_subtitle),
                     checked = uiState.deleteFromStorageWhenRemovedInApp,
                     onCheckedChange = onDeleteFromStorageWhenRemovedInAppChanged,
                 )
                 PreferenceDivider()
                 PreferenceRow(
                     icon = Icons.Rounded.LibraryBooks,
-                    title = "Saved items",
-                    subtitle = "Completed downloads currently tracked in the library.",
+                    title = stringResource(R.string.storage_saved_items_title),
+                    subtitle = stringResource(R.string.storage_saved_items_subtitle),
                     value = savedItemsCount.toString(),
                     onClick = null,
                 )
                 PreferenceDivider()
                 PreferenceRow(
                     icon = Icons.Rounded.Storage,
-                    title = "Temporary cache",
-                    subtitle = "Reusable temporary files created during analysis and processing.",
+                    title = stringResource(R.string.storage_temp_cache_title),
+                    subtitle = stringResource(R.string.storage_temp_cache_subtitle),
                     value = formatFileSize(cacheSize),
                     onClick = null,
                 )
@@ -245,20 +257,20 @@ fun StorageSettingsScreen(
             PreferenceGroup {
                 PreferenceRow(
                     icon = Icons.Rounded.CleaningServices,
-                    title = "Clear cache",
-                    subtitle = "Remove temporary files without touching your saved downloads.",
+                    title = stringResource(R.string.storage_clear_cache_title),
+                    subtitle = stringResource(R.string.storage_clear_cache_subtitle),
                     onClick = onClearCache,
                 )
                 PreferenceDivider()
                 PreferenceRow(
                     icon = Icons.Rounded.DeleteSweep,
-                    title = "Clear app list",
-                    subtitle = "Remove completed-library entries but keep the actual files on the device.",
+                    title = stringResource(R.string.storage_clear_app_list_title),
+                    subtitle = stringResource(R.string.storage_clear_app_list_subtitle),
                     onClick = {
                         confirmDialog = SettingConfirmDialogState(
-                            title = "Remove saved items from app",
-                            body = "This clears the library entries inside the app and leaves the original files on the device untouched.",
-                            confirmLabel = "Remove entries",
+                            title = context.getString(R.string.storage_clear_app_list_dialog_title),
+                            body = context.getString(R.string.storage_clear_app_list_dialog_body),
+                            confirmLabel = context.getString(R.string.common_remove_entries),
                             onConfirm = {
                                 onClearVideoTabEntries()
                                 confirmDialog = null
@@ -270,13 +282,13 @@ fun StorageSettingsScreen(
                 PreferenceDivider()
                 PreferenceRow(
                     icon = Icons.Rounded.DeleteSweep,
-                    title = "Delete all saved media",
-                    subtitle = "Permanently remove downloaded files from both the library and storage.",
+                    title = stringResource(R.string.storage_delete_all_title),
+                    subtitle = stringResource(R.string.storage_delete_all_subtitle),
                     onClick = {
                         confirmDialog = SettingConfirmDialogState(
-                            title = "Delete all saved media",
-                            body = "This permanently removes downloaded files from the app and device storage.",
-                            confirmLabel = "Delete all",
+                            title = context.getString(R.string.storage_delete_all_dialog_title),
+                            body = context.getString(R.string.storage_delete_all_dialog_body),
+                            confirmLabel = context.getString(R.string.common_delete_all),
                             destructive = true,
                             onConfirm = {
                                 onDeleteAllSavedMedia()
@@ -289,13 +301,13 @@ fun StorageSettingsScreen(
                 PreferenceDivider()
                 PreferenceRow(
                     icon = Icons.Rounded.Tune,
-                    title = "Reset all settings",
-                    subtitle = "Restore appearance, folders, download defaults, access preferences, and library behavior to the default setup.",
+                    title = stringResource(R.string.storage_reset_title),
+                    subtitle = stringResource(R.string.storage_reset_subtitle),
                     onClick = {
                         confirmDialog = SettingConfirmDialogState(
-                            title = "Reset settings",
-                            body = "This restores appearance, folders, download defaults, and library behavior back to the default setup.",
-                            confirmLabel = "Reset now",
+                            title = context.getString(R.string.storage_reset_dialog_title),
+                            body = context.getString(R.string.storage_reset_dialog_body),
+                            confirmLabel = context.getString(R.string.common_reset_now),
                             onConfirm = {
                                 onResetSettings()
                                 confirmDialog = null
@@ -334,7 +346,7 @@ private fun FolderPreferenceRow(
                     overflow = TextOverflow.Ellipsis,
                 )
                 PreferencePillButton(
-                    text = "Browse",
+                    text = stringResource(R.string.common_browse),
                     onClick = onBrowseClick,
                 )
             }

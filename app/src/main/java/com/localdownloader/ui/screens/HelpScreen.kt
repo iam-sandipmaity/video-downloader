@@ -35,9 +35,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.localdownloader.R
 import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.ui.support.openSupportIssue
 import com.localdownloader.ui.support.shareAppLogs
@@ -53,7 +55,7 @@ fun HelpScreen(
     val context = LocalContext.current
 
     PreferencePageScaffold(
-        title = "Help",
+        title = stringResource(R.string.help_title),
         onBack = onBack,
         modifier = modifier,
     ) {
@@ -67,133 +69,133 @@ fun HelpScreen(
         }
         item {
             HelpSectionCard(
-                title = "Best first move when a link acts up",
+                title = stringResource(R.string.help_section_first_move),
             ) {
                 HelpTimelineStep(
                     number = "1",
-                    title = "Start normal",
-                    body = "Paste the link on Home, analyze it, choose the format you want, and queue the download. Cookies are recommended, but not required to begin.",
+                    title = stringResource(R.string.help_step_1_title),
+                    body = stringResource(R.string.help_step_1_body),
                 )
                 DividerInset()
                 HelpTimelineStep(
                     number = "2",
-                    title = "Use the queue before retrying blindly",
-                    body = "Open the queue, inspect the item, and use retry or the diagnostics panel first. The queue can now show the source host, recent logs, and error details in one place.",
+                    title = stringResource(R.string.help_step_2_title),
+                    body = stringResource(R.string.help_step_2_body),
                 )
                 DividerInset()
                 HelpTimelineStep(
                     number = "3",
-                    title = "Add access only when the site needs it",
-                    body = "Use Cookies for sign-in, age-gated, region-limited, or session-protected pages. For YouTube, open YouTube access when tougher long-form retries need PO generation too.",
+                    title = stringResource(R.string.help_step_3_title),
+                    body = stringResource(R.string.help_step_3_body),
                 )
                 DividerInset()
                 HelpTimelineStep(
                     number = "4",
-                    title = "Report with proof if it still fails",
-                    body = "Export log.txt, take a screenshot of the failure state, and explain what you expected versus what happened. That usually saves a lot of back-and-forth.",
+                    title = stringResource(R.string.help_step_4_title),
+                    body = stringResource(R.string.help_step_4_body),
                 )
             }
         }
         item {
             HelpSectionCard(
-                title = "Know where each screen helps",
+                title = stringResource(R.string.help_section_where),
             ) {
                 HelpInfoRow(
                     icon = Icons.Outlined.Home,
-                    title = "Home",
-                    body = "Paste links, analyze media, compare formats, and queue the download you want.",
+                    title = stringResource(R.string.help_home_title),
+                    body = stringResource(R.string.help_home_body),
                 )
                 DividerInset()
                 HelpInfoRow(
                     icon = Icons.Outlined.CloudDownload,
-                    title = "Downloads",
-                    body = "Open completed files, rename them, share them, clean the library, or jump into playback.",
+                    title = stringResource(R.string.help_downloads_title),
+                    body = stringResource(R.string.help_downloads_body),
                 )
                 DividerInset()
                 HelpInfoRow(
                     icon = Icons.Outlined.Web,
-                    title = "More",
-                    body = "This is where quick shortcuts for queue, updates, help, and media tools live, while the deeper access setup also lives in Settings.",
+                    title = stringResource(R.string.help_more_title),
+                    body = stringResource(R.string.help_more_body),
                 )
                 DividerInset()
                 HelpInfoRow(
                     icon = Icons.Outlined.Settings,
-                    title = "Settings",
-                    body = "Change folders, notifications, theme, contrast, download defaults, and cleanup behavior without cluttering the main tabs.",
+                    title = stringResource(R.string.help_settings_title),
+                    body = stringResource(R.string.help_settings_body),
                 )
             }
         }
         item {
             HelpSectionCard(
-                title = "What usually fixes each type of problem",
+                title = stringResource(R.string.help_section_fix),
             ) {
                 HelpTipRow(
                     icon = Icons.Outlined.ErrorOutline,
-                    title = "Analysis fails immediately",
-                    body = "Retry once first. Some pages expose unstable metadata on the first pass, especially when the extractor has to refresh fresh session data.",
+                    title = stringResource(R.string.help_fix_analysis_title),
+                    body = stringResource(R.string.help_fix_analysis_body),
                 )
                 DividerInset()
                 HelpTipRow(
                     icon = Icons.Outlined.Web,
-                    title = "Sign-in, age, private, or region checks",
-                    body = "Add a cookie for the exact site. A matching browser session often fixes access problems without changing your format choices.",
+                    title = stringResource(R.string.help_fix_access_title),
+                    body = stringResource(R.string.help_fix_access_body),
                 )
                 DividerInset()
                 HelpTipRow(
                     icon = Icons.Outlined.Shield,
-                    title = "YouTube retries keep failing later",
-                    body = "Regenerate YouTube access, then retry the failed item from the queue. That refreshes the saved cookies and PO tokens together.",
+                    title = stringResource(R.string.help_fix_youtube_title),
+                    body = stringResource(R.string.help_fix_youtube_body),
                 )
                 DividerInset()
                 HelpTipRow(
                     icon = Icons.Outlined.Info,
-                    title = "A playlist item behaves differently from one-off downloads",
-                    body = "Use item actions for one playlist entry and tab-level batch actions when you mean the whole group. They are intentionally separate now.",
+                    title = stringResource(R.string.help_fix_playlist_title),
+                    body = stringResource(R.string.help_fix_playlist_body),
                 )
             }
         }
         item {
             HelpSectionCard(
-                title = "Built-in tools after the download is saved",
+                title = stringResource(R.string.help_section_tools),
             ) {
                 HelpInfoRow(
                     icon = Icons.Outlined.Transform,
-                    title = "Compressor",
-                    body = "Lower resolution or bitrate before sharing when storage space or upload size matters more than perfect quality.",
+                    title = stringResource(R.string.help_compressor_title),
+                    body = stringResource(R.string.help_compressor_body),
                 )
                 DividerInset()
                 HelpInfoRow(
                     icon = Icons.Outlined.SwapHoriz,
-                    title = "Converter",
-                    body = "Change a local file into another container or audio format using FFmpeg when a target device needs something specific.",
+                    title = stringResource(R.string.help_converter_title),
+                    body = stringResource(R.string.help_converter_body),
                 )
                 DividerInset()
                 HelpInfoRow(
                     icon = Icons.Outlined.GraphicEq,
-                    title = "Downloaded music flow",
-                    body = "Audio files can jump into the built-in player without cluttering the rest of the downloads library.",
+                    title = stringResource(R.string.help_music_title),
+                    body = stringResource(R.string.help_music_body),
                 )
                 DividerInset()
                 HelpInfoRow(
                     icon = Icons.Outlined.Storage,
-                    title = "Folders and cleanup",
-                    body = "Downloads stay grouped under the folders you choose in Settings, and cache cleanup is separate from deleting real saved media.",
+                    title = stringResource(R.string.help_folders_title),
+                    body = stringResource(R.string.help_folders_body),
                 )
             }
         }
         item {
             HelpSectionCard(
-                title = "What to include when you open an issue",
+                title = stringResource(R.string.help_section_issue),
             ) {
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    HelpBadge("Screenshot")
-                    HelpBadge("Exported log.txt")
-                    HelpBadge("Short explanation")
-                    HelpBadge("Site or URL context")
+                    HelpBadge(stringResource(R.string.help_badge_screenshot))
+                    HelpBadge(stringResource(R.string.help_badge_logs))
+                    HelpBadge(stringResource(R.string.help_badge_short_explanation))
+                    HelpBadge(stringResource(R.string.help_badge_site_context))
                 }
                 Surface(
                     shape = RoundedCornerShape(22.dp),
@@ -205,12 +207,12 @@ fun HelpScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Text(
-                            text = "Best report formula",
+                            text = stringResource(R.string.help_best_report_title),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                         )
                         Text(
-                            text = "Say what link or site you used, what output you chose, what you expected, what actually happened, and attach the exported logs. If the link is private, explain the site and the access condition instead of pasting sensitive data.",
+                            text = stringResource(R.string.help_best_report_body),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -236,8 +238,8 @@ private fun HelpActionGrid(
             HelpActionTile(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Outlined.Web,
-                title = "Open Cookies",
-                subtitle = "Save a site session for protected links.",
+                title = stringResource(R.string.help_open_cookies),
+                subtitle = stringResource(R.string.help_open_cookies_subtitle),
                 containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
                 iconTint = MaterialTheme.colorScheme.primary,
                 onClick = onOpenCookies,
@@ -245,8 +247,8 @@ private fun HelpActionGrid(
             HelpActionTile(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Outlined.Shield,
-                title = "YouTube access",
-                subtitle = "Refresh saved YouTube cookies and PO tokens.",
+                title = stringResource(R.string.help_open_youtube_access),
+                subtitle = stringResource(R.string.help_open_youtube_access_subtitle),
                 containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.58f),
                 iconTint = MaterialTheme.colorScheme.secondary,
                 onClick = onOpenYoutubeAccess,
@@ -259,8 +261,8 @@ private fun HelpActionGrid(
             HelpActionTile(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Outlined.Storage,
-                title = "Export logs",
-                subtitle = "Share app.log and crash.log in one step.",
+                title = stringResource(R.string.help_export_logs),
+                subtitle = stringResource(R.string.help_export_logs_subtitle),
                 containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.58f),
                 iconTint = MaterialTheme.colorScheme.tertiary,
                 onClick = onExportLogs,
@@ -268,8 +270,8 @@ private fun HelpActionGrid(
             HelpActionTile(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Outlined.Info,
-                title = "Report issue",
-                subtitle = "Open the GitHub issue form with reporting guidance.",
+                title = stringResource(R.string.help_report_issue),
+                subtitle = stringResource(R.string.help_report_issue_subtitle),
                 containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                 iconTint = MaterialTheme.colorScheme.onSurface,
                 onClick = onReportIssue,

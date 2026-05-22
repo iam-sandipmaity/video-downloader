@@ -1,13 +1,8 @@
 package com.localdownloader.ui.screens.settings
 
-import android.content.Intent
-import android.net.Uri
-import android.os.Build
-import android.provider.Settings
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Palette
-import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Style
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.runtime.Composable
@@ -17,6 +12,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.localdownloader.R
 import com.localdownloader.domain.models.AccentPreset
 import com.localdownloader.domain.models.ContrastMode
 import com.localdownloader.domain.models.SYSTEM_LANGUAGE_TAG
@@ -39,6 +36,8 @@ fun AppearanceSettingsScreen(
 ) {
     val context = LocalContext.current
     var choiceDialog by remember { mutableStateOf<SettingChoiceDialogState?>(null) }
+    val systemDefaultLabel = stringResource(R.string.common_system_default)
+    val interfaceLanguageLabel = stringResource(R.string.common_interface_language)
 
     choiceDialog?.let { state ->
         SettingChoiceDialog(
@@ -48,7 +47,7 @@ fun AppearanceSettingsScreen(
     }
 
     PreferencePageScaffold(
-        title = "Appearance",
+        title = stringResource(R.string.appearance_title),
         onBack = onBack,
         modifier = modifier,
     ) {
@@ -56,24 +55,25 @@ fun AppearanceSettingsScreen(
             PreferenceGroup {
                 PreferenceRow(
                     icon = Icons.Rounded.Style,
-                    title = "Theme mode",
-                    subtitle = "Choose whether the app follows the device, stays light, or stays dark.",
-                    value = themeModeLabel(uiState.themeMode),
+                    title = stringResource(R.string.appearance_theme_title),
+                    subtitle = stringResource(R.string.appearance_theme_subtitle),
+                    value = themeModeLabel(context, uiState.themeMode),
                     onClick = {
+                        val themeTitle = context.getString(R.string.appearance_theme_title)
                         choiceDialog = SettingChoiceDialogState(
-                            title = "Theme mode",
-                            selected = themeModeLabel(uiState.themeMode),
+                            title = themeTitle,
+                            selected = themeModeLabel(context, uiState.themeMode),
                             options = listOf(
                                 ThemeMode.SYSTEM,
                                 ThemeMode.DARK,
                                 ThemeMode.LIGHT,
                             ).map { mode ->
                                 SettingChoiceOption(
-                                    title = themeModeLabel(mode),
+                                    title = themeModeLabel(context, mode),
                                     subtitle = when (mode) {
-                                        ThemeMode.SYSTEM -> "Follow the phone mode automatically."
-                                        ThemeMode.DARK -> "Always use the darker app surface."
-                                        ThemeMode.LIGHT -> "Always use the lighter app surface."
+                                        ThemeMode.SYSTEM -> context.getString(R.string.appearance_theme_system_subtitle)
+                                        ThemeMode.DARK -> context.getString(R.string.appearance_theme_dark_subtitle)
+                                        ThemeMode.LIGHT -> context.getString(R.string.appearance_theme_light_subtitle)
                                     },
                                     onSelect = { onThemeModeChanged(mode) },
                                 )
@@ -84,14 +84,17 @@ fun AppearanceSettingsScreen(
                 PreferenceDivider()
                 PreferenceRow(
                     icon = Icons.Rounded.Palette,
-                    title = "Accent palette",
-                    subtitle = "Shape the color language for highlights, buttons, playback details, and utility surfaces.",
-                    value = accentLabel(uiState.accentPreset),
+                    title = stringResource(R.string.appearance_accent_title),
+                    subtitle = stringResource(R.string.appearance_accent_subtitle),
+                    value = accentLabel(context, uiState.accentPreset),
                     onClick = {
+                        val accentTitle = context.getString(R.string.appearance_accent_title)
                         val accentOrder = listOf(
                             AccentPreset.AMBER,
                             AccentPreset.OCEAN,
                             AccentPreset.COBALT,
+                            AccentPreset.INDIGO,
+                            AccentPreset.SKY,
                             AccentPreset.AQUA,
                             AccentPreset.TEAL,
                             AccentPreset.MINT,
@@ -102,17 +105,19 @@ fun AppearanceSettingsScreen(
                             AccentPreset.MAGENTA,
                             AccentPreset.PURPLE,
                             AccentPreset.YELLOW,
+                            AccentPreset.LIME,
                             AccentPreset.ORANGE,
+                            AccentPreset.PEACH,
                             AccentPreset.COPPER,
                             AccentPreset.MONOCHROME,
                         )
                         choiceDialog = SettingChoiceDialogState(
-                            title = "Accent palette",
-                            selected = accentLabel(uiState.accentPreset),
+                            title = accentTitle,
+                            selected = accentLabel(context, uiState.accentPreset),
                             options = accentOrder.map { preset ->
                                 SettingChoiceOption(
-                                    title = accentLabel(preset),
-                                    subtitle = accentSubtitle(preset),
+                                    title = accentLabel(context, preset),
+                                    subtitle = accentSubtitle(context, preset),
                                     onSelect = { onAccentPresetChanged(preset) },
                                 )
                             },
@@ -122,17 +127,18 @@ fun AppearanceSettingsScreen(
                 PreferenceDivider()
                 PreferenceRow(
                     icon = Icons.Rounded.Tune,
-                    title = "Contrast",
-                    subtitle = "Tune how gently or sharply cards, text, and backgrounds separate from each other.",
-                    value = contrastLabel(uiState.contrastMode),
+                    title = stringResource(R.string.appearance_contrast_title),
+                    subtitle = stringResource(R.string.appearance_contrast_subtitle),
+                    value = contrastLabel(context, uiState.contrastMode),
                     onClick = {
+                        val contrastTitle = context.getString(R.string.appearance_contrast_title)
                         choiceDialog = SettingChoiceDialogState(
-                            title = "Contrast",
-                            selected = contrastLabel(uiState.contrastMode),
+                            title = contrastTitle,
+                            selected = contrastLabel(context, uiState.contrastMode),
                             options = ContrastMode.entries.map { mode ->
                                 SettingChoiceOption(
-                                    title = contrastLabel(mode),
-                                    subtitle = contrastSubtitle(mode),
+                                    title = contrastLabel(context, mode),
+                                    subtitle = contrastSubtitle(context, mode),
                                     onSelect = { onContrastModeChanged(mode) },
                                 )
                             },
@@ -145,19 +151,20 @@ fun AppearanceSettingsScreen(
             PreferenceGroup {
                 PreferenceRow(
                     icon = Icons.Rounded.Language,
-                    title = "App language",
-                    subtitle = "Follow Android's app language system, or pin a specific language here. English is still the most complete UI today.",
-                    value = appLanguageLabel(uiState.languageTag),
+                    title = stringResource(R.string.appearance_language_title),
+                    subtitle = stringResource(R.string.appearance_language_subtitle),
+                    value = appLanguageLabel(uiState.languageTag, systemDefaultLabel),
                     onClick = {
-                        val languageOptions = supportedAppLanguageOptions()
+                        val languageOptions = supportedAppLanguageOptions(interfaceLanguageLabel)
+                        val languageTitle = context.getString(R.string.appearance_language_title)
                         choiceDialog = SettingChoiceDialogState(
-                            title = "App language",
-                            selected = appLanguageLabel(uiState.languageTag),
+                            title = languageTitle,
+                            selected = appLanguageLabel(uiState.languageTag, systemDefaultLabel),
                             options = buildList {
                                 add(
                                     SettingChoiceOption(
-                                        title = "System default",
-                                        subtitle = "Follow the language Android already uses for this app.",
+                                        title = systemDefaultLabel,
+                                        subtitle = context.getString(R.string.appearance_language_system_subtitle),
                                         onSelect = { onLanguageChanged(SYSTEM_LANGUAGE_TAG) },
                                     ),
                                 )
@@ -172,24 +179,6 @@ fun AppearanceSettingsScreen(
                                 )
                             },
                         )
-                    },
-                )
-                PreferenceDivider()
-                PreferenceRow(
-                    icon = Icons.Rounded.Settings,
-                    title = "Android language settings",
-                    subtitle = "Open the system app-language picker for the full Android language flow.",
-                    onClick = {
-                        val settingsIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            Intent(Settings.ACTION_APP_LOCALE_SETTINGS).apply {
-                                data = Uri.fromParts("package", context.packageName, null)
-                            }
-                        } else {
-                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                data = Uri.fromParts("package", context.packageName, null)
-                            }
-                        }
-                        context.startActivity(settingsIntent)
                     },
                 )
             }
