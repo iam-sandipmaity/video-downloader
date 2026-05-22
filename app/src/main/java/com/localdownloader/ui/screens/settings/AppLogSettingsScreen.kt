@@ -4,8 +4,10 @@ import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -14,10 +16,13 @@ import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -25,22 +30,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.localdownloader.ui.components.InlineFeedbackCard
-import com.localdownloader.ui.components.PreferenceDivider
-import com.localdownloader.ui.components.PreferenceGroup
-import com.localdownloader.ui.components.PreferenceHeroCard
 import com.localdownloader.ui.components.PreferencePageScaffold
-import com.localdownloader.ui.components.PreferenceRow
-import com.localdownloader.ui.components.PreferenceSectionHeader
-import com.localdownloader.ui.components.PreferenceSwitchRow
 import com.localdownloader.viewmodel.AppLogEntry
 import com.localdownloader.viewmodel.AppLogEntryCategory
 import com.localdownloader.viewmodel.AppLogOutcomeFilter
@@ -134,148 +135,108 @@ fun AppLogSettingsScreen(
         },
     ) {
         item {
-            PreferenceHeroCard(
-                eyebrow = "Internal log",
-                title = "Read app.log without leaving Settings",
-                subtitle = "Filter the current app log by outcome or day, then copy or export only the lines you need.",
-                badges = buildList {
-                    add("${uiState.entries.size} entries")
-                    add("$failedCount failed")
-                    add("$successfulCount successful")
+            AppLogOverviewStrip(
+                entryCount = uiState.entries.size,
+                failedCount = failedCount,
+                successfulCount = successfulCount,
+                statusText = when {
+                    copied -> "Copied"
+                    uiState.lastUpdatedAt != null -> "Updated ${formatLogRefreshTime(uiState.lastUpdatedAt)}"
+                    else -> "Not refreshed yet"
                 },
             )
         }
-
         item {
-            PreferenceSectionHeader(
-                title = "Filters",
-                subtitle = "Use one outcome filter and one day filter together.",
-            )
-        }
-
-        item {
-            PreferenceGroup {
+            AppLogPanel {
                 Column(
-                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            text = "Outcome",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            AppLogOutcomeFilter.entries.forEach { filter ->
-                                FilterChip(
-                                    selected = uiState.selectedOutcome == filter,
-                                    onClick = { onOutcomeFilterChanged(filter) },
-                                    label = { Text(filter.label) },
-                                )
-                            }
-                        }
-                    }
-
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            text = "Day",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            FilterChip(
-                                selected = uiState.selectedDay == null,
-                                onClick = { onDayFilterChanged(null) },
-                                label = { Text("All days") },
+                    AppLogChipGroup(
+                        label = "Outcome",
+                        chips = AppLogOutcomeFilter.entries.map { filter ->
+                            AppLogFilterChip(
+                                label = filter.label,
+                                selected = uiState.selectedOutcome == filter,
+                                onClick = { onOutcomeFilterChanged(filter) },
+                            )
+                        },
+                    )
+                    AppLogChipGroup(
+                        label = "Day",
+                        chips = buildList {
+                            add(
+                                AppLogFilterChip(
+                                    label = "All days",
+                                    selected = uiState.selectedDay == null,
+                                    onClick = { onDayFilterChanged(null) },
+                                ),
                             )
                             uiState.availableDays.forEach { day ->
-                                FilterChip(
-                                    selected = uiState.selectedDay == day,
-                                    onClick = { onDayFilterChanged(day) },
-                                    label = { Text(formatAppLogDayLabel(day)) },
+                                add(
+                                    AppLogFilterChip(
+                                        label = formatAppLogDayLabel(day),
+                                        selected = uiState.selectedDay == day,
+                                        onClick = { onDayFilterChanged(day) },
+                                    ),
                                 )
                             }
-                        }
-                    }
-
-                    Text(
-                        text = when {
-                            copied -> "Filtered log copied."
-                            uiState.lastUpdatedAt != null -> {
-                                "Last refreshed ${formatLogRefreshTime(uiState.lastUpdatedAt)}"
-                            }
-                            else -> "Refresh to reload the latest app.log lines."
                         },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
         }
 
         item {
-            PreferenceSectionHeader(
-                title = "Storage",
-                subtitle = "Manage device backups and how long rotated app logs stay inside the app.",
-            )
-        }
-
-        item {
-            PreferenceGroup {
-                PreferenceSwitchRow(
-                    icon = Icons.Outlined.Share,
-                    title = "Back up logs to device",
-                    subtitle = "Automatically copy rotated log archives into a device backup folder.",
-                    checked = uiState.backupLogsToDevice,
-                    onCheckedChange = onBackupLogsToDeviceChanged,
-                )
-                PreferenceDivider()
-                PreferenceSwitchRow(
-                    icon = Icons.Outlined.Refresh,
-                    title = "Auto-delete old app logs",
-                    subtitle = "Clean older rotated app logs from internal app storage after the retention window passes.",
-                    checked = uiState.autoDeleteOldAppLogs,
-                    onCheckedChange = onAutoDeleteOldAppLogsChanged,
-                )
-                PreferenceDivider()
-                PreferenceRow(
-                    icon = Icons.Outlined.Refresh,
-                    title = "Keep rotated logs for",
-                    subtitle = "Choose how many days of archived log history stay inside the app.",
-                    value = "${uiState.appLogRetentionDays} days",
-                    onClick = {
-                        retentionDialog = SettingChoiceDialogState(
-                            title = "App log retention",
-                            selected = "${uiState.appLogRetentionDays} days",
-                            options = listOf(3, 7, 15, 30, 60, 90).map { days ->
-                                SettingChoiceOption(
-                                    title = "$days days",
-                                    subtitle = when {
-                                        days <= 7 -> "Smaller footprint with lighter history."
-                                        days <= 30 -> "Balanced for everyday troubleshooting."
-                                        else -> "Longer history for harder-to-reproduce bugs."
+            AppLogPanel {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    AppLogSwitchRow(
+                        title = "Backup to device",
+                        checked = uiState.backupLogsToDevice,
+                        onCheckedChange = onBackupLogsToDeviceChanged,
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+                    AppLogSwitchRow(
+                        title = "Auto cleanup",
+                        checked = uiState.autoDeleteOldAppLogs,
+                        onCheckedChange = onAutoDeleteOldAppLogsChanged,
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        FilledTonalButton(
+                            onClick = {
+                                retentionDialog = SettingChoiceDialogState(
+                                    title = "App log retention",
+                                    selected = "${uiState.appLogRetentionDays} days",
+                                    options = listOf(3, 7, 15, 30, 60, 90).map { days ->
+                                        SettingChoiceOption(
+                                            title = "$days days",
+                                            subtitle = when {
+                                                days <= 7 -> "Smaller footprint"
+                                                days <= 30 -> "Balanced history"
+                                                else -> "Longer history"
+                                            },
+                                            onSelect = { onAppLogRetentionDaysChanged(days) },
+                                        )
                                     },
-                                    onSelect = { onAppLogRetentionDaysChanged(days) },
                                 )
                             },
-                        )
-                    },
-                )
-                PreferenceDivider()
-                PreferenceRow(
-                    icon = Icons.Outlined.Share,
-                    title = "Back up now",
-                    subtitle = uiState.deviceBackupPath?.let { path ->
-                        "Write a snapshot of the current logs into $path"
-                    } ?: "Write a snapshot of the current logs into the device backup folder.",
-                    onClick = onBackupNow,
-                )
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text("${uiState.appLogRetentionDays} days")
+                        }
+                        FilledTonalButton(
+                            onClick = onBackupNow,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text("Back up now")
+                        }
+                    }
+                }
             }
         }
 
@@ -303,36 +264,27 @@ fun AppLogSettingsScreen(
 
         if (uiState.isLoading) {
             item {
-                PreferenceGroup {
+                AppLogPanel {
                     Text(
                         text = "Loading app.log...",
-                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 18.dp),
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
                     )
                 }
             }
         } else if (uiState.filteredEntries.isEmpty()) {
             item {
-                PreferenceGroup {
+                AppLogPanel {
                     Text(
                         text = if (uiState.entries.isEmpty()) {
-                            "app.log has no readable entries yet."
+                            "app.log is empty."
                         } else {
-                            "No app.log entries match the current filters."
+                            "No matching entries."
                         },
-                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 18.dp),
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
                     )
                 }
             }
         } else {
-            item {
-                PreferenceSectionHeader(
-                    title = "Log output",
-                    subtitle = "${uiState.filteredEntries.size} matching entries shown below.",
-                )
-            }
-
             uiState.filteredEntries.forEach { entry ->
                 item {
                     AppLogEntryCard(entry = entry)
@@ -343,36 +295,157 @@ fun AppLogSettingsScreen(
 }
 
 @Composable
+private fun AppLogOverviewStrip(
+    entryCount: Int,
+    failedCount: Int,
+    successfulCount: Int,
+    statusText: String,
+) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        listOf(
+            "$entryCount entries",
+            "$failedCount failed",
+            "$successfulCount successful",
+            statusText,
+        ).forEach { label ->
+            Surface(
+                shape = MaterialTheme.shapes.extraLarge,
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+            ) {
+                Text(
+                    text = label,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+private data class AppLogFilterChip(
+    val label: String,
+    val selected: Boolean,
+    val onClick: () -> Unit,
+)
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AppLogChipGroup(
+    label: String,
+    chips: List<AppLogFilterChip>,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            chips.forEach { chip ->
+                FilterChip(
+                    selected = chip.selected,
+                    onClick = chip.onClick,
+                    label = { Text(chip.label) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppLogPanel(
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Surface(
+        shape = MaterialTheme.shapes.extraLarge,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            content = content,
+        )
+    }
+}
+
+@Composable
+private fun AppLogSwitchRow(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Medium,
+        )
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+        )
+    }
+}
+
+@Composable
 private fun AppLogEntryCard(
     entry: AppLogEntry,
 ) {
-    PreferenceGroup {
+    AppLogPanel {
         Column(
-            modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(
-                text = buildLogEntryHeader(entry),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.SemiBold,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = buildLogEntryHeader(entry),
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = logHeaderColor(entry.category),
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.large,
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                color = MaterialTheme.colorScheme.surface,
             ) {
                 SelectionContainer {
                     Text(
                         text = entry.rawText,
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
                         style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                 }
             }
         }
     }
+}
+
+@Composable
+private fun logHeaderColor(category: AppLogEntryCategory) = when (category) {
+    AppLogEntryCategory.FAILED -> MaterialTheme.colorScheme.error
+    AppLogEntryCategory.SUCCESSFUL -> MaterialTheme.colorScheme.primary
+    AppLogEntryCategory.OTHER -> MaterialTheme.colorScheme.onSurfaceVariant
 }
 
 private fun buildLogEntryHeader(entry: AppLogEntry): String {
