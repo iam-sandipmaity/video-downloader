@@ -212,22 +212,6 @@ fun AboutSettingsScreen(
                     subtitle = "@iam_sandipmaity",
                     onClick = { openUrl("https://x.com/iam_sandipmaity") },
                 )
-                PreferenceDivider()
-                AboutAssetRow(
-                    assetPath = "file:///android_asset/platform_logos/instagram.svg",
-                    imageLoader = svgImageLoader,
-                    title = stringResource(R.string.about_developer_instagram_title),
-                    subtitle = "@iam_sandipmaity",
-                    onClick = { openUrl("https://instagram.com/iam_sandipmaity") },
-                )
-                PreferenceDivider()
-                AboutAssetRow(
-                    assetPath = "file:///android_asset/platform_logos/linkedin.svg",
-                    imageLoader = svgImageLoader,
-                    title = stringResource(R.string.about_developer_linkedin_title),
-                    subtitle = "iam-sandipmaity",
-                    onClick = { openUrl("https://www.linkedin.com/in/iam-sandipmaity") },
-                )
             }
         }
         item {
