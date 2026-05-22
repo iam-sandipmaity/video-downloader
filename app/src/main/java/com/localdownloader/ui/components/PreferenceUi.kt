@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -65,7 +66,10 @@ fun PreferencePageScaffold(
     val collapseThresholdPx = remember(density) { with(density) { HeaderCollapseThreshold.roundToPx() } }
     val collapsed by rememberCollapsedHeaderState(listState, collapseThresholdPx)
 
-    Scaffold(modifier = modifier) { innerPadding ->
+    Scaffold(
+        modifier = modifier,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+    ) { innerPadding ->
         Box(
             modifier = Modifier
                 .background(MaterialTheme.colorScheme.background)
