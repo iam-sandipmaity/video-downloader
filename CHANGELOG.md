@@ -31,6 +31,7 @@
 - **Media default polish** - embedded thumbnails are now enabled by default so saved downloads keep their source artwork unless a user turns that off
 - **Localization rollout, phase 1** - trimmed app-language choices down to the currently supported set (`System default`, `English`, `Bengali`, `Hindi`), removed the redundant Android language-settings shortcut, and moved the More plus core Settings pages onto real translated string resources
 - **Localization rollout, phase 2** - extended translated resources into the queue, history, updates, help, converter, compressor, cookies, YouTube access, and changelog surfaces while intentionally leaving the raw App log reader output untranslated
+- **Localization rollout, phase 3** - filled the remaining Hindi and Bengali UI-resource gaps so the current base string set now has full locale coverage without falling back to English on queue, history, updates, help, converter, compressor, cookies, or YouTube access screens
 - **Downloads card metadata polish** - saved files now surface format, quality, size, and fresher relative date labels like `today` or `yesterday` without changing the overall card style
 - **Recovery copy cleanup** - updated onboarding and queue guidance so cookie and YouTube access directions point to the new Settings access path instead of the older More-only flow
 - **Typography tune-up** - expanded the app typography set so the new settings and support pages can use cleaner headline, label, and small-body styling without falling back to mismatched defaults
