@@ -26,8 +26,8 @@ gradle :app:testDebugUnitTest
 
 ## Working Style For This Repo
 
-This project is currently in a stable-beta phase. That means most good work
-falls into one of these groups:
+This project is currently on a stable `1.7.2` baseline. Most good work falls
+into one of these groups:
 
 - fixing downloader/runtime regressions
 - tightening queue and recovery behavior

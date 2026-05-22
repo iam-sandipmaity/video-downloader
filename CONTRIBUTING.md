@@ -2,15 +2,28 @@
 
 Thanks for contributing to Video Downloader.
 
-This project is currently in a stable `1.7.1.0-beta` phase. The main UI and
-screen structure are considered settled for now, so most near-term work should
-improve one of these areas:
+The current stable public release is `1.7.2`. The main UI and screen structure
+are considered settled for now, so most near-term work should improve one of
+these areas:
 
 - download compatibility and extractor regressions
 - queue, runtime, or media-processing bugs
 - translation quality and locale completeness
 - documentation accuracy
 - test coverage and internal logic hardening
+
+## Versioning Flow
+
+Ongoing work on top of the stable `1.7.2` line may appear first as:
+
+- `1.7.2.0`, `1.7.2.1`, and similar patch-line builds
+- optionally suffixed builds such as `1.7.2.0-alpha`, `1.7.2.0-beta`, or `1.7.2.0-test`
+
+Once a change set is considered tested and stable enough for normal users, the
+next stable release moves forward to `1.7.3`.
+
+In short: patch-line prereleases can move within the current stable family, and
+the stable number only advances after that work is validated.
 
 ## Before You Start
 

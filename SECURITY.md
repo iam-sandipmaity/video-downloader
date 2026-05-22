@@ -8,11 +8,18 @@ main development branch.
 | Version | Supported |
 | ------- | --------- |
 | `main` | Yes |
-| latest `1.7.1.x` / `1.7.1.0-beta` line | Yes |
-| older `1.7.0.x` and below | No |
+| stable `1.7.2` and the current `1.7.2.x` prerelease line | Yes |
+| older `1.7.1.x` and below | No |
 
 If you are on an older release, please upgrade before reporting a vulnerability
 unless the issue prevents safe upgrading.
+
+Current release posture:
+
+- `1.7.2` is the stable public baseline right now
+- new in-progress work can ship first as `1.7.2.0`, `1.7.2.1`, and similar patch-line builds
+- prerelease labels such as `-alpha`, `-beta`, or `-test` may be used on that `1.7.2.x` line while validation is still happening
+- once that work is considered complete and stable, the next stable public release becomes `1.7.3`
 
 ## Reporting a Vulnerability
 

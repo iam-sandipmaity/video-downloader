@@ -598,6 +598,8 @@
     <string name="accent_material_you">Material you</string>
     <string name="accent_blue">Blue</string>
     <string name="accent_cobalt">Cobalt</string>
+    <string name="accent_indigo">Indigo</string>
+    <string name="accent_sky">Sky</string>
     <string name="accent_aqua">Aqua</string>
     <string name="accent_teal">Teal</string>
     <string name="accent_mint">Mint</string>
@@ -608,12 +610,16 @@
     <string name="accent_magenta">Magenta</string>
     <string name="accent_purple">Purple</string>
     <string name="accent_yellow">Yellow</string>
+    <string name="accent_lime">Lime</string>
     <string name="accent_orange">Orange</string>
+    <string name="accent_peach">Peach</string>
     <string name="accent_copper">Copper</string>
     <string name="accent_monochrome">Monochrome</string>
     <string name="accent_subtitle_amber">A warm default with the soft amber look already used by the app.</string>
     <string name="accent_subtitle_ocean">Cool blue highlights for a calmer downloader mood.</string>
     <string name="accent_subtitle_cobalt">A deeper electric blue with stronger player and action contrast.</string>
+    <string name="accent_subtitle_indigo">A denser blue-violet palette that feels steadier than cobalt.</string>
+    <string name="accent_subtitle_sky">Bright sky-blue accents for a lighter, more open look.</string>
     <string name="accent_subtitle_aqua">Bright aqua accents with a cleaner, glassier utility feel.</string>
     <string name="accent_subtitle_teal">Blue-green accents that feel crisp, modern, and a little lighter.</string>
     <string name="accent_subtitle_mint">Fresh mint accents for a softer, cleaner utility look.</string>
@@ -624,7 +630,9 @@
     <string name="accent_subtitle_magenta">Bold magenta highlights for a more vivid music and creator vibe.</string>
     <string name="accent_subtitle_purple">A richer violet palette for a more dramatic music vibe.</string>
     <string name="accent_subtitle_yellow">Bright yellow accents with higher energy.</string>
+    <string name="accent_subtitle_lime">A sharper yellow-green palette with high visibility and fast utility contrast.</string>
     <string name="accent_subtitle_orange">Warm orange action tones similar to media apps.</string>
+    <string name="accent_subtitle_peach">Soft peach-orange accents for a warmer, friendlier look than orange.</string>
     <string name="accent_subtitle_copper">Copper-orange accents that feel warmer and more grounded than amber.</string>
     <string name="accent_subtitle_monochrome">Muted grayscale accents for a cleaner neutral setup.</string>
     <string name="contrast_soft">Soft</string>

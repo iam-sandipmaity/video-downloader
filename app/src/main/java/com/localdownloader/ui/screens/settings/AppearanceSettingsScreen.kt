@@ -93,6 +93,8 @@ fun AppearanceSettingsScreen(
                             AccentPreset.AMBER,
                             AccentPreset.OCEAN,
                             AccentPreset.COBALT,
+                            AccentPreset.INDIGO,
+                            AccentPreset.SKY,
                             AccentPreset.AQUA,
                             AccentPreset.TEAL,
                             AccentPreset.MINT,
@@ -103,7 +105,9 @@ fun AppearanceSettingsScreen(
                             AccentPreset.MAGENTA,
                             AccentPreset.PURPLE,
                             AccentPreset.YELLOW,
+                            AccentPreset.LIME,
                             AccentPreset.ORANGE,
+                            AccentPreset.PEACH,
                             AccentPreset.COPPER,
                             AccentPreset.MONOCHROME,
                         )
