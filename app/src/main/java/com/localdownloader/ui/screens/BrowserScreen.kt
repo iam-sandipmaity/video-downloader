@@ -1238,7 +1238,20 @@ private fun SelectionOptionsCard(
                     .coerceAtLeast(0),
                 onSelected = { onFormatSelectorChanged(choices[it].selector) },
             )
-            FormatChoiceInsightCard(choice = selectedChoice)
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                buildInlineFormatSummaryChips(selectedChoice).forEach { chip ->
+                    BrowserMetaChip(text = chip)
+                }
+            }
+            Text(
+                text = buildFormatChoiceHint(selectedChoice),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         } else {
             onQualityChanged?.let { qualityChanged ->
                 BrowserDropdownRow(
@@ -1555,70 +1568,18 @@ private fun ToggleChipRow(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun FormatChoiceInsightCard(
-    choice: FormatChoice,
-) {
-    Surface(
-        shape = RoundedCornerShape(22.dp),
-        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.38f),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                text = "Selected",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = choice.label,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Medium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                buildFormatInsightChips(choice).forEach { chip ->
-                    BrowserMetaChip(text = chip)
-                }
-            }
-            Text(
-                text = buildFormatChoiceHint(choice),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-private fun buildFormatInsightChips(choice: FormatChoice): List<String> {
+private fun buildInlineFormatSummaryChips(choice: FormatChoice): List<String> {
     return buildList {
-        formatChoicePrimarySizeLabel(choice)?.let { sizeLabel ->
-            add(if (choice.fileSizeBytes != null) "Size $sizeLabel" else sizeLabel)
-        }
+        choice.container.takeIf { it.isNotBlank() }?.let { add(it.uppercase()) }
         choice.height?.let { add("${it}p") }
         choice.fps?.takeIf { it > 0 }?.let { add("${it.toInt()} fps") }
-        add("Container ${choice.container.uppercase()}")
         when (choice.streamType) {
             StreamType.VIDEO_AUDIO -> add(if (choice.isMerged) "Video + audio" else "Muxed")
             StreamType.VIDEO_ONLY -> add("Video only")
             StreamType.AUDIO_ONLY -> add("Audio only")
         }
+        formatChoicePrimarySizeLabel(choice)?.let { add(it) }
         choice.bitrateKbps?.let { add("${it} kbps") }
-        choice.videoCodec?.takeIf { it.isNotBlank() && !it.equals("none", ignoreCase = true) }?.let {
-            add("Video ${compactCodecLabel(it)}")
-        }
-        choice.audioCodec?.takeIf { it.isNotBlank() && !it.equals("none", ignoreCase = true) }?.let {
-            add("Audio ${compactCodecLabel(it)}")
-        }
     }
 }
 
