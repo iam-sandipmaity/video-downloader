@@ -7,7 +7,6 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,12 +14,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -62,6 +61,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.localdownloader.domain.models.CookieProfile
 import com.localdownloader.ui.components.InlineFeedbackCard
+import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.utils.CookieTextCodec
 import com.localdownloader.utils.WebViewCookieExporter
 import com.localdownloader.viewmodel.FormatMessageScope
@@ -151,92 +151,76 @@ fun CookiesScreen(
         )
     }
 
-    Scaffold(
+    PreferencePageScaffold(
+        title = "Cookies",
+        onBack = onBack,
         modifier = modifier,
-        topBar = {
-            TopAppBar(
-                title = { Text("Cookies") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    Box {
-                        IconButton(onClick = { showMenu = true }) {
-                            Icon(Icons.Outlined.MoreVert, contentDescription = "Cookie actions")
-                        }
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false },
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Delete All Cookies") },
-                                onClick = {
-                                    showMenu = false
-                                    confirmDeleteAll = true
+        actions = {
+            Box {
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(Icons.Outlined.MoreVert, contentDescription = "Cookie actions")
+                }
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Delete All Cookies") },
+                        onClick = {
+                            showMenu = false
+                            confirmDeleteAll = true
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                if (uiState.cookieUserAgentEnabled) {
+                                    "User-Agent header: On"
+                                } else {
+                                    "User-Agent header: Off"
                                 },
                             )
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        if (uiState.cookieUserAgentEnabled) {
-                                            "User-Agent header: On"
-                                        } else {
-                                            "User-Agent header: Off"
-                                        },
-                                    )
-                                },
-                                onClick = {
-                                    showMenu = false
-                                    onCookieUserAgentEnabledChanged(!uiState.cookieUserAgentEnabled)
-                                },
+                        },
+                        onClick = {
+                            showMenu = false
+                            onCookieUserAgentEnabledChanged(!uiState.cookieUserAgentEnabled)
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Import from clipboard") },
+                        onClick = {
+                            showMenu = false
+                            val raw = clipboardManager.getText()?.text.orEmpty()
+                            if (raw.isNotBlank()) {
+                                onImportCookieText(raw)
+                            }
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Export to clipboard") },
+                        onClick = {
+                            showMenu = false
+                            clipboardManager.setText(
+                                AnnotatedString(CookieTextCodec.buildCombinedExport(uiState.cookieProfiles)),
                             )
-                            DropdownMenuItem(
-                                text = { Text("Import from clipboard") },
-                                onClick = {
-                                    showMenu = false
-                                    val raw = clipboardManager.getText()?.text.orEmpty()
-                                    if (raw.isNotBlank()) {
-                                        onImportCookieText(raw)
-                                    }
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Export to clipboard") },
-                                onClick = {
-                                    showMenu = false
-                                    clipboardManager.setText(
-                                        AnnotatedString(CookieTextCodec.buildCombinedExport(uiState.cookieProfiles)),
-                                    )
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Export File") },
-                                onClick = {
-                                    showMenu = false
-                                    exportLauncher.launch("video-downloader-cookies.txt")
-                                },
-                            )
-                        }
-                    }
-                },
-            )
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Export File") },
+                        onClick = {
+                            showMenu = false
+                            exportLauncher.launch("video-downloader-cookies.txt")
+                        },
+                    )
+                }
+            }
         },
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(innerPadding),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
+    ) {
+        item {
             Surface(
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
                 shape = RoundedCornerShape(28.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 18.dp),
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(
                     modifier = Modifier
@@ -286,11 +270,10 @@ fun CookiesScreen(
                     }
                 }
             }
-
+        }
+        item {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 18.dp),
+                modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -323,31 +306,31 @@ fun CookiesScreen(
                     Text("New Cookie", modifier = Modifier.padding(start = 8.dp))
                 }
             }
-
-            infoMessage?.let { message ->
+        }
+        infoMessage?.let { message ->
+            item {
                 InlineFeedbackCard(
                     label = "Cookies",
                     message = message,
                     isError = false,
                     onDismiss = onDismissMessage,
-                    modifier = Modifier.padding(horizontal = 18.dp),
                 )
             }
-            errorMessage?.let { message ->
+        }
+        errorMessage?.let { message ->
+            item {
                 InlineFeedbackCard(
                     label = "Cookies",
                     message = message,
                     isError = true,
                     onDismiss = onDismissMessage,
-                    modifier = Modifier.padding(horizontal = 18.dp),
                 )
             }
-
-            if (uiState.cookieProfiles.isEmpty()) {
+        }
+        if (uiState.cookieProfiles.isEmpty()) {
+            item {
                 Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 18.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                     shape = RoundedCornerShape(28.dp),
                 ) {
@@ -378,25 +361,19 @@ fun CookiesScreen(
                         }
                     }
                 }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 4.dp, bottom = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    items(uiState.cookieProfiles, key = { it.id }) { profile ->
-                        CookieProfileCard(
-                            profile = profile,
-                            onClick = {
-                                editorState = CookieEditorState(
-                                    profileId = profile.id,
-                                    url = profile.url,
-                                    cookiesText = profile.cookiesText,
-                                )
-                            },
+            }
+        } else {
+            items(uiState.cookieProfiles, key = { it.id }) { profile ->
+                CookieProfileCard(
+                    profile = profile,
+                    onClick = {
+                        editorState = CookieEditorState(
+                            profileId = profile.id,
+                            url = profile.url,
+                            cookiesText = profile.cookiesText,
                         )
-                    }
-                }
+                    },
+                )
             }
         }
     }
@@ -417,6 +394,7 @@ fun CookieCaptureScreen(
 
     Scaffold(
         modifier = modifier,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
                 title = {

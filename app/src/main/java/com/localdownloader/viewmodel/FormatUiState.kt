@@ -1,6 +1,7 @@
 package com.localdownloader.viewmodel
 
 import com.localdownloader.domain.models.AccentPreset
+import com.localdownloader.domain.models.AnalyzedLinkRecord
 import com.localdownloader.domain.models.AppSettings
 import com.localdownloader.domain.models.ContrastMode
 import com.localdownloader.domain.models.CookieProfile
@@ -69,7 +70,7 @@ data class FormatUiState(
     val downloadSubtitles: Boolean = false,
     val embedSubtitles: Boolean = false,
     val embedMetadata: Boolean = true,
-    val embedThumbnail: Boolean = false,
+    val embedThumbnail: Boolean = true,
     val writeThumbnail: Boolean = false,
     val languageTag: String = SYSTEM_LANGUAGE_TAG,
     val themeMode: ThemeMode = ThemeMode.LIGHT,
@@ -95,6 +96,8 @@ data class FormatUiState(
     val cookieProfiles: List<CookieProfile> = emptyList(),
     val youtubeAuthConfig: YoutubeAuthConfig = YoutubeAuthConfig(),
     val playlistItems: List<PlaylistItemUiState> = emptyList(),
+    val readyAnalyzedItems: List<AnalyzedLinkRecord> = emptyList(),
+    val restoringReadyItemUrl: String? = null,
     val appSettings: AppSettings = AppSettings(),
     val hasLoadedSettings: Boolean = false,
     val messageScope: FormatMessageScope = FormatMessageScope.BROWSER,

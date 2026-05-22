@@ -1,7 +1,11 @@
 package com.localdownloader.utils
 
+import android.content.ContentValues
 import android.content.Context
+import android.os.Build
 import android.os.Environment
+import android.provider.BaseColumns
+import android.provider.MediaStore
 import android.util.Log
 import com.localdownloader.data.SettingsStore
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -89,7 +93,7 @@ class Logger @Inject constructor(
     }
 
     fun deviceLogBackupDirPath(): String? {
-        return externalLogBackupDir()?.absolutePath
+        return publicLogBackupDir().absolutePath
     }
 
     fun ensureLogFilesExist() {
@@ -117,14 +121,11 @@ class Logger @Inject constructor(
     suspend fun backupLogsToDevice(): File {
         return fileMutex.withLock {
             ensureActiveFilesExistLocked()
-            val backupDir = externalLogBackupDir()
-                ?: throw IllegalStateException("Device log backup folder is unavailable on this device.")
-            backupDir.mkdirs()
-            val backupFile = File(
-                backupDir,
-                "app-log-backup-${timestampNowForArchive()}.txt",
+            val backupFileName = "app-log-backup-${timestampNowForArchive()}.txt"
+            val backupFile = writeDeviceBackupTextLocked(
+                fileName = backupFileName,
+                content = buildCombinedLogSnapshot(),
             )
-            backupFile.writeText(buildCombinedLogSnapshot())
             pruneDeviceLogBackupsLocked()
             backupFile
         }
@@ -272,9 +273,20 @@ class Logger @Inject constructor(
     }
 
     private fun pruneDeviceLogBackupsLocked() {
-        val backupDir = externalLogBackupDir() ?: return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val backupItems = queryPublicLogBackupItems()
+                .sortedByDescending { it.lastModifiedMs }
+            backupItems.drop(MAX_DEVICE_BACKUP_FILES).forEach { item ->
+                runCatching {
+                    context.contentResolver.delete(item.uri, null, null)
+                }
+            }
+            return
+        }
+
+        val backupDir = publicLogBackupDir()
         val backupFiles = backupDir.listFiles()
-            ?.filter { it.isFile && it.name.startsWith("app-log-backup-") && it.name.endsWith(".txt") }
+            ?.filter { it.isFile && isManagedDeviceBackupFileName(it.name) }
             ?.sortedByDescending { it.lastModified() }
             .orEmpty()
         backupFiles.drop(MAX_DEVICE_BACKUP_FILES).forEach { file ->
@@ -283,20 +295,184 @@ class Logger @Inject constructor(
     }
 
     private fun copyArchiveToDeviceLocked(archivedLog: File) {
-        val backupDir = externalLogBackupDir() ?: return
-        backupDir.mkdirs()
-        archivedLog.copyTo(File(backupDir, archivedLog.name), overwrite = true)
+        writeDeviceBackupFileLocked(archivedLog)
     }
 
-    private fun externalLogBackupDir(): File? {
-        val externalDownloadsDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: return null
+    private fun publicLogBackupDir(): File {
+        val publicDownloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
         val rootSegments = latestSettings.downloadsRootFolderName
             .trim()
             .split('/', '\\')
             .filter { it.isNotBlank() }
-        return rootSegments.fold(externalDownloadsDir) { current, segment ->
+        return rootSegments.fold(publicDownloadsDir) { current, segment ->
             File(current, segment)
         }.resolve("Logs")
+    }
+
+    private fun publicLogBackupRelativePath(): String {
+        val rootSegments = latestSettings.downloadsRootFolderName
+            .trim()
+            .split('/', '\\')
+            .filter { it.isNotBlank() }
+        return buildString {
+            append("Download/")
+            rootSegments.forEach { segment ->
+                append(segment)
+                append('/')
+            }
+            append("Logs/")
+        }
+    }
+
+    private fun writeDeviceBackupTextLocked(
+        fileName: String,
+        content: String,
+    ): File {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            return writePublicDownloadEntryLocked(
+                fileName = fileName,
+                mimeType = "text/plain",
+                writeAction = { output -> output.bufferedWriter().use { it.write(content) } },
+            )
+        }
+
+        val backupDir = publicLogBackupDir()
+        backupDir.mkdirs()
+        val targetFile = File(backupDir, resolveUniqueBackupFileName(backupDir, fileName))
+        targetFile.writeText(content)
+        return targetFile
+    }
+
+    private fun writeDeviceBackupFileLocked(sourceFile: File): File {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            return writePublicDownloadEntryLocked(
+                fileName = sourceFile.name,
+                mimeType = "text/plain",
+                writeAction = { output -> sourceFile.inputStream().use { input -> input.copyTo(output) } },
+            )
+        }
+
+        val backupDir = publicLogBackupDir()
+        backupDir.mkdirs()
+        val targetFile = File(backupDir, resolveUniqueBackupFileName(backupDir, sourceFile.name))
+        sourceFile.copyTo(targetFile, overwrite = false)
+        return targetFile
+    }
+
+    private fun writePublicDownloadEntryLocked(
+        fileName: String,
+        mimeType: String,
+        writeAction: (java.io.OutputStream) -> Unit,
+    ): File {
+        val relativePath = publicLogBackupRelativePath()
+        val publicDir = publicLogBackupDir()
+        val displayName = resolveUniquePublicBackupFileName(fileName)
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
+            put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
+            put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
+        }
+        val uri = context.contentResolver.insert(
+            MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+            values,
+        ) ?: throw IllegalStateException("Device log backup folder is unavailable on this device.")
+        runCatching {
+            context.contentResolver.openOutputStream(uri)?.use(writeAction)
+                ?: error("Unable to open device log backup output stream.")
+            ContentValues().apply {
+                put(MediaStore.MediaColumns.IS_PENDING, 0)
+            }.also { finalized ->
+                context.contentResolver.update(uri, finalized, null, null)
+            }
+        }.getOrElse { error ->
+            runCatching { context.contentResolver.delete(uri, null, null) }
+            throw error
+        }
+        return File(publicDir, displayName)
+    }
+
+    private fun resolveUniquePublicBackupFileName(originalName: String): String {
+        val existingNames = queryPublicLogBackupItems()
+            .map { it.displayName }
+            .toSet()
+        if (originalName !in existingNames) return originalName
+
+        val nameWithoutExt = originalName.substringBeforeLast('.', originalName)
+        val extension = originalName.substringAfterLast('.', "")
+        var counter = 2
+        while (true) {
+            val candidate = if (extension.isBlank()) {
+                "$nameWithoutExt ($counter)"
+            } else {
+                "$nameWithoutExt ($counter).$extension"
+            }
+            if (candidate !in existingNames) return candidate
+            counter += 1
+        }
+    }
+
+    private fun resolveUniqueBackupFileName(
+        parentDir: File,
+        originalName: String,
+    ): String {
+        if (!File(parentDir, originalName).exists()) return originalName
+        val nameWithoutExt = originalName.substringBeforeLast('.', originalName)
+        val extension = originalName.substringAfterLast('.', "")
+        var counter = 2
+        while (true) {
+            val candidate = if (extension.isBlank()) {
+                "$nameWithoutExt ($counter)"
+            } else {
+                "$nameWithoutExt ($counter).$extension"
+            }
+            if (!File(parentDir, candidate).exists()) return candidate
+            counter += 1
+        }
+    }
+
+    private fun queryPublicLogBackupItems(): List<PublicLogBackupItem> {
+        val relativePath = publicLogBackupRelativePath()
+        val projection = arrayOf(
+            BaseColumns._ID,
+            MediaStore.MediaColumns.DISPLAY_NAME,
+            MediaStore.MediaColumns.DATE_MODIFIED,
+        )
+        val selection = "${MediaStore.MediaColumns.RELATIVE_PATH}=?"
+        val selectionArgs = arrayOf(relativePath)
+        return context.contentResolver.query(
+            MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+            projection,
+            selection,
+            selectionArgs,
+            null,
+        )?.use { cursor ->
+            val idIndex = cursor.getColumnIndexOrThrow(BaseColumns._ID)
+            val nameIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)
+            val modifiedIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_MODIFIED)
+            buildList {
+                while (cursor.moveToNext()) {
+                    val displayName = cursor.getString(nameIndex)
+                    if (!isManagedDeviceBackupFileName(displayName)) continue
+                    add(
+                        PublicLogBackupItem(
+                            uri = android.content.ContentUris.withAppendedId(
+                                MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                                cursor.getLong(idIndex),
+                            ),
+                            displayName = displayName,
+                            lastModifiedMs = cursor.getLong(modifiedIndex) * 1000L,
+                        ),
+                    )
+                }
+            }
+        }.orEmpty()
+    }
+
+    private fun isManagedDeviceBackupFileName(fileName: String): Boolean {
+        return (fileName.startsWith("app-log-backup-") && fileName.endsWith(".txt")) ||
+            (fileName.startsWith("app-") && fileName.endsWith(".log")) ||
+            (fileName.startsWith("crash-") && fileName.endsWith(".log"))
     }
 
     private fun crashLogFamilyFiles(): List<File> {
@@ -362,3 +538,9 @@ class Logger @Inject constructor(
         private const val DAY_IN_MILLIS = 24L * 60L * 60L * 1000L
     }
 }
+
+private data class PublicLogBackupItem(
+    val uri: android.net.Uri,
+    val displayName: String,
+    val lastModifiedMs: Long,
+)

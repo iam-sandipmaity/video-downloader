@@ -53,7 +53,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -78,6 +77,7 @@ import coil.decode.SvgDecoder
 import com.localdownloader.domain.models.DownloadStatus
 import com.localdownloader.domain.models.DownloadTask
 import com.localdownloader.ui.components.LocalVideoThumbnail
+import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.ui.components.rememberLocalMediaSnapshot
 import com.localdownloader.ui.support.openSupportIssue
 import com.localdownloader.ui.support.SourceSiteVisual
@@ -156,10 +156,8 @@ fun ProgressScreen(
                     ),
                 )
                 .padding(innerPadding)
-                .padding(
-                    horizontal = if (isQueueMode) 14.dp else 18.dp,
-                    vertical = if (isQueueMode) 8.dp else 16.dp,
-                ),
+                .padding(horizontal = if (isQueueMode) 14.dp else 18.dp)
+                .padding(top = 16.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(if (isQueueMode) 12.dp else 16.dp),
         ) {
             if (!isQueueMode) {
@@ -351,53 +349,116 @@ fun ProgressScreen(
     }
 
     if (onBack != null) {
-        Scaffold(
+        PreferencePageScaffold(
+            title = "Download Queue",
+            onBack = onBack,
             modifier = modifier,
-            topBar = {
-                TopAppBar(
-                    title = { Text("Download Queue") },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
-                        }
-                    },
-                    actions = {
-                        Box {
-                            IconButton(onClick = { showTopMenu = true }) {
-                                Icon(Icons.Default.MoreVert, contentDescription = "Queue options")
-                            }
-                            DropdownMenu(
-                                expanded = showTopMenu,
-                                onDismissRequest = { showTopMenu = false },
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text("Show all statuses") },
-                                    onClick = {
-                                        showTopMenu = false
-                                        selectedFilter = ProgressFilter.All.name
-                                    },
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Show finished") },
-                                    onClick = {
-                                        showTopMenu = false
-                                        selectedFilter = ProgressFilter.Done.name
-                                    },
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Show running") },
-                                    onClick = {
-                                        showTopMenu = false
-                                        selectedFilter = ProgressFilter.Downloading.name
-                                    },
-                                )
-                            }
-                        }
-                    },
-                )
+            actions = {
+                Box {
+                    IconButton(onClick = { showTopMenu = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "Queue options")
+                    }
+                    DropdownMenu(
+                        expanded = showTopMenu,
+                        onDismissRequest = { showTopMenu = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Show all statuses") },
+                            onClick = {
+                                showTopMenu = false
+                                selectedFilter = ProgressFilter.All.name
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Show finished") },
+                            onClick = {
+                                showTopMenu = false
+                                selectedFilter = ProgressFilter.Done.name
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Show running") },
+                            onClick = {
+                                showTopMenu = false
+                                selectedFilter = ProgressFilter.Downloading.name
+                            },
+                        )
+                    }
+                }
             },
-        ) { innerPadding ->
-            content(innerPadding)
+        ) {
+            item {
+                QueueFilterRow(
+                    currentFilter = currentFilter,
+                    runningCount = runningCount,
+                    queuedCount = queuedCount,
+                    pausedCount = pausedCount,
+                    failedCount = failedCount,
+                    canceledCount = canceledCount,
+                    onSelect = { selectedFilter = it.name },
+                )
+            }
+            item {
+                QueueBatchActionRow(
+                    currentFilter = currentFilter,
+                    tasks = filteredTasks,
+                    onPauseTasks = onPauseTasks,
+                    onResumeTasks = onResumeTasks,
+                    onRetryTasks = onRetryTasks,
+                    onCancelTasks = onCancelTasks,
+                )
+            }
+            if (filteredTasks.isEmpty()) {
+                item {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(28.dp),
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.42f),
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 22.dp, vertical = 38.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.CloudDownload,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
+                                modifier = Modifier.size(48.dp),
+                            )
+                            Text(
+                                text = "No Results",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Text(
+                                text = buildQueueEmptyStateBody(currentFilter),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
+            } else {
+                items(filteredTasks, key = { it.id }) { task ->
+                    QueueTaskRow(
+                        task = task,
+                        currentTimeMs = currentTimeMs,
+                        onPause = onPause,
+                        onResume = onResume,
+                        onRetry = onRetry,
+                        onCancel = onCancel,
+                        onOpenCookies = onOpenCookies,
+                        onOpenYoutubeAccess = onOpenYoutubeAccess,
+                        expandedDebug = task.id in uiState.expandedDebugTaskIds,
+                        onToggleDebug = { onToggleDebug(task.id) },
+                    )
+                }
+            }
         }
     } else {
         content(PaddingValues())

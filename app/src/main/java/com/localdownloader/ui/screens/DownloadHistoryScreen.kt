@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -39,20 +38,17 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -66,6 +62,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.localdownloader.domain.models.DownloadStatus
 import com.localdownloader.domain.models.DownloadTask
+import com.localdownloader.ui.components.PreferencePageScaffold
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -94,32 +91,12 @@ fun DownloadHistoryScreen(
     val failedCount = historyItems.count { it.status == DownloadStatus.FAILED }
     val canceledCount = historyItems.count { it.status == DownloadStatus.CANCELED }
 
-    Scaffold(
+    PreferencePageScaffold(
+        title = "History",
+        onBack = onBack,
         modifier = modifier,
-        topBar = {
-            TopAppBar(
-                title = { Text("History") },
-                navigationIcon = {
-                    if (onBack != null) {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                                contentDescription = "Back",
-                            )
-                        }
-                    }
-                },
-            )
-        },
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(innerPadding)
-                .padding(horizontal = 22.dp, vertical = 18.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp),
-        ) {
+    ) {
+        item {
             Surface(
                 shape = RoundedCornerShape(30.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -181,7 +158,8 @@ fun DownloadHistoryScreen(
                     }
                 }
             }
-
+        }
+        item {
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -195,8 +173,9 @@ fun DownloadHistoryScreen(
                     )
                 }
             }
-
-            if (filteredItems.isEmpty()) {
+        }
+        if (filteredItems.isEmpty()) {
+            item {
                 Surface(
                     shape = RoundedCornerShape(28.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -233,19 +212,13 @@ fun DownloadHistoryScreen(
                         )
                     }
                 }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    items(filteredItems, key = { it.id }) { task ->
-                        HistoryCard(
-                            task = task,
-                            onOpenLog = { selectedTask = task },
-                        )
-                    }
-                }
+            }
+        } else {
+            items(filteredItems, key = { it.id }) { task ->
+                HistoryCard(
+                    task = task,
+                    onOpenLog = { selectedTask = task },
+                )
             }
         }
     }
@@ -556,27 +529,18 @@ private fun HistoryLogSheet(
     val fullTrace = task.debugTrace.orEmpty().ifBlank { "No task-specific log captured for this item." }
     var copied by remember { mutableStateOf(false) }
     val logListState = rememberLazyListState()
-    val blockBottomOverscroll = remember(logListState) {
-        object : NestedScrollConnection {
-            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                return if (!logListState.canScrollForward && available.y < 0f) {
-                    Offset(0f, available.y)
-                } else {
-                    Offset.Zero
-                }
-            }
-        }
-    }
+    val sheetScrollGuard = rememberBottomSheetScrollGuard(logListState)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        dragHandle = { BottomSheetDefaults.DragHandle() },
         containerColor = MaterialTheme.colorScheme.surface,
     ) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 8.dp)
-                .nestedScroll(blockBottomOverscroll),
+                .nestedScroll(sheetScrollGuard),
             state = logListState,
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {

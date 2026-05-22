@@ -62,6 +62,8 @@ class SettingsStore @Inject constructor(
         val backupLogsToDevice = booleanPreferencesKey("backup_logs_to_device")
         val autoDeleteOldAppLogs = booleanPreferencesKey("auto_delete_old_app_logs")
         val appLogRetentionDays = intPreferencesKey("app_log_retention_days")
+        val keepAnalyzedLinkHistory = booleanPreferencesKey("keep_analyzed_link_history")
+        val analyzedLinkHistoryRetentionDays = intPreferencesKey("analyzed_link_history_retention_days")
         val cookiesEnabled = booleanPreferencesKey("cookies_enabled")
         val cookieUserAgentEnabled = booleanPreferencesKey("cookie_user_agent_enabled")
         val cookieProfiles = stringPreferencesKey("cookie_profiles_json")
@@ -98,7 +100,7 @@ class SettingsStore @Inject constructor(
                     autoDownloadSubtitles = prefs[Keys.autoDownloadSubtitles] ?: false,
                     autoEmbedSubtitles = prefs[Keys.autoEmbedSubtitles] ?: false,
                     autoEmbedMetadata = prefs[Keys.autoEmbedMetadata] ?: true,
-                    autoEmbedThumbnail = prefs[Keys.autoEmbedThumbnail] ?: false,
+                    autoEmbedThumbnail = prefs[Keys.autoEmbedThumbnail] ?: true,
                     autoRemoveMissingFilesFromLibrary = prefs[Keys.autoRemoveMissingFilesFromLibrary] ?: true,
                     deleteFromStorageWhenRemovedInApp = prefs[Keys.deleteFromStorageWhenRemovedInApp] ?: true,
                     notifyCompletedDownloads = prefs[Keys.notifyCompletedDownloads] ?: true,
@@ -108,6 +110,8 @@ class SettingsStore @Inject constructor(
                     backupLogsToDevice = prefs[Keys.backupLogsToDevice] ?: false,
                     autoDeleteOldAppLogs = prefs[Keys.autoDeleteOldAppLogs] ?: false,
                     appLogRetentionDays = prefs[Keys.appLogRetentionDays] ?: 15,
+                    keepAnalyzedLinkHistory = prefs[Keys.keepAnalyzedLinkHistory] ?: true,
+                    analyzedLinkHistoryRetentionDays = prefs[Keys.analyzedLinkHistoryRetentionDays] ?: 15,
                     cookiesEnabled = prefs[Keys.cookiesEnabled] ?: false,
                     cookieUserAgentEnabled = prefs[Keys.cookieUserAgentEnabled] ?: false,
                     cookieProfiles = decodeCookieProfiles(prefs[Keys.cookieProfiles]),
@@ -147,6 +151,8 @@ class SettingsStore @Inject constructor(
             prefs[Keys.backupLogsToDevice] = settings.backupLogsToDevice
             prefs[Keys.autoDeleteOldAppLogs] = settings.autoDeleteOldAppLogs
             prefs[Keys.appLogRetentionDays] = settings.appLogRetentionDays
+            prefs[Keys.keepAnalyzedLinkHistory] = settings.keepAnalyzedLinkHistory
+            prefs[Keys.analyzedLinkHistoryRetentionDays] = settings.analyzedLinkHistoryRetentionDays
             prefs[Keys.cookiesEnabled] = settings.cookiesEnabled
             prefs[Keys.cookieUserAgentEnabled] = settings.cookieUserAgentEnabled
             prefs[Keys.cookieProfiles] = json.encodeToString(settings.cookieProfiles)

@@ -1,8 +1,13 @@
 package com.localdownloader.ui.screens.settings
 
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Style
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.runtime.Composable
@@ -11,6 +16,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import com.localdownloader.domain.models.AccentPreset
 import com.localdownloader.domain.models.ContrastMode
 import com.localdownloader.domain.models.SYSTEM_LANGUAGE_TAG
@@ -31,6 +37,7 @@ fun AppearanceSettingsScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
     var choiceDialog by remember { mutableStateOf<SettingChoiceDialogState?>(null) }
 
     choiceDialog?.let { state ->
@@ -139,36 +146,53 @@ fun AppearanceSettingsScreen(
                 PreferenceRow(
                     icon = Icons.Rounded.Language,
                     title = "App language",
-                    subtitle = "Follow Android's app language or keep English pinned from here.",
-                    value = languageLabel(uiState.languageTag),
+                    subtitle = "Follow Android's app language system, or pin a specific language here. English is still the most complete UI today.",
+                    value = appLanguageLabel(uiState.languageTag),
                     onClick = {
+                        val languageOptions = supportedAppLanguageOptions()
                         choiceDialog = SettingChoiceDialogState(
                             title = "App language",
-                            selected = languageLabel(uiState.languageTag),
-                            options = listOf(
-                                SettingChoiceOption(
-                                    title = "System default",
-                                    subtitle = "Follow the language Android already uses for this app.",
-                                    onSelect = { onLanguageChanged(SYSTEM_LANGUAGE_TAG) },
-                                ),
-                                SettingChoiceOption(
-                                    title = "English",
-                                    subtitle = "Use the bundled English interface everywhere in the app.",
-                                    onSelect = { onLanguageChanged("en") },
-                                ),
-                            ),
+                            selected = appLanguageLabel(uiState.languageTag),
+                            options = buildList {
+                                add(
+                                    SettingChoiceOption(
+                                        title = "System default",
+                                        subtitle = "Follow the language Android already uses for this app.",
+                                        onSelect = { onLanguageChanged(SYSTEM_LANGUAGE_TAG) },
+                                    ),
+                                )
+                                addAll(
+                                    languageOptions.map { option ->
+                                        SettingChoiceOption(
+                                            title = option.title,
+                                            subtitle = option.subtitle,
+                                            onSelect = { onLanguageChanged(option.tag) },
+                                        )
+                                    },
+                                )
+                            },
                         )
+                    },
+                )
+                PreferenceDivider()
+                PreferenceRow(
+                    icon = Icons.Rounded.Settings,
+                    title = "Android language settings",
+                    subtitle = "Open the system app-language picker for the full Android language flow.",
+                    onClick = {
+                        val settingsIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            Intent(Settings.ACTION_APP_LOCALE_SETTINGS).apply {
+                                data = Uri.fromParts("package", context.packageName, null)
+                            }
+                        } else {
+                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = Uri.fromParts("package", context.packageName, null)
+                            }
+                        }
+                        context.startActivity(settingsIntent)
                     },
                 )
             }
         }
-    }
-}
-
-private fun languageLabel(languageTag: String): String {
-    return when (languageTag) {
-        SYSTEM_LANGUAGE_TAG -> "System default"
-        "en" -> "English"
-        else -> languageTag
     }
 }

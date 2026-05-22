@@ -12,14 +12,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Lock
@@ -52,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.localdownloader.domain.models.YoutubeAuthConfig
 import com.localdownloader.ui.components.InlineFeedbackCard
+import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.utils.CookieTextCodec
 import com.localdownloader.utils.WebViewCookieExporter
 import com.localdownloader.utils.YoutubePoTokenGenerator
@@ -66,7 +66,6 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import kotlin.coroutines.resume
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun YoutubeAuthScreen(
     uiState: FormatUiState,
@@ -84,28 +83,12 @@ fun YoutubeAuthScreen(
         CookieTextCodec.findBestMatch(uiState.cookieProfiles, "https://www.youtube.com") != null
     }
 
-    Scaffold(
+    PreferencePageScaffold(
+        title = "YouTube Access",
+        onBack = onBack,
         modifier = modifier,
-        topBar = {
-            TopAppBar(
-                title = { Text("YouTube Access") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
-                    }
-                },
-            )
-        },
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 18.dp, vertical = 18.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
+    ) {
+        item {
             Surface(
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
                 shape = RoundedCornerShape(28.dp),
@@ -167,8 +150,9 @@ fun YoutubeAuthScreen(
                     )
                 }
             }
-
-            if (authConfig.isConfigured()) {
+        }
+        if (authConfig.isConfigured()) {
+            item {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(
                         modifier = Modifier.padding(18.dp),
@@ -211,8 +195,9 @@ fun YoutubeAuthScreen(
                     }
                 }
             }
-
-            infoMessage?.let { message ->
+        }
+        infoMessage?.let { message ->
+            item {
                 InlineFeedbackCard(
                     label = "YouTube access",
                     message = message,
@@ -220,7 +205,9 @@ fun YoutubeAuthScreen(
                     onDismiss = onDismissMessage,
                 )
             }
-            errorMessage?.let { message ->
+        }
+        errorMessage?.let { message ->
+            item {
                 InlineFeedbackCard(
                     label = "YouTube access",
                     message = message,
@@ -248,6 +235,7 @@ fun YoutubeAuthLoginScreen(
 
     Scaffold(
         modifier = modifier,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
                 title = {

@@ -1,19 +1,18 @@
 package com.localdownloader
 
 import android.Manifest
-import android.app.LocaleManager
 import android.app.PictureInPictureParams
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.os.LocaleList
 import android.util.Rational
 import android.util.Patterns
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.lifecycle.lifecycleScope
 import androidx.core.os.LocaleListCompat
 import androidx.core.content.ContextCompat
 import androidx.compose.runtime.getValue
@@ -34,6 +33,7 @@ import com.localdownloader.utils.Logger
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 @AndroidEntryPoint(ComponentActivity::class)
@@ -75,7 +75,7 @@ class MainActivity : Hilt_MainActivity() {
         val initialSettings = runCatching {
             runBlocking { settingsStore.observeSettings().first() }
         }.getOrDefault(AppSettings())
-        applyAppLanguage(initialSettings.languageTag, recreateIfChanged = false)
+        initializeAppLanguage(initialSettings)
         themeMode = initialSettings.themeMode
         accentPreset = initialSettings.accentPreset
         contrastMode = initialSettings.contrastMode
@@ -103,7 +103,7 @@ class MainActivity : Hilt_MainActivity() {
                         contrastMode = contrast
                     },
                     onLanguageUpdated = { languageTag ->
-                        applyAppLanguage(languageTag, recreateIfChanged = true)
+                        applyAppLanguage(languageTag)
                     },
                 )
             }
@@ -126,6 +126,7 @@ class MainActivity : Hilt_MainActivity() {
     override fun onResume() {
         super.onResume()
         logger.i("MainActivity", "onResume")
+        syncLanguageSettingFromPlatform()
     }
 
     override fun onPause() {
@@ -237,30 +238,89 @@ class MainActivity : Hilt_MainActivity() {
         return null
     }
 
-    private fun applyAppLanguage(languageTag: String, recreateIfChanged: Boolean) {
-        val normalizedTag = if (languageTag == SYSTEM_LANGUAGE_TAG) "" else languageTag
+    private fun initializeAppLanguage(initialSettings: AppSettings) {
+        val storedLanguageTag = sanitizeLanguageTag(initialSettings.languageTag)
+        val platformLanguageTag = currentAppLanguageTag()
+        val effectiveLanguageTag = when {
+            platformLanguageTag != SYSTEM_LANGUAGE_TAG -> platformLanguageTag
+            storedLanguageTag != SYSTEM_LANGUAGE_TAG -> storedLanguageTag
+            else -> SYSTEM_LANGUAGE_TAG
+        }
+        applyAppLanguage(effectiveLanguageTag)
+        if (effectiveLanguageTag != storedLanguageTag) {
+            persistLanguageSetting(initialSettings, effectiveLanguageTag)
+        }
+    }
+
+    private fun syncLanguageSettingFromPlatform() {
+        val platformLanguageTag = currentAppLanguageTag()
+        lifecycleScope.launch {
+            val settings = runCatching { settingsStore.observeSettings().first() }
+                .getOrDefault(AppSettings())
+            val storedLanguageTag = sanitizeLanguageTag(settings.languageTag)
+            if (platformLanguageTag != storedLanguageTag) {
+                persistLanguageSetting(settings, platformLanguageTag)
+            }
+        }
+    }
+
+    private fun persistLanguageSetting(
+        settings: AppSettings,
+        languageTag: String,
+    ) {
+        lifecycleScope.launch {
+            runCatching {
+                settingsStore.updateSettings(
+                    settings.copy(languageTag = sanitizeLanguageTag(languageTag)),
+                )
+            }.onFailure { error ->
+                logger.e("MainActivity", "Unable to persist app language", error)
+            }
+        }
+    }
+
+    private fun applyAppLanguage(languageTag: String) {
+        val normalizedTag = normalizeLocaleTag(languageTag)
         val currentTags = currentAppLanguageTags()
         if (currentTags == normalizedTag) {
             return
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            getSystemService(LocaleManager::class.java)?.applicationLocales =
-                LocaleList.forLanguageTags(normalizedTag)
-        } else {
-            AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(normalizedTag))
-        }
-
-        if (recreateIfChanged) {
-            recreate()
-        }
+        AppCompatDelegate.setApplicationLocales(
+            if (normalizedTag.isBlank()) {
+                LocaleListCompat.getEmptyLocaleList()
+            } else {
+                LocaleListCompat.forLanguageTags(normalizedTag)
+            },
+        )
     }
 
     private fun currentAppLanguageTags(): String {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            getSystemService(LocaleManager::class.java)?.applicationLocales?.toLanguageTags().orEmpty()
-        } else {
-            AppCompatDelegate.getApplicationLocales().toLanguageTags()
+        return normalizeLocaleTag(AppCompatDelegate.getApplicationLocales().toLanguageTags())
+    }
+
+    private fun currentAppLanguageTag(): String {
+        val currentTags = currentAppLanguageTags()
+        return if (currentTags.isBlank()) SYSTEM_LANGUAGE_TAG else currentTags
+    }
+
+    private fun sanitizeLanguageTag(languageTag: String): String {
+        val normalized = normalizeLocaleTag(languageTag)
+        return if (normalized.isBlank()) SYSTEM_LANGUAGE_TAG else normalized
+    }
+
+    private fun normalizeLocaleTag(languageTag: String): String {
+        val primaryTag = languageTag
+            .split(',')
+            .firstOrNull()
+            ?.trim()
+            .orEmpty()
+        if (primaryTag.isBlank() || primaryTag == SYSTEM_LANGUAGE_TAG) {
+            return ""
         }
+        return LocaleListCompat.forLanguageTags(primaryTag)
+            .get(0)
+            ?.toLanguageTag()
+            .orEmpty()
     }
 }

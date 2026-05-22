@@ -13,6 +13,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -28,14 +29,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -48,18 +43,16 @@ import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Shield
-import androidx.compose.material.icons.outlined.SwapHoriz
-import androidx.compose.material.icons.outlined.Transform
 import androidx.compose.material.icons.outlined.TravelExplore
 import androidx.compose.material.icons.outlined.Web
 import androidx.compose.material3.Button
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -67,7 +60,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -85,34 +77,24 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.ImageLoader
 import coil.compose.AsyncImage
-import coil.decode.SvgDecoder
 import com.localdownloader.domain.models.FormatChoice
 import com.localdownloader.domain.models.StreamType
 import com.localdownloader.domain.models.VideoQuality
+import com.localdownloader.domain.models.VideoInfo
+import com.localdownloader.domain.models.AnalyzedLinkRecord
 import com.localdownloader.ui.components.InlineFeedbackCard
-import com.localdownloader.ui.components.VideoCard
 import com.localdownloader.ui.model.toReadableSize
 import com.localdownloader.viewmodel.FormatMessageScope
 import com.localdownloader.viewmodel.FormatUiState
 import com.localdownloader.viewmodel.PlaylistItemUiState
 import kotlinx.coroutines.launch
-
-private data class QuickLink(
-    val label: String,
-    val seedUrl: String,
-    val logoAssetPath: String,
-    val accent: Color,
-)
 
 private enum class DownloadSetupSheetStep {
     Intro,
@@ -152,6 +134,8 @@ fun BrowserScreen(
     onAudioOutputTemplateChanged: (String) -> Unit,
     onClearBrowserState: () -> Unit,
     onClearAnalyzedResult: () -> Unit,
+    onOpenReadyItem: (String) -> Unit,
+    onRemoveReadyItem: (String) -> Unit,
     onQueueDownloadClicked: () -> Unit,
     onOpenHistory: () -> Unit,
     onOpenCompress: () -> Unit,
@@ -170,15 +154,10 @@ fun BrowserScreen(
     modifier: Modifier = Modifier,
 ) {
     val clipboardManager = LocalClipboardManager.current
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val imageLoader = remember(context) {
-        ImageLoader.Builder(context)
-            .components { add(SvgDecoder.Factory()) }
-            .build()
-    }
     var showOptionsSheet by rememberSaveable { mutableStateOf(false) }
     var downloadSetupSheetStep by rememberSaveable { mutableStateOf(DownloadSetupSheetStep.Intro) }
+    var showBrowseMenu by rememberSaveable { mutableStateOf(false) }
     val homeScrollState = rememberScrollState()
     val errorMessage = uiState.errorMessageFor(FormatMessageScope.BROWSER)
     val infoMessage = uiState.infoMessageFor(FormatMessageScope.BROWSER)
@@ -215,19 +194,6 @@ fun BrowserScreen(
         }
     }
 
-    val quickLinks = remember {
-        listOf(
-            QuickLink("YouTube", "https://youtube.com", "file:///android_asset/platform_logos/youtube.svg", Color(0xFFFF3B30)),
-            QuickLink("Instagram", "https://instagram.com", "file:///android_asset/platform_logos/instagram.svg", Color(0xFFE4405F)),
-            QuickLink("TikTok", "https://tiktok.com", "file:///android_asset/platform_logos/tiktok.svg", Color(0xFF25F4EE)),
-            QuickLink("X", "https://x.com", "file:///android_asset/platform_logos/x.svg", Color(0xFFB0A7BC)),
-            QuickLink("Facebook", "https://facebook.com", "file:///android_asset/platform_logos/facebook.svg", Color(0xFF1877F2)),
-            QuickLink("Dailymotion", "https://www.dailymotion.com", "file:///android_asset/platform_logos/dailymotion.svg", Color(0xFF0066DC)),
-            QuickLink("Pinterest", "https://pinterest.com", "file:///android_asset/platform_logos/pinterest.svg", Color(0xFFE60023)),
-            QuickLink("Twitch", "https://twitch.tv", "file:///android_asset/platform_logos/twitch.svg", Color(0xFF9146FF)),
-        )
-    }
-
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -244,20 +210,80 @@ fun BrowserScreen(
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Start,
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = "Home",
+                    text = "Browse",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = "Paste a link and keep the same download engine underneath.",
-                    style = MaterialTheme.typography.bodyMedium,
+                    text = "Paste a link to start.",
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onOpenHistory) {
+                    Icon(
+                        imageVector = Icons.Outlined.History,
+                        contentDescription = "Open history",
+                    )
+                }
+                Box {
+                    IconButton(onClick = { showBrowseMenu = true }) {
+                        Icon(
+                            imageVector = Icons.Filled.MoreVert,
+                            contentDescription = "Browse actions",
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = showBrowseMenu,
+                        onDismissRequest = { showBrowseMenu = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Settings") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Outlined.Settings,
+                                    contentDescription = null,
+                                )
+                            },
+                            onClick = {
+                                showBrowseMenu = false
+                                onOpenSettings()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Help") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Outlined.Info,
+                                    contentDescription = null,
+                                )
+                            },
+                            onClick = {
+                                showBrowseMenu = false
+                                onOpenHelp()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(if (uiState.isDarkTheme) "Use light theme" else "Use dark theme") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Outlined.DarkMode,
+                                    contentDescription = null,
+                                )
+                            },
+                            onClick = {
+                                showBrowseMenu = false
+                                onDarkThemeChanged(!uiState.isDarkTheme)
+                            },
+                        )
+                    }
+                }
             }
         }
 
@@ -267,49 +293,33 @@ fun BrowserScreen(
         ) {
             Column(
                 modifier = Modifier.padding(18.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 OutlinedTextField(
                     value = uiState.urlInput,
                     onValueChange = onUrlChanged,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Search or enter URL") },
+                    label = { Text("Paste or type a URL") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Outlined.Web,
+                            contentDescription = null,
+                        )
+                    },
                     trailingIcon = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(
-                                onClick = {
-                                    scope.launch {
-                                        clipboardManager.getText()?.text
-                                            ?.takeIf { it.isNotBlank() }
-                                            ?.let(onUrlChanged)
-                                    }
-                                },
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.ContentPaste,
-                                    contentDescription = "Paste URL",
-                                )
-                            }
-                            IconButton(
-                                onClick = {
-                                    showOptionsSheet = false
-                                    if (uiState.videoInfo != null) onClearBrowserState() else onUrlChanged("")
-                                },
-                                enabled = uiState.urlInput.isNotBlank() || uiState.videoInfo != null,
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Clear,
-                                    contentDescription = "Clear browser state",
-                                )
-                            }
-                            IconButton(onClick = onAnalyzeClicked, enabled = !uiState.isAnalyzing) {
-                                Icon(
-                                    imageVector = Icons.Outlined.TravelExplore,
-                                    contentDescription = "Analyze",
-                                )
-                            }
+                        IconButton(
+                            onClick = {
+                                showOptionsSheet = false
+                                if (uiState.videoInfo != null) onClearBrowserState() else onUrlChanged("")
+                            },
+                            enabled = uiState.urlInput.isNotBlank() || uiState.videoInfo != null,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Clear,
+                                contentDescription = "Clear browser state",
+                            )
                         }
                     },
                 )
@@ -320,18 +330,45 @@ fun BrowserScreen(
                     exit = fadeOut(animationSpec = tween(durationMillis = 140)) +
                         shrinkVertically(animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)),
                 ) {
-                    LinearProgressIndicator(
-                        modifier = Modifier.fillMaxWidth(),
-                        color = MaterialTheme.colorScheme.tertiary,
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = MaterialTheme.colorScheme.tertiary,
+                        )
+                    }
                 }
-                Button(
-                    onClick = onAnalyzeClicked,
-                    enabled = !uiState.isAnalyzing,
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(vertical = 14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(if (uiState.isAnalyzing) "Analyzing..." else "Analyze link")
+                    TextButton(
+                        onClick = {
+                            scope.launch {
+                                clipboardManager.getText()?.text
+                                    ?.takeIf { it.isNotBlank() }
+                                    ?.let(onUrlChanged)
+                            }
+                        },
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.ContentPaste,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Text(
+                            text = "Paste",
+                            modifier = Modifier.padding(start = 8.dp),
+                        )
+                    }
+                    Button(
+                        onClick = onAnalyzeClicked,
+                        enabled = !uiState.isAnalyzing,
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(vertical = 14.dp),
+                    ) {
+                        Text(if (uiState.isAnalyzing) "Analyzing..." else "Analyze link")
+                    }
                 }
             }
         }
@@ -369,100 +406,38 @@ fun BrowserScreen(
             }
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(
-                text = "Quick links",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(4),
-                modifier = Modifier.height(236.dp),
-                userScrollEnabled = false,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                items(quickLinks.size) { index ->
-                    val link = quickLinks[index]
-                    QuickLinkTile(
-                        label = link.label,
-                        logoAssetPath = link.logoAssetPath,
-                        accent = link.accent,
-                        imageLoader = imageLoader,
-                        onClick = { onUrlChanged(link.seedUrl) },
-                    )
-                }
-            }
-        }
-
         AnimatedVisibility(
-            visible = uiState.videoInfo != null,
+            visible = uiState.readyAnalyzedItems.isNotEmpty(),
             enter = fadeIn(animationSpec = tween(durationMillis = 220)) +
                 expandVertically(animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing)),
             exit = fadeOut(animationSpec = tween(durationMillis = 160)) +
                 shrinkVertically(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)),
         ) {
-            uiState.videoInfo?.let { info ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .animateContentSize(
-                            animationSpec = spring(
-                                dampingRatio = 0.9f,
-                                stiffness = 500f,
-                            ),
-                        )
-                        .clickable { showOptionsSheet = true },
-                    shape = RoundedCornerShape(26.dp),
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = "Ready to download",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            IconButton(
-                                onClick = {
-                                    showOptionsSheet = false
-                                    onClearAnalyzedResult()
-                                },
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Clear,
-                                    contentDescription = "Dismiss ready download",
-                                )
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                uiState.readyAnalyzedItems.forEach { item ->
+                    ReadyAnalyzedCard(
+                        item = item,
+                        isActive = uiState.videoInfo?.webpageUrl == item.webpageUrl,
+                        isLoading = uiState.restoringReadyItemUrl == item.webpageUrl && uiState.isAnalyzing,
+                        onOpen = {
+                            if (uiState.videoInfo?.webpageUrl == item.webpageUrl) {
+                                showOptionsSheet = true
+                            } else {
+                                onOpenReadyItem(item.webpageUrl)
                             }
-                        }
-                        VideoCard(info = info)
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Button(
-                                onClick = { showOptionsSheet = true },
-                                modifier = Modifier.weight(1f),
-                            ) {
-                                Text("Open options")
+                        },
+                        onQueue = onQueueDownloadClicked,
+                        onRemove = {
+                            showOptionsSheet = false
+                            if (uiState.videoInfo?.webpageUrl == item.webpageUrl) {
+                                onClearAnalyzedResult()
+                            } else {
+                                onRemoveReadyItem(item.webpageUrl)
                             }
-                            TextButton(
-                                onClick = onQueueDownloadClicked,
-                                enabled = !uiState.isQueueing && isDownloadButtonEnabled,
-                                modifier = Modifier.weight(1f),
-                            ) {
-                                val buttonText = when {
-                                    uiState.isQueueing -> "Queueing..."
-                                    !isDownloadButtonEnabled -> "Please wait..."
-                                    else -> "Quick download"
-                                }
-                                Text(buttonText)
-                            }
-                        }
-                    }
+                        },
+                        isQueueEnabled = !uiState.isQueueing && isDownloadButtonEnabled,
+                        isQueueing = uiState.isQueueing,
+                    )
                 }
             }
         }
@@ -493,23 +468,16 @@ fun BrowserScreen(
     if (showOptionsSheet && uiState.videoInfo != null && !uiState.shouldShowDownloadSetupNotice) {
         val optionsSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         val optionsListState = rememberLazyListState()
-        val blockBottomOverscroll = remember(optionsListState) {
-            object : NestedScrollConnection {
-                override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                    return if (!optionsListState.canScrollForward && available.y < 0f) {
-                        Offset(0f, available.y)
-                    } else {
-                        Offset.Zero
-                    }
-                }
-            }
-        }
+        val sheetScrollGuard = rememberBottomSheetScrollGuard(optionsListState)
+        val footerDragBlocker = rememberBottomSheetDragBlocker()
         val containers = listOf("mp4", "webm", "mkv", "mov")
         val audioFormats = listOf("mp3", "m4a", "aac", "opus", "flac", "wav")
         val bitrates = listOf(64, 96, 128, 192, 256, 320)
+        val downloadActionSummary = buildDownloadActionSummary(uiState)
         ModalBottomSheet(
             onDismissRequest = { showOptionsSheet = false },
             sheetState = optionsSheetState,
+            dragHandle = { BottomSheetDefaults.DragHandle() },
             shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
             containerColor = MaterialTheme.colorScheme.surface,
         ) {
@@ -525,72 +493,48 @@ fun BrowserScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
-                        .nestedScroll(blockBottomOverscroll),
+                        .nestedScroll(sheetScrollGuard),
                     state = optionsListState,
                     contentPadding = PaddingValues(bottom = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = "Download options",
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            IconButton(
-                                onClick = {
-                                    showOptionsSheet = false
-                                    onClearAnalyzedResult()
-                                },
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Clear,
-                                    contentDescription = "Clear ready download",
-                                )
-                            }
-                        }
-                    }
-                    item {
-                        VideoCard(info = uiState.videoInfo)
+                        OptionsSheetHeader(
+                            info = uiState.videoInfo,
+                            onClear = {
+                                showOptionsSheet = false
+                            },
+                        )
                     }
 
                     if (uiState.videoInfo.isPlaylist) {
                         item {
-                            Text(
-                                text = "Global format",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                        }
-                        item {
-                            SelectionOptionsCard(
-                                streamType = uiState.selectedStreamType,
-                                onStreamTypeChanged = onStreamTypeChanged,
-                                choices = choicesForStreamType(
+                            OptionSectionCard(title = "Global") {
+                                SelectionOptionsCard(
                                     streamType = uiState.selectedStreamType,
-                                    videoAudioChoices = uiState.availableVideoAudioChoices,
-                                    videoOnlyChoices = uiState.availableVideoOnlyChoices,
-                                    audioOnlyChoices = uiState.availableAudioOnlyChoices,
-                                ),
-                                selectedFormatSelector = uiState.selectedFormatSelector,
-                                onFormatSelectorChanged = onFormatSelectorChanged,
-                                quality = uiState.selectedQuality,
-                                onQualityChanged = onQualityChanged,
-                                container = uiState.selectedContainer,
-                                onContainerChanged = onContainerChanged,
-                                audioFormat = uiState.selectedAudioFormat,
-                                onAudioFormatChanged = onAudioFormatChanged,
-                                audioBitrateKbps = uiState.audioBitrateKbps,
-                                onAudioBitrateChanged = onAudioBitrateChanged,
-                                containers = containers,
-                                audioFormats = audioFormats,
-                                bitrates = bitrates,
-                                emptyChoicesMessage = "If a file does not expose the exact same formats, the downloader will fall back to the closest matching selector for that item.",
-                            )
+                                    onStreamTypeChanged = onStreamTypeChanged,
+                                    choices = choicesForStreamType(
+                                        streamType = uiState.selectedStreamType,
+                                        videoAudioChoices = uiState.availableVideoAudioChoices,
+                                        videoOnlyChoices = uiState.availableVideoOnlyChoices,
+                                        audioOnlyChoices = uiState.availableAudioOnlyChoices,
+                                    ),
+                                    selectedFormatSelector = uiState.selectedFormatSelector,
+                                    onFormatSelectorChanged = onFormatSelectorChanged,
+                                    quality = uiState.selectedQuality,
+                                    onQualityChanged = onQualityChanged,
+                                    container = uiState.selectedContainer,
+                                    onContainerChanged = onContainerChanged,
+                                    audioFormat = uiState.selectedAudioFormat,
+                                    onAudioFormatChanged = onAudioFormatChanged,
+                                    audioBitrateKbps = uiState.audioBitrateKbps,
+                                    onAudioBitrateChanged = onAudioBitrateChanged,
+                                    containers = containers,
+                                    audioFormats = audioFormats,
+                                    bitrates = bitrates,
+                                    emptyChoicesMessage = "Closest available format will be used.",
+                                )
+                            }
                         }
                         item {
                             val currentTemplate = if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
@@ -598,62 +542,50 @@ fun BrowserScreen(
                             } else {
                                 uiState.outputTemplate
                             }
-                            OutlinedTextField(
-                                value = currentTemplate,
-                                onValueChange = { newValue ->
-                                    if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
-                                        onAudioOutputTemplateChanged(newValue)
-                                    } else {
-                                        onOutputTemplateChanged(newValue)
-                                    }
-                                },
-                                label = {
-                                    Text(
+                            OptionSectionCard(title = "Template") {
+                                OutlinedTextField(
+                                    value = currentTemplate,
+                                    onValueChange = { newValue ->
                                         if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
-                                            "Playlist audio filename template"
+                                            onAudioOutputTemplateChanged(newValue)
                                         } else {
-                                            "Playlist filename template"
-                                        },
-                                    )
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                            )
+                                            onOutputTemplateChanged(newValue)
+                                        }
+                                    },
+                                    label = {
+                                        Text(
+                                            if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
+                                                "Playlist audio template"
+                                            } else {
+                                                "Playlist template"
+                                            },
+                                        )
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true,
+                                )
+                                ToggleChipRow(
+                                    items = buildList {
+                                        if (uiState.selectedStreamType != StreamType.AUDIO_ONLY) {
+                                            add(ToggleConfig("Subtitles", uiState.downloadSubtitles, onDownloadSubtitlesChanged))
+                                            add(ToggleConfig("Embed subs", uiState.embedSubtitles, onEmbedSubtitlesChanged))
+                                        }
+                                        add(ToggleConfig("Metadata", uiState.embedMetadata, onEmbedMetadataChanged))
+                                        add(ToggleConfig("Embed thumb", uiState.embedThumbnail, onEmbedThumbnailChanged))
+                                        add(ToggleConfig("Write thumb", uiState.writeThumbnail, onWriteThumbnailChanged))
+                                    },
+                                )
+                            }
                         }
                         item {
-                            ToggleChipRow(
-                                items = buildList {
-                                    if (uiState.selectedStreamType != StreamType.AUDIO_ONLY) {
-                                        add(ToggleConfig("Subtitles", uiState.downloadSubtitles, onDownloadSubtitlesChanged))
-                                        add(ToggleConfig("Embed subs", uiState.embedSubtitles, onEmbedSubtitlesChanged))
-                                    }
-                                    add(ToggleConfig("Metadata", uiState.embedMetadata, onEmbedMetadataChanged))
-                                    add(ToggleConfig("Embed thumb", uiState.embedThumbnail, onEmbedThumbnailChanged))
-                                    add(ToggleConfig("Write thumb", uiState.writeThumbnail, onWriteThumbnailChanged))
-                                },
-                            )
-                        }
-                        item {
-                            PlaylistSelectionSummaryCard(
-                                totalCount = uiState.playlistItems.size,
-                                selectedCount = uiState.selectedPlaylistItemCount,
-                                allSelected = uiState.areAllPlaylistItemsSelected,
-                                onSelectAllChanged = onPlaylistSelectAllChanged,
-                            )
-                        }
-                        item {
-                            Text(
-                                text = "Files-wise format section",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                        }
-                        item {
-                            Text(
-                                text = "Every selected file appears below. Keep global settings on, or expand one item to override its format for that file only.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                            OptionSectionCard(title = "Files") {
+                                PlaylistSelectionSummaryCard(
+                                    totalCount = uiState.playlistItems.size,
+                                    selectedCount = uiState.selectedPlaylistItemCount,
+                                    allSelected = uiState.areAllPlaylistItemsSelected,
+                                    onSelectAllChanged = onPlaylistSelectAllChanged,
+                                )
+                            }
                         }
                         uiState.playlistItems.forEachIndexed { index, playlistItem ->
                             item {
@@ -681,42 +613,32 @@ fun BrowserScreen(
                         }
                     } else {
                         item {
-                            SelectionOptionsCard(
-                                streamType = uiState.selectedStreamType,
-                                onStreamTypeChanged = onStreamTypeChanged,
-                                choices = choicesForStreamType(
+                            OptionSectionCard(title = "Format") {
+                                SelectionOptionsCard(
                                     streamType = uiState.selectedStreamType,
-                                    videoAudioChoices = uiState.availableVideoAudioChoices,
-                                    videoOnlyChoices = uiState.availableVideoOnlyChoices,
-                                    audioOnlyChoices = uiState.availableAudioOnlyChoices,
-                                ),
-                                selectedFormatSelector = uiState.selectedFormatSelector,
-                                onFormatSelectorChanged = onFormatSelectorChanged,
-                                quality = uiState.selectedQuality,
-                                onQualityChanged = onQualityChanged,
-                                container = uiState.selectedContainer,
-                                onContainerChanged = onContainerChanged,
-                                audioFormat = uiState.selectedAudioFormat,
-                                onAudioFormatChanged = onAudioFormatChanged,
-                                audioBitrateKbps = uiState.audioBitrateKbps,
-                                onAudioBitrateChanged = onAudioBitrateChanged,
-                                containers = containers,
-                                audioFormats = audioFormats,
-                                bitrates = bitrates,
-                                emptyChoicesMessage = null,
-                            )
-                        }
-                        item {
-                            OutlinedTextField(
-                                value = uiState.customFileName,
-                                onValueChange = onCustomFileNameChanged,
-                                label = { Text("File name") },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                supportingText = {
-                                    Text("Edit the saved file name before download, or keep the source title as-is.")
-                                },
-                            )
+                                    onStreamTypeChanged = onStreamTypeChanged,
+                                    choices = choicesForStreamType(
+                                        streamType = uiState.selectedStreamType,
+                                        videoAudioChoices = uiState.availableVideoAudioChoices,
+                                        videoOnlyChoices = uiState.availableVideoOnlyChoices,
+                                        audioOnlyChoices = uiState.availableAudioOnlyChoices,
+                                    ),
+                                    selectedFormatSelector = uiState.selectedFormatSelector,
+                                    onFormatSelectorChanged = onFormatSelectorChanged,
+                                    quality = uiState.selectedQuality,
+                                    onQualityChanged = onQualityChanged,
+                                    container = uiState.selectedContainer,
+                                    onContainerChanged = onContainerChanged,
+                                    audioFormat = uiState.selectedAudioFormat,
+                                    onAudioFormatChanged = onAudioFormatChanged,
+                                    audioBitrateKbps = uiState.audioBitrateKbps,
+                                    onAudioBitrateChanged = onAudioBitrateChanged,
+                                    containers = containers,
+                                    audioFormats = audioFormats,
+                                    bitrates = bitrates,
+                                    emptyChoicesMessage = null,
+                                )
+                            }
                         }
                         item {
                             val currentTemplate = if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
@@ -724,69 +646,246 @@ fun BrowserScreen(
                             } else {
                                 uiState.outputTemplate
                             }
-                            OutlinedTextField(
-                                value = currentTemplate,
-                                onValueChange = { newValue ->
-                                    if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
-                                        onAudioOutputTemplateChanged(newValue)
-                                    } else {
-                                        onOutputTemplateChanged(newValue)
-                                    }
-                                },
-                                label = {
-                                    Text(
+                            OptionSectionCard(title = "Name") {
+                                OutlinedTextField(
+                                    value = uiState.customFileName,
+                                    onValueChange = onCustomFileNameChanged,
+                                    label = { Text("File name") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true,
+                                )
+                                OutlinedTextField(
+                                    value = currentTemplate,
+                                    onValueChange = { newValue ->
                                         if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
-                                            "Audio filename template"
+                                            onAudioOutputTemplateChanged(newValue)
                                         } else {
-                                            "Video filename template"
-                                        },
-                                    )
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                            )
+                                            onOutputTemplateChanged(newValue)
+                                        }
+                                    },
+                                    label = {
+                                        Text(
+                                            if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
+                                                "Audio template"
+                                            } else {
+                                                "Video template"
+                                            },
+                                        )
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true,
+                                )
+                            }
                         }
                         item {
-                            ToggleChipRow(
-                                items = buildList {
-                                    if (uiState.selectedStreamType != StreamType.AUDIO_ONLY) {
-                                        add(ToggleConfig("Subtitles", uiState.downloadSubtitles, onDownloadSubtitlesChanged))
-                                        add(ToggleConfig("Embed subs", uiState.embedSubtitles, onEmbedSubtitlesChanged))
-                                    }
-                                    add(ToggleConfig("Metadata", uiState.embedMetadata, onEmbedMetadataChanged))
-                                    add(ToggleConfig("Embed thumb", uiState.embedThumbnail, onEmbedThumbnailChanged))
-                                    add(ToggleConfig("Write thumb", uiState.writeThumbnail, onWriteThumbnailChanged))
-                                    add(ToggleConfig("Playlist", uiState.enablePlaylist, onPlaylistEnabledChanged))
-                                },
-                            )
-                        }
-                    }
-
-                    if (!isDownloadButtonEnabled) {
-                        item {
-                            Text(
-                                text = "Wait for the active job to settle before starting another download.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                            OptionSectionCard(title = "Extras") {
+                                ToggleChipRow(
+                                    items = buildList {
+                                        if (uiState.selectedStreamType != StreamType.AUDIO_ONLY) {
+                                            add(ToggleConfig("Subtitles", uiState.downloadSubtitles, onDownloadSubtitlesChanged))
+                                            add(ToggleConfig("Embed subs", uiState.embedSubtitles, onEmbedSubtitlesChanged))
+                                        }
+                                        add(ToggleConfig("Metadata", uiState.embedMetadata, onEmbedMetadataChanged))
+                                        add(ToggleConfig("Embed thumb", uiState.embedThumbnail, onEmbedThumbnailChanged))
+                                        add(ToggleConfig("Write thumb", uiState.writeThumbnail, onWriteThumbnailChanged))
+                                        add(ToggleConfig("Playlist", uiState.enablePlaylist, onPlaylistEnabledChanged))
+                                    },
+                                )
+                            }
                         }
                     }
                 }
 
-                Button(
-                    onClick = onQueueDownloadClicked,
-                    enabled = !uiState.isQueueing && isDownloadButtonEnabled,
+                HorizontalDivider(
+                    modifier = Modifier.padding(top = 4.dp),
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f),
+                )
+                Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 14.dp, bottom = 12.dp),
-                    contentPadding = PaddingValues(vertical = 14.dp),
+                        .padding(top = 10.dp, bottom = 12.dp)
+                        .nestedScroll(footerDragBlocker),
+                    color = MaterialTheme.colorScheme.surface,
                 ) {
-                    val buttonText = when {
-                        uiState.isQueueing -> "Queueing..."
-                        !isDownloadButtonEnabled -> "Please wait..."
-                        else -> "Download"
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (!isDownloadButtonEnabled) {
+                            Text(
+                                text = "Wait for the current job to settle.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        downloadActionSummary?.let { summary ->
+                            Text(
+                                text = summary,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Button(
+                            onClick = onQueueDownloadClicked,
+                            enabled = !uiState.isQueueing && isDownloadButtonEnabled,
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(vertical = 14.dp),
+                        ) {
+                            val buttonText = when {
+                                uiState.isQueueing -> "Queueing..."
+                                !isDownloadButtonEnabled -> "Please wait..."
+                                else -> "Download"
+                            }
+                            Text(buttonText)
+                        }
                     }
-                    Text(buttonText)
+                }
+            }
+        }
+    }
+}
+
+private fun buildDownloadActionSummary(uiState: FormatUiState): String? {
+    val videoInfo = uiState.videoInfo ?: return null
+    if (videoInfo.isPlaylist) {
+        return "${uiState.selectedPlaylistItemCount} files selected"
+    }
+
+    return when (uiState.selectedStreamType) {
+        StreamType.AUDIO_ONLY -> listOf(
+            uiState.selectedAudioFormat.uppercase(),
+            "${uiState.audioBitrateKbps} kbps",
+        ).joinToString(" | ")
+
+        else -> {
+            val currentChoices = choicesForStreamType(
+                streamType = uiState.selectedStreamType,
+                videoAudioChoices = uiState.availableVideoAudioChoices,
+                videoOnlyChoices = uiState.availableVideoOnlyChoices,
+                audioOnlyChoices = uiState.availableAudioOnlyChoices,
+            )
+            val choice = currentChoices.firstOrNull { it.selector == uiState.selectedFormatSelector }
+                ?: currentChoices.firstOrNull()
+            listOfNotNull(
+                choice?.height?.let { "${it}p" } ?: uiState.selectedContainer.uppercase(),
+                choice?.let(::formatChoicePrimarySizeLabel),
+            ).joinToString(" | ")
+        }
+    }.ifBlank { null }
+}
+
+@Composable
+private fun ReadyAnalyzedCard(
+    item: AnalyzedLinkRecord,
+    isActive: Boolean,
+    isLoading: Boolean,
+    onOpen: () -> Unit,
+    onQueue: () -> Unit,
+    onRemove: () -> Unit,
+    isQueueEnabled: Boolean,
+    isQueueing: Boolean,
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize(
+                animationSpec = spring(
+                    dampingRatio = 0.9f,
+                    stiffness = 500f,
+                ),
+            ),
+        shape = RoundedCornerShape(26.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = if (isActive) "Ready" else "Saved ready link",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                IconButton(onClick = onRemove) {
+                    Icon(
+                        imageVector = Icons.Outlined.Clear,
+                        contentDescription = "Remove ready download",
+                    )
+                }
+            }
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                buildReadyHistoryChips(item).forEach { chip ->
+                    BrowserMetaChip(text = chip)
+                }
+            }
+            Surface(
+                shape = RoundedCornerShape(22.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onOpen)
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    AsyncImage(
+                        model = item.thumbnailUrl,
+                        contentDescription = item.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(width = 120.dp, height = 68.dp),
+                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = item.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            text = item.uploader ?: "Unknown uploader",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Button(
+                    onClick = onOpen,
+                    enabled = !isLoading,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(
+                        when {
+                            isLoading -> "Loading..."
+                            isActive -> "Open options"
+                            else -> "Load"
+                        },
+                    )
+                }
+                if (isActive) {
+                    TextButton(
+                        onClick = onQueue,
+                        enabled = isQueueEnabled,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(
+                            when {
+                                isQueueing -> "Queueing..."
+                                !isQueueEnabled -> "Please wait..."
+                                else -> "Queue now"
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -923,47 +1022,157 @@ private fun DownloadSetupOnboardingSheet(
 
 
 @Composable
-private fun QuickLinkTile(
-    label: String,
-    logoAssetPath: String,
-    accent: Color,
-    imageLoader: ImageLoader,
-    onClick: () -> Unit,
+private fun OptionsSheetHeader(
+    info: VideoInfo,
+    onClear: () -> Unit,
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(112.dp),
-        shape = RoundedCornerShape(22.dp),
+    Surface(
+        shape = RoundedCornerShape(26.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .padding(vertical = 14.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .background(accent.copy(alpha = 0.12f), CircleShape),
-                contentAlignment = Alignment.Center,
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                AsyncImage(
-                    model = logoAssetPath,
-                    imageLoader = imageLoader,
-                    contentDescription = "$label logo",
-                    modifier = Modifier.size(36.dp),
+                Text(
+                    text = "Download",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
                 )
+                IconButton(onClick = onClear) {
+                    Icon(
+                        imageVector = Icons.Outlined.Clear,
+                        contentDescription = "Clear ready download",
+                    )
+                }
             }
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    modifier = Modifier.size(width = 112.dp, height = 64.dp),
+                ) {
+                    AsyncImage(
+                        model = info.thumbnailUrl,
+                        contentDescription = info.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        text = info.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = info.uploader ?: "Unknown uploader",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                buildReadyDownloadChips(info).forEach { chip ->
+                    BrowserMetaChip(text = chip)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun OptionSectionCard(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Surface(
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        tonalElevation = 1.dp,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            content = {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                content()
+            },
+        )
+    }
+}
+
+@Composable
+private fun BrowserMetaChip(
+    text: String,
+) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = MaterialTheme.colorScheme.surface,
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+private fun buildReadyDownloadChips(info: VideoInfo): List<String> {
+    return buildList {
+        if (info.isPlaylist) {
+            val count = info.playlistCount ?: info.playlistEntries.size
+            add("$count files")
+        } else {
+            add("${info.formats.size} formats")
+        }
+        playlistDurationLabel(info.durationSeconds)?.let(::add)
+        info.uploader?.takeIf { it.isNotBlank() }?.let { uploader ->
+            add(
+                if (uploader.length <= 28) {
+                    uploader
+                } else {
+                    "${uploader.take(28)}..."
+                },
             )
         }
+    }
+}
+
+private fun buildReadyHistoryChips(item: AnalyzedLinkRecord): List<String> {
+    return buildList {
+        if (item.isPlaylist) {
+            add("${item.playlistCount ?: 0} files")
+        } else {
+            add("${item.formatCount} formats")
+        }
+        playlistDurationLabel(item.durationSeconds)?.let(::add)
     }
 }
 
@@ -1001,70 +1210,87 @@ private fun SelectionOptionsCard(
     bitrates: List<Int>,
     emptyChoicesMessage: String?,
 ) {
-    FlowRow(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        StreamType.entries.forEach { item ->
-            FilterChip(
-                selected = item == streamType,
-                onClick = { onStreamTypeChanged(item) },
-                label = { Text(item.label) },
-            )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            StreamType.entries.forEach { item ->
+                FilterChip(
+                    selected = item == streamType,
+                    onClick = { onStreamTypeChanged(item) },
+                    label = { Text(item.label) },
+                )
+            }
         }
-    }
 
-    if (choices.isNotEmpty()) {
-        val selectedChoice = choices
-            .getOrNull(choices.indexOfFirst { it.selector == selectedFormatSelector })
-            ?: choices.first()
-        FormatChoiceDropdownRow(
-            label = "Format",
-            choices = choices,
-            selectedIndex = choices.indexOfFirst { it.selector == selectedFormatSelector }
-                .coerceAtLeast(0),
-            onSelected = { onFormatSelectorChanged(choices[it].selector) },
-        )
-        FormatChoiceInsightCard(choice = selectedChoice)
-    } else {
-        onQualityChanged?.let { qualityChanged ->
-            BrowserDropdownRow(
-                label = "Quality",
-                options = VideoQuality.entries.map { it.label },
-                selectedIndex = VideoQuality.entries.indexOf(quality).coerceAtLeast(0),
-                onSelected = { qualityChanged(VideoQuality.entries[it]) },
+        if (choices.isNotEmpty()) {
+            val selectedChoice = choices
+                .getOrNull(choices.indexOfFirst { it.selector == selectedFormatSelector })
+                ?: choices.first()
+            FormatChoiceDropdownRow(
+                label = "Format",
+                choices = choices,
+                selectedIndex = choices.indexOfFirst { it.selector == selectedFormatSelector }
+                    .coerceAtLeast(0),
+                onSelected = { onFormatSelectorChanged(choices[it].selector) },
             )
-        }
-        emptyChoicesMessage?.let { message ->
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                buildInlineFormatSummaryChips(selectedChoice).forEach { chip ->
+                    BrowserMetaChip(text = chip)
+                }
+            }
             Text(
-                text = message,
+                text = buildFormatChoiceHint(selectedChoice),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        } else {
+            onQualityChanged?.let { qualityChanged ->
+                BrowserDropdownRow(
+                    label = "Quality",
+                    options = VideoQuality.entries.map { it.label },
+                    selectedIndex = VideoQuality.entries.indexOf(quality).coerceAtLeast(0),
+                    onSelected = { qualityChanged(VideoQuality.entries[it]) },
+                )
+            }
+            emptyChoicesMessage?.let { message ->
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
-    }
 
-    if (streamType == StreamType.AUDIO_ONLY) {
-        BrowserDropdownRow(
-            label = "Audio format",
-            options = audioFormats,
-            selectedIndex = audioFormats.indexOf(audioFormat).coerceAtLeast(0),
-            onSelected = { onAudioFormatChanged(audioFormats[it]) },
-        )
-        BrowserDropdownRow(
-            label = "Bitrate",
-            options = bitrates.map { "$it kbps" },
-            selectedIndex = bitrates.indexOf(audioBitrateKbps).coerceAtLeast(0),
-            onSelected = { onAudioBitrateChanged(bitrates[it]) },
-        )
-    } else {
-        BrowserDropdownRow(
-            label = "Container",
-            options = containers,
-            selectedIndex = containers.indexOf(container).coerceAtLeast(0),
-            onSelected = { onContainerChanged(containers[it]) },
-        )
+        if (streamType == StreamType.AUDIO_ONLY) {
+            BrowserDropdownRow(
+                label = "Audio format",
+                options = audioFormats,
+                selectedIndex = audioFormats.indexOf(audioFormat).coerceAtLeast(0),
+                onSelected = { onAudioFormatChanged(audioFormats[it]) },
+            )
+            BrowserDropdownRow(
+                label = "Bitrate",
+                options = bitrates.map { "$it kbps" },
+                selectedIndex = bitrates.indexOf(audioBitrateKbps).coerceAtLeast(0),
+                onSelected = { onAudioBitrateChanged(bitrates[it]) },
+            )
+        } else {
+            BrowserDropdownRow(
+                label = "Container",
+                options = containers,
+                selectedIndex = containers.indexOf(container).coerceAtLeast(0),
+                onSelected = { onContainerChanged(containers[it]) },
+            )
+        }
     }
 }
 
@@ -1096,12 +1322,12 @@ private fun PlaylistSelectionSummaryCard(
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(
-                    text = "Select all files",
+                    text = "All files",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = "$selectedCount of $totalCount items selected",
+                    text = "$selectedCount / $totalCount selected",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1149,11 +1375,11 @@ private fun PlaylistItemCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(24.dp),
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1191,7 +1417,7 @@ private fun PlaylistItemCard(
                 }
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(3.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     Text(
                         text = item.entry.title,
@@ -1210,20 +1436,21 @@ private fun PlaylistItemCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    Text(
-                        text = playlistItemFormatSummary(
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        buildPlaylistItemSummaryChips(
                             useGlobalSettings = item.useGlobalSettings,
                             streamType = activeStreamType,
                             choice = activeChoice,
                             container = activeContainer,
                             audioFormat = activeAudioFormat,
                             audioBitrateKbps = activeAudioBitrate,
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                        ).forEach { chip ->
+                            BrowserMetaChip(text = chip)
+                        }
+                    }
                 }
                 TextButton(onClick = { onExpandedChanged(!item.isExpanded) }) {
                     Text(if (item.isExpanded) "Hide" else "Edit")
@@ -1246,11 +1473,7 @@ private fun PlaylistItemCard(
                         ),
                     )
                     if (item.useGlobalSettings) {
-                        Text(
-                            text = "This file will use the global format, container, and bitrate settings above.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        BrowserMetaChip(text = "Using global format")
                     } else {
                         SelectionOptionsCard(
                             streamType = item.selectedStreamType,
@@ -1274,7 +1497,7 @@ private fun PlaylistItemCard(
                             containers = containers,
                             audioFormats = audioFormats,
                             bitrates = bitrates,
-                            emptyChoicesMessage = "This item did not expose a richer format list during playlist analysis, so the downloader will use an automatic selector for the chosen stream type.",
+                            emptyChoicesMessage = "Auto format will be used for this file.",
                         )
                     }
                 }
@@ -1283,20 +1506,26 @@ private fun PlaylistItemCard(
     }
 }
 
-private fun playlistItemFormatSummary(
+private fun buildPlaylistItemSummaryChips(
     useGlobalSettings: Boolean,
     streamType: StreamType,
     choice: FormatChoice?,
     container: String,
     audioFormat: String,
     audioBitrateKbps: Int,
-): String {
-    val prefix = if (useGlobalSettings) "Global" else "Custom"
-    return when (streamType) {
-        StreamType.AUDIO_ONLY -> "$prefix | ${audioFormat.uppercase()} | ${audioBitrateKbps} kbps"
-        else -> {
-            val formatLabel = choice?.label ?: container.uppercase()
-            "$prefix | $formatLabel"
+): List<String> {
+    return buildList {
+        add(if (useGlobalSettings) "Global" else "Custom")
+        when (streamType) {
+            StreamType.AUDIO_ONLY -> {
+                add(audioFormat.uppercase())
+                add("${audioBitrateKbps} kbps")
+            }
+
+            else -> {
+                add(choice?.height?.let { "${it}p" } ?: container.uppercase())
+                formatChoicePrimarySizeLabel(choice ?: return@buildList)?.let(::add)
+            }
         }
     }
 }
@@ -1339,107 +1568,41 @@ private fun ToggleChipRow(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun FormatChoiceInsightCard(
-    choice: FormatChoice,
-) {
-    Surface(
-        shape = RoundedCornerShape(22.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Text(
-                text = "Selected format details",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = choice.label,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                buildFormatInsightChips(choice).forEach { chip ->
-                    Surface(
-                        shape = RoundedCornerShape(999.dp),
-                        color = MaterialTheme.colorScheme.surface,
-                    ) {
-                        Text(
-                            text = chip,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                            style = MaterialTheme.typography.labelMedium,
-                        )
-                    }
-                }
-            }
-            Text(
-                text = buildFormatChoiceHint(choice),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-private fun buildFormatInsightChips(choice: FormatChoice): List<String> {
+private fun buildInlineFormatSummaryChips(choice: FormatChoice): List<String> {
     return buildList {
-        formatChoicePrimarySizeLabel(choice)?.let { sizeLabel ->
-            add(if (choice.fileSizeBytes != null) "Size $sizeLabel" else sizeLabel)
-        }
+        choice.container.takeIf { it.isNotBlank() }?.let { add(it.uppercase()) }
         choice.height?.let { add("${it}p") }
         choice.fps?.takeIf { it > 0 }?.let { add("${it.toInt()} fps") }
-        add("Container ${choice.container.uppercase()}")
         when (choice.streamType) {
             StreamType.VIDEO_AUDIO -> add(if (choice.isMerged) "Video + audio" else "Muxed")
             StreamType.VIDEO_ONLY -> add("Video only")
             StreamType.AUDIO_ONLY -> add("Audio only")
         }
+        formatChoicePrimarySizeLabel(choice)?.let { add(it) }
         choice.bitrateKbps?.let { add("${it} kbps") }
-        choice.videoCodec?.takeIf { it.isNotBlank() && !it.equals("none", ignoreCase = true) }?.let {
-            add("Video ${compactCodecLabel(it)}")
-        }
-        choice.audioCodec?.takeIf { it.isNotBlank() && !it.equals("none", ignoreCase = true) }?.let {
-            add("Audio ${compactCodecLabel(it)}")
-        }
     }
 }
 
 private fun buildFormatChoiceHint(choice: FormatChoice): String {
     val baseHint = when (choice.streamType) {
-        StreamType.AUDIO_ONLY -> {
-            if ((choice.bitrateKbps ?: 0) >= 256) {
-                "Higher bitrate audio. Better quality, but it uses more storage."
-            } else {
-                "Lighter audio option. Good when you want to save storage space."
-            }
-        }
+        StreamType.AUDIO_ONLY ->
+            if ((choice.bitrateKbps ?: 0) >= 256) "Higher quality, larger file." else "Smaller audio file."
 
         StreamType.VIDEO_ONLY,
         StreamType.VIDEO_AUDIO,
         -> when {
             (choice.height ?: 0) >= 1080 || (choice.fps ?: 0.0) >= 50.0 ->
-                "Quality-first pick. Great for playback quality, but expect a larger download."
+                "Quality-first pick."
 
             (choice.fileSizeBytes ?: choice.estimatedSizeBytes ?: Long.MAX_VALUE) <= 80L * 1024L * 1024L ->
-                "Storage-friendlier pick. Good when you want a smaller file first."
+                "Storage-friendlier pick."
 
             else ->
-                "Balanced option. A good middle ground between quality and file size."
+                "Balanced pick."
         }
     }
     val estimateNote = if (choice.fileSizeBytes == null && choice.estimatedSizeBytes != null) {
-        " Estimated final size is based on bitrate and duration, so the finished file can vary a little."
+        " Size is estimated."
     } else {
         ""
     }
@@ -1463,23 +1626,16 @@ private fun FormatChoiceDropdownRow(
 ) {
     var expanded by remember { mutableStateOf(false) }
     val selectedChoice = choices.getOrNull(selectedIndex) ?: choices.firstOrNull() ?: return
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it },
-    ) {
-        OutlinedTextField(
+    Box(modifier = Modifier.fillMaxWidth()) {
+        PickerSurface(
+            label = label,
             value = listOfNotNull(
                 selectedChoice.label,
                 formatChoicePrimarySizeLabel(selectedChoice),
             ).joinToString(" | "),
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(label) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor(MenuAnchorType.PrimaryNotEditable),
+            supporting = buildFormatMenuMetadata(selectedChoice),
+            expanded = expanded,
+            onClick = { expanded = !expanded },
         )
         DropdownMenu(
             expanded = expanded,
@@ -1574,20 +1730,13 @@ private fun BrowserDropdownRow(
     onSelected: (Int) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it },
-    ) {
-        OutlinedTextField(
+    Box(modifier = Modifier.fillMaxWidth()) {
+        PickerSurface(
+            label = label,
             value = options.getOrElse(selectedIndex) { options.firstOrNull().orEmpty() },
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(label) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor(MenuAnchorType.PrimaryNotEditable),
+            supporting = null,
+            expanded = expanded,
+            onClick = { expanded = !expanded },
         )
         DropdownMenu(
             expanded = expanded,
@@ -1603,6 +1752,60 @@ private fun BrowserDropdownRow(
                     contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun PickerSurface(
+    label: String,
+    value: String,
+    supporting: String?,
+    expanded: Boolean,
+    onClick: () -> Unit,
+) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surface,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = value,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                supporting?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            Text(
+                text = if (expanded) "Close" else "Change",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+            )
         }
     }
 }
