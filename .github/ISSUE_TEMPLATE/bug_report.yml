@@ -1,0 +1,91 @@
+name: Bug report
+description: Report a reproducible app, download, queue, or runtime problem
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please keep the report focused and include
+        enough detail to reproduce the problem.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the problem clearly and practically.
+      placeholder: A YouTube playlist starts, but one item fails after rename...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open ...
+        2. Paste ...
+        3. Tap ...
+        4. See error ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect instead?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Area
+      options:
+        - Home / Browse
+        - Download options overlay
+        - Downloads library
+        - Queue / History
+        - Cookies / YouTube access
+        - Converter / Compressor
+        - Updates / Runtime management
+        - Localization / language
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      placeholder: "Example: 1.7.2"
+    validations:
+      required: true
+
+  - type: input
+    id: android
+    attributes:
+      label: Android version and device
+      placeholder: "Example: Android 14, Pixel 7"
+    validations:
+      required: true
+
+  - type: input
+    id: site
+    attributes:
+      label: Site or source
+      placeholder: "Example: YouTube, Instagram, local file, playlist"
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or error text
+      description: Paste only relevant excerpts. Do not post secrets, cookies, or private tokens.
+      render: text
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Extra context
+      description: Screenshots, recordings, locale info, or anything else useful.
