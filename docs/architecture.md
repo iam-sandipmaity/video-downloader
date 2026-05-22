@@ -2,99 +2,108 @@
 
 ## Goals
 
-- Keep all download and conversion execution local to Android device
-- Provide maintainable layering with explicit contracts
-- Make future feature additions (new screens, repository backends, command flags) low-risk
+- keep download and media-processing execution local to the Android device
+- preserve maintainable layering with explicit responsibilities
+- allow runtime, queue, and translation improvements without repeatedly
+  rebuilding the app's core screen structure
 
 ## Layers
 
-## `ui` layer
+### `ui`
 
-- Compose screens/components
-- Stateless where possible
-- Emits user intent to ViewModels
-- Does not execute downloader commands directly
+- Compose screens and reusable components
+- user input, navigation, dialogs, and presentation
+- no direct downloader/runtime execution
 
-## `viewmodel` layer
+### `viewmodel`
 
-- Owns UI state as `StateFlow`
-- Coordinates repository calls and update managers
-- Converts UI interactions into download, media-tool, and update requests
+- owns screen state as flows/state objects
+- turns UI intent into repository and manager actions
+- coordinates download, media-tool, settings, and update behavior
 
-## `domain` layer
+### `domain`
 
-- Stable models (`VideoInfo`, `MediaFormat`, `DownloadTask`, etc.)
-- Repository interfaces
-- Shared request/response models for downloader and settings flows
+- stable models and contracts
+- shared request/response types
+- repository interfaces
 
-## `data` layer
+### `data`
 
-- `DownloaderRepository` implementation
-- WorkManager enqueue/cancel/resume orchestration
-- Room-backed task/history persistence plus in-memory task state helpers
-- DataStore-based settings and app defaults
+- repository implementations
+- queue/task persistence and orchestration
+- settings persistence
+- app-library bookkeeping
 
-## `downloader` layer
+### `downloader`
 
-- `BinaryInstaller` preferring managed FFmpeg overlays, then packaged native runtimes, then asset-installed fallback executables
-- `YtDlpExecutor` for process execution
-- `FormatExtractor` for JSON parsing
-- `DownloadEngine` for building yt-dlp commands
-- `ProgressParser` for output parsing
+- runtime selection
+- command planning
+- process execution
+- progress parsing
+- analysis parsing
 
-## `ffmpeg` layer
+### `ffmpeg`
 
-- `FfmpegExecutor`
-- `FormatConverter`
-- `Compressor`
-- `AudioExtractor`
+- conversion and compression wrappers
+- local FFmpeg execution
+- media-tool request handling
 
-## `updates` layer
+### `updates`
 
-- `AppUpdateManager` for GitHub APK release checks and installer handoff
-- `YtDlpUpdateManager` for replacing the embedded yt-dlp runtime
-- `FfmpegUpdateManager` for managed FFmpeg overlay packages
-- `GitHubReleaseClient` for release metadata and asset downloads
+- release metadata retrieval
+- app/runtime update decision logic
+- install preparation and guarded replacement behavior
 
-## `worker` layer
+### `worker`
 
-- `DownloadWorker` executes queued downloads in background
-- `YtDlpUpdateWorker` performs guarded background yt-dlp update attempts
-- Foreground notification for long-running jobs
-- Schedulers and workers update queue/runtime state used by UI
+- background download execution
+- background update scheduling
+- long-running foreground service-style work integration through WorkManager
 
-## Sequence (download path)
+## Primary Execution Paths
 
-1. User pastes URL and taps Analyze.
-2. `FormatViewModel` requests analysis through the repository.
-3. Repository calls `FormatExtractor` (`yt-dlp -J ...`).
-4. User selects format/options and taps Download.
-5. ViewModel builds `DownloadOptions` and calls the repository directly.
-6. Repository enqueues `DownloadWorker`.
-7. Worker invokes `DownloadEngine` -> `yt-dlp` locally.
-8. Progress lines parsed and mapped to task state.
-9. Result path saved in queue/history UI.
+### Download path
 
-## Sequence (conversion/compression path)
+1. user analyzes a link from Home / Browse
+2. ViewModel requests analysis
+3. repository uses `FormatExtractor`
+4. user confirms options in the download sheet
+5. repository schedules a task
+6. `DownloadWorker` executes the task
+7. progress is parsed and surfaced into queue/history/downloads state
 
-1. UI issues conversion/compression request (future screen extension).
-2. Repository calls FFmpeg wrappers.
-3. `FfmpegExecutor` runs local binary.
-4. Output file path returned to caller.
+### Media-tool path
 
-## Sequence (update path)
+1. user selects a local file in Converter or Compressor
+2. UI builds a conversion/compression request
+3. repository calls FFmpeg wrappers
+4. `FfmpegExecutor` runs locally
+5. saved output is surfaced back into the library/UI
 
-1. User opens the Updates screen or startup scheduling triggers a background check.
-2. `UpdatesViewModel` loads preferences and asks the relevant update manager for release state.
-3. `AppUpdateManager`, `YtDlpUpdateManager`, or `FfmpegUpdateManager` queries GitHub release metadata.
-4. Manual installs are blocked while active downloads are running for runtime safety.
-5. `YtDlpUpdateScheduler` can enqueue `YtDlpUpdateWorker` on startup when auto-update is enabled.
+### Update path
 
-## Extensibility points
+1. user opens Updates or background scheduling triggers a check
+2. update managers load release/runtime state
+3. GitHub metadata is fetched
+4. installs are gated when active downloads would make replacement unsafe
 
-- Add custom filename template presets
-- Add richer release channels or mirrors for runtime packages
-- Add app-update integrity verification or signing checks
-- Add more granular background scheduling policies for maintenance work
-- Add richer FFmpeg profiles per platform
-- Add runtime binary checksum verification
+## Runtime Philosophy
+
+The app intentionally uses layered fallbacks for FFmpeg and a managed embedded
+runtime path for `yt-dlp` because Android packaging/runtime behavior is not
+uniform across all devices.
+
+This is a reliability choice, not accidental complexity.
+
+## Product Stability Direction
+
+The current beta line treats the user-facing screen structure as stable enough
+that most future work should happen inside the existing architecture:
+
+- queue logic improvements
+- runtime reliability improvements
+- translation/resource improvements
+- docs and test improvements
+
+That keeps user-facing churn low while allowing the internal implementation to
+keep getting stronger.
