@@ -13,6 +13,13 @@ private val supportedLanguageTags = listOf(
     "en",
     "bn",
     "hi",
+    "ta",
+    "te",
+    "kn",
+    "ml",
+    "ko",
+    "ja",
+    "zh-CN",
 )
 
 fun supportedAppLanguageOptions(interfaceLanguageLabel: String): List<AppLanguageOption> {
