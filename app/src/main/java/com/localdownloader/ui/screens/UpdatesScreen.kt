@@ -45,11 +45,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.localdownloader.ui.components.PreferencePageScaffold
+import com.localdownloader.R
 import com.localdownloader.viewmodel.UpdateSectionUiState
 import com.localdownloader.viewmodel.UpdatesUiState
 import com.localdownloader.updates.FfmpegReleaseChannel
@@ -97,7 +99,7 @@ fun UpdatesScreen(
 
     if (ytDlpChannelDialog) {
         ChoiceDialog(
-            title = "yt-dlp Source",
+            title = stringResource(R.string.updates_ytdlp_source),
             selected = uiState.preferences.ytDlpChannel.title,
             options = YtDlpReleaseChannel.entries.map { channel ->
                 UpdateChoiceOption(
@@ -112,7 +114,7 @@ fun UpdatesScreen(
 
     if (ffmpegChannelDialog) {
         ChoiceDialog(
-            title = "FFmpeg Source",
+            title = stringResource(R.string.updates_ffmpeg_source),
             selected = uiState.preferences.ffmpegChannel.title,
             options = FfmpegReleaseChannel.entries.map { channel ->
                 UpdateChoiceOption(
@@ -126,14 +128,14 @@ fun UpdatesScreen(
     }
 
     PreferencePageScaffold(
-        title = "Updates",
+        title = stringResource(R.string.updates_title),
         onBack = onBack,
         modifier = modifier,
         actions = {
             IconButton(onClick = onRefreshAll) {
                 Icon(
                     imageVector = Icons.Outlined.Refresh,
-                    contentDescription = "Refresh all",
+                    contentDescription = stringResource(R.string.updates_refresh_all),
                 )
             }
         },
@@ -151,23 +153,23 @@ fun UpdatesScreen(
             UpdateSectionCard(section = uiState.app) {
                 UpdateValueRow(
                     icon = Icons.Outlined.Info,
-                    title = "Current version",
-                    subtitle = "Installed app build on this device.",
-                    value = uiState.app.currentVersion ?: "Unknown",
+                    title = stringResource(R.string.updates_current_version),
+                    subtitle = stringResource(R.string.updates_app_current_subtitle),
+                    value = uiState.app.currentVersion ?: stringResource(R.string.common_unknown),
                     onClick = null,
                 )
                 DividerInset()
                 UpdateToggleRow(
                     icon = Icons.Outlined.Settings,
-                    title = "Beta releases",
-                    subtitle = "Include pre-release GitHub builds when checking for app updates.",
+                    title = stringResource(R.string.updates_beta_releases),
+                    subtitle = stringResource(R.string.updates_app_beta_subtitle),
                     checked = uiState.preferences.includePrereleaseAppReleases,
                     onCheckedChange = onIncludePrereleaseAppReleasesChanged,
                 )
                 DividerInset()
                 UpdateActionRow(
                     icon = Icons.Outlined.Refresh,
-                    title = "Check now",
+                    title = stringResource(R.string.updates_check_now),
                     subtitle = buildCheckSubtitle(uiState.app),
                     onClick = onRefreshApp,
                 )
@@ -176,9 +178,9 @@ fun UpdatesScreen(
                     UpdateActionRow(
                         icon = Icons.Outlined.FileDownload,
                         title = if (uiState.pendingAppInstall != null) {
-                            "Continue app install"
+                            stringResource(R.string.updates_continue_app_install)
                         } else {
-                            "Install app update"
+                            stringResource(R.string.updates_install_app_update)
                         },
                         subtitle = buildInstallSubtitle(
                             section = uiState.app,
@@ -190,8 +192,8 @@ fun UpdatesScreen(
                 DividerInset()
                 UpdateActionRow(
                     icon = Icons.Outlined.Description,
-                    title = "Changelog",
-                    subtitle = "Read the latest app release notes and the full bundled app changelog.",
+                    title = stringResource(R.string.updates_changelog),
+                    subtitle = stringResource(R.string.updates_app_changelog_subtitle),
                     onClick = { onOpenChangelog(UpdateChangelogSections.APP) },
                 )
             }
@@ -200,15 +202,15 @@ fun UpdatesScreen(
             UpdateSectionCard(section = uiState.ytDlp) {
                 UpdateValueRow(
                     icon = Icons.Outlined.Code,
-                    title = "Current version",
-                    subtitle = "The embedded yt-dlp runtime currently used by the app.",
-                    value = uiState.ytDlp.currentVersion ?: "Unknown",
+                    title = stringResource(R.string.updates_current_version),
+                    subtitle = stringResource(R.string.updates_ytdlp_current_subtitle),
+                    value = uiState.ytDlp.currentVersion ?: stringResource(R.string.common_unknown),
                     onClick = null,
                 )
                 DividerInset()
                 UpdateValueRow(
                     icon = Icons.Outlined.Settings,
-                    title = "yt-dlp Source",
+                    title = stringResource(R.string.updates_ytdlp_source),
                     subtitle = uiState.preferences.ytDlpChannel.description,
                     value = uiState.preferences.ytDlpChannel.id,
                     onClick = { ytDlpChannelDialog = true },
@@ -216,15 +218,15 @@ fun UpdatesScreen(
                 DividerInset()
                 UpdateToggleRow(
                     icon = Icons.Outlined.Sync,
-                    title = "Auto-update yt-dlp",
-                    subtitle = "Keep checking the selected source in the background when the app starts.",
+                    title = stringResource(R.string.updates_auto_update_ytdlp),
+                    subtitle = stringResource(R.string.updates_ytdlp_auto_subtitle),
                     checked = uiState.preferences.autoUpdateYtDlp,
                     onCheckedChange = onAutoUpdateYtDlpChanged,
                 )
                 DividerInset()
                 UpdateActionRow(
                     icon = Icons.Outlined.Refresh,
-                    title = "Check now",
+                    title = stringResource(R.string.updates_check_now),
                     subtitle = buildCheckSubtitle(uiState.ytDlp),
                     onClick = onRefreshYtDlp,
                 )
@@ -232,7 +234,7 @@ fun UpdatesScreen(
                     DividerInset()
                     UpdateActionRow(
                         icon = Icons.Outlined.FileDownload,
-                        title = "Install new version of yt-dlp",
+                        title = stringResource(R.string.updates_install_ytdlp),
                         subtitle = buildInstallSubtitle(section = uiState.ytDlp),
                         onClick = onInstallYtDlpUpdate,
                     )
@@ -240,11 +242,11 @@ fun UpdatesScreen(
                 DividerInset()
                 UpdateActionRow(
                     icon = Icons.Outlined.Description,
-                    title = "Changelog",
+                    title = stringResource(R.string.updates_changelog),
                     subtitle = if (uiState.ytDlp.releaseNotes.isNullOrBlank()) {
-                        "Open the documentation-style changelog page for yt-dlp."
+                        stringResource(R.string.updates_ytdlp_changelog_subtitle_fallback)
                     } else {
-                        "Read what changed in the latest yt-dlp release."
+                        stringResource(R.string.updates_ytdlp_changelog_subtitle_ready)
                     },
                     onClick = { onOpenChangelog(UpdateChangelogSections.YT_DLP) },
                 )
@@ -254,15 +256,15 @@ fun UpdatesScreen(
             UpdateSectionCard(section = uiState.ffmpeg) {
                 UpdateValueRow(
                     icon = Icons.Outlined.Code,
-                    title = "Current version",
-                    subtitle = "The FFmpeg runtime currently resolving for merges and media processing.",
-                    value = uiState.ffmpeg.currentVersion ?: "Unknown",
+                    title = stringResource(R.string.updates_current_version),
+                    subtitle = stringResource(R.string.updates_ffmpeg_current_subtitle),
+                    value = uiState.ffmpeg.currentVersion ?: stringResource(R.string.common_unknown),
                     onClick = null,
                 )
                 DividerInset()
                 UpdateValueRow(
                     icon = Icons.Outlined.Settings,
-                    title = "FFmpeg Source",
+                    title = stringResource(R.string.updates_ffmpeg_source),
                     subtitle = uiState.preferences.ffmpegChannel.description,
                     value = uiState.preferences.ffmpegChannel.id,
                     onClick = { ffmpegChannelDialog = true },
@@ -270,7 +272,7 @@ fun UpdatesScreen(
                 DividerInset()
                 UpdateActionRow(
                     icon = Icons.Outlined.Refresh,
-                    title = "Check now",
+                    title = stringResource(R.string.updates_check_now),
                     subtitle = buildCheckSubtitle(uiState.ffmpeg),
                     onClick = onRefreshFfmpeg,
                 )
@@ -279,9 +281,9 @@ fun UpdatesScreen(
                     UpdateActionRow(
                         icon = Icons.Outlined.FileDownload,
                         title = if (uiState.ffmpeg.latestCheck?.requiresInitialInstall == true) {
-                            "Install managed FFmpeg runtime"
+                            stringResource(R.string.updates_install_ffmpeg)
                         } else {
-                            "Update managed FFmpeg runtime"
+                            stringResource(R.string.updates_update_ffmpeg)
                         },
                         subtitle = buildInstallSubtitle(
                             section = uiState.ffmpeg,
@@ -293,11 +295,11 @@ fun UpdatesScreen(
                 DividerInset()
                 UpdateActionRow(
                     icon = Icons.Outlined.Description,
-                    title = "Changelog",
+                    title = stringResource(R.string.updates_changelog),
                     subtitle = if (uiState.ffmpeg.releaseNotes.isNullOrBlank()) {
-                        "Open the documentation-style changelog page for FFmpeg."
+                        stringResource(R.string.updates_ffmpeg_changelog_subtitle_fallback)
                     } else {
-                        "Read what changed in the latest FFmpeg runtime package."
+                        stringResource(R.string.updates_ffmpeg_changelog_subtitle_ready)
                     },
                     onClick = { onOpenChangelog(UpdateChangelogSections.FFMPEG) },
                 )
@@ -533,7 +535,7 @@ private fun ChoiceDialog(
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.common_cancel))
             }
         },
     )

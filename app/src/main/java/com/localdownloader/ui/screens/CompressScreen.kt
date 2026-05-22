@@ -54,6 +54,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.localdownloader.R
 import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.viewmodel.AUDIO_BITRATE_PRESETS
 import com.localdownloader.viewmodel.MediaToolsUiState
@@ -73,22 +75,22 @@ private data class CompressionGoal(
 
 private val QUICK_COMPRESSION_GOALS = listOf(
     CompressionGoal(
-        title = "Share fast",
-        body = "Smallest size",
+        title = "share_fast",
+        body = "share_fast_body",
         maxHeight = "480",
         videoBitrate = "500",
         audioBitrate = "96",
     ),
     CompressionGoal(
-        title = "Balanced",
-        body = "Everyday use",
+        title = "balanced",
+        body = "balanced_body",
         maxHeight = "720",
         videoBitrate = "1000",
         audioBitrate = "128",
     ),
     CompressionGoal(
-        title = "Keep detail",
-        body = "Higher quality",
+        title = "keep_detail",
+        body = "keep_detail_body",
         maxHeight = "1080",
         videoBitrate = "2500",
         audioBitrate = "192",
@@ -116,14 +118,14 @@ fun CompressScreen(
     val canCompress = uiState.compressInputFileInfo != null && !uiState.isCompressing
 
     PreferencePageScaffold(
-        title = "Compressor",
+        title = stringResource(R.string.compressor_title),
         onBack = onBack,
         modifier = modifier,
     ) {
         item {
             CompressPanel {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    CompressPanelHeader(title = "Source")
+                    CompressPanelHeader(title = stringResource(R.string.compressor_section_source))
                     CompressInputFileCard(
                         fileName = uiState.compressInputFileInfo?.name,
                         fileSizeBytes = uiState.compressInputFileInfo?.sizeBytes,
@@ -139,14 +141,14 @@ fun CompressScreen(
                         ) {
                             Icon(Icons.Outlined.CloudDownload, contentDescription = null)
                             Spacer(Modifier.size(8.dp))
-                            Text("Choose video")
+                            Text(stringResource(R.string.compressor_choose_video))
                         }
                         if (uiState.compressInputFileInfo != null) {
                             OutlinedButton(
                                 onClick = { onInputPathChanged("") },
                                 modifier = Modifier.widthIn(min = 96.dp),
                             ) {
-                                Text("Clear")
+                                Text(stringResource(R.string.common_clear))
                             }
                         }
                     }
@@ -156,7 +158,7 @@ fun CompressScreen(
         item {
             CompressPanel {
                 Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    CompressPanelHeader(title = "Goal")
+                    CompressPanelHeader(title = stringResource(R.string.compressor_section_goal))
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -166,6 +168,16 @@ fun CompressScreen(
                         QUICK_COMPRESSION_GOALS.forEach { goal ->
                             CompressionGoalCard(
                                 goal = goal,
+                                title = when (goal.title) {
+                                    "share_fast" -> stringResource(R.string.compressor_goal_share_fast)
+                                    "balanced" -> stringResource(R.string.compressor_goal_balanced)
+                                    else -> stringResource(R.string.compressor_goal_keep_detail)
+                                },
+                                body = when (goal.body) {
+                                    "share_fast_body" -> stringResource(R.string.compressor_goal_share_fast_body)
+                                    "balanced_body" -> stringResource(R.string.compressor_goal_balanced_body)
+                                    else -> stringResource(R.string.compressor_goal_keep_detail_body)
+                                },
                                 selected = uiState.compressMaxHeight == goal.maxHeight &&
                                     uiState.compressVideoBitrate == goal.videoBitrate &&
                                     uiState.compressAudioBitrate == goal.audioBitrate,
@@ -186,19 +198,23 @@ fun CompressScreen(
             CompressPanel {
                 Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     CompressPanelHeader(
-                        title = "Output",
-                        actionLabel = if (showFineTuning) "Hide advanced" else "Advanced",
+                        title = stringResource(R.string.compressor_section_output),
+                        actionLabel = if (showFineTuning) {
+                            stringResource(R.string.common_hide_advanced)
+                        } else {
+                            stringResource(R.string.common_advanced)
+                        },
                         onAction = { showFineTuning = !showFineTuning },
                     )
                     CompressPreviewCard(
-                        label = "Will save as",
+                        label = stringResource(R.string.compressor_will_save_as),
                         value = buildCompressedOutputPreview(uiState),
                     )
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        CompressSummaryChip("Max ${uiState.compressMaxHeight.ifBlank { "Auto" }}p")
+                        CompressSummaryChip("Max ${uiState.compressMaxHeight.ifBlank { stringResource(R.string.common_auto) }}p")
                         CompressSummaryChip("Video ${bitrateSummary(uiState.compressVideoBitrate)}")
                         CompressSummaryChip("Audio ${bitrateSummary(uiState.compressAudioBitrate)}")
                     }
@@ -212,7 +228,7 @@ fun CompressScreen(
                             verticalArrangement = Arrangement.spacedBy(14.dp),
                         ) {
                             Text(
-                                text = "Height",
+                                text = stringResource(R.string.compressor_height),
                                 style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -234,13 +250,13 @@ fun CompressScreen(
                                 value = uiState.compressMaxHeight,
                                 onValueChange = onMaxHeightChanged,
                                 modifier = Modifier.fillMaxWidth(),
-                                label = { Text("Max height") },
+                                label = { Text(stringResource(R.string.compressor_max_height)) },
                                 placeholder = { Text("720") },
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             )
                             CompressionDropdownField(
-                                label = "Video preset",
+                                label = stringResource(R.string.compressor_video_preset),
                                 options = VIDEO_BITRATE_PRESETS.map { it.label },
                                 selectedIndex = uiState.compressVideoBitratePresetIndex.coerceIn(0, VIDEO_BITRATE_PRESETS.lastIndex),
                                 onSelected = onVideoBitratePresetSelected,
@@ -250,13 +266,13 @@ fun CompressScreen(
                                 value = uiState.compressVideoBitrate,
                                 onValueChange = onVideoBitrateChanged,
                                 modifier = Modifier.fillMaxWidth(),
-                                label = { Text("Video kbps") },
+                                label = { Text(stringResource(R.string.compressor_video_kbps)) },
                                 placeholder = { Text("1000") },
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             )
                             CompressionDropdownField(
-                                label = "Audio preset",
+                                label = stringResource(R.string.compressor_audio_preset),
                                 options = AUDIO_BITRATE_PRESETS.map { it.label },
                                 selectedIndex = uiState.compressAudioBitratePresetIndex.coerceIn(0, AUDIO_BITRATE_PRESETS.lastIndex),
                                 onSelected = onAudioBitratePresetSelected,
@@ -266,7 +282,7 @@ fun CompressScreen(
                                 value = uiState.compressAudioBitrate,
                                 onValueChange = onAudioBitrateChanged,
                                 modifier = Modifier.fillMaxWidth(),
-                                label = { Text("Audio kbps") },
+                                label = { Text(stringResource(R.string.compressor_audio_kbps)) },
                                 placeholder = { Text("128") },
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -280,13 +296,13 @@ fun CompressScreen(
             item {
                 CompressStatusCard(
                     title = when {
-                        uiState.isCompressing -> "Compressing"
-                        uiState.compressError != null -> "Stopped"
-                        else -> "Done"
+                        uiState.isCompressing -> stringResource(R.string.compressor_compressing)
+                        uiState.compressError != null -> stringResource(R.string.common_stopped)
+                        else -> stringResource(R.string.common_done)
                     },
                     body = uiState.compressError
                         ?: uiState.compressResult
-                        ?: "Working...",
+                        ?: stringResource(R.string.common_working),
                     progress = uiState.compressProgress,
                     success = uiState.compressResult != null && uiState.compressError == null,
                     sourceBytes = uiState.compressSourceSizeBytes,
@@ -309,11 +325,17 @@ fun CompressScreen(
                         color = MaterialTheme.colorScheme.onPrimary,
                     )
                     Spacer(Modifier.size(10.dp))
-                    Text("Compressing")
+                    Text(stringResource(R.string.compressor_compressing))
                 } else {
                     Icon(Icons.Outlined.Transform, contentDescription = null)
                     Spacer(Modifier.size(10.dp))
-                    Text(if (canCompress) "Compress" else "Pick video")
+                    Text(
+                        if (canCompress) {
+                            stringResource(R.string.compressor_action)
+                        } else {
+                            stringResource(R.string.compressor_pick_file)
+                        },
+                    )
                 }
             }
         }
@@ -376,6 +398,8 @@ private fun CompressPreviewCard(
 @Composable
 private fun CompressionGoalCard(
     goal: CompressionGoal,
+    title: String,
+    body: String,
     selected: Boolean,
     onClick: () -> Unit,
 ) {
@@ -395,13 +419,13 @@ private fun CompressionGoalCard(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                text = goal.title,
+                Text(
+                    text = title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
-            Text(
-                text = goal.body,
+                Text(
+                    text = body,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,

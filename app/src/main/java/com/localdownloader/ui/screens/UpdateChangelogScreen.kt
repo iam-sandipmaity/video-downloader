@@ -34,6 +34,8 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.localdownloader.R
 import com.localdownloader.ui.components.PreferencePageScaffold
 
 object UpdateChangelogSections {
@@ -49,9 +51,9 @@ fun UpdateChangelogScreen(
     latestVersion: String?,
     summary: String,
     releaseNotes: String?,
-    latestDocumentHeading: String = "Release notes",
+    latestDocumentHeading: String = "",
     bundledDocumentHeading: String? = null,
-    overviewText: String = "Read the latest release notes in a cleaner documentation-style view.",
+    overviewText: String = "",
     bundledReleaseNotesAssetName: String? = null,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -60,19 +62,25 @@ fun UpdateChangelogScreen(
     val bundledDocumentationText = remember(context, bundledReleaseNotesAssetName) {
         loadBundledReleaseNotes(context = context, assetName = bundledReleaseNotesAssetName)
     }
+    val resolvedLatestHeading = latestDocumentHeading.ifBlank {
+        context.getString(R.string.updates_release_notes_heading)
+    }
+    val resolvedOverviewText = overviewText.ifBlank {
+        context.getString(R.string.updates_overview_default)
+    }
     val latestBlocks = remember(releaseNotes) { parseDocumentationBlocks(releaseNotes) }
     val bundledBlocks = remember(bundledDocumentationText) {
         parseDocumentationBlocks(bundledDocumentationText)
     }
 
     PreferencePageScaffold(
-        title = "Changelog",
+        title = stringResource(R.string.updates_changelog),
         onBack = onBack,
         modifier = modifier,
     ) {
         item {
             Text(
-                text = overviewText,
+                text = resolvedOverviewText,
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -93,17 +101,17 @@ fun UpdateChangelogScreen(
                         fontWeight = FontWeight.SemiBold,
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.18f))
-                    MetadataLine(label = "Current version", value = currentVersion ?: "Unknown")
-                    MetadataLine(label = "Latest version", value = latestVersion ?: "Unknown")
-                    MetadataLine(label = "Summary", value = summary)
+                    MetadataLine(label = stringResource(R.string.updates_current_version), value = currentVersion ?: stringResource(R.string.common_unknown))
+                    MetadataLine(label = stringResource(R.string.updates_latest_version), value = latestVersion ?: stringResource(R.string.common_unknown))
+                    MetadataLine(label = stringResource(R.string.updates_summary), value = summary)
                 }
             }
         }
         if (latestBlocks.isEmpty() && bundledBlocks.isEmpty()) {
             item {
-                DocumentationSurface(title = latestDocumentHeading) {
+                DocumentationSurface(title = resolvedLatestHeading) {
                     Text(
-                        text = "No detailed changelog is available for this section yet.",
+                        text = stringResource(R.string.updates_no_detailed_changelog),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -112,7 +120,7 @@ fun UpdateChangelogScreen(
         } else {
             if (latestBlocks.isNotEmpty()) {
                 item {
-                    DocumentationSurface(title = latestDocumentHeading) {
+                    DocumentationSurface(title = resolvedLatestHeading) {
                         DocumentationArticle(blocks = latestBlocks)
                     }
                 }

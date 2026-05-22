@@ -50,6 +50,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.localdownloader.R
 import com.localdownloader.ffmpeg.AUDIO_OUTPUT_FORMATS
 import com.localdownloader.ffmpeg.CONVERSION_PRESETS
 import com.localdownloader.ffmpeg.ConversionPreset
@@ -78,19 +80,19 @@ fun ConvertScreen(
     val canConvert = uiState.convertInputFileInfo != null && !uiState.isConverting
 
     PreferencePageScaffold(
-        title = "Converter",
+        title = stringResource(R.string.converter_title),
         onBack = onBack,
         modifier = modifier,
     ) {
         item {
             ToolPanel {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    ToolPanelHeader(title = "Source")
+                    ToolPanelHeader(title = stringResource(R.string.converter_section_source))
                     InputFileCard(
                         fileName = uiState.convertInputFileInfo?.name,
                         fileSizeBytes = uiState.convertInputFileInfo?.sizeBytes,
                         filePath = uiState.convertInputFileInfo?.path,
-                        emptyMessage = "No file chosen",
+                        emptyMessage = stringResource(R.string.converter_no_file),
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -102,14 +104,14 @@ fun ConvertScreen(
                         ) {
                             Icon(Icons.Outlined.CloudDownload, contentDescription = null)
                             Spacer(Modifier.size(8.dp))
-                            Text("Choose file")
+                            Text(stringResource(R.string.converter_choose_file))
                         }
                         if (uiState.convertInputFileInfo != null) {
                             OutlinedButton(
                                 onClick = { onInputPathChanged("") },
                                 modifier = Modifier.widthIn(min = 96.dp),
                             ) {
-                                Text("Clear")
+                                Text(stringResource(R.string.common_clear))
                             }
                         }
                     }
@@ -119,7 +121,7 @@ fun ConvertScreen(
         item {
             ToolPanel {
                 Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    ToolPanelHeader(title = "Preset")
+                    ToolPanelHeader(title = stringResource(R.string.converter_section_preset))
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -141,12 +143,16 @@ fun ConvertScreen(
             ToolPanel {
                 Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     ToolPanelHeader(
-                        title = "Output",
-                        actionLabel = if (showAdvanced) "Hide advanced" else "Advanced",
+                        title = stringResource(R.string.converter_section_output),
+                        actionLabel = if (showAdvanced) {
+                            stringResource(R.string.common_hide_advanced)
+                        } else {
+                            stringResource(R.string.common_advanced)
+                        },
                         onAction = { showAdvanced = !showAdvanced },
                     )
                     ToolPreviewCard(
-                        label = "Will save as",
+                        label = stringResource(R.string.converter_will_save_as),
                         value = buildConvertOutputPreview(uiState),
                     )
                     FlowRow(
@@ -167,13 +173,13 @@ fun ConvertScreen(
                             verticalArrangement = Arrangement.spacedBy(14.dp),
                         ) {
                             FormatSelectorGroup(
-                                title = "Video format",
+                                title = stringResource(R.string.converter_video_format),
                                 formats = VIDEO_OUTPUT_FORMATS,
                                 selectedFormat = uiState.convertOutputFormat,
                                 onSelect = onOutputFormatChanged,
                             )
                             FormatSelectorGroup(
-                                title = "Audio format",
+                                title = stringResource(R.string.converter_audio_format),
                                 formats = AUDIO_OUTPUT_FORMATS,
                                 selectedFormat = uiState.convertOutputFormat,
                                 onSelect = onOutputFormatChanged,
@@ -186,8 +192,8 @@ fun ConvertScreen(
                                     value = uiState.convertVideoBitrate,
                                     onValueChange = onVideoBitrateChanged,
                                     modifier = Modifier.weight(1f),
-                                    label = { Text("Video kbps") },
-                                    placeholder = { Text("Auto") },
+                                    label = { Text(stringResource(R.string.converter_video_kbps)) },
+                                    placeholder = { Text(stringResource(R.string.common_auto)) },
                                     singleLine = true,
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 )
@@ -195,8 +201,8 @@ fun ConvertScreen(
                                     value = uiState.convertAudioBitrate,
                                     onValueChange = onAudioBitrateChanged,
                                     modifier = Modifier.weight(1f),
-                                    label = { Text("Audio kbps") },
-                                    placeholder = { Text("Auto") },
+                                    label = { Text(stringResource(R.string.converter_audio_kbps)) },
+                                    placeholder = { Text(stringResource(R.string.common_auto)) },
                                     singleLine = true,
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 )
@@ -210,13 +216,13 @@ fun ConvertScreen(
             item {
                 ToolStatusCard(
                     title = when {
-                        uiState.isConverting -> "Converting"
-                        uiState.convertError != null -> "Stopped"
-                        else -> "Done"
+                        uiState.isConverting -> stringResource(R.string.converter_converting)
+                        uiState.convertError != null -> stringResource(R.string.common_stopped)
+                        else -> stringResource(R.string.common_done)
                     },
                     body = uiState.convertError
                         ?: uiState.convertResult
-                        ?: "Working...",
+                        ?: stringResource(R.string.common_working),
                     progress = uiState.convertProgress,
                     success = uiState.convertResult != null && uiState.convertError == null,
                     sourceBytes = uiState.convertSourceSizeBytes,
@@ -239,11 +245,17 @@ fun ConvertScreen(
                         color = MaterialTheme.colorScheme.onPrimary,
                     )
                     Spacer(Modifier.size(10.dp))
-                    Text("Converting")
+                    Text(stringResource(R.string.converter_converting))
                 } else {
                     Icon(Icons.Outlined.SwapHoriz, contentDescription = null)
                     Spacer(Modifier.size(10.dp))
-                    Text(if (canConvert) "Convert" else "Pick file")
+                    Text(
+                        if (canConvert) {
+                            stringResource(R.string.converter_action)
+                        } else {
+                            stringResource(R.string.converter_pick_file)
+                        },
+                    )
                 }
             }
         }

@@ -54,11 +54,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.localdownloader.R
 import com.localdownloader.domain.models.CookieProfile
 import com.localdownloader.ui.components.InlineFeedbackCard
 import com.localdownloader.ui.components.PreferencePageScaffold
@@ -108,18 +111,18 @@ fun CookiesScreen(
     if (confirmDeleteAll) {
         AlertDialog(
             onDismissRequest = { confirmDeleteAll = false },
-            title = { Text("Delete all cookies") },
-            text = { Text("This removes every saved cookie entry from Video Downloader.") },
+            title = { Text(stringResource(R.string.cookies_delete_all)) },
+            text = { Text(stringResource(R.string.cookies_delete_all_body)) },
             confirmButton = {
                 TextButton(
                     onClick = {
                         confirmDeleteAll = false
                         onDeleteAllCookies()
                     },
-                ) { Text("Delete") }
+                ) { Text(stringResource(R.string.common_delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { confirmDeleteAll = false }) { Text("Cancel") }
+                TextButton(onClick = { confirmDeleteAll = false }) { Text(stringResource(R.string.common_cancel)) }
             },
         )
     }
@@ -152,20 +155,20 @@ fun CookiesScreen(
     }
 
     PreferencePageScaffold(
-        title = "Cookies",
+        title = stringResource(R.string.cookies_title),
         onBack = onBack,
         modifier = modifier,
         actions = {
             Box {
                 IconButton(onClick = { showMenu = true }) {
-                    Icon(Icons.Outlined.MoreVert, contentDescription = "Cookie actions")
+                    Icon(Icons.Outlined.MoreVert, contentDescription = stringResource(R.string.cookies_actions))
                 }
                 DropdownMenu(
                     expanded = showMenu,
                     onDismissRequest = { showMenu = false },
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Delete All Cookies") },
+                        text = { Text(stringResource(R.string.cookies_delete_all)) },
                         onClick = {
                             showMenu = false
                             confirmDeleteAll = true
@@ -174,11 +177,8 @@ fun CookiesScreen(
                     DropdownMenuItem(
                         text = {
                             Text(
-                                if (uiState.cookieUserAgentEnabled) {
-                                    "User-Agent header: On"
-                                } else {
-                                    "User-Agent header: Off"
-                                },
+                                if (uiState.cookieUserAgentEnabled) stringResource(R.string.cookies_user_agent_on)
+                                else stringResource(R.string.cookies_user_agent_off),
                             )
                         },
                         onClick = {
@@ -187,7 +187,7 @@ fun CookiesScreen(
                         },
                     )
                     DropdownMenuItem(
-                        text = { Text("Import from clipboard") },
+                        text = { Text(stringResource(R.string.cookies_import_clipboard)) },
                         onClick = {
                             showMenu = false
                             val raw = clipboardManager.getText()?.text.orEmpty()
@@ -197,7 +197,7 @@ fun CookiesScreen(
                         },
                     )
                     DropdownMenuItem(
-                        text = { Text("Export to clipboard") },
+                        text = { Text(stringResource(R.string.cookies_export_clipboard)) },
                         onClick = {
                             showMenu = false
                             clipboardManager.setText(
@@ -206,7 +206,7 @@ fun CookiesScreen(
                         },
                     )
                     DropdownMenuItem(
-                        text = { Text("Export File") },
+                        text = { Text(stringResource(R.string.cookies_export_file)) },
                         onClick = {
                             showMenu = false
                             exportLauncher.launch("video-downloader-cookies.txt")
@@ -238,12 +238,12 @@ fun CookiesScreen(
                             verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             Text(
-                                text = "Use Cookies",
+                                text = stringResource(R.string.cookies_use_title),
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.SemiBold,
                             )
                             Text(
-                                text = "Attach saved website cookies automatically when a matching link is analyzed or downloaded.",
+                                text = stringResource(R.string.cookies_use_body),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -259,9 +259,9 @@ fun CookiesScreen(
                     ) {
                         Text(
                             text = if (uiState.cookieUserAgentEnabled) {
-                                "User-Agent header is enabled for cookie-backed requests."
+                                stringResource(R.string.cookies_user_agent_enabled)
                             } else {
-                                "Turn on the User-Agent header from the top menu if a website is strict about browser sessions."
+                                stringResource(R.string.cookies_user_agent_disabled)
                             },
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
                             style = MaterialTheme.typography.bodySmall,
@@ -278,15 +278,15 @@ fun CookiesScreen(
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
-                        text = "Saved Cookies",
+                        text = stringResource(R.string.cookies_saved_title),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold,
                     )
                     Text(
                         text = if (uiState.cookieProfiles.isEmpty()) {
-                            "Add a site cookie once, then update it whenever that session changes."
+                            stringResource(R.string.cookies_saved_empty_subtitle)
                         } else {
-                            "${uiState.cookieProfiles.size} saved site${if (uiState.cookieProfiles.size == 1) "" else "s"} ready to use."
+                            pluralStringResource(R.plurals.cookies_saved_ready_count, uiState.cookieProfiles.size, uiState.cookieProfiles.size)
                         },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -303,14 +303,14 @@ fun CookiesScreen(
                     modifier = Modifier.align(Alignment.Start),
                 ) {
                     Icon(Icons.Outlined.Add, contentDescription = null)
-                    Text("New Cookie", modifier = Modifier.padding(start = 8.dp))
+                    Text(stringResource(R.string.cookies_new), modifier = Modifier.padding(start = 8.dp))
                 }
             }
         }
         infoMessage?.let { message ->
             item {
                 InlineFeedbackCard(
-                    label = "Cookies",
+                    label = stringResource(R.string.cookies_feedback_label),
                     message = message,
                     isError = false,
                     onDismiss = onDismissMessage,
@@ -320,7 +320,7 @@ fun CookiesScreen(
         errorMessage?.let { message ->
             item {
                 InlineFeedbackCard(
-                    label = "Cookies",
+                    label = stringResource(R.string.cookies_feedback_label),
                     message = message,
                     isError = true,
                     onDismiss = onDismissMessage,
@@ -339,12 +339,12 @@ fun CookiesScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Text(
-                            text = "No cookies saved yet",
+                            text = stringResource(R.string.cookies_empty_title),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.SemiBold,
                         )
                         Text(
-                            text = "Tap New Cookie to paste a Netscape cookie file or use Get Cookies to capture a signed-in browser session for a specific site.",
+                            text = stringResource(R.string.cookies_empty_body),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -353,7 +353,7 @@ fun CookiesScreen(
                             shape = RoundedCornerShape(18.dp),
                         ) {
                             Text(
-                                text = "For YouTube, a private/incognito session cookie usually works best for signed-in or restricted videos.",
+                                text = stringResource(R.string.cookies_youtube_tip),
                                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -406,7 +406,7 @@ fun CookieCaptureScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
                 actions = {
@@ -425,7 +425,7 @@ fun CookieCaptureScreen(
                             }
                         },
                     ) {
-                        Text(if (isConfirming) "Saving..." else "OK")
+                        Text(if (isConfirming) stringResource(R.string.youtube_access_login_saving) else stringResource(R.string.cookies_capture_confirm))
                     }
                 },
             )
@@ -489,7 +489,7 @@ private fun CookieProfileCard(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = "Tap to update this cookie",
+                text = stringResource(R.string.common_edit),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.primary,
             )
@@ -514,19 +514,19 @@ private fun CookieEditorDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(if (state.profileId == null) "New Cookie" else "Update Cookie")
+            Text(if (state.profileId == null) stringResource(R.string.cookies_new) else stringResource(R.string.common_edit))
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text(
-                    text = "Keep one cookie profile per website so Video Downloader can reuse it automatically.",
+                    text = stringResource(R.string.cookies_editor_keep_one),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 OutlinedTextField(
                     value = state.cookiesText,
                     onValueChange = { onStateChanged(state.copy(cookiesText = it)) },
-                    label = { Text("Cookies") },
+                    label = { Text(stringResource(R.string.cookies_editor_text)) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(280.dp),
@@ -535,7 +535,7 @@ private fun CookieEditorDialog(
                 OutlinedTextField(
                     value = state.url,
                     onValueChange = { onStateChanged(state.copy(url = it)) },
-                    label = { Text("URL") },
+                    label = { Text(stringResource(R.string.cookies_editor_url)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     placeholder = { Text("https://reddit.com") },
@@ -556,7 +556,7 @@ private fun CookieEditorDialog(
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.ContentCopy,
-                                contentDescription = "Copy cookies",
+                                contentDescription = stringResource(R.string.cookies_copy_cookies),
                                 modifier = Modifier.padding(16.dp),
                             )
                         }
@@ -566,14 +566,14 @@ private fun CookieEditorDialog(
                             modifier = Modifier.clickable(onClick = onPaste),
                         ) {
                             Text(
-                                text = "Paste",
+                                text = stringResource(R.string.cookies_editor_paste),
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
                                 style = MaterialTheme.typography.labelLarge,
                             )
                         }
                     }
                     if (state.profileId != null) {
-                        TextButton(onClick = onDelete) { Text("Delete") }
+                        TextButton(onClick = onDelete) { Text(stringResource(R.string.common_delete)) }
                     } else {
                         Spacer(modifier = Modifier)
                     }
@@ -587,18 +587,18 @@ private fun CookieEditorDialog(
                         enabled = hasValidUrl,
                         modifier = Modifier.weight(1f),
                     ) {
-                        Text("Get Cookies")
+                        Text(stringResource(R.string.cookies_editor_get))
                     }
                     Button(
                         onClick = onSave,
                         enabled = hasValidUrl && hasCookiesText,
                         modifier = Modifier.weight(1f),
                     ) {
-                        Text(if (state.profileId == null) "Save" else "Update")
+                        Text(if (state.profileId == null) stringResource(R.string.common_save) else stringResource(R.string.common_edit))
                     }
                 }
                 Text(
-                    text = "Tip: keep the URL in the form https://example.com so matching works more reliably.",
+                    text = stringResource(R.string.cookies_editor_url_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

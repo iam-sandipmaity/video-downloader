@@ -68,12 +68,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.decode.SvgDecoder
+import com.localdownloader.R
 import com.localdownloader.domain.models.DownloadStatus
 import com.localdownloader.domain.models.DownloadTask
 import com.localdownloader.ui.components.LocalVideoThumbnail
@@ -111,6 +113,7 @@ fun ProgressScreen(
         }
     }
     val isQueueMode = onBack != null
+    val context = LocalContext.current
     // Keep queue ordering stable while progress ticks update task timestamps.
     val allTasks = uiState.tasks.sortedByDescending { it.createdAtEpochMs }
     val runningCount = allTasks.count { it.status == DownloadStatus.RUNNING }
@@ -163,7 +166,7 @@ fun ProgressScreen(
             if (!isQueueMode) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
-                        text = "Progress",
+                        text = stringResource(R.string.queue_progress_title),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -172,6 +175,7 @@ fun ProgressScreen(
                             filter = currentFilter,
                             filteredCount = filteredTasks.size,
                             totalCount = allTasks.size,
+                            context = context,
                         ),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -191,7 +195,7 @@ fun ProgressScreen(
                         verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
                         Text(
-                            text = "Status overview",
+                            text = stringResource(R.string.queue_progress_overview),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                         )
@@ -201,12 +205,12 @@ fun ProgressScreen(
                                 .horizontalScroll(rememberScrollState()),
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
-                            StatusMetricPill(label = "Downloading", count = runningCount)
-                            StatusMetricPill(label = "Queue", count = queuedCount)
-                            StatusMetricPill(label = "Paused", count = pausedCount)
-                            StatusMetricPill(label = "Done", count = completedCount)
-                            StatusMetricPill(label = "Error", count = failedCount)
-                            StatusMetricPill(label = "Canceled", count = canceledCount)
+                            StatusMetricPill(label = stringResource(R.string.queue_filter_downloading), count = runningCount)
+                            StatusMetricPill(label = stringResource(R.string.queue_filter_in_queue), count = queuedCount)
+                            StatusMetricPill(label = stringResource(R.string.queue_filter_paused), count = pausedCount)
+                            StatusMetricPill(label = stringResource(R.string.queue_filter_done), count = completedCount)
+                            StatusMetricPill(label = stringResource(R.string.queue_filter_error), count = failedCount)
+                            StatusMetricPill(label = stringResource(R.string.queue_filter_canceled), count = canceledCount)
                         }
                     }
                 }
@@ -241,7 +245,7 @@ fun ProgressScreen(
                         FilterChip(
                             selected = currentFilter == filter,
                             onClick = { selectedFilter = filter.name },
-                            label = { Text(filter.label) },
+                            label = { Text(progressFilterLabel(filter, context)) },
                         )
                     }
                 }
@@ -350,34 +354,34 @@ fun ProgressScreen(
 
     if (onBack != null) {
         PreferencePageScaffold(
-            title = "Download Queue",
+            title = stringResource(R.string.queue_title),
             onBack = onBack,
             modifier = modifier,
             actions = {
                 Box {
                     IconButton(onClick = { showTopMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "Queue options")
+                        Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.queue_options))
                     }
                     DropdownMenu(
                         expanded = showTopMenu,
                         onDismissRequest = { showTopMenu = false },
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Show all statuses") },
+                            text = { Text(stringResource(R.string.queue_show_all_statuses)) },
                             onClick = {
                                 showTopMenu = false
                                 selectedFilter = ProgressFilter.All.name
                             },
                         )
                         DropdownMenuItem(
-                            text = { Text("Show finished") },
+                            text = { Text(stringResource(R.string.queue_show_finished)) },
                             onClick = {
                                 showTopMenu = false
                                 selectedFilter = ProgressFilter.Done.name
                             },
                         )
                         DropdownMenuItem(
-                            text = { Text("Show running") },
+                            text = { Text(stringResource(R.string.queue_show_running)) },
                             onClick = {
                                 showTopMenu = false
                                 selectedFilter = ProgressFilter.Downloading.name
@@ -544,6 +548,7 @@ private fun QueueFilterRow(
     canceledCount: Int,
     onSelect: (ProgressFilter) -> Unit,
 ) {
+    val context = LocalContext.current
     val queueTabs = listOf(
         ProgressFilter.Downloading,
         ProgressFilter.Queue,
@@ -560,7 +565,7 @@ private fun QueueFilterRow(
     ) {
         queueTabs.forEach { filter ->
             QueueFilterTab(
-                label = queueLabel(filter),
+                label = queueLabel(filter, context),
                 count = when (filter) {
                     ProgressFilter.Downloading -> runningCount
                     ProgressFilter.Queue -> queuedCount
@@ -817,6 +822,7 @@ private fun DownloadTaskHeroCard(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val context = LocalContext.current
     val imageLoader = remember(context) {
         ImageLoader.Builder(context)
             .components { add(SvgDecoder.Factory()) }
@@ -844,18 +850,19 @@ private fun DownloadTaskHeroCard(
         buildPauseExpiryLabel(
             pauseExpiresAtEpochMs = pauseExpiresAt,
             currentTimeMs = currentTimeMs,
+            context = context,
         )
     }
     val actions = when (task.status) {
         DownloadStatus.RUNNING, DownloadStatus.QUEUED -> listOf(
             DownloadTaskAction(
                 icon = Icons.Outlined.PauseCircle,
-                contentDescription = "Pause",
+                contentDescription = context.getString(R.string.queue_action_pause),
                 onClick = { onPause(task.id) },
             ),
             DownloadTaskAction(
                 icon = Icons.Outlined.Cancel,
-                contentDescription = "Cancel",
+                contentDescription = context.getString(R.string.queue_action_cancel),
                 onClick = { onCancel(task.id) },
             ),
         )
@@ -863,12 +870,12 @@ private fun DownloadTaskHeroCard(
         DownloadStatus.PAUSED -> listOf(
             DownloadTaskAction(
                 icon = Icons.Outlined.PlayCircle,
-                contentDescription = "Resume",
+                contentDescription = context.getString(R.string.queue_action_resume),
                 onClick = { onResume(task.id) },
             ),
             DownloadTaskAction(
                 icon = Icons.Outlined.Cancel,
-                contentDescription = "Cancel",
+                contentDescription = context.getString(R.string.queue_action_cancel),
                 onClick = { onCancel(task.id) },
             ),
         )
@@ -878,8 +885,8 @@ private fun DownloadTaskHeroCard(
         -> listOf(
             DownloadTaskAction(
                 icon = Icons.Outlined.Refresh,
-                contentDescription = "Retry",
-                label = "Retry",
+                contentDescription = context.getString(R.string.queue_action_retry),
+                label = context.getString(R.string.queue_action_retry),
                 onClick = { onRetry(task.id) },
             ),
         )
@@ -1340,15 +1347,16 @@ private fun StatusMetricPill(
 private fun buildPauseExpiryLabel(
     pauseExpiresAtEpochMs: Long,
     currentTimeMs: Long,
+    context: android.content.Context,
 ): String {
     val remainingMs = (pauseExpiresAtEpochMs - currentTimeMs).coerceAtLeast(0L)
     val totalSeconds = remainingMs / 1_000L
     val minutes = totalSeconds / 60L
     val seconds = totalSeconds % 60L
     return if (remainingMs == 0L) {
-        "Resume window expired"
+        context.getString(R.string.queue_resume_window_expired)
     } else {
-        "Resume within %02d:%02d".format(minutes, seconds)
+        context.getString(R.string.queue_resume_within, minutes, seconds)
     }
 }
 
@@ -1374,15 +1382,32 @@ private enum class ProgressFilter(val label: String) {
     }
 }
 
+private fun progressFilterLabel(filter: ProgressFilter, context: android.content.Context): String {
+    return when (filter) {
+        ProgressFilter.All -> context.getString(R.string.queue_filter_all)
+        ProgressFilter.Downloading -> context.getString(R.string.queue_filter_downloading)
+        ProgressFilter.Queue -> context.getString(R.string.queue_filter_in_queue)
+        ProgressFilter.Paused -> context.getString(R.string.queue_filter_paused)
+        ProgressFilter.Done -> context.getString(R.string.queue_filter_done)
+        ProgressFilter.Error -> context.getString(R.string.queue_filter_error)
+        ProgressFilter.Canceled -> context.getString(R.string.queue_filter_canceled)
+    }
+}
+
 private fun buildProgressSubtitle(
     filter: ProgressFilter,
     filteredCount: Int,
     totalCount: Int,
+    context: android.content.Context,
 ): String {
     return when {
-        totalCount == 0 -> "No downloads yet. As tasks start, their states will appear here."
-        filter == ProgressFilter.All -> "$filteredCount downloads tracked across every status"
-        else -> "$filteredCount items in ${filter.label.lowercase()} right now"
+        totalCount == 0 -> context.getString(R.string.queue_subtitle_empty)
+        filter == ProgressFilter.All -> context.getString(R.string.queue_subtitle_all, filteredCount)
+        else -> context.getString(
+            R.string.queue_subtitle_filtered,
+            filteredCount,
+            progressFilterLabel(filter, context).lowercase(),
+        )
     }
 }
 
@@ -1429,15 +1454,15 @@ private fun buildQueueEmptyStateBody(filter: ProgressFilter): String {
     }
 }
 
-private fun queueLabel(filter: ProgressFilter): String {
+private fun queueLabel(filter: ProgressFilter, context: android.content.Context): String {
     return when (filter) {
-        ProgressFilter.Downloading -> "Running"
-        ProgressFilter.Queue -> "In Queue"
-        ProgressFilter.Paused -> "Scheduled"
-        ProgressFilter.Error -> "Errored"
-        ProgressFilter.Canceled -> "Cancelled"
-        ProgressFilter.Done -> "Done"
-        ProgressFilter.All -> "All"
+        ProgressFilter.Downloading -> context.getString(R.string.queue_filter_downloading)
+        ProgressFilter.Queue -> context.getString(R.string.queue_filter_in_queue)
+        ProgressFilter.Paused -> context.getString(R.string.queue_filter_paused)
+        ProgressFilter.Error -> context.getString(R.string.queue_filter_error)
+        ProgressFilter.Canceled -> context.getString(R.string.queue_filter_canceled)
+        ProgressFilter.Done -> context.getString(R.string.queue_filter_done)
+        ProgressFilter.All -> context.getString(R.string.queue_filter_all)
     }
 }
 
