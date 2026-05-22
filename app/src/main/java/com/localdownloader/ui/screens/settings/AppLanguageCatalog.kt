@@ -36,12 +36,7 @@ fun appLanguageLabel(languageTag: String, systemDefaultLabel: String): String {
     if (languageTag == SYSTEM_LANGUAGE_TAG) return systemDefaultLabel
     val locale = Locale.forLanguageTag(languageTag)
     val nativeLabel = locale.readableDisplayName(locale)
-    val englishLabel = locale.readableDisplayName(Locale.ENGLISH)
-    return if (nativeLabel.equals(englishLabel, ignoreCase = true)) {
-        nativeLabel
-    } else {
-        "$nativeLabel • $englishLabel"
-    }
+    return nativeLabel
 }
 
 private fun Locale.readableDisplayName(displayLocale: Locale): String {
