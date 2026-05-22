@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Changed
+- **Repository standards refresh** - added the missing license and contributor-community standards files, and refreshed the documentation set to match the current stable-beta product posture instead of the older rapid-iteration roadmap framing
+
 ## [1.7.1.0-beta] - 2026-05-21
 
 ### Added
