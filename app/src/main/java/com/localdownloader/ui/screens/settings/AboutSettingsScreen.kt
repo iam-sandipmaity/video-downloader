@@ -29,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -36,6 +37,7 @@ import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.decode.SvgDecoder
 import com.localdownloader.BuildConfig
+import com.localdownloader.R
 import com.localdownloader.ui.components.PreferenceDivider
 import com.localdownloader.ui.components.PreferenceGroup
 import com.localdownloader.ui.components.PreferencePageScaffold
@@ -136,7 +138,7 @@ fun AboutSettingsScreen(
     }
 
     PreferencePageScaffold(
-        title = "About and support",
+        title = stringResource(R.string.settings_about_title),
         onBack = onBack,
         modifier = modifier,
     ) {
@@ -144,24 +146,24 @@ fun AboutSettingsScreen(
             PreferenceGroup {
                 PreferenceRow(
                     icon = Icons.Rounded.Info,
-                    title = "Package name",
-                    subtitle = "Installed application identifier.",
+                    title = stringResource(R.string.about_package_title),
+                    subtitle = stringResource(R.string.about_package_subtitle),
                     value = BuildConfig.APPLICATION_ID,
                     onClick = null,
                 )
                 PreferenceDivider()
                 PreferenceRow(
                     icon = Icons.Rounded.Info,
-                    title = "Version",
-                    subtitle = "Current installed app version.",
+                    title = stringResource(R.string.about_version_title),
+                    subtitle = stringResource(R.string.about_version_subtitle),
                     value = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
                     onClick = null,
                 )
                 PreferenceDivider()
                 PreferenceRow(
                     icon = Icons.Rounded.SystemUpdate,
-                    title = "Updates center",
-                    subtitle = "Manage app, yt-dlp, and FFmpeg update flows from one place.",
+                    title = stringResource(R.string.about_updates_title),
+                    subtitle = stringResource(R.string.about_updates_subtitle),
                     onClick = onOpenUpdates,
                 )
             }
@@ -170,14 +172,14 @@ fun AboutSettingsScreen(
             PreferenceGroup {
                 PreferenceRow(
                     icon = Icons.Rounded.Language,
-                    title = "Official website",
+                    title = stringResource(R.string.about_website_title),
                     subtitle = "video.sandipmaity.me",
                     onClick = { openUrl("https://video.sandipmaity.me") },
                 )
                 PreferenceDivider()
                 PreferenceRow(
                     icon = Icons.Rounded.Code,
-                    title = "App source code",
+                    title = stringResource(R.string.about_source_title),
                     subtitle = "github.com/iam-sandipmaity/video-downloader",
                     onClick = { openUrl("https://github.com/iam-sandipmaity/video-downloader") },
                 )
@@ -185,20 +187,20 @@ fun AboutSettingsScreen(
                 PreferenceRow(
                     icon = Icons.Rounded.Description,
                     title = "yt-dlp",
-                    subtitle = "Open the upstream downloader engine project.",
+                    subtitle = stringResource(R.string.about_ytdlp_subtitle),
                     onClick = { openUrl("https://github.com/yt-dlp/yt-dlp") },
                 )
                 PreferenceDivider()
                 PreferenceRow(
                     icon = Icons.Rounded.Description,
                     title = "FFmpeg",
-                    subtitle = "Open the upstream media processing project.",
+                    subtitle = stringResource(R.string.about_ffmpeg_subtitle),
                     onClick = { openUrl("https://github.com/FFmpeg/FFmpeg") },
                 )
                 PreferenceDivider()
                 PreferenceRow(
                     icon = Icons.Rounded.Language,
-                    title = "Developer GitHub",
+                    title = stringResource(R.string.about_developer_github_title),
                     subtitle = "@iam-sandipmaity",
                     onClick = { openUrl("https://github.com/iam-sandipmaity") },
                 )
@@ -206,7 +208,7 @@ fun AboutSettingsScreen(
                 AboutAssetRow(
                     assetPath = "file:///android_asset/platform_logos/x.svg",
                     imageLoader = svgImageLoader,
-                    title = "Developer X",
+                    title = stringResource(R.string.about_developer_x_title),
                     subtitle = "@iam_sandipmaity",
                     onClick = { openUrl("https://x.com/iam_sandipmaity") },
                 )
@@ -214,7 +216,7 @@ fun AboutSettingsScreen(
                 AboutAssetRow(
                     assetPath = "file:///android_asset/platform_logos/instagram.svg",
                     imageLoader = svgImageLoader,
-                    title = "Developer Instagram",
+                    title = stringResource(R.string.about_developer_instagram_title),
                     subtitle = "@iam_sandipmaity",
                     onClick = { openUrl("https://instagram.com/iam_sandipmaity") },
                 )
@@ -222,7 +224,7 @@ fun AboutSettingsScreen(
                 AboutAssetRow(
                     assetPath = "file:///android_asset/platform_logos/linkedin.svg",
                     imageLoader = svgImageLoader,
-                    title = "Developer LinkedIn",
+                    title = stringResource(R.string.about_developer_linkedin_title),
                     subtitle = "iam-sandipmaity",
                     onClick = { openUrl("https://www.linkedin.com/in/iam-sandipmaity") },
                 )
@@ -230,8 +232,8 @@ fun AboutSettingsScreen(
         }
         item {
             PreferenceSectionHeader(
-                title = "Credits",
-                subtitle = "Tap any project to open its official website or upstream source.",
+                title = stringResource(R.string.about_credits_title),
+                subtitle = stringResource(R.string.about_credits_subtitle),
             )
         }
         item {
@@ -253,13 +255,13 @@ fun AboutSettingsScreen(
             PreferenceGroup {
                 PreferenceRow(
                     icon = Icons.Rounded.RestartAlt,
-                    title = "Reset all settings",
-                    subtitle = "Restore appearance, folders, download defaults, access preferences, and library behavior back to the default setup.",
+                    title = stringResource(R.string.about_reset_title),
+                    subtitle = stringResource(R.string.about_reset_subtitle),
                     onClick = {
                         confirmDialog = SettingConfirmDialogState(
-                            title = "Reset settings",
-                            body = "This restores appearance, folders, download defaults, and library behavior back to the default setup.",
-                            confirmLabel = "Reset now",
+                            title = context.getString(R.string.storage_reset_dialog_title),
+                            body = context.getString(R.string.storage_reset_dialog_body),
+                            confirmLabel = context.getString(R.string.common_reset_now),
                             onConfirm = {
                                 onResetSettings()
                                 confirmDialog = null

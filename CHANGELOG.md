@@ -29,6 +29,7 @@
 - **About and support credits** - refreshed the About page with the updated LinkedIn profile and a new credits section linking the app's open-source stack to their official sites or upstream repositories
 - **Pre-download filename editing** - single downloads now let people adjust the final file name right inside the format sheet while still defaulting to the source title when left unchanged
 - **Media default polish** - embedded thumbnails are now enabled by default so saved downloads keep their source artwork unless a user turns that off
+- **Localization rollout, phase 1** - trimmed app-language choices down to the currently supported set (`System default`, `English`, `Bengali`, `Hindi`), removed the redundant Android language-settings shortcut, and moved the More plus core Settings pages onto real translated string resources
 - **Downloads card metadata polish** - saved files now surface format, quality, size, and fresher relative date labels like `today` or `yesterday` without changing the overall card style
 - **Recovery copy cleanup** - updated onboarding and queue guidance so cookie and YouTube access directions point to the new Settings access path instead of the older More-only flow
 - **Typography tune-up** - expanded the app typography set so the new settings and support pages can use cleaner headline, label, and small-body styling without falling back to mismatched defaults

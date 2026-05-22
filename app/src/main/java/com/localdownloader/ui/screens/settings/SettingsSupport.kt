@@ -24,6 +24,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,7 +33,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.localdownloader.R
 import com.localdownloader.domain.models.AccentPreset
 import com.localdownloader.domain.models.ContrastMode
 import com.localdownloader.domain.models.ThemeMode
@@ -154,7 +157,7 @@ fun SettingChoiceDialog(
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.common_cancel))
             }
         },
     )
@@ -192,7 +195,7 @@ fun SettingTextDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.common_cancel))
             }
         },
     )
@@ -220,13 +223,13 @@ fun FilenameTemplateDialog(
                 OutlinedTextField(
                     value = value,
                     onValueChange = { value = it },
-                    label = { Text("Filename template") },
+                    label = { Text(stringResource(R.string.common_filename_template)) },
                     supportingText = { Text(state.supporting) },
                     modifier = Modifier.fillMaxWidth(),
                 )
 
                 Text(
-                    text = "Quick presets",
+                    text = stringResource(R.string.common_quick_presets),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -263,7 +266,7 @@ fun FilenameTemplateDialog(
                 }
 
                 Text(
-                    text = "Suggested fields",
+                    text = stringResource(R.string.common_suggested_fields),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -286,7 +289,7 @@ fun FilenameTemplateDialog(
                 }
 
                 Text(
-                    text = "Tip: keep %(ext)s somewhere in the template so the saved file keeps the correct extension.",
+                    text = stringResource(R.string.common_template_ext_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -299,12 +302,12 @@ fun FilenameTemplateDialog(
                     onDismiss()
                 },
             ) {
-                Text("Use template")
+                Text(stringResource(R.string.common_save))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.common_cancel))
             }
         },
     )
@@ -326,139 +329,145 @@ fun SettingConfirmDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(if (state.destructive) "Cancel" else "Keep current")
+                Text(
+                    if (state.destructive) {
+                        stringResource(R.string.common_cancel)
+                    } else {
+                        stringResource(R.string.common_keep_current)
+                    },
+                )
             }
         },
     )
 }
 
-fun themeModeLabel(mode: ThemeMode): String {
+fun themeModeLabel(context: Context, mode: ThemeMode): String {
     return when (mode) {
-        ThemeMode.SYSTEM -> "System"
-        ThemeMode.LIGHT -> "Light"
-        ThemeMode.DARK -> "Dark"
+        ThemeMode.SYSTEM -> context.getString(R.string.theme_mode_system)
+        ThemeMode.LIGHT -> context.getString(R.string.theme_mode_light)
+        ThemeMode.DARK -> context.getString(R.string.theme_mode_dark)
     }
 }
 
-fun accentLabel(accentPreset: AccentPreset): String {
+fun accentLabel(context: Context, accentPreset: AccentPreset): String {
     return when (accentPreset) {
-        AccentPreset.AMBER -> "Material you"
-        AccentPreset.OCEAN -> "Blue"
-        AccentPreset.COBALT -> "Cobalt"
-        AccentPreset.AQUA -> "Aqua"
-        AccentPreset.TEAL -> "Teal"
-        AccentPreset.MINT -> "Mint"
-        AccentPreset.EMERALD -> "Emerald"
-        AccentPreset.FOREST -> "Green"
-        AccentPreset.ROSE -> "Rose"
-        AccentPreset.CRIMSON -> "Crimson"
-        AccentPreset.MAGENTA -> "Magenta"
-        AccentPreset.PURPLE -> "Purple"
-        AccentPreset.YELLOW -> "Yellow"
-        AccentPreset.ORANGE -> "Orange"
-        AccentPreset.COPPER -> "Copper"
-        AccentPreset.MONOCHROME -> "Monochrome"
+        AccentPreset.AMBER -> context.getString(R.string.accent_material_you)
+        AccentPreset.OCEAN -> context.getString(R.string.accent_blue)
+        AccentPreset.COBALT -> context.getString(R.string.accent_cobalt)
+        AccentPreset.AQUA -> context.getString(R.string.accent_aqua)
+        AccentPreset.TEAL -> context.getString(R.string.accent_teal)
+        AccentPreset.MINT -> context.getString(R.string.accent_mint)
+        AccentPreset.EMERALD -> context.getString(R.string.accent_emerald)
+        AccentPreset.FOREST -> context.getString(R.string.accent_green)
+        AccentPreset.ROSE -> context.getString(R.string.accent_rose)
+        AccentPreset.CRIMSON -> context.getString(R.string.accent_crimson)
+        AccentPreset.MAGENTA -> context.getString(R.string.accent_magenta)
+        AccentPreset.PURPLE -> context.getString(R.string.accent_purple)
+        AccentPreset.YELLOW -> context.getString(R.string.accent_yellow)
+        AccentPreset.ORANGE -> context.getString(R.string.accent_orange)
+        AccentPreset.COPPER -> context.getString(R.string.accent_copper)
+        AccentPreset.MONOCHROME -> context.getString(R.string.accent_monochrome)
     }
 }
 
-fun accentSubtitle(accentPreset: AccentPreset): String {
+fun accentSubtitle(context: Context, accentPreset: AccentPreset): String {
     return when (accentPreset) {
-        AccentPreset.AMBER -> "A warm default with the soft amber look already used by the app."
-        AccentPreset.OCEAN -> "Cool blue highlights for a calmer downloader mood."
-        AccentPreset.COBALT -> "A deeper electric blue with stronger player and action contrast."
-        AccentPreset.AQUA -> "Bright aqua accents with a cleaner, glassier utility feel."
-        AccentPreset.TEAL -> "Blue-green accents that feel crisp, modern, and a little lighter."
-        AccentPreset.MINT -> "Fresh mint accents for a softer, cleaner utility look."
-        AccentPreset.EMERALD -> "A richer jewel-green palette with stronger contrast than mint."
-        AccentPreset.FOREST -> "A greener look with a softer natural feel."
-        AccentPreset.ROSE -> "Warm rose accents for a brighter and friendlier red tone."
-        AccentPreset.CRIMSON -> "A richer red tone with more drama than the standard rose theme."
-        AccentPreset.MAGENTA -> "Bold magenta highlights for a more vivid music and creator vibe."
-        AccentPreset.PURPLE -> "A richer violet palette for a more dramatic music vibe."
-        AccentPreset.YELLOW -> "Bright yellow accents with higher energy."
-        AccentPreset.ORANGE -> "Warm orange action tones similar to media apps."
-        AccentPreset.COPPER -> "Copper-orange accents that feel warmer and more grounded than amber."
-        AccentPreset.MONOCHROME -> "Muted grayscale accents for a cleaner neutral setup."
+        AccentPreset.AMBER -> context.getString(R.string.accent_subtitle_amber)
+        AccentPreset.OCEAN -> context.getString(R.string.accent_subtitle_ocean)
+        AccentPreset.COBALT -> context.getString(R.string.accent_subtitle_cobalt)
+        AccentPreset.AQUA -> context.getString(R.string.accent_subtitle_aqua)
+        AccentPreset.TEAL -> context.getString(R.string.accent_subtitle_teal)
+        AccentPreset.MINT -> context.getString(R.string.accent_subtitle_mint)
+        AccentPreset.EMERALD -> context.getString(R.string.accent_subtitle_emerald)
+        AccentPreset.FOREST -> context.getString(R.string.accent_subtitle_forest)
+        AccentPreset.ROSE -> context.getString(R.string.accent_subtitle_rose)
+        AccentPreset.CRIMSON -> context.getString(R.string.accent_subtitle_crimson)
+        AccentPreset.MAGENTA -> context.getString(R.string.accent_subtitle_magenta)
+        AccentPreset.PURPLE -> context.getString(R.string.accent_subtitle_purple)
+        AccentPreset.YELLOW -> context.getString(R.string.accent_subtitle_yellow)
+        AccentPreset.ORANGE -> context.getString(R.string.accent_subtitle_orange)
+        AccentPreset.COPPER -> context.getString(R.string.accent_subtitle_copper)
+        AccentPreset.MONOCHROME -> context.getString(R.string.accent_subtitle_monochrome)
     }
 }
 
-fun contrastLabel(mode: ContrastMode): String {
+fun contrastLabel(context: Context, mode: ContrastMode): String {
     return when (mode) {
-        ContrastMode.SOFT -> "Soft"
-        ContrastMode.STANDARD -> "Standard"
-        ContrastMode.HIGH -> "High contrast"
-        ContrastMode.ULTRA -> "Ultra contrast"
+        ContrastMode.SOFT -> context.getString(R.string.contrast_soft)
+        ContrastMode.STANDARD -> context.getString(R.string.contrast_standard)
+        ContrastMode.HIGH -> context.getString(R.string.contrast_high)
+        ContrastMode.ULTRA -> context.getString(R.string.contrast_ultra)
     }
 }
 
-fun contrastSubtitle(mode: ContrastMode): String {
+fun contrastSubtitle(context: Context, mode: ContrastMode): String {
     return when (mode) {
-        ContrastMode.SOFT -> "Gentler surfaces and softer separation for a calmer look."
-        ContrastMode.STANDARD -> "Balanced contrast for the normal theme surfaces."
-        ContrastMode.HIGH -> "Sharper text and stronger separation between cards and background."
-        ContrastMode.ULTRA -> "Maximum separation for the clearest edges and strongest readability."
+        ContrastMode.SOFT -> context.getString(R.string.contrast_subtitle_soft)
+        ContrastMode.STANDARD -> context.getString(R.string.contrast_subtitle_standard)
+        ContrastMode.HIGH -> context.getString(R.string.contrast_subtitle_high)
+        ContrastMode.ULTRA -> context.getString(R.string.contrast_subtitle_ultra)
     }
 }
 
-fun containerDescription(container: String): String {
+fun containerDescription(context: Context, container: String): String {
     return when (container) {
-        "mp4" -> "Best general compatibility across Android devices and players."
-        "webm" -> "Smaller web-friendly container when the source supports it well."
-        "mkv" -> "Flexible container for mixed codecs and more unusual source formats."
-        "mov" -> "Apple-style container when you want a closer edit-friendly export."
-        else -> "Use this container for future merged video downloads."
+        "mp4" -> context.getString(R.string.container_desc_mp4)
+        "webm" -> context.getString(R.string.container_desc_webm)
+        "mkv" -> context.getString(R.string.container_desc_mkv)
+        "mov" -> context.getString(R.string.container_desc_mov)
+        else -> context.getString(R.string.container_desc_default)
     }
 }
 
-fun audioFormatDescription(format: String): String {
+fun audioFormatDescription(context: Context, format: String): String {
     return when (format) {
-        "mp3" -> "The broadest device and car-player compatibility."
-        "m4a" -> "AAC audio in a compact container that works well on most phones."
-        "aac" -> "Raw AAC output for lighter files when you need a simpler audio stream."
-        "opus" -> "High efficiency audio that is great when the source already supports it."
-        "flac" -> "Lossless output when you want to preserve as much audio quality as possible."
-        "wav" -> "Large but simple audio files that work well in editors."
-        else -> "Use this format for future audio extracts."
+        "mp3" -> context.getString(R.string.audio_desc_mp3)
+        "m4a" -> context.getString(R.string.audio_desc_m4a)
+        "aac" -> context.getString(R.string.audio_desc_aac)
+        "opus" -> context.getString(R.string.audio_desc_opus)
+        "flac" -> context.getString(R.string.audio_desc_flac)
+        "wav" -> context.getString(R.string.audio_desc_wav)
+        else -> context.getString(R.string.audio_desc_default)
     }
 }
 
-fun videoFilenameTemplatePresets(): List<FilenameTemplatePreset> {
+fun videoFilenameTemplatePresets(context: Context): List<FilenameTemplatePreset> {
     return listOf(
         FilenameTemplatePreset(
-            title = "Title and ID",
+            title = context.getString(R.string.preset_title_and_id),
             template = "%(title)s [%(id)s].%(ext)s",
         ),
         FilenameTemplatePreset(
-            title = "Uploader and title",
+            title = context.getString(R.string.preset_uploader_and_title),
             template = "%(uploader)s - %(title)s [%(id)s].%(ext)s",
         ),
         FilenameTemplatePreset(
-            title = "Playlist-friendly",
+            title = context.getString(R.string.preset_playlist_friendly),
             template = "%(playlist_index,playlist_autonumber&{}. |)s%(title)s [%(id)s].%(ext)s",
         ),
         FilenameTemplatePreset(
-            title = "Date first",
+            title = context.getString(R.string.preset_date_first),
             template = "%(upload_date>%Y-%m-%d)s - %(title)s [%(id)s].%(ext)s",
         ),
     )
 }
 
-fun audioFilenameTemplatePresets(): List<FilenameTemplatePreset> {
+fun audioFilenameTemplatePresets(context: Context): List<FilenameTemplatePreset> {
     return listOf(
         FilenameTemplatePreset(
-            title = "Title and ID",
+            title = context.getString(R.string.preset_title_and_id),
             template = "%(title)s [%(id)s].%(ext)s",
         ),
         FilenameTemplatePreset(
-            title = "Artist and title",
+            title = context.getString(R.string.preset_artist_and_title),
             template = "%(artist,uploader)s - %(title)s.%(ext)s",
         ),
         FilenameTemplatePreset(
-            title = "Album track",
+            title = context.getString(R.string.preset_album_track),
             template = "%(album,uploader)s/%(track_number,playlist_index&{}. )s%(title)s.%(ext)s",
         ),
         FilenameTemplatePreset(
-            title = "Date and title",
+            title = context.getString(R.string.preset_date_and_title),
             template = "%(release_date,upload_date>%Y-%m-%d)s - %(title)s.%(ext)s",
         ),
     )

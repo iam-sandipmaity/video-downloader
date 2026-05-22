@@ -13,6 +13,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.localdownloader.R
 import com.localdownloader.ui.components.PreferenceDivider
 import com.localdownloader.ui.components.PreferenceGroup
 import com.localdownloader.ui.components.PreferencePageScaffold
@@ -37,6 +41,7 @@ fun DownloadSettingsScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
     var choiceDialog by remember { mutableStateOf<SettingChoiceDialogState?>(null) }
     var filenameTemplateDialog by remember { mutableStateOf<FilenameTemplateDialogState?>(null) }
 
@@ -54,7 +59,7 @@ fun DownloadSettingsScreen(
     }
 
     PreferencePageScaffold(
-        title = "Download defaults",
+        title = stringResource(R.string.settings_download_defaults_title),
         onBack = onBack,
         modifier = modifier,
     ) {
@@ -62,15 +67,16 @@ fun DownloadSettingsScreen(
             PreferenceGroup {
                 PreferenceRow(
                     icon = Icons.Rounded.Description,
-                    title = "Filename template [video]",
-                    subtitle = "Used for future video and merged downloads.",
+                    title = stringResource(R.string.download_defaults_filename_video_title),
+                    subtitle = stringResource(R.string.download_defaults_filename_video_subtitle),
                     value = uiState.outputTemplate,
                     onClick = {
+                        val title = context.getString(R.string.download_defaults_filename_video_title)
                         filenameTemplateDialog = FilenameTemplateDialogState(
-                            title = "Filename template [video]",
+                            title = title,
                             value = uiState.outputTemplate,
-                            supporting = "Use yt-dlp placeholders. Keep %(ext)s in the template so the final file extension stays correct.",
-                            presets = videoFilenameTemplatePresets(),
+                            supporting = context.getString(R.string.download_defaults_filename_supporting),
+                            presets = videoFilenameTemplatePresets(context),
                             tokens = suggestedFilenameTokens(),
                             onConfirm = onDefaultVideoOutputTemplateChanged,
                         )
@@ -79,15 +85,16 @@ fun DownloadSettingsScreen(
                 PreferenceDivider()
                 PreferenceRow(
                     icon = Icons.Rounded.AudioFile,
-                    title = "Filename template [audio]",
-                    subtitle = "Used for future audio-only downloads and extracts.",
+                    title = stringResource(R.string.download_defaults_filename_audio_title),
+                    subtitle = stringResource(R.string.download_defaults_filename_audio_subtitle),
                     value = uiState.audioOutputTemplate,
                     onClick = {
+                        val title = context.getString(R.string.download_defaults_filename_audio_title)
                         filenameTemplateDialog = FilenameTemplateDialogState(
-                            title = "Filename template [audio]",
+                            title = title,
                             value = uiState.audioOutputTemplate,
-                            supporting = "Use yt-dlp placeholders. Keep %(ext)s in the template so the final file extension stays correct.",
-                            presets = audioFilenameTemplatePresets(),
+                            supporting = context.getString(R.string.download_defaults_filename_supporting),
+                            presets = audioFilenameTemplatePresets(context),
                             tokens = suggestedFilenameTokens(),
                             onConfirm = onDefaultAudioOutputTemplateChanged,
                         )
@@ -96,18 +103,18 @@ fun DownloadSettingsScreen(
                 PreferenceDivider()
                 PreferenceRow(
                     icon = Icons.Rounded.VideoFile,
-                    title = "Default video container",
-                    subtitle = "Preferred output format for merged video downloads.",
+                    title = stringResource(R.string.download_defaults_video_container_title),
+                    subtitle = stringResource(R.string.download_defaults_video_container_subtitle),
                     value = uiState.selectedContainer.uppercase(),
                     onClick = {
                         val containers = listOf("mp4", "webm", "mkv", "mov")
                         choiceDialog = SettingChoiceDialogState(
-                            title = "Default video container",
+                            title = context.getString(R.string.download_defaults_video_container_title),
                             selected = uiState.selectedContainer.uppercase(),
                             options = containers.map { container ->
                                 SettingChoiceOption(
                                     title = container.uppercase(),
-                                    subtitle = containerDescription(container),
+                                    subtitle = containerDescription(context, container),
                                     onSelect = { onDefaultVideoContainerChanged(container) },
                                 )
                             },
@@ -117,18 +124,18 @@ fun DownloadSettingsScreen(
                 PreferenceDivider()
                 PreferenceRow(
                     icon = Icons.Rounded.AudioFile,
-                    title = "Default audio container",
-                    subtitle = "Preferred output format for future audio extracts.",
+                    title = stringResource(R.string.download_defaults_audio_container_title),
+                    subtitle = stringResource(R.string.download_defaults_audio_container_subtitle),
                     value = uiState.selectedAudioFormat.uppercase(),
                     onClick = {
                         val audioFormats = listOf("mp3", "m4a", "aac", "opus", "flac", "wav")
                         choiceDialog = SettingChoiceDialogState(
-                            title = "Default audio container",
+                            title = context.getString(R.string.download_defaults_audio_container_title),
                             selected = uiState.selectedAudioFormat.uppercase(),
                             options = audioFormats.map { format ->
                                 SettingChoiceOption(
                                     title = format.uppercase(),
-                                    subtitle = audioFormatDescription(format),
+                                    subtitle = audioFormatDescription(context, format),
                                     onSelect = { onDefaultAudioContainerChanged(format) },
                                 )
                             },
@@ -141,32 +148,32 @@ fun DownloadSettingsScreen(
             PreferenceGroup {
                 PreferenceSwitchRow(
                     icon = Icons.Rounded.Subtitles,
-                    title = "Download subtitles",
-                    subtitle = "Fetch subtitle sidecars automatically when they are available.",
+                    title = stringResource(R.string.download_defaults_subtitles_title),
+                    subtitle = stringResource(R.string.download_defaults_subtitles_subtitle),
                     checked = uiState.downloadSubtitles,
                     onCheckedChange = onDefaultDownloadSubtitlesChanged,
                 )
                 PreferenceDivider()
                 PreferenceSwitchRow(
                     icon = Icons.Rounded.Subtitles,
-                    title = "Embed subtitles",
-                    subtitle = "Try to place subtitles inside the final video file when the container supports it.",
+                    title = stringResource(R.string.download_defaults_embed_subtitles_title),
+                    subtitle = stringResource(R.string.download_defaults_embed_subtitles_subtitle),
                     checked = uiState.embedSubtitles,
                     onCheckedChange = onDefaultEmbedSubtitlesChanged,
                 )
                 PreferenceDivider()
                 PreferenceSwitchRow(
                     icon = Icons.Rounded.Description,
-                    title = "Embed metadata",
-                    subtitle = "Write title, creator, album, and related tags into supported files.",
+                    title = stringResource(R.string.download_defaults_embed_metadata_title),
+                    subtitle = stringResource(R.string.download_defaults_embed_metadata_subtitle),
                     checked = uiState.embedMetadata,
                     onCheckedChange = onDefaultEmbedMetadataChanged,
                 )
                 PreferenceDivider()
                 PreferenceSwitchRow(
                     icon = Icons.Rounded.PhotoSizeSelectActual,
-                    title = "Embed thumbnail",
-                    subtitle = "Attach artwork or cover images directly into compatible media files.",
+                    title = stringResource(R.string.download_defaults_embed_thumbnail_title),
+                    subtitle = stringResource(R.string.download_defaults_embed_thumbnail_subtitle),
                     checked = uiState.embedThumbnail,
                     onCheckedChange = onDefaultEmbedThumbnailChanged,
                 )
@@ -176,24 +183,25 @@ fun DownloadSettingsScreen(
             PreferenceGroup {
                 PreferenceRow(
                     icon = Icons.Rounded.Queue,
-                    title = "Concurrent downloads",
-                    subtitle = "Choose how many downloads can run or hold queue slots at the same time.",
+                    title = stringResource(R.string.download_defaults_concurrent_title),
+                    subtitle = stringResource(R.string.download_defaults_concurrent_subtitle),
                     value = uiState.maxConcurrentDownloads.toString(),
                     onClick = {
+                        val resources = context.resources
                         val slotChoices = (1..4).map { slotCount ->
                             SettingChoiceOption(
                                 title = slotCount.toString(),
                                 subtitle = when (slotCount) {
-                                    1 -> "Keep the flow single-file and predictable."
-                                    2 -> "A balanced default for most phones."
-                                    3 -> "Push more work through together."
-                                    else -> "Favor throughput over quiet background behavior."
+                                    1 -> resources.getString(R.string.download_defaults_slot_1)
+                                    2 -> resources.getString(R.string.download_defaults_slot_2)
+                                    3 -> resources.getString(R.string.download_defaults_slot_3)
+                                    else -> resources.getString(R.string.download_defaults_slot_4)
                                 },
                                 onSelect = { onMaxConcurrentDownloadsChanged(slotCount) },
                             )
                         }
                         choiceDialog = SettingChoiceDialogState(
-                            title = "Concurrent downloads",
+                            title = context.getString(R.string.download_defaults_concurrent_title),
                             selected = uiState.maxConcurrentDownloads.toString(),
                             options = slotChoices,
                         )
@@ -205,8 +213,8 @@ fun DownloadSettingsScreen(
             PreferenceGroup {
                 PreferenceSwitchRow(
                     icon = Icons.Rounded.Description,
-                    title = "Keep analyzed links",
-                    subtitle = "Keep ready-to-download link cards on Home after closing the sheet or reopening the app.",
+                    title = stringResource(R.string.download_defaults_keep_links_title),
+                    subtitle = stringResource(R.string.download_defaults_keep_links_subtitle),
                     checked = uiState.appSettings.keepAnalyzedLinkHistory,
                     onCheckedChange = onKeepAnalyzedLinkHistoryChanged,
                 )
@@ -214,24 +222,33 @@ fun DownloadSettingsScreen(
                     PreferenceDivider()
                     PreferenceRow(
                         icon = Icons.Rounded.Queue,
-                        title = "Analyzed link retention",
-                        subtitle = "Choose how long ready link cards stay saved before they expire automatically.",
-                        value = "${uiState.appSettings.analyzedLinkHistoryRetentionDays} days",
+                        title = stringResource(R.string.download_defaults_retention_title),
+                        subtitle = stringResource(R.string.download_defaults_retention_subtitle),
+                        value = pluralStringResource(
+                            R.plurals.common_days,
+                            uiState.appSettings.analyzedLinkHistoryRetentionDays,
+                            uiState.appSettings.analyzedLinkHistoryRetentionDays,
+                        ),
                         onClick = {
                             val dayChoices = listOf(1, 3, 7, 15, 30, 90)
+                            val selectedDays = context.resources.getQuantityString(
+                                R.plurals.common_days,
+                                uiState.appSettings.analyzedLinkHistoryRetentionDays,
+                                uiState.appSettings.analyzedLinkHistoryRetentionDays,
+                            )
                             choiceDialog = SettingChoiceDialogState(
-                                title = "Analyzed link retention",
-                                selected = "${uiState.appSettings.analyzedLinkHistoryRetentionDays} days",
+                                title = context.getString(R.string.download_defaults_retention_title),
+                                selected = selectedDays,
                                 options = dayChoices.map { days ->
                                     SettingChoiceOption(
-                                        title = "$days days",
+                                        title = context.resources.getQuantityString(R.plurals.common_days, days, days),
                                         subtitle = when (days) {
-                                            1 -> "Only keep the most recent short-term ready links."
-                                            3 -> "A quick rolling history for active download sessions."
-                                            7 -> "A light weekly history."
-                                            15 -> "A balanced half-month history."
-                                            30 -> "Keep ready links around for a full month."
-                                            else -> "A longer saved history for frequently reused links."
+                                            1 -> context.getString(R.string.download_defaults_retention_1)
+                                            3 -> context.getString(R.string.download_defaults_retention_3)
+                                            7 -> context.getString(R.string.download_defaults_retention_7)
+                                            15 -> context.getString(R.string.download_defaults_retention_15)
+                                            30 -> context.getString(R.string.download_defaults_retention_30)
+                                            else -> context.getString(R.string.download_defaults_retention_90)
                                         },
                                         onSelect = { onAnalyzedLinkHistoryRetentionDaysChanged(days) },
                                     )
