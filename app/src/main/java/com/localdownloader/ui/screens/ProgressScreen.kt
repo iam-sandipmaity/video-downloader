@@ -355,7 +355,13 @@ fun ProgressScreen(
     if (onBack != null) {
         Scaffold(
             modifier = modifier,
-            topBar = {
+        ) { innerPadding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+                    .padding(innerPadding),
+            ) {
                 CompactPageTopBar(
                     title = "Download Queue",
                     onBack = onBack,
@@ -393,9 +399,10 @@ fun ProgressScreen(
                         }
                     },
                 )
-            },
-        ) { innerPadding ->
-            content(innerPadding)
+                Box(modifier = Modifier.weight(1f)) {
+                    content(PaddingValues(top = AppBarContentTopPadding))
+                }
+            }
         }
     } else {
         content(PaddingValues())

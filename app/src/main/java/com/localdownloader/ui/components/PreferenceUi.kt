@@ -50,28 +50,27 @@ fun PreferencePageScaffold(
     actions: @Composable RowScope.() -> Unit = {},
     content: LazyListScope.() -> Unit,
 ) {
-    Scaffold(
-        modifier = modifier,
-        topBar = {
-            CompactPageTopBar(
-                title = title,
-                onBack = onBack,
-                actions = actions,
-            )
-        },
-    ) { innerPadding ->
+    Scaffold(modifier = modifier) { innerPadding ->
         LazyColumn(
             modifier = Modifier
                 .background(MaterialTheme.colorScheme.background),
             contentPadding = PaddingValues(
                 start = 20.dp,
                 end = 20.dp,
-                top = innerPadding.calculateTopPadding() + AppBarContentTopPadding,
+                top = innerPadding.calculateTopPadding(),
                 bottom = innerPadding.calculateBottomPadding() + 32.dp,
             ),
             verticalArrangement = Arrangement.spacedBy(18.dp),
-            content = content,
-        )
+        ) {
+            item(key = "page_header") {
+                CompactPageTopBar(
+                    title = title,
+                    onBack = onBack,
+                    actions = actions,
+                )
+            }
+            content()
+        }
     }
 }
 

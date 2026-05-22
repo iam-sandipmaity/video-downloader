@@ -61,6 +61,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.localdownloader.domain.models.CookieProfile
+import com.localdownloader.ui.components.AppBarContentTopPadding
 import com.localdownloader.ui.components.CompactPageTopBar
 import com.localdownloader.ui.components.InlineFeedbackCard
 import com.localdownloader.utils.CookieTextCodec
@@ -154,7 +155,13 @@ fun CookiesScreen(
 
     Scaffold(
         modifier = modifier,
-        topBar = {
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(innerPadding),
+        ) {
             CompactPageTopBar(
                 title = "Cookies",
                 onBack = onBack,
@@ -219,155 +226,60 @@ fun CookiesScreen(
                     }
                 },
             )
-        },
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(innerPadding),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            Surface(
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
-                shape = RoundedCornerShape(28.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 18.dp),
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 18.dp, vertical = 18.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            Text(
-                                text = "Use Cookies",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            Text(
-                                text = "Attach saved website cookies automatically when a matching link is analyzed or downloaded.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        Switch(
-                            checked = uiState.cookiesEnabled,
-                            onCheckedChange = onCookiesEnabledChanged,
-                        )
-                    }
-                    Surface(
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                        shape = RoundedCornerShape(18.dp),
-                    ) {
-                        Text(
-                            text = if (uiState.cookieUserAgentEnabled) {
-                                "User-Agent header is enabled for cookie-backed requests."
-                            } else {
-                                "Turn on the User-Agent header from the top menu if a website is strict about browser sessions."
-                            },
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 18.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                    .weight(1f)
+                    .padding(top = AppBarContentTopPadding),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(
-                        text = "Saved Cookies",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        text = if (uiState.cookieProfiles.isEmpty()) {
-                            "Add a site cookie once, then update it whenever that session changes."
-                        } else {
-                            "${uiState.cookieProfiles.size} saved site${if (uiState.cookieProfiles.size == 1) "" else "s"} ready to use."
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Button(
-                    onClick = {
-                        editorState = CookieEditorState(
-                            profileId = null,
-                            url = "https://",
-                            cookiesText = "",
-                        )
-                    },
-                    modifier = Modifier.align(Alignment.Start),
-                ) {
-                    Icon(Icons.Outlined.Add, contentDescription = null)
-                    Text("New Cookie", modifier = Modifier.padding(start = 8.dp))
-                }
-            }
-
-            infoMessage?.let { message ->
-                InlineFeedbackCard(
-                    label = "Cookies",
-                    message = message,
-                    isError = false,
-                    onDismiss = onDismissMessage,
-                    modifier = Modifier.padding(horizontal = 18.dp),
-                )
-            }
-            errorMessage?.let { message ->
-                InlineFeedbackCard(
-                    label = "Cookies",
-                    message = message,
-                    isError = true,
-                    onDismiss = onDismissMessage,
-                    modifier = Modifier.padding(horizontal = 18.dp),
-                )
-            }
-
-            if (uiState.cookieProfiles.isEmpty()) {
                 Surface(
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    shape = RoundedCornerShape(28.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 18.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
-                    shape = RoundedCornerShape(28.dp),
                 ) {
                     Column(
-                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 22.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 18.dp, vertical = 18.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        Text(
-                            text = "No cookies saved yet",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            text = "Tap New Cookie to paste a Netscape cookie file or use Get Cookies to capture a signed-in browser session for a specific site.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Text(
+                                    text = "Use Cookies",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                                Text(
+                                    text = "Attach saved website cookies automatically when a matching link is analyzed or downloaded.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Switch(
+                                checked = uiState.cookiesEnabled,
+                                onCheckedChange = onCookiesEnabledChanged,
+                            )
+                        }
                         Surface(
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                             shape = RoundedCornerShape(18.dp),
                         ) {
                             Text(
-                                text = "For YouTube, a private/incognito session cookie usually works best for signed-in or restricted videos.",
+                                text = if (uiState.cookieUserAgentEnabled) {
+                                    "User-Agent header is enabled for cookie-backed requests."
+                                } else {
+                                    "Turn on the User-Agent header from the top menu if a website is strict about browser sessions."
+                                },
                                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -375,23 +287,116 @@ fun CookiesScreen(
                         }
                     }
                 }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 4.dp, bottom = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 18.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    items(uiState.cookieProfiles, key = { it.id }) { profile ->
-                        CookieProfileCard(
-                            profile = profile,
-                            onClick = {
-                                editorState = CookieEditorState(
-                                    profileId = profile.id,
-                                    url = profile.url,
-                                    cookiesText = profile.cookiesText,
-                                )
-                            },
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = "Saved Cookies",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.SemiBold,
                         )
+                        Text(
+                            text = if (uiState.cookieProfiles.isEmpty()) {
+                                "Add a site cookie once, then update it whenever that session changes."
+                            } else {
+                                "${uiState.cookieProfiles.size} saved site${if (uiState.cookieProfiles.size == 1) "" else "s"} ready to use."
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Button(
+                        onClick = {
+                            editorState = CookieEditorState(
+                                profileId = null,
+                                url = "https://",
+                                cookiesText = "",
+                            )
+                        },
+                        modifier = Modifier.align(Alignment.Start),
+                    ) {
+                        Icon(Icons.Outlined.Add, contentDescription = null)
+                        Text("New Cookie", modifier = Modifier.padding(start = 8.dp))
+                    }
+                }
+
+                infoMessage?.let { message ->
+                    InlineFeedbackCard(
+                        label = "Cookies",
+                        message = message,
+                        isError = false,
+                        onDismiss = onDismissMessage,
+                        modifier = Modifier.padding(horizontal = 18.dp),
+                    )
+                }
+                errorMessage?.let { message ->
+                    InlineFeedbackCard(
+                        label = "Cookies",
+                        message = message,
+                        isError = true,
+                        onDismiss = onDismissMessage,
+                        modifier = Modifier.padding(horizontal = 18.dp),
+                    )
+                }
+
+                if (uiState.cookieProfiles.isEmpty()) {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 18.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        shape = RoundedCornerShape(28.dp),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 22.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                text = "No cookies saved yet",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Text(
+                                text = "Tap New Cookie to paste a Netscape cookie file or use Get Cookies to capture a signed-in browser session for a specific site.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Surface(
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                                shape = RoundedCornerShape(18.dp),
+                            ) {
+                                Text(
+                                    text = "For YouTube, a private/incognito session cookie usually works best for signed-in or restricted videos.",
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 4.dp, bottom = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
+                        items(uiState.cookieProfiles, key = { it.id }) { profile ->
+                            CookieProfileCard(
+                                profile = profile,
+                                onClick = {
+                                    editorState = CookieEditorState(
+                                        profileId = profile.id,
+                                        url = profile.url,
+                                        cookiesText = profile.cookiesText,
+                                    )
+                                },
+                            )
+                        }
                     }
                 }
             }

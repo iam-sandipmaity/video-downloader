@@ -88,148 +88,151 @@ fun YoutubeAuthScreen(
 
     Scaffold(
         modifier = modifier,
-        topBar = {
-            CompactPageTopBar(
-                title = "YouTube Access",
-                onBack = onBack,
-            )
-        },
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
                 .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(
-                    start = 18.dp,
-                    end = 18.dp,
-                    top = AppBarContentTopPadding,
-                    bottom = 18.dp,
-                ),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Surface(
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
-                shape = RoundedCornerShape(28.dp),
+            CompactPageTopBar(
+                title = "YouTube Access",
+                onBack = onBack,
+            )
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(
+                        start = 18.dp,
+                        end = 18.dp,
+                        top = AppBarContentTopPadding,
+                        bottom = 18.dp,
+                    ),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    shape = RoundedCornerShape(28.dp),
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            Text(
-                                text = "Use saved YouTube access",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            Text(
-                                text = "Applies your YouTube cookies, PO tokens, and data-sync session hints on tougher downloads.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        Switch(
-                            checked = authConfig.enabled && authConfig.isConfigured(),
-                            onCheckedChange = onEnabledChanged,
-                        )
-                    }
-                    StatusChip(
-                        title = if (authConfig.isConfigured()) "Ready for long-form retries" else "Not configured yet",
-                        subtitle = when {
-                            authConfig.isConfigured() && hasYoutubeCookie ->
-                                "Cookies and PO tokens are both saved."
-                            authConfig.isConfigured() ->
-                                "PO tokens are saved, but the YouTube cookie is missing."
-                            else ->
-                                "Generate access once, then retry the blocked YouTube link."
-                        },
-                    )
-                    Button(
-                        onClick = onGenerateAccess,
-                        modifier = Modifier.fillMaxWidth(),
-                        contentPadding = PaddingValues(vertical = 14.dp),
-                    ) {
-                        Icon(Icons.Outlined.Lock, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Text("Login & Generate Access", modifier = Modifier.padding(start = 8.dp))
-                    }
-                    Text(
-                        text = "This opens a dedicated YouTube sign-in page, captures the matching cookie session, and generates the Web client PO tokens that yt-dlp needs for higher-quality retries.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-
-            if (authConfig.isConfigured()) {
-                Card(modifier = Modifier.fillMaxWidth()) {
                     Column(
-                        modifier = Modifier.padding(18.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(18.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        Text(
-                            text = "Saved Details",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        DetailRow("Client", authConfig.clientHint)
-                        DetailRow("Cookie saved", if (hasYoutubeCookie) "Yes" else "No")
-                        DetailRow("GVS token", previewToken(authConfig.gvsToken))
-                        DetailRow("Player token", previewToken(authConfig.playerToken))
-                        DetailRow("Subtitle token", previewToken(authConfig.subsToken.ifBlank { authConfig.playerToken }))
-                        DetailRow("Data sync ID", previewToken(authConfig.dataSyncId))
-                        DetailRow(
-                            "Updated",
-                            if (authConfig.updatedAtEpochMs > 0L) {
-                                DateFormat.getDateTimeInstance().format(authConfig.updatedAtEpochMs)
-                            } else {
-                                "Unknown"
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Text(
+                                    text = "Use saved YouTube access",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                                Text(
+                                    text = "Applies your YouTube cookies, PO tokens, and data-sync session hints on tougher downloads.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Switch(
+                                checked = authConfig.enabled && authConfig.isConfigured(),
+                                onCheckedChange = onEnabledChanged,
+                            )
+                        }
+                        StatusChip(
+                            title = if (authConfig.isConfigured()) "Ready for long-form retries" else "Not configured yet",
+                            subtitle = when {
+                                authConfig.isConfigured() && hasYoutubeCookie ->
+                                    "Cookies and PO tokens are both saved."
+                                authConfig.isConfigured() ->
+                                    "PO tokens are saved, but the YouTube cookie is missing."
+                                else ->
+                                    "Generate access once, then retry the blocked YouTube link."
                             },
                         )
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(
-                                onClick = onGenerateAccess,
-                                modifier = Modifier.weight(1f),
-                            ) {
-                                Icon(Icons.Outlined.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Text("Regenerate", modifier = Modifier.padding(start = 8.dp))
-                            }
-                            TextButton(
-                                onClick = onClear,
-                                modifier = Modifier.weight(1f),
-                            ) {
-                                Text("Clear tokens")
+                        Button(
+                            onClick = onGenerateAccess,
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(vertical = 14.dp),
+                        ) {
+                            Icon(Icons.Outlined.Lock, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Text("Login & Generate Access", modifier = Modifier.padding(start = 8.dp))
+                        }
+                        Text(
+                            text = "This opens a dedicated YouTube sign-in page, captures the matching cookie session, and generates the Web client PO tokens that yt-dlp needs for higher-quality retries.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+
+                if (authConfig.isConfigured()) {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(
+                            modifier = Modifier.padding(18.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Text(
+                                text = "Saved Details",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            DetailRow("Client", authConfig.clientHint)
+                            DetailRow("Cookie saved", if (hasYoutubeCookie) "Yes" else "No")
+                            DetailRow("GVS token", previewToken(authConfig.gvsToken))
+                            DetailRow("Player token", previewToken(authConfig.playerToken))
+                            DetailRow("Subtitle token", previewToken(authConfig.subsToken.ifBlank { authConfig.playerToken }))
+                            DetailRow("Data sync ID", previewToken(authConfig.dataSyncId))
+                            DetailRow(
+                                "Updated",
+                                if (authConfig.updatedAtEpochMs > 0L) {
+                                    DateFormat.getDateTimeInstance().format(authConfig.updatedAtEpochMs)
+                                } else {
+                                    "Unknown"
+                                },
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(
+                                    onClick = onGenerateAccess,
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    Icon(Icons.Outlined.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Text("Regenerate", modifier = Modifier.padding(start = 8.dp))
+                                }
+                                TextButton(
+                                    onClick = onClear,
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    Text("Clear tokens")
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            infoMessage?.let { message ->
-                InlineFeedbackCard(
-                    label = "YouTube access",
-                    message = message,
-                    isError = false,
-                    onDismiss = onDismissMessage,
-                )
-            }
-            errorMessage?.let { message ->
-                InlineFeedbackCard(
-                    label = "YouTube access",
-                    message = message,
-                    isError = true,
-                    onDismiss = onDismissMessage,
-                )
+                infoMessage?.let { message ->
+                    InlineFeedbackCard(
+                        label = "YouTube access",
+                        message = message,
+                        isError = false,
+                        onDismiss = onDismissMessage,
+                    )
+                }
+                errorMessage?.let { message ->
+                    InlineFeedbackCard(
+                        label = "YouTube access",
+                        message = message,
+                        isError = true,
+                        onDismiss = onDismissMessage,
+                    )
+                }
             }
         }
     }

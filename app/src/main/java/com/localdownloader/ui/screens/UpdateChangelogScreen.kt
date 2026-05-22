@@ -76,71 +76,74 @@ fun UpdateChangelogScreen(
 
     Scaffold(
         modifier = modifier,
-        topBar = {
-            CompactPageTopBar(
-                title = "Changelog",
-                onBack = onBack,
-            )
-        },
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
-                .verticalScroll(rememberScrollState())
                 .padding(innerPadding)
-                .padding(
-                    start = 22.dp,
-                    end = 22.dp,
-                    top = AppBarContentTopPadding,
-                    bottom = 18.dp,
-                ),
-            verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            Text(
-                text = overviewText,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            CompactPageTopBar(
+                title = "Changelog",
+                onBack = onBack,
             )
-
-            Surface(
-                shape = RoundedCornerShape(28.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
-                modifier = Modifier.fillMaxWidth(),
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(
+                        start = 22.dp,
+                        end = 22.dp,
+                        top = AppBarContentTopPadding,
+                        bottom = 18.dp,
+                    ),
+                verticalArrangement = Arrangement.spacedBy(18.dp),
             ) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 20.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.18f))
-                    MetadataLine(label = "Current version", value = currentVersion ?: "Unknown")
-                    MetadataLine(label = "Latest version", value = latestVersion ?: "Unknown")
-                    MetadataLine(label = "Summary", value = summary)
-                }
-            }
+                Text(
+                    text = overviewText,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
 
-            if (latestBlocks.isEmpty() && bundledBlocks.isEmpty()) {
-                DocumentationSurface(title = latestDocumentHeading) {
-                    Text(
-                        text = "No detailed changelog is available for this section yet.",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            } else {
-                if (latestBlocks.isNotEmpty()) {
-                    DocumentationSurface(title = latestDocumentHeading) {
-                        DocumentationArticle(blocks = latestBlocks)
+                Surface(
+                    shape = RoundedCornerShape(28.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 20.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
+                        Text(
+                            text = title,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.18f))
+                        MetadataLine(label = "Current version", value = currentVersion ?: "Unknown")
+                        MetadataLine(label = "Latest version", value = latestVersion ?: "Unknown")
+                        MetadataLine(label = "Summary", value = summary)
                     }
                 }
-                if (bundledDocumentHeading != null && bundledBlocks.isNotEmpty()) {
-                    DocumentationSurface(title = bundledDocumentHeading) {
-                        DocumentationArticle(blocks = bundledBlocks)
+
+                if (latestBlocks.isEmpty() && bundledBlocks.isEmpty()) {
+                    DocumentationSurface(title = latestDocumentHeading) {
+                        Text(
+                            text = "No detailed changelog is available for this section yet.",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                } else {
+                    if (latestBlocks.isNotEmpty()) {
+                        DocumentationSurface(title = latestDocumentHeading) {
+                            DocumentationArticle(blocks = latestBlocks)
+                        }
+                    }
+                    if (bundledDocumentHeading != null && bundledBlocks.isNotEmpty()) {
+                        DocumentationSurface(title = bundledDocumentHeading) {
+                            DocumentationArticle(blocks = bundledBlocks)
+                        }
                     }
                 }
             }
