@@ -49,7 +49,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
-private val CollapsedTopBarHeight = 52.dp
 private val HeaderCollapseThreshold = 28.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -86,17 +85,23 @@ fun PreferencePageScaffold(
                 verticalArrangement = Arrangement.spacedBy(18.dp),
             ) {
                 item(key = "page_header") {
-                    LargePageTitleHeader(title = title)
+                    LargePageTitleHeader(
+                        title = title,
+                        onBack = onBack,
+                        actions = actions,
+                    )
                 }
                 content()
             }
-            CompactPageTopBar(
-                title = title,
-                onBack = onBack,
-                actions = actions,
-                collapsed = collapsed,
-                modifier = Modifier.align(Alignment.TopCenter),
-            )
+            if (collapsed) {
+                CompactPageTopBar(
+                    title = title,
+                    onBack = onBack,
+                    actions = actions,
+                    collapsed = true,
+                    modifier = Modifier.align(Alignment.TopCenter),
+                )
+            }
         }
     }
 }
@@ -153,18 +158,42 @@ fun CompactPageTopBar(
 @Composable
 fun LargePageTitleHeader(
     title: String,
+    onBack: (() -> Unit)?,
+    actions: @Composable RowScope.() -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .padding(top = 8.dp, bottom = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .padding(top = 8.dp, bottom = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Spacer(modifier = Modifier.height(CollapsedTopBarHeight))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 8.dp, end = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            if (onBack != null) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                        contentDescription = "Back",
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                content = actions,
+            )
+        }
         Text(
             text = title,
+            modifier = Modifier.padding(horizontal = 20.dp),
             style = MaterialTheme.typography.headlineLarge,
             fontWeight = FontWeight.SemiBold,
         )
