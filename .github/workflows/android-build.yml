@@ -78,19 +78,19 @@ jobs:
             exit 1
           fi
 
-      - name: Build debug APK
+      - name: Build nightly debug APK
         run: gradle :app:assembleDebug
 
-      - name: Rename APK
+      - name: Rename nightly debug APK
         run: |
           VERSION="${{ steps.version.outputs.version_name }}"
           mv app/build/outputs/apk/debug/app-debug.apk \
-             app/build/outputs/apk/debug/video-downloader-v${VERSION}-debug.apk
+             app/build/outputs/apk/debug/video-downloader-v${VERSION}-nightly-debug.apk
 
-      - name: Upload APK artifact
+      - name: Upload nightly debug APK artifact
         uses: actions/upload-artifact@v7
         with:
-          name: video-downloader-v${{ steps.version.outputs.version_name }}-debug
+          name: video-downloader-v${{ steps.version.outputs.version_name }}-nightly-debug
           path: app/build/outputs/apk/debug/video-downloader-*.apk
 
   release-nightly:
@@ -101,10 +101,10 @@ jobs:
       contents: write
 
     steps:
-      - name: Download debug APK artifact
+      - name: Download nightly debug APK artifact
         uses: actions/download-artifact@v8
         with:
-          name: video-downloader-v${{ needs.build.outputs.version_name }}-debug
+          name: video-downloader-v${{ needs.build.outputs.version_name }}-nightly-debug
           path: dist
 
       - name: Create nightly GitHub prerelease
