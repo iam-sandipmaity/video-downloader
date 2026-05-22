@@ -70,7 +70,7 @@ data class FormatUiState(
     val downloadSubtitles: Boolean = false,
     val embedSubtitles: Boolean = false,
     val embedMetadata: Boolean = true,
-    val embedThumbnail: Boolean = false,
+    val embedThumbnail: Boolean = true,
     val writeThumbnail: Boolean = false,
     val languageTag: String = SYSTEM_LANGUAGE_TAG,
     val themeMode: ThemeMode = ThemeMode.LIGHT,

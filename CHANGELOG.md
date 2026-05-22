@@ -23,10 +23,12 @@
 - **Support surface refresh** - aligned Help and Updates with the new preference-page layout so support, maintenance, and runtime management feel like part of the same UI family
 - **Browse sheet polish** - simplified Browse back to the main input flow and upgraded the download-options sheet with a tighter media header, card-style pickers, stronger selected-format highlights, cleaner playlist rows, and a more polished sticky action area
 - **Access screen polish** - refreshed Cookies and YouTube access with smoother large-app-bar treatment and cleaner entry points from the new Access and network settings page
+- **App-log viewer revamp** - rebuilt the App log reader into a tighter log-style screen with minimal filters, lighter maintenance controls, and a cleaner monospace output stream instead of the older settings-heavy layout
 - **Playlist download controls** - playlists now expose a real global format section plus a file-wise format section where each item stays visible, can be selected individually, and can override the shared format choice when needed
 - **Playlist sheet previews and naming** - the browse-sheet playlist picker now shows item thumbnails and lets each queued file keep the source title or be renamed before download
 - **About and support credits** - refreshed the About page with the updated LinkedIn profile and a new credits section linking the app's open-source stack to their official sites or upstream repositories
 - **Pre-download filename editing** - single downloads now let people adjust the final file name right inside the format sheet while still defaulting to the source title when left unchanged
+- **Media default polish** - embedded thumbnails are now enabled by default so saved downloads keep their source artwork unless a user turns that off
 - **Downloads card metadata polish** - saved files now surface format, quality, size, and fresher relative date labels like `today` or `yesterday` without changing the overall card style
 - **Recovery copy cleanup** - updated onboarding and queue guidance so cookie and YouTube access directions point to the new Settings access path instead of the older More-only flow
 - **Typography tune-up** - expanded the app typography set so the new settings and support pages can use cleaner headline, label, and small-body styling without falling back to mismatched defaults
@@ -43,6 +45,7 @@
 - **Changelog rendering and sourcing** - the Updates changelog page now shows the latest app release notes first, keeps the full bundled app changelog below, and renders common markdown styling instead of dumping raw formatting markers
 - **Runtime update safety gating** - updating the app, yt-dlp, or FFmpeg now blocks while downloads are queued, running, or paused so update actions do not race against active work
 - **Log bloat from yt-dlp output** - analyze JSON and duplicate runtime/download line logging no longer flood `app.log`, so exported logs stay smaller and easier to inspect
+- **Log backup visibility** - device log backups now write into the same user-visible Downloads area as the rest of the app instead of disappearing into an app-private external folder
 
 ### Technical
 - **Navigation split for settings** - added dedicated settings subroutes inside `DownloaderApp` to support the new hub-and-subpage structure without touching download, queue, or media-processing logic

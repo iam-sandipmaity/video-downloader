@@ -100,7 +100,7 @@ class SettingsStore @Inject constructor(
                     autoDownloadSubtitles = prefs[Keys.autoDownloadSubtitles] ?: false,
                     autoEmbedSubtitles = prefs[Keys.autoEmbedSubtitles] ?: false,
                     autoEmbedMetadata = prefs[Keys.autoEmbedMetadata] ?: true,
-                    autoEmbedThumbnail = prefs[Keys.autoEmbedThumbnail] ?: false,
+                    autoEmbedThumbnail = prefs[Keys.autoEmbedThumbnail] ?: true,
                     autoRemoveMissingFilesFromLibrary = prefs[Keys.autoRemoveMissingFilesFromLibrary] ?: true,
                     deleteFromStorageWhenRemovedInApp = prefs[Keys.deleteFromStorageWhenRemovedInApp] ?: true,
                     notifyCompletedDownloads = prefs[Keys.notifyCompletedDownloads] ?: true,

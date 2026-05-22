@@ -21,7 +21,7 @@ data class AppSettings(
     val autoDownloadSubtitles: Boolean = false,
     val autoEmbedSubtitles: Boolean = false,
     val autoEmbedMetadata: Boolean = true,
-    val autoEmbedThumbnail: Boolean = false,
+    val autoEmbedThumbnail: Boolean = true,
     val autoRemoveMissingFilesFromLibrary: Boolean = true,
     val deleteFromStorageWhenRemovedInApp: Boolean = true,
     val notifyCompletedDownloads: Boolean = true,
