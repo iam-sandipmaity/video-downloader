@@ -822,7 +822,6 @@ private fun DownloadTaskHeroCard(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val context = LocalContext.current
     val imageLoader = remember(context) {
         ImageLoader.Builder(context)
             .components { add(SvgDecoder.Factory()) }
