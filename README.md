@@ -1,300 +1,172 @@
-<div align="center">
-
-<svg width="80" height="80" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="32" height="32" rx="6" fill="url(#g)"/>
-  <g transform="translate(8,8)">
-    <path d="M8 2L8 10" stroke="white" stroke-width="2" stroke-linecap="round"/>
-    <path d="M8 10L5 7" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M8 10L11 7" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M3 11L3 13Q3 14,4 14L12 14Q13 14,13 13L13 11" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-  </g>
-  <defs>
-    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#14B8A6"/>
-      <stop offset="100%" style="stop-color:#10B981"/>
-    </linearGradient>
-  </defs>
-</svg>
-
 # Video Downloader
 
-**A fully local, privacy-first Android video downloader powered by `yt-dlp` + `FFmpeg`.**  
-No server. No cloud. No tracking. Everything runs on your device.
+Local-first Android video downloading powered by `yt-dlp` and `FFmpeg`.
+
+Everything runs on-device:
+
+- no backend
+- no cloud conversion
+- no forced account system
+- no server-side link handling
 
 [![Build](https://img.shields.io/github/actions/workflow/status/iam-sandipmaity/video-downloader/android-build.yml?label=build&logo=github)](https://github.com/iam-sandipmaity/video-downloader/actions/workflows/android-build.yml)
 [![Platform](https://img.shields.io/badge/platform-Android%208%2B-3DDC84?logo=android&logoColor=white)](COMPATIBILITY.md)
-[![Architecture](https://img.shields.io/badge/arch-arm64--v8a-blue)](#binary-integration)
-[![License](https://img.shields.io/badge/license-MIT-green)](#)
+[![Architecture](https://img.shields.io/badge/arch-arm64--v8a-blue)](COMPATIBILITY.md)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-</div>
+## Project Status
 
----
+The current `1.7.1.0-beta` line is the app's stable UI baseline.
+
+That means:
+
+- the current navigation and main screen structure are expected to stay stable
+- near-term updates are more likely to focus on bug fixes, download/runtime compatibility, translation quality, and internal logic hardening
+- major UI overhauls are not the default short-term direction anymore
 
 ## App Preview
 
+The screenshots below reflect the current app flow, and can be refreshed over
+time as the UI evolves.
+
 <p align="center">
-  <img src="public/demo/home-clean.png" alt="Home screen with URL input and quick links" width="220" />
+  <img src="public/demo/home-clean.png" alt="Home screen with URL input" width="220" />
   <img src="public/demo/home-link-analysing.png" alt="Home screen while analyzing a link" width="220" />
-  <img src="public/demo/download-options-choose-screen.png" alt="Download options with format and bitrate controls" width="220" />
+  <img src="public/demo/download-options-choose-screen.png" alt="Download options overlay" width="220" />
 </p>
 
 <p align="center">
-  <sub>Home, live link analysis, and download setup.</sub>
+  <img src="public/demo/Queue.png" alt="Queue screen" width="200" />
+  <img src="public/demo/download-running.png" alt="Running download state" width="200" />
+  <img src="public/demo/download-page.png" alt="Downloads library" width="220" />
+  <img src="public/demo/history-page.png" alt="History screen" width="220" />
 </p>
 
-<p align="center">
-  <img src="public/demo/Queue.png" alt="Download queue with running and scheduled jobs" width="200" />
-  <img src="public/demo/download-running.png" alt="Active download progress state" width="200" />
-  <img src="public/demo/download-page.png" alt="Downloads library with queue access and playback actions" width="220" />
-  <img src="public/demo/download-page-showing-file-delition-options.png" alt="Saved file actions on the downloads screen" width="200" />
-</p>
+## Key Features
 
-<p align="center">
-  <sub>Queue management, active transfers, saved items, and file actions.</sub>
-</p>
+- Video downloads with format, container, and quality selection
+- Audio-only downloads including common music-friendly output formats
+- Playlist downloads with global defaults and per-file overrides
+- Download queue with pause, resume, retry, and diagnostics
+- Saved downloads library with share, delete, and batch actions
+- History with per-task logs
+- Cookies and YouTube access recovery tools
+- Built-in converter and compressor tools
+- Updates center for app, `yt-dlp`, and `FFmpeg`
+- Multi-language app UI with growing locale coverage
 
-<p align="center">
-  <img src="public/demo/history-page.png" alt="History screen with task summaries and log previews" width="220" />
-  <img src="public/demo/history-page-specific-file-downloader-log-history-check.png" alt="Detailed per-download history and log view" width="200" />
-  <img src="public/demo/cookies-page.png" alt="Cookie manager for saved website sessions" width="200" />
-  <img src="public/demo/settings-top-side.png" alt="Settings screen with theme, contrast, and folder controls" width="220" />
-</p>
+## Current Focus
 
-<p align="center">
-  <sub>History, cookie management, and app settings.</sub>
-</p>
+The repository is currently optimized around:
 
-<p align="center">
-  <img src="public/demo/morescreen.png" alt="Workspace and tools hub" width="200" />
-  <img src="public/demo/music-player.png" alt="Built-in music player" width="200" />
-  <img src="public/demo/converter-page.png" alt="Media converter tool" width="200" />
-  <img src="public/demo/compressor-page.png" alt="Video compressor tool" width="200" />
-</p>
+- stable download behavior
+- local runtime maintenance
+- queue and history reliability
+- translation coverage
+- practical documentation
 
-<p align="center">
-  <sub>Workspace hub, audio playback, format conversion, and compression tools.</sub>
-</p>
+If a future update lands soon, it is more likely to be because of:
 
----
+- site compatibility changes
+- runtime update safety
+- queue or download bugs
+- translation cleanup
+- internal logic/test improvements
 
-## ✨ Features
+## Supported Languages
 
-| Feature | Details |
-|---|---|
-| 🎬 **Video download** | mp4, webm, mkv, mov |
-| 🎵 **Audio-only** | mp3, m4a, aac, wav, opus, flac |
-| 📋 **Format picker** | Quality selector (144p → 4K), stream type, container |
-| 📥 **Download queue** | Real-time progress, speed, size info, pause/resume/cancel |
-| 📜 **History** | Completed and failed downloads with timestamps, saved paths, and log access |
-| 🔄 **Updates center** | Check and install app, `yt-dlp`, and `FFmpeg` updates from inside the app |
-| 🌐 **1000+ sites** | YouTube, Instagram, TikTok, X/Twitter, Reddit, Vimeo, SoundCloud, and more |
-| 🔒 **100% local** | No backend, no accounts, no cloud |
-| 📁 **Public Downloads** | Files saved to `/sdcard/Download/LocalDownloader/` |
-| ⚙️ **Settings** | Persistent defaults for folders, filename templates, subtitles, and media output |
+Current in-app language support includes:
 
----
+- English
+- Hindi
+- Bengali
+- Tamil
+- Telugu
+- Kannada
+- Malayalam
+- Korean
+- Japanese
+- Simplified Chinese
 
-## 📱 Compatibility
+## Compatibility
 
-- **Android 8.0 (Oreo) and above** — API 26+
-- **ARM64 devices** — virtually all phones sold since 2015
-- Covers ~90% of all active Android devices worldwide
+- Android 8.0 and above
+- Primary shipped ABI: `arm64-v8a`
+- Public downloads root: `Download/LocalDownloader/`
 
-> For x86, armeabi-v7a or other architectures → see **[COMPATIBILITY.md](COMPATIBILITY.md)**
+For custom ABI builds or deeper runtime details, see
+[COMPATIBILITY.md](COMPATIBILITY.md).
 
----
+## Architecture Summary
 
-## 🏗️ Architecture
+The app is built around:
 
-```
-URL Input
-   │
-   ▼
-Compose UI  ──→  ViewModel  ──→  Repository
-                                    │
-                          ┌─────────┴──────────┐
-                          ▼                    ▼
-                    WorkManager           DataStore
-                          │             (settings)
-                          ▼
-                   DownloadEngine
-                          │
-              ┌───────────┴───────────┐
-              ▼                       ▼
-       embedded yt-dlp          ffmpeg binary
-           runtime               (local asset)
-              │
-              ▼
-     /sdcard/Download/LocalDownloader/
-```
+- Kotlin
+- Jetpack Compose
+- MVVM-style state handling
+- Hilt dependency injection
+- WorkManager background execution
+- Room and DataStore persistence
+- embedded `youtubedl-android` runtime
+- packaged and managed `FFmpeg` runtime paths
 
-**Stack:** Kotlin · Jetpack Compose · MVVM + Clean Architecture · Hilt DI · WorkManager
+High-level flow:
 
----
+1. Paste a link and analyze it.
+2. Select format, naming, and optional extras.
+3. Queue the task through WorkManager.
+4. Execute `yt-dlp` locally.
+5. Apply `FFmpeg` post-processing when needed.
+6. Save outputs into the public download folders and app library.
 
-## 📂 Project structure
+For deeper implementation notes, see:
 
-```
-app/src/main/
-├── java/com/localdownloader/
-│   ├── ui/
-│   │   ├── screens/          # Browser, Downloads, History, Settings, Updates, player flows
-│   │   ├── components/       # UrlInput, VideoCard, DownloadProgress, FormatSelector
-│   │   └── theme/
-│   ├── viewmodel/            # DownloadViewModel, FormatViewModel, UpdatesViewModel
-│   ├── domain/
-│   │   ├── models/           # DownloadTask, VideoInfo, DownloadOptions …
-│   │   ├── repositories/     # DownloaderRepository interface
-│   ├── data/                 # DownloadRepositoryImpl, Room persistence, SettingsStore
-│   ├── downloader/           # YtDlpExecutor, DownloadEngine, ProgressParser …
-│   ├── updates/              # GitHub release client + app/runtime update managers
-│   ├── worker/               # DownloadWorker + yt-dlp update workers
-│   ├── utils/                # FileUtils, Logger, UrlValidator
-│   └── di/                   # Hilt modules
-├── assets/
-│   ├── ffmpeg/arm64-v8a/ffmpeg     ← fallback executable
-│   └── changelog/CHANGELOG.md      ← bundled release notes shown in-app
-└── jniLibs/
-    └── arm64-v8a/
-        └── libffmpeg_exec.so        ← bundled native fallback
-```
+- [docs/architecture.md](docs/architecture.md)
+- [docs/development.md](docs/development.md)
+- [IMPLEMENTATION.md](IMPLEMENTATION.md)
 
----
+## Build From Source
 
-## ⚙️ Binary integration
+Requirements:
 
-The app uses the embedded `youtubedl-android` runtime for `yt-dlp`, and can replace that runtime through the in-app Updates screen.
-
-`ffmpeg` now resolves in this order:
-
-1. **Managed overlay package** — app-owned runtime downloaded from the Updates screen
-2. **Embedded runtime package** — packaged `libffmpeg.so` with support files when available
-3. **Bundled native fallback** — `libffmpeg_exec.so` shipped with the app
-4. **Copied executable fallback** — raw asset copied to internal storage if native launch fails
-
-Default shipped ABIs:
-
-| File | Location |
-|---|---|
-| `libffmpeg_exec.so` | `jniLibs/arm64-v8a/` |
-| `ffmpeg` (fallback) | `assets/ffmpeg/arm64-v8a/` |
-
-Managed overlay packages and the embedded FFmpeg runtime dependency may also provide `libffmpeg.so` and `libffmpeg.zip.so` at runtime.
-
-> Need a different architecture? See [COMPATIBILITY.md](COMPATIBILITY.md) for step-by-step instructions.
-
----
-
-## 🚀 Build from source
-
-**Requirements:** JDK 17 · Android SDK · Gradle 8.7
+- JDK 17
+- Android SDK
+- Gradle available in `PATH`
 
 ```bash
-git clone https://github.com/your-username/video-downloader
+git clone https://github.com/iam-sandipmaity/video-downloader
 cd video-downloader
 gradle :app:assembleDebug
-# APK: app/build/outputs/apk/debug/app-debug.apk
 ```
 
-**Or use GitHub Actions** — every push auto-builds a debug APK available under the **Actions** tab → latest workflow run → `app-debug-apk` artifact.  
-Tagged releases (`v*`) also produce a release APK attached to the GitHub Release.
+Debug APK output:
 
-## Stable update installs
-
-Android only treats a new APK as an update when all of these stay aligned:
-
-- same package name
-- higher `versionCode`
-- same signing certificate
-
-This project now supports persistent signing for both install channels:
-
-- internal debug APK: `com.localdownloader.debug`
-- production release APK: `com.localdownloader`
-
-To configure local signing:
-
-1. Copy `keystore.properties.example` to `keystore.properties`
-2. Fill in the stable debug and/or release keystore values
-3. Keep the real keystore files and `keystore.properties` out of git
-
-CI expects these secrets for stable update-compatible artifacts:
-
-- `INTERNAL_DEBUG_KEYSTORE_BASE64`
-- `INTERNAL_DEBUG_STORE_PASSWORD`
-- `INTERNAL_DEBUG_KEY_ALIAS`
-- `INTERNAL_DEBUG_KEY_PASSWORD`
-- `RELEASE_KEYSTORE_BASE64`
-- `RELEASE_STORE_PASSWORD`
-- `RELEASE_KEY_ALIAS`
-- `RELEASE_KEY_PASSWORD`
-
-Important:
-
-- If a user already installed an APK signed by a different key, Android cannot upgrade it in place.
-- That old install must be uninstalled once.
-- After switching to the stable keystore, future APKs from that same channel will install as updates.
-
-## In-app updates
-
-The app now includes an Updates screen for three separate flows:
-
-- app release checks and APK install handoff from GitHub releases
-- `yt-dlp` channel selection (`stable`, `nightly`, `master`) plus manual or startup-triggered updates
-- `FFmpeg` managed runtime installation layered on top of the bundled fallback binaries
-
-Runtime updates are blocked while downloads are actively running so file replacement stays safe.
-
----
-
-## 🌐 Supported sites
-
-Any site in the [yt-dlp supported sites list](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md) — including:
-
-YouTube · Instagram · TikTok · X / Twitter · Reddit · Facebook · Vimeo · SoundCloud · Dailymotion · Twitch · Pinterest · and 1000+ more
-
----
-
-<div align="center">
-
-Made with ❤️ · runs entirely on your phone · no data ever leaves your device
-
-</div>
-
-## Build
-
-1. Install Android SDK + JDK 17.
-2. Add binaries in `app/src/main/assets/...`.
-3. Build:
-
-```bash
-gradle :app:assembleDebug
+```text
+app/build/outputs/apk/debug/app-debug.apk
 ```
 
-APK output:
+## Repository Docs
 
-`app/build/outputs/apk/debug/app-debug.apk`
+- [CHANGELOG.md](CHANGELOG.md)
+- [COMPATIBILITY.md](COMPATIBILITY.md)
+- [SECURITY.md](SECURITY.md)
+- [CONTRIBUTING.md](CONTRIBUTING.md)
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+- [PROJECT_AUDIT.md](PROJECT_AUDIT.md)
+- [future-plan.md](future-plan.md)
 
-## Open-source compliance notes
+## License
 
-- Ensure your use of `yt-dlp` and downloaded content follows local law and platform terms.
-- Keep license and attribution files for any bundled binaries.
-- The YouTube PO-token constants and WebView flow in `YoutubePoTokenGenerator` are adapted from LibreTube's upstream implementation:
-  `api/ExternalApi.kt` and `api/poToken/PoTokenWebView.kt`.
+This project is licensed under the [MIT License](LICENSE).
 
-## More documentation
+## Credits
 
-- [Architecture docs](docs/architecture.md)
-- [Development docs](docs/development.md)
+This app builds on top of multiple open-source tools and libraries, including:
 
-## Runtime logs
+- `yt-dlp`
+- `FFmpeg`
+- Android Jetpack
+- Kotlin
+- Material 3
 
-The app now writes persistent logs to internal storage:
-
-- `/data/user/0/<applicationId>/files/logs/app.log`
-- rotated backup: `/data/user/0/<applicationId>/files/logs/app.log.1`
-- `/data/user/0/<applicationId>/files/logs/crash.log` (warnings/errors + stack traces)
-- mirrored external file (if available): `/storage/emulated/0/Android/data/<applicationId>/files/logs/app.log`
-- mirrored external crash file (if available): `/storage/emulated/0/Android/data/<applicationId>/files/logs/crash.log`
-
-Logs include activity lifecycle, analyze flow, yt-dlp command execution, worker progress, and failures.
+The in-app About section also lists upstream credits and linked sources.
