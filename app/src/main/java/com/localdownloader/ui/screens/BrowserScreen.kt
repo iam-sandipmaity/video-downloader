@@ -79,11 +79,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.localdownloader.R
 import com.localdownloader.domain.models.FormatChoice
 import com.localdownloader.domain.models.StreamType
 import com.localdownloader.domain.models.VideoQuality
@@ -161,24 +164,31 @@ fun BrowserScreen(
     val homeScrollState = rememberScrollState()
     val errorMessage = uiState.errorMessageFor(FormatMessageScope.BROWSER)
     val infoMessage = uiState.infoMessageFor(FormatMessageScope.BROWSER)
+    val darkThemeLabel = stringResource(
+        if (uiState.isDarkTheme) {
+            R.string.browser_use_light_theme
+        } else {
+            R.string.browser_use_dark_theme
+        },
+    )
 
     if (uiState.showMeteredNetworkDialog) {
         AlertDialog(
             onDismissRequest = onDismissMeteredNetworkDialog,
-            title = { Text("Wi-Fi only is on") },
+            title = { Text(stringResource(R.string.browser_metered_title)) },
             text = {
                 Text(
-                    "You're on a metered network right now. Keep this download queued until Wi-Fi is available, or allow cellular downloads now.",
+                    stringResource(R.string.browser_metered_body),
                 )
             },
             confirmButton = {
                 TextButton(onClick = onAllowCellularDownloadsAndQueue) {
-                    Text("Allow cellular")
+                    Text(stringResource(R.string.browser_allow_cellular))
                 }
             },
             dismissButton = {
                 TextButton(onClick = onQueueWhenWifiAvailable) {
-                    Text("Wait for Wi-Fi")
+                    Text(stringResource(R.string.browser_wait_for_wifi))
                 }
             },
         )
@@ -215,12 +225,12 @@ fun BrowserScreen(
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = "Browse",
+                    text = stringResource(R.string.browser_title),
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = "Paste a link to start.",
+                    text = stringResource(R.string.browser_subtitle),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -229,14 +239,14 @@ fun BrowserScreen(
                 IconButton(onClick = onOpenHistory) {
                     Icon(
                         imageVector = Icons.Outlined.History,
-                        contentDescription = "Open history",
+                        contentDescription = stringResource(R.string.browser_open_history),
                     )
                 }
                 Box {
                     IconButton(onClick = { showBrowseMenu = true }) {
                         Icon(
                             imageVector = Icons.Filled.MoreVert,
-                            contentDescription = "Browse actions",
+                            contentDescription = stringResource(R.string.browser_actions),
                         )
                     }
                     DropdownMenu(
@@ -244,7 +254,7 @@ fun BrowserScreen(
                         onDismissRequest = { showBrowseMenu = false },
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Settings") },
+                            text = { Text(stringResource(R.string.common_settings)) },
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Outlined.Settings,
@@ -257,7 +267,7 @@ fun BrowserScreen(
                             },
                         )
                         DropdownMenuItem(
-                            text = { Text("Help") },
+                            text = { Text(stringResource(R.string.common_help)) },
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Outlined.Info,
@@ -270,7 +280,7 @@ fun BrowserScreen(
                             },
                         )
                         DropdownMenuItem(
-                            text = { Text(if (uiState.isDarkTheme) "Use light theme" else "Use dark theme") },
+                            text = { Text(darkThemeLabel) },
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Outlined.DarkMode,
@@ -299,7 +309,7 @@ fun BrowserScreen(
                     value = uiState.urlInput,
                     onValueChange = onUrlChanged,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Paste or type a URL") },
+                    label = { Text(stringResource(R.string.browser_url_label)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                     leadingIcon = {
@@ -318,7 +328,7 @@ fun BrowserScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.Clear,
-                                contentDescription = "Clear browser state",
+                                contentDescription = stringResource(R.string.browser_clear_state),
                             )
                         }
                     },
@@ -357,7 +367,7 @@ fun BrowserScreen(
                             modifier = Modifier.size(18.dp),
                         )
                         Text(
-                            text = "Paste",
+                            text = stringResource(R.string.browser_paste),
                             modifier = Modifier.padding(start = 8.dp),
                         )
                     }
@@ -367,7 +377,15 @@ fun BrowserScreen(
                         modifier = Modifier.weight(1f),
                         contentPadding = PaddingValues(vertical = 14.dp),
                     ) {
-                        Text(if (uiState.isAnalyzing) "Analyzing..." else "Analyze link")
+                        Text(
+                            stringResource(
+                                if (uiState.isAnalyzing) {
+                                    R.string.browser_analyzing
+                                } else {
+                                    R.string.browser_analyze_link
+                                },
+                            ),
+                        )
                     }
                 }
             }
@@ -382,7 +400,7 @@ fun BrowserScreen(
         ) {
             errorMessage?.let { message ->
                 InlineFeedbackCard(
-                    label = "Home",
+                    label = stringResource(R.string.browser_feedback_label),
                     message = message,
                     isError = true,
                     onDismiss = onDismissMessage,
@@ -398,7 +416,7 @@ fun BrowserScreen(
         ) {
             infoMessage?.let { message ->
                 InlineFeedbackCard(
-                    label = "Home",
+                    label = stringResource(R.string.browser_feedback_label),
                     message = message,
                     isError = false,
                     onDismiss = onDismissMessage,
@@ -509,7 +527,7 @@ fun BrowserScreen(
 
                     if (uiState.videoInfo.isPlaylist) {
                         item {
-                            OptionSectionCard(title = "Global") {
+                            OptionSectionCard(title = stringResource(R.string.browser_section_global)) {
                                 SelectionOptionsCard(
                                     streamType = uiState.selectedStreamType,
                                     onStreamTypeChanged = onStreamTypeChanged,
@@ -532,7 +550,7 @@ fun BrowserScreen(
                                     containers = containers,
                                     audioFormats = audioFormats,
                                     bitrates = bitrates,
-                                    emptyChoicesMessage = "Closest available format will be used.",
+                                    emptyChoicesMessage = stringResource(R.string.browser_closest_available_format),
                                 )
                             }
                         }
@@ -542,7 +560,7 @@ fun BrowserScreen(
                             } else {
                                 uiState.outputTemplate
                             }
-                            OptionSectionCard(title = "Template") {
+                            OptionSectionCard(title = stringResource(R.string.browser_section_template)) {
                                 OutlinedTextField(
                                     value = currentTemplate,
                                     onValueChange = { newValue ->
@@ -554,11 +572,13 @@ fun BrowserScreen(
                                     },
                                     label = {
                                         Text(
-                                            if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
-                                                "Playlist audio template"
-                                            } else {
-                                                "Playlist template"
-                                            },
+                                            stringResource(
+                                                if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
+                                                    R.string.browser_playlist_audio_template
+                                                } else {
+                                                    R.string.browser_playlist_template
+                                                },
+                                            ),
                                         )
                                     },
                                     modifier = Modifier.fillMaxWidth(),
@@ -567,18 +587,18 @@ fun BrowserScreen(
                                 ToggleChipRow(
                                     items = buildList {
                                         if (uiState.selectedStreamType != StreamType.AUDIO_ONLY) {
-                                            add(ToggleConfig("Subtitles", uiState.downloadSubtitles, onDownloadSubtitlesChanged))
-                                            add(ToggleConfig("Embed subs", uiState.embedSubtitles, onEmbedSubtitlesChanged))
+                                            add(ToggleConfig(stringResource(R.string.browser_toggle_subtitles), uiState.downloadSubtitles, onDownloadSubtitlesChanged))
+                                            add(ToggleConfig(stringResource(R.string.browser_toggle_embed_subs), uiState.embedSubtitles, onEmbedSubtitlesChanged))
                                         }
-                                        add(ToggleConfig("Metadata", uiState.embedMetadata, onEmbedMetadataChanged))
-                                        add(ToggleConfig("Embed thumb", uiState.embedThumbnail, onEmbedThumbnailChanged))
-                                        add(ToggleConfig("Write thumb", uiState.writeThumbnail, onWriteThumbnailChanged))
+                                        add(ToggleConfig(stringResource(R.string.browser_toggle_metadata), uiState.embedMetadata, onEmbedMetadataChanged))
+                                        add(ToggleConfig(stringResource(R.string.browser_toggle_embed_thumb), uiState.embedThumbnail, onEmbedThumbnailChanged))
+                                        add(ToggleConfig(stringResource(R.string.browser_toggle_write_thumb), uiState.writeThumbnail, onWriteThumbnailChanged))
                                     },
                                 )
                             }
                         }
                         item {
-                            OptionSectionCard(title = "Files") {
+                            OptionSectionCard(title = stringResource(R.string.browser_section_files)) {
                                 PlaylistSelectionSummaryCard(
                                     totalCount = uiState.playlistItems.size,
                                     selectedCount = uiState.selectedPlaylistItemCount,
@@ -613,7 +633,7 @@ fun BrowserScreen(
                         }
                     } else {
                         item {
-                            OptionSectionCard(title = "Format") {
+                            OptionSectionCard(title = stringResource(R.string.browser_section_format)) {
                                 SelectionOptionsCard(
                                     streamType = uiState.selectedStreamType,
                                     onStreamTypeChanged = onStreamTypeChanged,
@@ -646,11 +666,11 @@ fun BrowserScreen(
                             } else {
                                 uiState.outputTemplate
                             }
-                            OptionSectionCard(title = "Name") {
+                            OptionSectionCard(title = stringResource(R.string.browser_section_name)) {
                                 OutlinedTextField(
                                     value = uiState.customFileName,
                                     onValueChange = onCustomFileNameChanged,
-                                    label = { Text("File name") },
+                                    label = { Text(stringResource(R.string.browser_file_name)) },
                                     modifier = Modifier.fillMaxWidth(),
                                     singleLine = true,
                                 )
@@ -665,11 +685,13 @@ fun BrowserScreen(
                                     },
                                     label = {
                                         Text(
-                                            if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
-                                                "Audio template"
-                                            } else {
-                                                "Video template"
-                                            },
+                                            stringResource(
+                                                if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
+                                                    R.string.browser_audio_template
+                                                } else {
+                                                    R.string.browser_video_template
+                                                },
+                                            ),
                                         )
                                     },
                                     modifier = Modifier.fillMaxWidth(),
@@ -678,17 +700,17 @@ fun BrowserScreen(
                             }
                         }
                         item {
-                            OptionSectionCard(title = "Extras") {
+                            OptionSectionCard(title = stringResource(R.string.browser_section_extras)) {
                                 ToggleChipRow(
                                     items = buildList {
                                         if (uiState.selectedStreamType != StreamType.AUDIO_ONLY) {
-                                            add(ToggleConfig("Subtitles", uiState.downloadSubtitles, onDownloadSubtitlesChanged))
-                                            add(ToggleConfig("Embed subs", uiState.embedSubtitles, onEmbedSubtitlesChanged))
+                                            add(ToggleConfig(stringResource(R.string.browser_toggle_subtitles), uiState.downloadSubtitles, onDownloadSubtitlesChanged))
+                                            add(ToggleConfig(stringResource(R.string.browser_toggle_embed_subs), uiState.embedSubtitles, onEmbedSubtitlesChanged))
                                         }
-                                        add(ToggleConfig("Metadata", uiState.embedMetadata, onEmbedMetadataChanged))
-                                        add(ToggleConfig("Embed thumb", uiState.embedThumbnail, onEmbedThumbnailChanged))
-                                        add(ToggleConfig("Write thumb", uiState.writeThumbnail, onWriteThumbnailChanged))
-                                        add(ToggleConfig("Playlist", uiState.enablePlaylist, onPlaylistEnabledChanged))
+                                        add(ToggleConfig(stringResource(R.string.browser_toggle_metadata), uiState.embedMetadata, onEmbedMetadataChanged))
+                                        add(ToggleConfig(stringResource(R.string.browser_toggle_embed_thumb), uiState.embedThumbnail, onEmbedThumbnailChanged))
+                                        add(ToggleConfig(stringResource(R.string.browser_toggle_write_thumb), uiState.writeThumbnail, onWriteThumbnailChanged))
+                                        add(ToggleConfig(stringResource(R.string.browser_toggle_playlist), uiState.enablePlaylist, onPlaylistEnabledChanged))
                                     },
                                 )
                             }
@@ -710,7 +732,7 @@ fun BrowserScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (!isDownloadButtonEnabled) {
                             Text(
-                                text = "Wait for the current job to settle.",
+                                text = stringResource(R.string.browser_wait_for_current_job),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -729,9 +751,9 @@ fun BrowserScreen(
                             contentPadding = PaddingValues(vertical = 14.dp),
                         ) {
                             val buttonText = when {
-                                uiState.isQueueing -> "Queueing..."
-                                !isDownloadButtonEnabled -> "Please wait..."
-                                else -> "Download"
+                                uiState.isQueueing -> stringResource(R.string.browser_queueing)
+                                !isDownloadButtonEnabled -> stringResource(R.string.browser_please_wait)
+                                else -> stringResource(R.string.browser_download_button)
                             }
                             Text(buttonText)
                         }
@@ -742,10 +764,15 @@ fun BrowserScreen(
     }
 }
 
+@Composable
 private fun buildDownloadActionSummary(uiState: FormatUiState): String? {
     val videoInfo = uiState.videoInfo ?: return null
     if (videoInfo.isPlaylist) {
-        return "${uiState.selectedPlaylistItemCount} files selected"
+        return pluralStringResource(
+            R.plurals.browser_selected_files_count,
+            uiState.selectedPlaylistItemCount,
+            uiState.selectedPlaylistItemCount,
+        )
     }
 
     return when (uiState.selectedStreamType) {
@@ -765,7 +792,7 @@ private fun buildDownloadActionSummary(uiState: FormatUiState): String? {
                 ?: currentChoices.firstOrNull()
             listOfNotNull(
                 choice?.height?.let { "${it}p" } ?: uiState.selectedContainer.uppercase(),
-                choice?.let(::formatChoicePrimarySizeLabel),
+                choice?.let { formatChoicePrimarySizeLabel(it) },
             ).joinToString(" | ")
         }
     }.ifBlank { null }
@@ -803,14 +830,20 @@ private fun ReadyAnalyzedCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = if (isActive) "Ready" else "Saved ready link",
+                    text = stringResource(
+                        if (isActive) {
+                            R.string.browser_ready
+                        } else {
+                            R.string.browser_saved_ready_link
+                        },
+                    ),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
                 IconButton(onClick = onRemove) {
                     Icon(
                         imageVector = Icons.Outlined.Clear,
-                        contentDescription = "Remove ready download",
+                        contentDescription = stringResource(R.string.browser_remove_ready_download),
                     )
                 }
             }
@@ -849,7 +882,7 @@ private fun ReadyAnalyzedCard(
                             overflow = TextOverflow.Ellipsis,
                         )
                         Text(
-                            text = item.uploader ?: "Unknown uploader",
+                            text = item.uploader ?: stringResource(R.string.common_unknown_uploader),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
@@ -866,9 +899,9 @@ private fun ReadyAnalyzedCard(
                 ) {
                     Text(
                         when {
-                            isLoading -> "Loading..."
-                            isActive -> "Open options"
-                            else -> "Load"
+                            isLoading -> stringResource(R.string.common_loading)
+                            isActive -> stringResource(R.string.browser_open_options)
+                            else -> stringResource(R.string.browser_load)
                         },
                     )
                 }
@@ -880,9 +913,9 @@ private fun ReadyAnalyzedCard(
                     ) {
                         Text(
                             when {
-                                isQueueing -> "Queueing..."
-                                !isQueueEnabled -> "Please wait..."
-                                else -> "Queue now"
+                                isQueueing -> stringResource(R.string.browser_queueing)
+                                !isQueueEnabled -> stringResource(R.string.browser_please_wait)
+                                else -> stringResource(R.string.browser_queue_now)
                             },
                         )
                     }
@@ -926,11 +959,13 @@ private fun DownloadSetupOnboardingSheet(
                         contentDescription = null,
                     )
                     Text(
-                        text = if (step == DownloadSetupSheetStep.Intro) {
-                            "Before your first download"
-                        } else {
-                            "Set up smoother access"
-                        },
+                        text = stringResource(
+                            if (step == DownloadSetupSheetStep.Intro) {
+                                R.string.browser_download_setup_intro_title
+                            } else {
+                                R.string.browser_download_setup_setup_title
+                            },
+                        ),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -938,21 +973,21 @@ private fun DownloadSetupOnboardingSheet(
 
                 if (step == DownloadSetupSheetStep.Intro) {
                     Text(
-                        text = "You can download without cookies, but it is recommended to add cookies first from Settings > Access and network or the More shortcuts. For YouTube, PO generation from YouTube access helps with sign-in and playback checks.",
+                        text = stringResource(R.string.browser_download_setup_intro_body_1),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Text(
-                        text = "If a download fails or gets stuck later, cookies and PO generation are the first things to try before reporting an issue.",
+                        text = stringResource(R.string.browser_download_setup_intro_body_2),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.88f),
                     )
                 } else {
                     Text(
-                        text = "Start with cookies if you want the safest setup. For YouTube, PO generation is the extra step that usually helps with blocked or signed-in videos.",
+                        text = stringResource(R.string.browser_download_setup_setup_body_1),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Text(
-                        text = "You can still skip all of this and come back later from Settings or More whenever you need it.",
+                        text = stringResource(R.string.browser_download_setup_setup_body_2),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.88f),
                     )
@@ -966,13 +1001,13 @@ private fun DownloadSetupOnboardingSheet(
                 modifier = Modifier.fillMaxWidth(),
                 contentPadding = PaddingValues(vertical = 14.dp),
             ) {
-                Text("Set up now")
+                Text(stringResource(R.string.browser_setup_now))
             }
             TextButton(
                 onClick = onContinueWithoutCookies,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("Continue without cookies")
+                Text(stringResource(R.string.browser_continue_without_cookies))
             }
         } else {
             Column(
@@ -990,7 +1025,7 @@ private fun DownloadSetupOnboardingSheet(
                         modifier = Modifier.size(18.dp),
                     )
                     Text(
-                        text = "Open Cookies",
+                        text = stringResource(R.string.browser_open_cookies),
                         modifier = Modifier.padding(start = 8.dp),
                     )
                 }
@@ -1005,7 +1040,7 @@ private fun DownloadSetupOnboardingSheet(
                         modifier = Modifier.size(18.dp),
                     )
                     Text(
-                        text = "Open YouTube access",
+                        text = stringResource(R.string.browser_open_youtube_access),
                         modifier = Modifier.padding(start = 8.dp),
                     )
                 }
@@ -1013,7 +1048,7 @@ private fun DownloadSetupOnboardingSheet(
                     onClick = onContinueWithoutCookies,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("Done for now")
+                    Text(stringResource(R.string.browser_done_for_now))
                 }
             }
         }
@@ -1041,14 +1076,14 @@ private fun OptionsSheetHeader(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "Download",
+                    text = stringResource(R.string.browser_sheet_title),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.SemiBold,
                 )
                 IconButton(onClick = onClear) {
                     Icon(
                         imageVector = Icons.Outlined.Clear,
-                        contentDescription = "Clear ready download",
+                        contentDescription = stringResource(R.string.browser_clear_ready_download),
                     )
                 }
             }
@@ -1081,7 +1116,7 @@ private fun OptionsSheetHeader(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = info.uploader ?: "Unknown uploader",
+                        text = info.uploader ?: stringResource(R.string.common_unknown_uploader),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -1144,13 +1179,14 @@ private fun BrowserMetaChip(
     }
 }
 
+@Composable
 private fun buildReadyDownloadChips(info: VideoInfo): List<String> {
     return buildList {
         if (info.isPlaylist) {
             val count = info.playlistCount ?: info.playlistEntries.size
-            add("$count files")
+            add(pluralStringResource(R.plurals.browser_files_count, count, count))
         } else {
-            add("${info.formats.size} formats")
+            add(pluralStringResource(R.plurals.browser_formats_count, info.formats.size, info.formats.size))
         }
         playlistDurationLabel(info.durationSeconds)?.let(::add)
         info.uploader?.takeIf { it.isNotBlank() }?.let { uploader ->
@@ -1165,12 +1201,14 @@ private fun buildReadyDownloadChips(info: VideoInfo): List<String> {
     }
 }
 
+@Composable
 private fun buildReadyHistoryChips(item: AnalyzedLinkRecord): List<String> {
     return buildList {
         if (item.isPlaylist) {
-            add("${item.playlistCount ?: 0} files")
+            val count = item.playlistCount ?: 0
+            add(pluralStringResource(R.plurals.browser_files_count, count, count))
         } else {
-            add("${item.formatCount} formats")
+            add(pluralStringResource(R.plurals.browser_formats_count, item.formatCount, item.formatCount))
         }
         playlistDurationLabel(item.durationSeconds)?.let(::add)
     }
@@ -1222,7 +1260,7 @@ private fun SelectionOptionsCard(
                 FilterChip(
                     selected = item == streamType,
                     onClick = { onStreamTypeChanged(item) },
-                    label = { Text(item.label) },
+                    label = { Text(localizedStreamTypeLabel(item)) },
                 )
             }
         }
@@ -1232,7 +1270,7 @@ private fun SelectionOptionsCard(
                 .getOrNull(choices.indexOfFirst { it.selector == selectedFormatSelector })
                 ?: choices.first()
             FormatChoiceDropdownRow(
-                label = "Format",
+                label = stringResource(R.string.browser_picker_label_format),
                 choices = choices,
                 selectedIndex = choices.indexOfFirst { it.selector == selectedFormatSelector }
                     .coerceAtLeast(0),
@@ -1255,8 +1293,8 @@ private fun SelectionOptionsCard(
         } else {
             onQualityChanged?.let { qualityChanged ->
                 BrowserDropdownRow(
-                    label = "Quality",
-                    options = VideoQuality.entries.map { it.label },
+                    label = stringResource(R.string.browser_picker_label_quality),
+                    options = VideoQuality.entries.map { localizedVideoQualityLabel(it) },
                     selectedIndex = VideoQuality.entries.indexOf(quality).coerceAtLeast(0),
                     onSelected = { qualityChanged(VideoQuality.entries[it]) },
                 )
@@ -1272,25 +1310,44 @@ private fun SelectionOptionsCard(
 
         if (streamType == StreamType.AUDIO_ONLY) {
             BrowserDropdownRow(
-                label = "Audio format",
+                label = stringResource(R.string.browser_picker_label_audio_format),
                 options = audioFormats,
                 selectedIndex = audioFormats.indexOf(audioFormat).coerceAtLeast(0),
                 onSelected = { onAudioFormatChanged(audioFormats[it]) },
             )
             BrowserDropdownRow(
-                label = "Bitrate",
+                label = stringResource(R.string.browser_picker_label_bitrate),
                 options = bitrates.map { "$it kbps" },
                 selectedIndex = bitrates.indexOf(audioBitrateKbps).coerceAtLeast(0),
                 onSelected = { onAudioBitrateChanged(bitrates[it]) },
             )
         } else {
             BrowserDropdownRow(
-                label = "Container",
+                label = stringResource(R.string.browser_picker_label_container),
                 options = containers,
                 selectedIndex = containers.indexOf(container).coerceAtLeast(0),
                 onSelected = { onContainerChanged(containers[it]) },
             )
         }
+    }
+}
+
+@Composable
+private fun localizedStreamTypeLabel(streamType: StreamType): String {
+    return stringResource(
+        when (streamType) {
+            StreamType.VIDEO_AUDIO -> R.string.browser_video_audio_chip
+            StreamType.VIDEO_ONLY -> R.string.browser_video_only_chip
+            StreamType.AUDIO_ONLY -> R.string.browser_audio_only_chip
+        },
+    )
+}
+
+@Composable
+private fun localizedVideoQualityLabel(quality: VideoQuality): String {
+    return when (quality) {
+        VideoQuality.BEST -> stringResource(R.string.browser_quality_best_available)
+        else -> quality.label
     }
 }
 
@@ -1322,18 +1379,26 @@ private fun PlaylistSelectionSummaryCard(
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(
-                    text = "All files",
+                    text = stringResource(R.string.browser_all_files),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = "$selectedCount / $totalCount selected",
+                    text = stringResource(R.string.browser_selected_count_of_total, selectedCount, totalCount),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             TextButton(onClick = { onSelectAllChanged(!allSelected) }) {
-                Text(if (allSelected) "Clear" else "Select")
+                Text(
+                    stringResource(
+                        if (allSelected) {
+                            R.string.common_clear
+                        } else {
+                            R.string.common_select
+                        },
+                    ),
+                )
             }
         }
     }
@@ -1430,7 +1495,9 @@ private fun PlaylistItemCard(
                         text = listOfNotNull(
                             item.entry.uploader?.takeIf { it.isNotBlank() },
                             playlistDurationLabel(item.entry.durationSeconds),
-                        ).joinToString(" | ").ifBlank { "Playlist item ${item.entry.playlistItemIndex}" },
+                        ).joinToString(" | ").ifBlank {
+                            stringResource(R.string.browser_playlist_item_fallback, item.entry.playlistItemIndex)
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -1453,7 +1520,15 @@ private fun PlaylistItemCard(
                     }
                 }
                 TextButton(onClick = { onExpandedChanged(!item.isExpanded) }) {
-                    Text(if (item.isExpanded) "Hide" else "Edit")
+                    Text(
+                        stringResource(
+                            if (item.isExpanded) {
+                                R.string.browser_playlist_hide
+                            } else {
+                                R.string.browser_playlist_edit
+                            },
+                        ),
+                    )
                 }
             }
 
@@ -1463,17 +1538,17 @@ private fun PlaylistItemCard(
                     OutlinedTextField(
                         value = item.customFileName,
                         onValueChange = onFileNameChanged,
-                        label = { Text("File name") },
+                        label = { Text(stringResource(R.string.browser_file_name)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                     )
                     ToggleChipRow(
                         items = listOf(
-                            ToggleConfig("Use global settings", item.useGlobalSettings, onUseGlobalChanged),
+                            ToggleConfig(stringResource(R.string.browser_toggle_use_global_settings), item.useGlobalSettings, onUseGlobalChanged),
                         ),
                     )
                     if (item.useGlobalSettings) {
-                        BrowserMetaChip(text = "Using global format")
+                        BrowserMetaChip(text = stringResource(R.string.browser_using_global_format))
                     } else {
                         SelectionOptionsCard(
                             streamType = item.selectedStreamType,
@@ -1497,7 +1572,7 @@ private fun PlaylistItemCard(
                             containers = containers,
                             audioFormats = audioFormats,
                             bitrates = bitrates,
-                            emptyChoicesMessage = "Auto format will be used for this file.",
+                            emptyChoicesMessage = stringResource(R.string.browser_playlist_auto_format),
                         )
                     }
                 }
@@ -1506,6 +1581,7 @@ private fun PlaylistItemCard(
     }
 }
 
+@Composable
 private fun buildPlaylistItemSummaryChips(
     useGlobalSettings: Boolean,
     streamType: StreamType,
@@ -1515,7 +1591,15 @@ private fun buildPlaylistItemSummaryChips(
     audioBitrateKbps: Int,
 ): List<String> {
     return buildList {
-        add(if (useGlobalSettings) "Global" else "Custom")
+        add(
+            stringResource(
+                if (useGlobalSettings) {
+                    R.string.browser_global_chip
+                } else {
+                    R.string.browser_custom_chip
+                },
+            ),
+        )
         when (streamType) {
             StreamType.AUDIO_ONLY -> {
                 add(audioFormat.uppercase())
@@ -1568,41 +1652,55 @@ private fun ToggleChipRow(
     }
 }
 
+@Composable
 private fun buildInlineFormatSummaryChips(choice: FormatChoice): List<String> {
     return buildList {
         choice.container.takeIf { it.isNotBlank() }?.let { add(it.uppercase()) }
         choice.height?.let { add("${it}p") }
         choice.fps?.takeIf { it > 0 }?.let { add("${it.toInt()} fps") }
         when (choice.streamType) {
-            StreamType.VIDEO_AUDIO -> add(if (choice.isMerged) "Video + audio" else "Muxed")
-            StreamType.VIDEO_ONLY -> add("Video only")
-            StreamType.AUDIO_ONLY -> add("Audio only")
+            StreamType.VIDEO_AUDIO -> add(
+                stringResource(
+                    if (choice.isMerged) {
+                        R.string.browser_video_audio_chip
+                    } else {
+                        R.string.browser_muxed_chip
+                    },
+                ),
+            )
+            StreamType.VIDEO_ONLY -> add(stringResource(R.string.browser_video_only_chip))
+            StreamType.AUDIO_ONLY -> add(stringResource(R.string.browser_audio_only_chip))
         }
         formatChoicePrimarySizeLabel(choice)?.let { add(it) }
         choice.bitrateKbps?.let { add("${it} kbps") }
     }
 }
 
+@Composable
 private fun buildFormatChoiceHint(choice: FormatChoice): String {
     val baseHint = when (choice.streamType) {
         StreamType.AUDIO_ONLY ->
-            if ((choice.bitrateKbps ?: 0) >= 256) "Higher quality, larger file." else "Smaller audio file."
+            if ((choice.bitrateKbps ?: 0) >= 256) {
+                stringResource(R.string.browser_hint_high_quality)
+            } else {
+                stringResource(R.string.browser_hint_smaller_audio)
+            }
 
         StreamType.VIDEO_ONLY,
         StreamType.VIDEO_AUDIO,
         -> when {
             (choice.height ?: 0) >= 1080 || (choice.fps ?: 0.0) >= 50.0 ->
-                "Quality-first pick."
+                stringResource(R.string.browser_hint_quality_first)
 
             (choice.fileSizeBytes ?: choice.estimatedSizeBytes ?: Long.MAX_VALUE) <= 80L * 1024L * 1024L ->
-                "Storage-friendlier pick."
+                stringResource(R.string.browser_hint_storage_friendly)
 
             else ->
-                "Balanced pick."
+                stringResource(R.string.browser_hint_balanced)
         }
     }
     val estimateNote = if (choice.fileSizeBytes == null && choice.estimatedSizeBytes != null) {
-        " Size is estimated."
+        stringResource(R.string.browser_hint_estimated_suffix)
     } else {
         ""
     }
@@ -1708,10 +1806,11 @@ private fun buildFormatMenuMetadata(choice: FormatChoice): String? {
     }.joinToString(" | ").ifBlank { null }
 }
 
+@Composable
 private fun formatChoicePrimarySizeLabel(choice: FormatChoice): String? {
     val exactSizeLabel = formatChoiceSizeLabel(choice.fileSizeBytes)
     if (exactSizeLabel != null) return exactSizeLabel
-    return formatChoiceSizeLabel(choice.estimatedSizeBytes)?.let { "Est. $it" }
+    return formatChoiceSizeLabel(choice.estimatedSizeBytes)?.let { stringResource(R.string.common_estimated_size, it) }
 }
 
 private fun formatChoiceSizeLabel(fileSizeBytes: Long?): String? {
@@ -1802,7 +1901,13 @@ private fun PickerSurface(
                 }
             }
             Text(
-                text = if (expanded) "Close" else "Change",
+                text = stringResource(
+                    if (expanded) {
+                        R.string.browser_picker_close
+                    } else {
+                        R.string.browser_picker_change
+                    },
+                ),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
             )
