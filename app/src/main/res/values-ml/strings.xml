@@ -231,7 +231,7 @@
     <string name="more_settings_subtitle">ദൃശ്യഭാവം, സ്റ്റോറേജ്, അറിയിപ്പുകൾ, ആക്‌സസ്, about എന്നിവയ്ക്കായി settings hub തുറക്കുക.</string>
     <string name="more_cookies_title">കുക്കികൾ</string>
     <string name="more_cookies_subtitle">ഡൗൺലോഡർ ഉപയോഗിക്കുന്ന സേവ് ചെയ്ത site session-ങ്ങൾ കൈകാര്യം ചെയ്യുക.</string>
-    <string name="more_youtube_access_title">YouTube access</string>
+    <string name="more_youtube_access_title">YouTube ആക്സസ്</string>
     <string name="more_youtube_access_subtitle">കുക്കികൾ, PO generation, കഠിനമായ protected playback recovery എന്നിവ കൈകാര്യം ചെയ്യുക.</string>
     <string name="more_updates_title">അപ്‌ഡേറ്റുകൾ</string>
     <string name="more_updates_subtitle">ഒരു update center-ൽ നിന്ന് app, yt-dlp, FFmpeg പതിപ്പുകൾ പരിശോധിക്കുക.</string>
@@ -253,7 +253,7 @@
     <string name="settings_access_title">ആക്‌സസും നെറ്റ്‌വർക്കും</string>
     <string name="settings_about_title">aboutയും supportഉം</string>
     <string name="settings_about_subtitle">പതിപ്പ് വിവരങ്ങൾ, ലിങ്കുകൾ, update center, developer pages, preference reset പ്രവർത്തനങ്ങൾ.</string>
-    <string name="settings_app_log_title">App log reader</string>
+    <string name="settings_app_log_title">ആപ്പ് ലോഗ് റീഡർ</string>
     <string name="settings_app_log_subtitle">ആപ്പിനുള്ളിൽ app.log വായിക്കുക, വരികളെ failure, success, ദിവസം എന്നിവ അനുസരിച്ച് filter ചെയ്യുക, പിന്നെ copy, export, backup, retention management ചെയ്യുക.</string>
     <string name="settings_feedback_label">ക്രമീകരണങ്ങൾ</string>
     <string name="settings_library_label">ലൈബ്രറി</string>
@@ -304,7 +304,7 @@
     <string name="queue_action_resume">വീണ്ടും തുടരുക</string>
     <string name="queue_action_retry">വീണ്ടും ശ്രമിക്കുക</string>
     <string name="queue_try_cookies">കുക്കികൾ ശ്രമിക്കുക</string>
-    <string name="queue_po_generation">PO generation</string>
+    <string name="queue_po_generation">PO സൃഷ്ടിക്കൽ</string>
     <string name="queue_export_log">log.txt എക്സ്പോർട്ട് ചെയ്യുക</string>
     <string name="queue_report_issue">പ്രശ്നം റിപ്പോർട്ട് ചെയ്യുക</string>
     <string name="queue_diagnostics">ഡയഗ്നോസ്റ്റിക്സ്</string>
@@ -346,7 +346,7 @@
     <string name="queue_subtitle_empty">ഇതുവരെ ഡൗൺലോഡുകളില്ല. ടാസ്ക്കുകൾ തുടങ്ങുമ്പോൾ അവയുടെ നിലകൾ ഇവിടെ പ്രത്യക്ഷപ്പെടും.</string>
     <string name="queue_subtitle_all">എല്ലാ നിലകളിലായി %1$d ഡൗൺലോഡുകൾ ട്രാക്ക് ചെയ്യുന്നു</string>
     <string name="queue_subtitle_filtered">%2$s-ൽ ഇപ്പോൾ %1$d ഇനങ്ങൾ</string>
-    <string name="queue_eta_prefix">ETA %1$s</string>
+    <string name="queue_eta_prefix">അനുമാന സമയം %1$s</string>
     <string name="queue_complete_percent">%1$d%% പൂർത്തിയായി</string>
     <string name="queue_stuck_message">%1$s ആയി പുരോഗതി അപ്‌ഡേറ്റ് ഒന്നുമില്ല. ഈ ഇനം കുടുങ്ങിയിരിക്കാം.</string>
     <string name="queue_recovery_stuck_youtube">ഈ YouTube ഇനം %1$s ആയി അപ്‌ഡേറ്റ് ചെയ്തിട്ടില്ല. പ്ലേബാക്ക് ആക്‌സസ് പരിശോധനകൾ ഡൗൺലോഡ് തടസപ്പെടുത്തുമ്പോൾ കുക്കികളോ PO generation-ഓ സാധാരണയായി സഹായിക്കും.</string>
@@ -488,7 +488,7 @@
     <string name="cookies_editor_keep_one">Video Downloader അതിനെ സ്വയം വീണ്ടും ഉപയോഗിക്കാൻ ഓരോ വെബ്സൈറ്റിനും ഒരു കുക്കി പ്രൊഫൈൽ മാത്രം സൂക്ഷിക്കുക.</string>
     <string name="cookies_capture_done">പൂർത്തിയായി</string>
 
-    <string name="youtube_access_title">YouTube access</string>
+    <string name="youtube_access_title">YouTube ആക്സസ്</string>
     <string name="youtube_access_use_saved">സേവ് ചെയ്ത YouTube access ഉപയോഗിക്കുക</string>
     <string name="youtube_access_use_saved_body">കഠിനമായ ഡൗൺലോഡുകളിൽ നിങ്ങളുടെ YouTube കുക്കികളും PO token-കളും data-sync session സൂചനകളും പ്രയോഗിക്കുന്നു.</string>
     <string name="youtube_access_ready_title">ലോംഗ്-ഫോം വീണ്ടുംശ്രമങ്ങൾക്ക് തയ്യാറാണ്</string>
@@ -499,13 +499,13 @@
     <string name="youtube_access_login_generate">ലോഗിൻ ചെയ്ത് access ജനറേറ്റ് ചെയ്യുക</string>
     <string name="youtube_access_intro_body">ഇത് പ്രത്യേക YouTube sign-in പേജ് തുറക്കും, പൊരുത്തപ്പെടുന്ന കുക്കി സെഷൻ പിടികൂടും, കൂടാതെ കൂടുതൽ ഗുണമേന്മയുള്ള retries-ക്കായി yt-dlp-യ്ക്ക് ആവശ്യമായ Web client PO token-ുകൾ സൃഷ്ടിക്കും.</string>
     <string name="youtube_access_saved_details">സേവ് ചെയ്ത വിവരങ്ങൾ</string>
-    <string name="youtube_access_feedback_label">YouTube access</string>
+    <string name="youtube_access_feedback_label">YouTube ആക്സസ്</string>
     <string name="youtube_access_client">ക്ലയന്റ്</string>
     <string name="youtube_access_cookie_saved">കുക്കി സേവ് ചെയ്തു</string>
-    <string name="youtube_access_gvs_token">GVS token</string>
-    <string name="youtube_access_player_token">Player token</string>
-    <string name="youtube_access_subtitle_token">Subtitle token</string>
-    <string name="youtube_access_data_sync_id">Data sync ID</string>
+    <string name="youtube_access_gvs_token">GVS ടോക്കൺ</string>
+    <string name="youtube_access_player_token">പ്ലെയർ ടോക്കൺ</string>
+    <string name="youtube_access_subtitle_token">സബ്ടൈറ്റിൽ ടോക്കൺ</string>
+    <string name="youtube_access_data_sync_id">ഡാറ്റ സിങ്ക് ID</string>
     <string name="youtube_access_updated">പുതുക്കിയത്</string>
     <string name="youtube_access_regenerate">വീണ്ടും സൃഷ്ടിക്കുക</string>
     <string name="youtube_access_clear_tokens">token-ുകൾ നീക്കുക</string>
@@ -562,7 +562,7 @@
     <string name="help_best_report_title">മികച്ച റിപ്പോർട്ട് രീതിശൈലി</string>
     <string name="help_best_report_body">നിങ്ങൾ ഉപയോഗിച്ച ലിങ്ക് അല്ലെങ്കിൽ സൈറ്റ്, തിരഞ്ഞെടുത്ത output, നിങ്ങൾ പ്രതീക്ഷിച്ചത്, യഥാർത്ഥത്തിൽ സംഭവിച്ചത് എന്നിവയും export ചെയ്ത logs-ഉം ചേർത്ത് പറയുക. ലിങ്ക് private ആണെങ്കിൽ സംവേദനക്ഷമമായ വിവരങ്ങൾ ഒട്ടിക്കാതെ സൈറ്റിനെയും access condition-നെയും വിശദീകരിക്കുക.</string>
     <string name="help_open_cookies">Cookies തുറക്കുക</string>
-    <string name="help_open_youtube_access">YouTube access</string>
+    <string name="help_open_youtube_access">YouTube ആക്സസ്</string>
     <string name="help_export_logs">ലോഗുകൾ എക്സ്പോർട്ട് ചെയ്യുക</string>
     <string name="help_report_issue">പ്രശ്നം റിപ്പോർട്ട് ചെയ്യുക</string>
     <string name="help_open_cookies_subtitle">സംരക്ഷിത ലിങ്കുകൾക്കായി ഒരു site session സേവ് ചെയ്യുക.</string>
@@ -596,7 +596,7 @@
     <string name="theme_mode_system">സിസ്റ്റം</string>
     <string name="theme_mode_light">ലൈറ്റ്</string>
     <string name="theme_mode_dark">ഡാർക്ക്</string>
-    <string name="accent_material_you">Material you</string>
+    <string name="accent_material_you">മെറ്റീരിയൽ യൂ</string>
     <string name="accent_blue">നീല</string>
     <string name="accent_cobalt">കോബാൾട്ട്</string>
     <string name="accent_aqua">അക്വ</string>
