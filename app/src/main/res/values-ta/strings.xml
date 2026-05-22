@@ -170,32 +170,32 @@
   <string name="downloads_filter_video">வீடியோ</string>
   <string name="downloads_filter_other">மற்றவை</string>
   <plurals name="downloads_selected_count_title">
-    <item quantity="one">%1$d selected</item>
-    <item quantity="other">%1$d selected</item>
+    <item quantity="one">%1$d தேர்ந்தெடுக்கப்பட்டது</item>
+    <item quantity="other">%1$d தேர்ந்தெடுக்கப்பட்டன</item>
   </plurals>
   <plurals name="downloads_saved_ready">
-    <item quantity="one">%1$d saved item ready to open</item>
-    <item quantity="other">%1$d saved items ready to open</item>
+    <item quantity="one">%1$d சேமித்த உருப்படி திறக்கத் தயாராக உள்ளது</item>
+    <item quantity="other">%1$d சேமித்த உருப்படிகள் திறக்கத் தயாராக உள்ளன</item>
   </plurals>
   <plurals name="downloads_active_in_progress">
-    <item quantity="one">%1$d download is in progress. Finished items will appear here automatically.</item>
-    <item quantity="other">%1$d downloads are in progress. Finished items will appear here automatically.</item>
+    <item quantity="one">%1$d பதிவிறக்கம் நடைபெற்று வருகிறது. முடிந்த உருப்படிகள் தானாக இங்கே தோன்றும்.</item>
+    <item quantity="other">%1$d பதிவிறக்கங்கள் நடைபெற்று வருகின்றன. முடிந்த உருப்படிகள் தானாக இங்கே தோன்றும்.</item>
   </plurals>
   <plurals name="downloads_selected_files_count">
-    <item quantity="one">%1$d file selected</item>
-    <item quantity="other">%1$d files selected</item>
+    <item quantity="one">%1$d கோப்பு தேர்ந்தெடுக்கப்பட்டது</item>
+    <item quantity="other">%1$d கோப்புகள் தேர்ந்தெடுக்கப்பட்டன</item>
   </plurals>
   <plurals name="downloads_play_music_count">
-    <item quantity="one">Play music (%1$d)</item>
-    <item quantity="other">Play music (%1$d)</item>
+    <item quantity="one">இசையை இயக்கு (%1$d)</item>
+    <item quantity="other">இசையை இயக்கு (%1$d)</item>
   </plurals>
   <plurals name="downloads_remove_selected_body">
-    <item quantity="one">Remove %1$d selected item from the app library and keep the real device files untouched?</item>
-    <item quantity="other">Remove %1$d selected items from the app library and keep the real device files untouched?</item>
+    <item quantity="one">%1$d தேர்ந்தெடுக்கப்பட்ட உருப்படியை app library இலிருந்து அகற்றி, உண்மையான device file ஐ அப்படியே வைத்திருக்கவா?</item>
+    <item quantity="other">%1$d தேர்ந்தெடுக்கப்பட்ட உருப்படிகளை app library இலிருந்து அகற்றி, உண்மையான device files ஐ அப்படியே வைத்திருக்கவா?</item>
   </plurals>
   <plurals name="downloads_delete_selected_body">
-    <item quantity="one">Permanently delete %1$d selected item from both the app and device storage?</item>
-    <item quantity="other">Permanently delete %1$d selected items from both the app and device storage?</item>
+    <item quantity="one">%1$d தேர்ந்தெடுக்கப்பட்ட உருப்படியை app மற்றும் device storage இரண்டிலிருந்தும் நிரந்தரமாக நீக்கவா?</item>
+    <item quantity="other">%1$d தேர்ந்தெடுக்கப்பட்ட உருப்படிகளை app மற்றும் device storage இரண்டிலிருந்தும் நிரந்தரமாக நீக்கவா?</item>
   </plurals>
   <string name="common_system_default">கணினி இயல்புநிலை</string>
   <string name="common_interface_language">இடைமுக மொழி</string>
@@ -370,8 +370,8 @@
   <string name="history_filter_canceled">ரத்து செய்யப்பட்டது</string>
   <string name="history_status_unknown">தெரியாது</string>
   <plurals name="history_subtitle_files">
-    <item quantity="one">%1$d subtitle file</item>
-    <item quantity="other">%1$d subtitle files</item>
+    <item quantity="one">%1$d subtitle கோப்பு</item>
+    <item quantity="other">%1$d subtitle கோப்புகள்</item>
   </plurals>
   <string name="history_summary_showing">%3$s இல் %2$d முடிந்த பணிகளில் %1$d காட்சிப்படுத்தப்படுகிறது.</string>
   <string name="updates_title">புதுப்பிப்புகள்</string>
@@ -455,8 +455,8 @@
   <string name="cookies_saved_title">சேமித்த குக்கீக்கள்</string>
   <string name="cookies_saved_empty_subtitle">ஒரு தள குக்கீயை ஒருமுறை சேர்த்து, அந்த session மாறும்போது புதுப்பிக்கவும்.</string>
   <plurals name="cookies_saved_ready_count">
-    <item quantity="one">%1$d saved site ready to use.</item>
-    <item quantity="other">%1$d saved sites ready to use.</item>
+    <item quantity="one">%1$d சேமித்த தளம் பயன்படுத்தத் தயாராக உள்ளது.</item>
+    <item quantity="other">%1$d சேமித்த தளங்கள் பயன்படுத்தத் தயாராக உள்ளன.</item>
   </plurals>
   <string name="cookies_new">புதிய குக்கீ</string>
   <string name="cookies_feedback_label">குக்கீக்கள்</string>
@@ -558,8 +558,8 @@
   <string name="settings_access_summary_wifi">பதிவிறக்கங்கள் Wi‑Fi க்காக காத்திருக்கும்.</string>
   <string name="settings_access_summary_no_cookies">இன்னும் தள session கள் எதுவும் சேமிக்கப்படவில்லை.</string>
   <plurals name="settings_access_summary_cookie_count">
-    <item quantity="one">%1$d saved site session ready to reuse.</item>
-    <item quantity="other">%1$d saved site sessions ready to reuse.</item>
+    <item quantity="one">%1$d சேமித்த தள session மீண்டும் பயன்படுத்தத் தயாராக உள்ளது.</item>
+    <item quantity="other">%1$d சேமித்த தள sessions மீண்டும் பயன்படுத்தத் தயாராக உள்ளன.</item>
   </plurals>
   <string name="settings_access_summary_youtube_configured">கடினமான retries க்காக YouTube access அமைக்கப்பட்டுள்ளது.</string>
   <string name="settings_access_summary_youtube_missing">YouTube access இன்னும் அமைக்கப்படவில்லை.</string>
@@ -682,8 +682,8 @@
   <string name="access_saved_cookies_title">சேமித்த குக்கீக்கள்</string>
   <string name="access_saved_cookies_empty">ஒரு தள session ஐ ஒருமுறை சேர்த்து, login மாறும்போது அதை புதுப்பிக்கவும்.</string>
   <plurals name="access_saved_cookies_count">
-    <item quantity="one">%1$d saved site session ready to inspect, update, import, or export.</item>
-    <item quantity="other">%1$d saved site sessions ready to inspect, update, import, or export.</item>
+    <item quantity="one">%1$d சேமித்த தள session பார்வையிட, புதுப்பிக்க, இறக்குமதி செய்ய, அல்லது ஏற்றுமதி செய்யத் தயாராக உள்ளது.</item>
+    <item quantity="other">%1$d சேமித்த தள sessions பார்வையிட, புதுப்பிக்க, இறக்குமதி செய்ய, அல்லது ஏற்றுமதி செய்யத் தயாராக உள்ளன.</item>
   </plurals>
   <string name="access_youtube_configured">Saved PO tokens தயாராக உள்ளன; retries தடுக்கப்பட்டால் தற்போதைய அமைப்பை புதுப்பிக்கவும் அல்லது பார்வையிடவும் முடியும்.</string>
   <string name="access_youtube_missing">strict retries இல் பயன்படும் saved session மற்றும் PO tokens ஐப் பிடிக்க YouTube access ஐ ஒருமுறை உருவாக்கவும்.</string>
