@@ -5,7 +5,7 @@
 ### Changed
 - **Repository standards refresh** - added the missing license and contributor-community standards files, and refreshed the documentation set to match the current stable-beta product posture instead of the older rapid-iteration roadmap framing
 
-## [1.7.1.0-beta] - 2026-05-21
+## [1.7.2] - 2026-05-22
 
 ### Added
 - **Seal-style settings architecture** - replaced the one-page settings wall with a dedicated settings hub plus focused pages for Appearance, Download defaults, Folders and storage, Notifications, Access and network, and About and support
@@ -56,7 +56,7 @@
 
 ### Technical
 - **Navigation split for settings** - added dedicated settings subroutes inside `DownloaderApp` to support the new hub-and-subpage structure without touching download, queue, or media-processing logic
-- **App version bump** - release metadata updated to `1.7.1.0-beta`
+- **App version bump** - release metadata updated to `1.7.2`
 
 ## [1.7.1] - 2026-05-20
 

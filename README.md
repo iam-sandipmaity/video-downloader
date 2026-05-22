@@ -16,7 +16,7 @@ Everything runs on-device:
 
 ## Project Status
 
-The current `1.7.1.0-beta` line is the app's stable UI baseline.
+The current `1.7.2` line is the app's stable UI baseline.
 
 That means:
 
@@ -30,16 +30,42 @@ The screenshots below reflect the current app flow, and can be refreshed over
 time as the UI evolves.
 
 <p align="center">
-  <img src="public/demo/home-clean.png" alt="Home screen with URL input" width="220" />
-  <img src="public/demo/home-link-analysing.png" alt="Home screen while analyzing a link" width="220" />
-  <img src="public/demo/download-options-choose-screen.png" alt="Download options overlay" width="220" />
+  <img src="public/demo/home-page.png" alt="Home screen with URL input" width="220" />
+  <img src="public/demo/home-link-analyzing.png" alt="Home screen while analyzing a link" width="220" />
+  <img src="public/demo/single-file-download-option-view.png" alt="Single file download options overlay" width="220" />
 </p>
 
 <p align="center">
-  <img src="public/demo/Queue.png" alt="Queue screen" width="200" />
-  <img src="public/demo/download-running.png" alt="Running download state" width="200" />
-  <img src="public/demo/download-page.png" alt="Downloads library" width="220" />
-  <img src="public/demo/history-page.png" alt="History screen" width="220" />
+  <img src="public/demo/playlist-download.png" alt="Playlist download selection" width="200" />
+  <img src="public/demo/playlist-download-time-any-randowm-file-formate-and-name-editing.png" alt="Playlist per-file format and rename controls" width="200" />
+  <img src="public/demo/downloading-screen.png" alt="Queue screen while a task is active" width="200" />
+  <img src="public/demo/downloading-tab.png" alt="Download queue tab" width="200" />
+</p>
+
+<p align="center">
+  <img src="public/demo/download-tab.png" alt="Downloads library" width="200" />
+  <img src="public/demo/downloaded-file-viewer-tab.png" alt="Saved file viewer tab" width="200" />
+  <img src="public/demo/downloaded-audio-inapp-player.png" alt="In-app audio player" width="200" />
+  <img src="public/demo/in-app-video-player.png" alt="In-app video player" width="200" />
+</p>
+
+<p align="center">
+  <img src="public/demo/more-page.png" alt="More page" width="200" />
+  <img src="public/demo/settings-page.png" alt="Settings page" width="200" />
+  <img src="public/demo/appearence-page.png" alt="Appearance page" width="200" />
+  <img src="public/demo/about-page-credit-section.png" alt="About page with credits section" width="200" />
+</p>
+
+<p align="center">
+  <img src="public/demo/cookies-page.png" alt="Cookies page" width="200" />
+  <img src="public/demo/youtube-po-generation-page.png" alt="YouTube access and PO generation page" width="200" />
+  <img src="public/demo/converter.png" alt="Converter tool page" width="200" />
+  <img src="public/demo/compressor.png" alt="Compressor tool page" width="200" />
+</p>
+
+<p align="center">
+  <img src="public/demo/appearence-page-in-bengali.png" alt="Appearance page in Bengali" width="200" />
+  <img src="public/demo/notification-page-in-bengali.png" alt="Notification settings in Bengali" width="200" />
 </p>
 
 ## Key Features

@@ -1,6 +1,6 @@
 # Future Plan: Maintenance Roadmap
 
-This document reflects the project's current direction after the `1.7.1.0-beta`
+This document reflects the project's current direction after the `1.7.2`
 stabilization work.
 
 The app is no longer in a broad "figure out the product shape" phase. The main

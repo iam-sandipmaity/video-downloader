@@ -2,7 +2,7 @@
 
 ## Version Scope
 
-- current stable UI baseline: `1.7.1.0-beta`
+- current stable UI baseline: `1.7.2`
 - current engineering emphasis: reliability, runtime maintenance, translation
   quality, and internal logic hardening
 

@@ -3,7 +3,7 @@
 ## Audit Scope
 
 - audit date: 2026-05-22
-- current app version in `gradle.properties`: `1.7.1.0-beta`
+- current app version in `gradle.properties`: `1.7.2`
 - focus: current stable-beta repo posture, runtime maintenance surface,
   documentation maturity, and remaining engineering risk
 
