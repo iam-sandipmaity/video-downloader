@@ -5,21 +5,15 @@ import android.webkit.WebChromeClient
 import android.webkit.WebStorage
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Lock
@@ -31,7 +25,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -51,9 +44,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.localdownloader.domain.models.YoutubeAuthConfig
-import com.localdownloader.ui.components.AppBarContentTopPadding
-import com.localdownloader.ui.components.CompactPageTopBar
 import com.localdownloader.ui.components.InlineFeedbackCard
+import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.utils.CookieTextCodec
 import com.localdownloader.utils.WebViewCookieExporter
 import com.localdownloader.utils.YoutubePoTokenGenerator
@@ -68,7 +60,6 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import kotlin.coroutines.resume
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun YoutubeAuthScreen(
     uiState: FormatUiState,
@@ -86,153 +77,137 @@ fun YoutubeAuthScreen(
         CookieTextCodec.findBestMatch(uiState.cookieProfiles, "https://www.youtube.com") != null
     }
 
-    Scaffold(
+    PreferencePageScaffold(
+        title = "YouTube Access",
+        onBack = onBack,
         modifier = modifier,
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(innerPadding)
-        ) {
-            CompactPageTopBar(
-                title = "YouTube Access",
-                onBack = onBack,
-            )
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .padding(
-                        start = 18.dp,
-                        end = 18.dp,
-                        top = AppBarContentTopPadding,
-                        bottom = 18.dp,
-                    ),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        item {
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                shape = RoundedCornerShape(28.dp),
             ) {
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
-                    shape = RoundedCornerShape(28.dp),
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(18.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(4.dp),
-                            ) {
-                                Text(
-                                    text = "Use saved YouTube access",
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.SemiBold,
-                                )
-                                Text(
-                                    text = "Applies your YouTube cookies, PO tokens, and data-sync session hints on tougher downloads.",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            Switch(
-                                checked = authConfig.enabled && authConfig.isConfigured(),
-                                onCheckedChange = onEnabledChanged,
-                            )
-                        }
-                        StatusChip(
-                            title = if (authConfig.isConfigured()) "Ready for long-form retries" else "Not configured yet",
-                            subtitle = when {
-                                authConfig.isConfigured() && hasYoutubeCookie ->
-                                    "Cookies and PO tokens are both saved."
-                                authConfig.isConfigured() ->
-                                    "PO tokens are saved, but the YouTube cookie is missing."
-                                else ->
-                                    "Generate access once, then retry the blocked YouTube link."
-                            },
-                        )
-                        Button(
-                            onClick = onGenerateAccess,
-                            modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(vertical = 14.dp),
-                        ) {
-                            Icon(Icons.Outlined.Lock, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Text("Login & Generate Access", modifier = Modifier.padding(start = 8.dp))
-                        }
-                        Text(
-                            text = "This opens a dedicated YouTube sign-in page, captures the matching cookie session, and generates the Web client PO tokens that yt-dlp needs for higher-quality retries.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-
-                if (authConfig.isConfigured()) {
-                    Card(modifier = Modifier.fillMaxWidth()) {
                         Column(
-                            modifier = Modifier.padding(18.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             Text(
-                                text = "Saved Details",
-                                style = MaterialTheme.typography.titleMedium,
+                                text = "Use saved YouTube access",
+                                style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.SemiBold,
                             )
-                            DetailRow("Client", authConfig.clientHint)
-                            DetailRow("Cookie saved", if (hasYoutubeCookie) "Yes" else "No")
-                            DetailRow("GVS token", previewToken(authConfig.gvsToken))
-                            DetailRow("Player token", previewToken(authConfig.playerToken))
-                            DetailRow("Subtitle token", previewToken(authConfig.subsToken.ifBlank { authConfig.playerToken }))
-                            DetailRow("Data sync ID", previewToken(authConfig.dataSyncId))
-                            DetailRow(
-                                "Updated",
-                                if (authConfig.updatedAtEpochMs > 0L) {
-                                    DateFormat.getDateTimeInstance().format(authConfig.updatedAtEpochMs)
-                                } else {
-                                    "Unknown"
-                                },
+                            Text(
+                                text = "Applies your YouTube cookies, PO tokens, and data-sync session hints on tougher downloads.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Button(
-                                    onClick = onGenerateAccess,
-                                    modifier = Modifier.weight(1f),
-                                ) {
-                                    Icon(Icons.Outlined.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                                    Text("Regenerate", modifier = Modifier.padding(start = 8.dp))
-                                }
-                                TextButton(
-                                    onClick = onClear,
-                                    modifier = Modifier.weight(1f),
-                                ) {
-                                    Text("Clear tokens")
-                                }
+                        }
+                        Switch(
+                            checked = authConfig.enabled && authConfig.isConfigured(),
+                            onCheckedChange = onEnabledChanged,
+                        )
+                    }
+                    StatusChip(
+                        title = if (authConfig.isConfigured()) "Ready for long-form retries" else "Not configured yet",
+                        subtitle = when {
+                            authConfig.isConfigured() && hasYoutubeCookie ->
+                                "Cookies and PO tokens are both saved."
+                            authConfig.isConfigured() ->
+                                "PO tokens are saved, but the YouTube cookie is missing."
+                            else ->
+                                "Generate access once, then retry the blocked YouTube link."
+                        },
+                    )
+                    Button(
+                        onClick = onGenerateAccess,
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(vertical = 14.dp),
+                    ) {
+                        Icon(Icons.Outlined.Lock, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Text("Login & Generate Access", modifier = Modifier.padding(start = 8.dp))
+                    }
+                    Text(
+                        text = "This opens a dedicated YouTube sign-in page, captures the matching cookie session, and generates the Web client PO tokens that yt-dlp needs for higher-quality retries.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+        if (authConfig.isConfigured()) {
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Text(
+                            text = "Saved Details",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        DetailRow("Client", authConfig.clientHint)
+                        DetailRow("Cookie saved", if (hasYoutubeCookie) "Yes" else "No")
+                        DetailRow("GVS token", previewToken(authConfig.gvsToken))
+                        DetailRow("Player token", previewToken(authConfig.playerToken))
+                        DetailRow("Subtitle token", previewToken(authConfig.subsToken.ifBlank { authConfig.playerToken }))
+                        DetailRow("Data sync ID", previewToken(authConfig.dataSyncId))
+                        DetailRow(
+                            "Updated",
+                            if (authConfig.updatedAtEpochMs > 0L) {
+                                DateFormat.getDateTimeInstance().format(authConfig.updatedAtEpochMs)
+                            } else {
+                                "Unknown"
+                            },
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = onGenerateAccess,
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Icon(Icons.Outlined.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Text("Regenerate", modifier = Modifier.padding(start = 8.dp))
+                            }
+                            TextButton(
+                                onClick = onClear,
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Text("Clear tokens")
                             }
                         }
                     }
                 }
-
-                infoMessage?.let { message ->
-                    InlineFeedbackCard(
-                        label = "YouTube access",
-                        message = message,
-                        isError = false,
-                        onDismiss = onDismissMessage,
-                    )
-                }
-                errorMessage?.let { message ->
-                    InlineFeedbackCard(
-                        label = "YouTube access",
-                        message = message,
-                        isError = true,
-                        onDismiss = onDismissMessage,
-                    )
-                }
+            }
+        }
+        infoMessage?.let { message ->
+            item {
+                InlineFeedbackCard(
+                    label = "YouTube access",
+                    message = message,
+                    isError = false,
+                    onDismiss = onDismissMessage,
+                )
+            }
+        }
+        errorMessage?.let { message ->
+            item {
+                InlineFeedbackCard(
+                    label = "YouTube access",
+                    message = message,
+                    isError = true,
+                    onDismiss = onDismissMessage,
+                )
             }
         }
     }

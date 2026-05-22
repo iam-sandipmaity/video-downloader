@@ -9,13 +9,17 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -31,6 +35,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -39,7 +48,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
-val AppBarContentTopPadding = 6.dp
+private val CollapsedTopBarHeight = 52.dp
+private val HeaderCollapseThreshold = 28.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,26 +60,39 @@ fun PreferencePageScaffold(
     actions: @Composable RowScope.() -> Unit = {},
     content: LazyListScope.() -> Unit,
 ) {
+    val listState = rememberLazyListState()
+    val density = LocalDensity.current
+    val collapseThresholdPx = remember(density) { with(density) { HeaderCollapseThreshold.roundToPx() } }
+    val collapsed by rememberCollapsedHeaderState(listState, collapseThresholdPx)
+
     Scaffold(modifier = modifier) { innerPadding ->
-        LazyColumn(
+        Box(
             modifier = Modifier
-                .background(MaterialTheme.colorScheme.background),
-            contentPadding = PaddingValues(
-                start = 20.dp,
-                end = 20.dp,
-                top = innerPadding.calculateTopPadding(),
-                bottom = innerPadding.calculateBottomPadding() + 32.dp,
-            ),
-            verticalArrangement = Arrangement.spacedBy(18.dp),
+                .background(MaterialTheme.colorScheme.background)
+                .padding(innerPadding),
         ) {
-            item(key = "page_header") {
-                CompactPageTopBar(
-                    title = title,
-                    onBack = onBack,
-                    actions = actions,
-                )
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(
+                    start = 20.dp,
+                    end = 20.dp,
+                    bottom = 32.dp,
+                ),
+                verticalArrangement = Arrangement.spacedBy(18.dp),
+            ) {
+                item(key = "page_header") {
+                    LargePageTitleHeader(title = title)
+                }
+                content()
             }
-            content()
+            CompactPageTopBar(
+                title = title,
+                onBack = onBack,
+                actions = actions,
+                collapsed = collapsed,
+                modifier = Modifier.align(Alignment.TopCenter),
+            )
         }
     }
 }
@@ -78,6 +101,7 @@ fun PreferencePageScaffold(
 fun CompactPageTopBar(
     title: String,
     onBack: (() -> Unit)?,
+    collapsed: Boolean,
     modifier: Modifier = Modifier,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
@@ -101,17 +125,57 @@ fun CompactPageTopBar(
                     )
                 }
             }
-            Text(
-                text = title,
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
+            if (collapsed) {
+                Text(
+                    text = title,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            } else {
+                Spacer(modifier = Modifier.weight(1f))
+            }
             Row(
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 content = actions,
             )
+        }
+    }
+}
+
+@Composable
+fun LargePageTitleHeader(
+    title: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .padding(top = 8.dp, bottom = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Spacer(modifier = Modifier.height(CollapsedTopBarHeight))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.headlineLarge,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
+@Composable
+private fun rememberCollapsedHeaderState(
+    listState: LazyListState,
+    thresholdPx: Int,
+): State<Boolean> {
+    return remember(listState) {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0 ||
+                listState.firstVisibleItemScrollOffset > thresholdPx
         }
     }
 }
