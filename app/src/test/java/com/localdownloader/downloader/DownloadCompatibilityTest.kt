@@ -3,8 +3,10 @@ package com.localdownloader.downloader
 import com.localdownloader.domain.models.FormatChoice
 import com.localdownloader.domain.models.StreamType
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DownloadCompatibilityTest {
@@ -76,6 +78,32 @@ class DownloadCompatibilityTest {
 
         assertEquals("mp4", result.resolvedContainer)
         assertNull(result.queueNote)
+    }
+
+    @Test
+    fun isChoiceCompatibleWithRequestedContainer_hidesAv1FromExplicitMp4() {
+        val compatible = isChoiceCompatibleWithRequestedContainer(
+            requestedContainer = "mp4",
+            selectedChoice = mergedChoice(
+                height = 1080,
+                videoCodec = "av01.0.08M.08",
+            ),
+        )
+
+        assertFalse(compatible)
+    }
+
+    @Test
+    fun isChoiceCompatibleWithRequestedContainer_keepsAv1VisibleForAuto() {
+        val compatible = isChoiceCompatibleWithRequestedContainer(
+            requestedContainer = "auto",
+            selectedChoice = mergedChoice(
+                height = 1080,
+                videoCodec = "av01.0.08M.08",
+            ),
+        )
+
+        assertTrue(compatible)
     }
 
     private fun mergedChoice(

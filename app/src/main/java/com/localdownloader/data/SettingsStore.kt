@@ -99,7 +99,7 @@ class SettingsStore @Inject constructor(
                     contrastMode = prefs[Keys.contrastMode]?.toEnumOrDefault(ContrastMode.ULTRA) ?: ContrastMode.ULTRA,
                     defaultOutputTemplate = prefs[Keys.template] ?: "%(title)s [%(id)s].%(ext)s",
                     defaultAudioOutputTemplate = prefs[Keys.audioTemplate] ?: "%(title)s [%(id)s].%(ext)s",
-                    defaultMergeContainer = prefs[Keys.mergeContainer] ?: "mp4",
+                    defaultMergeContainer = prefs[Keys.mergeContainer] ?: AppSettings().defaultMergeContainer,
                     defaultAudioFormat = prefs[Keys.audioFormat] ?: "mp3",
                     downloadsRootFolderName = prefs[Keys.downloadsRootFolderName] ?: "LocalDownloader",
                     videoSubfolderName = prefs[Keys.videoSubfolderName] ?: "Videos",

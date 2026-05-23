@@ -8,11 +8,35 @@ data class MergeContainerCompatibility(
     val queueNote: String? = null,
 )
 
+internal fun isAutomaticContainerSelection(requestedContainer: String?): Boolean {
+    return normalizeRequestedContainer(requestedContainer) == AUTO_CONTAINER
+}
+
+internal fun isChoiceCompatibleWithRequestedContainer(
+    requestedContainer: String?,
+    selectedChoice: FormatChoice?,
+): Boolean {
+    val normalizedContainer = normalizeRequestedContainer(requestedContainer) ?: return true
+    val choice = selectedChoice ?: return true
+
+    if (normalizedContainer == AUTO_CONTAINER || choice.streamType != StreamType.VIDEO_AUDIO) {
+        return true
+    }
+
+    return when {
+        normalizedContainer == "mkv" -> true
+        normalizedContainer == "webm" -> shouldPreferWebmContainer(choice)
+        normalizedContainer in MP4_FAMILY_CONTAINERS ->
+            resolveMergeContainerCompatibility(normalizedContainer, choice).resolvedContainer == normalizedContainer
+        else -> true
+    }
+}
+
 internal fun resolveMergeContainerCompatibility(
     requestedContainer: String?,
     selectedChoice: FormatChoice?,
 ): MergeContainerCompatibility {
-    val normalizedContainer = requestedContainer?.trim()?.lowercase()?.ifBlank { null }
+    val normalizedContainer = normalizeRequestedContainer(requestedContainer)
         ?: return MergeContainerCompatibility(resolvedContainer = null)
     val choice = selectedChoice ?: return MergeContainerCompatibility(resolvedContainer = normalizedContainer)
 
@@ -45,6 +69,10 @@ internal fun resolveMergeContainerCompatibility(
     }
 }
 
+private fun normalizeRequestedContainer(requestedContainer: String?): String? {
+    return requestedContainer?.trim()?.lowercase()?.ifBlank { null }
+}
+
 private fun isAv1Codec(codec: String?): Boolean {
     val normalized = codec?.trim()?.lowercase().orEmpty()
     return normalized == "av1" || normalized.startsWith("av01")
@@ -67,3 +95,5 @@ private val MP4_FAMILY_CONTAINERS = setOf(
     "m4v",
     "mov",
 )
+
+private const val AUTO_CONTAINER = "auto"

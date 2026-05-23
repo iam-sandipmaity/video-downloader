@@ -12,7 +12,7 @@ data class AppSettings(
     val contrastMode: ContrastMode = ContrastMode.ULTRA,
     val defaultOutputTemplate: String = "%(title)s [%(id)s].%(ext)s",
     val defaultAudioOutputTemplate: String = "%(title)s [%(id)s].%(ext)s",
-    val defaultMergeContainer: String = "mp4",
+    val defaultMergeContainer: String = "auto",
     val defaultAudioFormat: String = "mp3",
     val downloadsRootFolderName: String = "LocalDownloader",
     val videoSubfolderName: String = "Videos",

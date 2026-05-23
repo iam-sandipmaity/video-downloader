@@ -29,7 +29,7 @@ data class PlaylistItemUiState(
     val customFileName: String = "",
     val selectedStreamType: StreamType = StreamType.VIDEO_AUDIO,
     val selectedFormatSelector: String? = null,
-    val selectedContainer: String = "mp4",
+    val selectedContainer: String = "auto",
     val selectedAudioFormat: String = "mp3",
     val audioBitrateKbps: Int = 192,
     val availableVideoAudioChoices: List<FormatChoice> = emptyList(),
@@ -62,7 +62,7 @@ data class FormatUiState(
     // Quality and type selectors (replaces raw format-ID picker)
     val selectedQuality: VideoQuality = VideoQuality.BEST,
     val selectedStreamType: StreamType = StreamType.VIDEO_AUDIO,
-    val selectedContainer: String = "mp4",
+    val selectedContainer: String = "auto",
     val selectedAudioFormat: String = "mp3",
     val audioBitrateKbps: Int = 192,
     val customFileName: String = "",

@@ -13,6 +13,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
@@ -962,9 +963,12 @@ private fun BoxScope.PlayerChrome(
                 border = BorderStroke(1.dp, Color.White.copy(alpha = 0.16f)),
                 shadowElevation = 12.dp,
             ) {
-                IconButton(
-                    onClick = onPlayPause,
-                    modifier = Modifier.size(84.dp),
+                Box(
+                    modifier = Modifier
+                        .size(84.dp)
+                        .clip(CircleShape)
+                        .clickable(onClick = onPlayPause),
+                    contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = if (uiState.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,

@@ -704,6 +704,7 @@
     <string name="container_desc_webm">Smaller web-friendly container when the source supports it well.</string>
     <string name="container_desc_mkv">Flexible container for mixed codecs and more unusual source formats.</string>
     <string name="container_desc_mov">Apple-style container when you want a closer edit-friendly export.</string>
+    <string name="container_desc_auto">Pick the safest final container automatically so AVC1 can stay MP4 while AV1 or WebM-friendly sources can switch when needed.</string>
     <string name="container_desc_default">Use this container for future merged video downloads.</string>
     <string name="audio_desc_mp3">The broadest device and car-player compatibility.</string>
     <string name="audio_desc_m4a">AAC audio in a compact container that works well on most phones.</string>
