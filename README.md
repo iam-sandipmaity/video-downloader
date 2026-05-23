@@ -1,18 +1,31 @@
-# Video Downloader
+<p align="center">
+  <img src="public/logo.svg" alt="Video Downloader logo" width="72" height="72" />
+</p>
 
-Local-first Android video downloading powered by `yt-dlp` and `FFmpeg`.
+<h1 align="center">Video Downloader</h1>
 
-Everything runs on-device:
+<p align="center">
+  Local-first Android video downloading powered by <code>yt-dlp</code> and <code>FFmpeg</code>.
+</p>
 
-- no backend
-- no cloud conversion
-- no forced account system
-- no server-side link handling
+<p align="center">
+  Everything runs on-device: no backend, no cloud conversion, no forced account system, no server-side link handling.
+</p>
 
-[![Build](https://img.shields.io/github/actions/workflow/status/iam-sandipmaity/video-downloader/android-build.yml?label=build&logo=github)](https://github.com/iam-sandipmaity/video-downloader/actions/workflows/android-build.yml)
-[![Platform](https://img.shields.io/badge/platform-Android%208%2B-3DDC84?logo=android&logoColor=white)](COMPATIBILITY.md)
-[![Architecture](https://img.shields.io/badge/arch-arm64--v8a-blue)](COMPATIBILITY.md)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+<p align="center">
+  <a href="https://github.com/iam-sandipmaity/video-downloader/actions/workflows/android-build.yml">
+    <img alt="Build" src="https://img.shields.io/github/actions/workflow/status/iam-sandipmaity/video-downloader/android-build.yml?label=build&logo=github" />
+  </a>
+  <a href="COMPATIBILITY.md">
+    <img alt="Platform" src="https://img.shields.io/badge/platform-Android%208%2B-3DDC84?logo=android&logoColor=white" />
+  </a>
+  <a href="COMPATIBILITY.md">
+    <img alt="Architecture" src="https://img.shields.io/badge/arch-arm64--v8a-blue" />
+  </a>
+  <a href="LICENSE">
+    <img alt="License" src="https://img.shields.io/badge/license-MIT-green" />
+  </a>
+</p>
 
 ## Project Status
 
@@ -198,3 +211,21 @@ This app builds on top of multiple open-source tools and libraries, including:
 - Material 3
 
 The in-app About section also lists upstream credits and linked sources.
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=iam-sandipmaity%2Fvideo-downloader&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=iam-sandipmaity/video-downloader&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=iam-sandipmaity/video-downloader&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=iam-sandipmaity/video-downloader&type=date&legend=top-left" />
+ </picture>
+</a>
+
+## Contributors
+
+<p align="center">
+  <a href="https://github.com/iam-sandipmaity/video-downloader/graphs/contributors">
+    <img src="https://contrib.rocks/image?repo=iam-sandipmaity/video-downloader" width="85%"/>
+  </a>
+</p>
