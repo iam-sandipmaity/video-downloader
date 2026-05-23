@@ -20,6 +20,7 @@ import javax.inject.Singleton
 class FfmpegUpdateManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val gitHubReleaseClient: GitHubReleaseClient,
+    private val apkSignatureVerifier: ApkSignatureVerifier,
     private val binaryInstaller: BinaryInstaller,
     private val processRunner: ProcessRunner,
     private val logger: Logger,
@@ -103,6 +104,7 @@ class FfmpegUpdateManager @Inject constructor(
 
         try {
             gitHubReleaseClient.downloadFile(release.asset.browser_download_url, tempApk, onProgress)
+            apkSignatureVerifier.verifySignerDigest(tempApk, TRUSTED_RUNTIME_SIGNER_SHA256_DIGESTS)
 
             val stagedDir = File(overlayDir.parentFile, "${overlayDir.name}.staging")
             stagedDir.deleteRecursively()
@@ -254,6 +256,10 @@ class FfmpegUpdateManager @Inject constructor(
     private companion object {
         private const val PACKAGE_REPOSITORY = "deniscerri/ytdlnis-packages"
         private const val PACKAGE_NAME = "ffmpeg"
+        // Trusted YTDLnis signer fingerprint documented by the upstream project.
+        private val TRUSTED_RUNTIME_SIGNER_SHA256_DIGESTS = setOf(
+            "263645cb5272eb290759fe1f59149ae24df6ce171e9f6666eead981d3fc64c95",
+        )
         private val FFMPEG_VERSION_REGEX = Regex("ffmpeg version\\s+n?([0-9]+(?:\\.[0-9]+)+)", RegexOption.IGNORE_CASE)
     }
 }

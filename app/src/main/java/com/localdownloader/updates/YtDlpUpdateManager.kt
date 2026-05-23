@@ -37,17 +37,23 @@ class YtDlpUpdateManager @Inject constructor(
         val release = gitHubReleaseClient.fetchRelease(channel.apiUrl)
         val latestVersion = normalizeReleaseVersion(release.tag_name)
         val asset = release.assets.firstOrNull { it.name == YTDLP_ASSET_NAME }
-        val updateAvailable = compareLooseVersions(currentVersion, latestVersion) < 0 && asset != null
+        val checksumAsset = release.assets.firstOrNull { it.name.equals(CHECKSUM_ASSET_NAME, ignoreCase = true) }
+        val updateAvailable = compareLooseVersions(currentVersion, latestVersion) < 0 &&
+            asset != null &&
+            checksumAsset != null
         return ComponentUpdateCheck(
             currentVersion = currentVersion,
             latestVersion = latestVersion,
             updateAvailable = updateAvailable,
-            summary = if (compareLooseVersions(currentVersion, latestVersion) < 0 && asset == null) {
-                "A newer ${channel.id} build exists, but the yt-dlp release asset was missing."
-            } else if (updateAvailable) {
-                "A newer ${channel.id} build is available."
-            } else {
-                "yt-dlp is already up to date on ${channel.id}."
+            summary = when {
+                compareLooseVersions(currentVersion, latestVersion) < 0 && asset == null ->
+                    "A newer ${channel.id} build exists, but the yt-dlp release asset was missing."
+                compareLooseVersions(currentVersion, latestVersion) < 0 && checksumAsset == null ->
+                    "A newer ${channel.id} build exists, but its checksum manifest was missing."
+                updateAvailable ->
+                    "A newer ${channel.id} build is available."
+                else ->
+                    "yt-dlp is already up to date on ${channel.id}."
             },
             releaseNotes = release.body,
             releasePageUrl = release.html_url,
@@ -73,13 +79,22 @@ class YtDlpUpdateManager @Inject constructor(
 
         val asset = release.assets.firstOrNull { it.name == YTDLP_ASSET_NAME }
             ?: error("yt-dlp release asset '$YTDLP_ASSET_NAME' was not found")
+        val checksumAsset = release.assets.firstOrNull { it.name.equals(CHECKSUM_ASSET_NAME, ignoreCase = true) }
+            ?: error("yt-dlp checksum asset '$CHECKSUM_ASSET_NAME' was not found")
 
         val runtimeFile = runtimeFile()
         val backupFile = File(runtimeFile.parentFile, "${runtimeFile.name}.bak")
         val tempFile = File.createTempFile("ytdlp-update-", ".tmp", context.cacheDir)
 
         try {
+            val checksumPayload = gitHubReleaseClient.downloadText(checksumAsset.browser_download_url)
+            val expectedDigest = findExpectedSha256(checksumPayload, asset.name)
+                ?: error("Checksum manifest did not contain an entry for '${asset.name}'")
             gitHubReleaseClient.downloadFile(asset.browser_download_url, tempFile, onProgress)
+            val actualDigest = sha256Hex(tempFile)
+            check(actualDigest.equals(expectedDigest, ignoreCase = true)) {
+                "yt-dlp checksum verification failed for ${asset.name}"
+            }
             backupFile.delete()
             if (runtimeFile.exists()) {
                 runtimeFile.copyTo(backupFile, overwrite = true)
@@ -119,5 +134,6 @@ class YtDlpUpdateManager @Inject constructor(
 
     private companion object {
         private const val YTDLP_ASSET_NAME = "yt-dlp"
+        private const val CHECKSUM_ASSET_NAME = "SHA2-256SUMS"
     }
 }
