@@ -32,6 +32,20 @@ class GitHubReleaseClient @Inject constructor(
         json.decodeFromString(ListSerializer(GitHubReleaseDto.serializer()), payload)
     }
 
+    suspend fun downloadText(url: String): String = withContext(Dispatchers.IO) {
+        val connection = openConnection(url, acceptJson = false)
+        try {
+            val responseCode = connection.responseCode
+            val body = readResponseBody(connection, responseCode)
+            if (responseCode !in 200..299) {
+                throw IOException("GitHub download failed: ${extractErrorMessage(body)}")
+            }
+            body
+        } finally {
+            connection.disconnect()
+        }
+    }
+
     suspend fun downloadFile(
         url: String,
         target: File,
@@ -70,8 +84,7 @@ class GitHubReleaseClient @Inject constructor(
         val connection = openConnection(apiUrl, acceptJson = true)
         try {
             val responseCode = connection.responseCode
-            val stream = if (responseCode in 200..299) connection.inputStream else connection.errorStream
-            val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+            val body = readResponseBody(connection, responseCode)
             if (responseCode !in 200..299) {
                 throw IOException("GitHub API request failed: ${extractErrorMessage(body)}")
             }
@@ -79,6 +92,11 @@ class GitHubReleaseClient @Inject constructor(
         } finally {
             connection.disconnect()
         }
+    }
+
+    private fun readResponseBody(connection: HttpURLConnection, responseCode: Int): String {
+        val stream = if (responseCode in 200..299) connection.inputStream else connection.errorStream
+        return stream?.bufferedReader()?.use { it.readText() }.orEmpty()
     }
 
     private fun openConnection(url: String, acceptJson: Boolean): HttpURLConnection {

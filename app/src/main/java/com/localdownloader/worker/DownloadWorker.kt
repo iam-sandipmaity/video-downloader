@@ -12,6 +12,7 @@ import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.localdownloader.data.DownloadTaskStore
+import com.localdownloader.data.DownloadOptionSecretsStore
 import com.localdownloader.data.SettingsStore
 import com.localdownloader.domain.models.DownloadOptions
 import com.localdownloader.domain.models.DownloadStatus
@@ -24,6 +25,7 @@ import com.localdownloader.ffmpeg.FfmpegExecutor
 import com.localdownloader.notifications.AppNotifications
 import com.localdownloader.utils.FileUtils
 import com.localdownloader.utils.Logger
+import com.localdownloader.utils.SensitiveDataSanitizer
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import androidx.hilt.work.HiltWorker
@@ -36,6 +38,7 @@ class DownloadWorker @AssistedInject constructor(
     @Assisted params: WorkerParameters,
     private val downloadEngine: DownloadEngine,
     private val downloadTaskStore: DownloadTaskStore,
+    private val downloadOptionSecretsStore: DownloadOptionSecretsStore,
     private val settingsStore: SettingsStore,
     private val repository: DownloaderRepository,
     private val ffmpegExecutor: FfmpegExecutor,
@@ -46,47 +49,32 @@ class DownloadWorker @AssistedInject constructor(
     override suspend fun doWork(): Result {
         val taskId = inputData.getString(WorkerKeys.TASK_ID) ?: id.toString()
         logger.i("DownloadWorker", "doWork started taskId=$taskId")
-        val url = inputData.getString(WorkerKeys.URL)
-            ?: return Result.failure(workDataOf(WorkerKeys.ERROR_MESSAGE to "Missing URL"))
-        val formatId = inputData.getString(WorkerKeys.FORMAT_ID)
-            ?: return Result.failure(workDataOf(WorkerKeys.ERROR_MESSAGE to "Missing format id"))
-        val outputTemplate = inputData.getString(WorkerKeys.OUTPUT_TEMPLATE)
-            ?: return Result.failure(workDataOf(WorkerKeys.ERROR_MESSAGE to "Missing output template"))
-        val titleHint = inputData.getString(WorkerKeys.TITLE_HINT).orEmpty()
+        downloadTaskStore.awaitInitialLoad()
+        val persistedTask = downloadTaskStore.getTask(taskId)
+        val storedOptions = downloadTaskStore.getCachedOptions(taskId)
+            ?.let { serialized -> downloadOptionSecretsStore.hydrate(taskId, serialized) }
+        val legacyOptions = if (storedOptions == null) parseLegacyOptionsFromInputData() else null
+        val options = storedOptions
+            ?: legacyOptions
+            ?: return Result.failure(workDataOf(WorkerKeys.ERROR_MESSAGE to "Missing download options"))
+        val migratedLegacyOptions = storedOptions == null && legacyOptions != null
+        if (migratedLegacyOptions) {
+            logger.w("DownloadWorker", "Falling back to legacy WorkManager input for taskId=$taskId during migration")
+        }
+        val url = options.url
+        val formatId = options.formatId
+        val outputTemplate = options.outputTemplate
+        val titleHint = persistedTask?.title?.takeIf { it.isNotBlank() }
+            ?: inputData.getString(WorkerKeys.TITLE_HINT).orEmpty()
         logger.i(
             "DownloadWorker",
             "Input parsed taskId=$taskId url=$url format=$formatId outputTemplate=$outputTemplate title='$titleHint'",
         )
-
-        val options = DownloadOptions(
-            url = url,
-            formatId = formatId,
-            outputTemplate = outputTemplate,
-            extractorArgs = inputData.getString(WorkerKeys.EXTRACTOR_ARGS).orEmpty().ifBlank { null },
-            fallbackExtractorArgs = inputData.getString(WorkerKeys.FALLBACK_EXTRACTOR_ARGS).orEmpty().ifBlank { null },
-            loadInfoJsonPath = inputData.getString(WorkerKeys.LOAD_INFO_JSON_PATH).orEmpty().ifBlank { null },
-            userAgentHeader = inputData.getString(WorkerKeys.USER_AGENT_HEADER).orEmpty().ifBlank { null },
-            youtubeAuthEnabled = inputData.getBoolean(WorkerKeys.YOUTUBE_AUTH_ENABLED, false),
-            youtubeCookiesPath = inputData.getString(WorkerKeys.YOUTUBE_COOKIES_PATH).orEmpty().ifBlank { null },
-            youtubePoToken = inputData.getString(WorkerKeys.YOUTUBE_PO_TOKEN).orEmpty().ifBlank { null },
-            youtubePoTokenClientHint = inputData.getString(WorkerKeys.YOUTUBE_PO_TOKEN_CLIENT_HINT) ?: "web.gvs",
-            youtubeDataSyncId = inputData.getString(WorkerKeys.YOUTUBE_DATA_SYNC_ID).orEmpty().ifBlank { null },
-            mergeOutputFormat = inputData.getString(WorkerKeys.MERGE_OUTPUT_FORMAT).orEmpty().ifBlank { null },
-            preferredVideoHeight = inputData.getInt(WorkerKeys.PREFERRED_VIDEO_HEIGHT, -1).takeIf { it > 0 },
-            downloadVideoOnly = inputData.getBoolean(WorkerKeys.DOWNLOAD_VIDEO_ONLY, false),
-            isPlaylistEnabled = inputData.getBoolean(WorkerKeys.PLAYLIST_ENABLED, false),
-            shouldDownloadSubtitles = inputData.getBoolean(WorkerKeys.DOWNLOAD_SUBTITLES, false),
-            shouldEmbedSubtitles = inputData.getBoolean(WorkerKeys.EMBED_SUBTITLES, false),
-            shouldEmbedMetadata = inputData.getBoolean(WorkerKeys.EMBED_METADATA, true),
-            shouldEmbedThumbnail = inputData.getBoolean(WorkerKeys.EMBED_THUMBNAIL, false),
-            shouldWriteThumbnail = inputData.getBoolean(WorkerKeys.WRITE_THUMBNAIL, false),
-            extractAudio = inputData.getBoolean(WorkerKeys.EXTRACT_AUDIO, false),
-            audioFormat = inputData.getString(WorkerKeys.AUDIO_FORMAT).orEmpty().ifBlank { null },
-            audioBitrateKbps = inputData.getInt(WorkerKeys.AUDIO_BITRATE, -1).takeIf { it > 0 },
-            playlistItemIndex = inputData.getInt(WorkerKeys.PLAYLIST_ITEM_INDEX, -1).takeIf { it > 0 },
-            playlistFolderName = inputData.getString(WorkerKeys.PLAYLIST_FOLDER_NAME).orEmpty().ifBlank { null },
+        logger.d(
+            "DownloadWorker",
+            "Loaded options taskId=$taskId playlist=${options.isPlaylistEnabled} extractAudio=${options.extractAudio} " +
+                "format=$formatId authEnabled=${options.youtubeAuthEnabled}",
         )
-        logger.d("DownloadWorker", "DownloadOptions: $options")
         val shouldContinuePlaylistQueue = options.isPlaylistEnabled && options.playlistItemIndex != null
 
         val runningTitle = titleHint.ifBlank { "Downloading..." }
@@ -95,6 +83,9 @@ class DownloadWorker @AssistedInject constructor(
             url = url,
             title = runningTitle,
         )
+        if (migratedLegacyOptions) {
+            downloadTaskStore.cacheOptions(taskId, downloadOptionSecretsStore.persist(taskId, options))
+        }
         appendDebugTrace(taskId, "Worker started")
         appendDebugTrace(taskId, "Input accepted: format=$formatId")
         appendDebugTrace(taskId, "Output template: $outputTemplate")
@@ -196,6 +187,7 @@ class DownloadWorker @AssistedInject constructor(
             taskId = taskId,
             outputTemplate = outputTemplate,
             preferredExtension = options.mergeOutputFormat,
+            expectedDurationSeconds = options.expectedDurationSeconds,
         )
         var result = if (recoveredPendingOutput != null) {
             outputPath = recoveredPendingOutput
@@ -238,6 +230,59 @@ class DownloadWorker @AssistedInject constructor(
             }
         }
 
+        suspend fun recoverCompletedMediaFromPostprocessingFailureIfAvailable(): Boolean {
+            if (result.isSuccess || !isRecoverablePostprocessingFailure(result.stderr)) return false
+
+            val thumbnailRecoveredOutput = recoverPrimaryMediaAfterThumbnailFailure(
+                stderr = result.stderr,
+                currentOutputPath = outputPath,
+                outputTemplate = outputTemplate,
+            )
+            if (thumbnailRecoveredOutput != null) {
+                outputPath = thumbnailRecoveredOutput
+                shouldGenerateThumbnailFallback = options.shouldWriteThumbnail
+                if (!options.shouldWriteThumbnail) {
+                    cleanupThumbnailSidecars(thumbnailRecoveredOutput)
+                }
+                appendDebugTrace(
+                    taskId,
+                    "Thumbnail postprocessing failed after media was saved; completing without embedded thumbnail",
+                )
+                result = CommandResult(
+                    exitCode = 0,
+                    stdout = result.stdout,
+                    stderr = result.stderr,
+                )
+                return true
+            }
+
+            val recoveredOutputPath = recoverPrimaryMediaAfterPostprocessingFailure(
+                taskId = taskId,
+                stderr = result.stderr,
+                currentOutputPath = outputPath,
+                outputTemplate = outputTemplate,
+                preferredExtension = options.mergeOutputFormat,
+                expectedDurationSeconds = options.expectedDurationSeconds,
+            ) ?: return false
+
+            outputPath = recoveredOutputPath
+            if (options.shouldWriteThumbnail) {
+                shouldGenerateThumbnailFallback = true
+            } else {
+                cleanupThumbnailSidecars(recoveredOutputPath)
+            }
+            appendDebugTrace(
+                taskId,
+                "Recovered media after yt-dlp postprocessing failure; finishing without optional postprocess extras",
+            )
+            result = CommandResult(
+                exitCode = 0,
+                stdout = result.stdout,
+                stderr = result.stderr,
+            )
+            return true
+        }
+
         if (!result.isSuccess && shouldRetryWithFallbackExtractor(options, result.stderr)) {
             appendDebugTrace(taskId, "Retrying with analyzed YouTube extractor args after initial failure")
             val fallbackOptions = options.copy(
@@ -274,6 +319,32 @@ class DownloadWorker @AssistedInject constructor(
                 appendDebugTrace(
                     taskId,
                     "Explicit split recovery failed: ${splitResult.errorMessage.orEmpty().take(MAX_OUTPUT_TRACE_LINE_LENGTH).ifBlank { "unknown error" }}",
+                )
+            }
+        }
+
+        recoverCompletedMediaFromPostprocessingFailureIfAvailable()
+
+        if (!result.isSuccess && shouldTryExplicitSplitDownloadAfterPostprocessingFailure(lastAttemptOptions, result.stderr)) {
+            appendDebugTrace(taskId, "Retrying with explicit split-stream recovery after postprocessing failure")
+            val splitResult = tryExplicitSplitDownload(
+                options = lastAttemptOptions.copy(loadInfoJsonPath = null),
+                originalOutputTemplate = outputTemplate,
+                taskId = taskId,
+                onRunDownload = { attemptOptions, stageLabel ->
+                    runDownloadWithExtractorFallbacks(
+                        attemptOptions.copy(loadInfoJsonPath = null),
+                        stageLabel,
+                    )
+                },
+            )
+            if (splitResult.isSuccess) {
+                outputPath = splitResult.outputPath
+                result = CommandResult(exitCode = 0, stdout = "", stderr = "")
+            } else {
+                appendDebugTrace(
+                    taskId,
+                    "Explicit split recovery after postprocessing failure failed: ${splitResult.errorMessage.orEmpty().take(MAX_OUTPUT_TRACE_LINE_LENGTH).ifBlank { "unknown error" }}",
                 )
             }
         }
@@ -429,12 +500,13 @@ class DownloadWorker @AssistedInject constructor(
                 currentOutputPath = outputPath,
                 outputTemplate = outputTemplate,
                 preferredExtension = options.mergeOutputFormat,
+                expectedDurationSeconds = options.expectedDurationSeconds,
             )
             if (recoveredOutputPath != null) {
                 outputPath = recoveredOutputPath
                 if (options.shouldWriteThumbnail) {
                     shouldGenerateThumbnailFallback = true
-                } else if (!options.shouldEmbedThumbnail) {
+                } else {
                     cleanupThumbnailSidecars(recoveredOutputPath)
                 }
                 appendDebugTrace(
@@ -455,6 +527,7 @@ class DownloadWorker @AssistedInject constructor(
                 currentOutputPath = outputPath,
                 stderr = result.stderr,
                 sawExistingFileReuse = reusedExistingDownloadFile,
+                expectedDurationSeconds = options.expectedDurationSeconds,
             )
         ) {
             val invalidExistingPath = outputPath
@@ -778,6 +851,16 @@ class DownloadWorker @AssistedInject constructor(
         if (options.extractAudio || options.downloadVideoOnly) return false
         if (splitFormatSelector(options.formatId) == null) return false
         return isYoutubeFormatAccessFailure(stderr)
+    }
+
+    private fun shouldTryExplicitSplitDownloadAfterPostprocessingFailure(
+        options: DownloadOptions,
+        stderr: String,
+    ): Boolean {
+        if (options.extractAudio || options.downloadVideoOnly) return false
+        if (!isYoutubeUrl(options.url)) return false
+        if (splitFormatSelector(options.formatId) == null) return false
+        return isRecoverablePostprocessingFailure(stderr)
     }
 
     private fun dedupeRecoveryAttempts(attempts: List<SafeModeAttempt>): List<SafeModeAttempt> {
@@ -1176,6 +1259,7 @@ class DownloadWorker @AssistedInject constructor(
         currentOutputPath: String?,
         outputTemplate: String,
         preferredExtension: String?,
+        expectedDurationSeconds: Long?,
     ): String? {
         if (!isRecoverablePostprocessingFailure(stderr)) return null
 
@@ -1183,11 +1267,13 @@ class DownloadWorker @AssistedInject constructor(
             taskId = taskId,
             stderr = stderr,
             currentOutputPath = currentOutputPath,
+            expectedDurationSeconds = expectedDurationSeconds,
         )?.let { return it }
 
         val splitArtifacts = findSplitMediaArtifacts(
             outputTemplate = outputTemplate,
             currentOutputPath = currentOutputPath,
+            allowLooseArtifacts = true,
         ) ?: return null
         val requestedTargetPath = currentOutputPath
             ?.takeIf { candidate ->
@@ -1220,7 +1306,8 @@ class DownloadWorker @AssistedInject constructor(
         if (
             !remuxResult.commandResult.isSuccess ||
             !mergedOutputFile.exists() ||
-            mergedOutputFile.length() <= MIN_RECOVERED_MEDIA_BYTES
+            mergedOutputFile.length() <= MIN_RECOVERED_MEDIA_BYTES ||
+            !isUsablePrimaryMediaFile(mergedOutputFile, expectedDurationSeconds)
         ) {
             appendDebugTrace(
                 taskId,
@@ -1242,6 +1329,7 @@ class DownloadWorker @AssistedInject constructor(
         taskId: String,
         stderr: String,
         currentOutputPath: String?,
+        expectedDurationSeconds: Long?,
     ): String? {
         val currentFile = currentOutputPath
             ?.let(::File)
@@ -1259,11 +1347,12 @@ class DownloadWorker @AssistedInject constructor(
                 taskId = taskId,
                 sourceFile = currentFile,
                 preferMpegTsInput = true,
+                expectedDurationSeconds = expectedDurationSeconds,
             )?.let { return it }
             return null
         }
 
-        return if (isUsablePrimaryMediaFile(currentFile)) {
+        return if (isUsablePrimaryMediaFile(currentFile, expectedDurationSeconds)) {
             currentFile.absolutePath
         } else {
             null
@@ -1274,6 +1363,7 @@ class DownloadWorker @AssistedInject constructor(
         taskId: String,
         sourceFile: File,
         preferMpegTsInput: Boolean,
+        expectedDurationSeconds: Long?,
     ): String? {
         if (sourceFile.extension.lowercase() !in VIDEO_ARTIFACT_EXTENSIONS) return null
 
@@ -1284,12 +1374,6 @@ class DownloadWorker @AssistedInject constructor(
         safeDelete(tempRepairPath)
 
         val repairAttempts = buildList {
-            add(
-                SingleFileRepairAttempt(
-                    label = "stream copy remux",
-                    forceInputFormat = null,
-                ),
-            )
             if (preferMpegTsInput) {
                 add(
                     SingleFileRepairAttempt(
@@ -1298,6 +1382,12 @@ class DownloadWorker @AssistedInject constructor(
                     ),
                 )
             }
+            add(
+                SingleFileRepairAttempt(
+                    label = "stream copy remux",
+                    forceInputFormat = null,
+                ),
+            )
         }
 
         for (attempt in repairAttempts) {
@@ -1312,7 +1402,11 @@ class DownloadWorker @AssistedInject constructor(
                 forceInputFormat = attempt.forceInputFormat,
             )
             val repairedFile = File(tempRepairPath)
-            if (result.isSuccess && repairedFile.exists() && isUsablePrimaryMediaFile(repairedFile)) {
+            if (
+                result.isSuccess &&
+                repairedFile.exists() &&
+                isUsablePrimaryMediaFile(repairedFile, expectedDurationSeconds)
+            ) {
                 if (sourceFile.delete() && repairedFile.renameTo(sourceFile)) {
                     appendDebugTrace(taskId, "Standalone media repair succeeded and replaced the original file")
                     return sourceFile.absolutePath
@@ -1330,10 +1424,12 @@ class DownloadWorker @AssistedInject constructor(
         taskId: String,
         outputTemplate: String,
         preferredExtension: String?,
+        expectedDurationSeconds: Long?,
     ): String? {
         val splitArtifacts = findSplitMediaArtifacts(
             outputTemplate = outputTemplate,
             currentOutputPath = null,
+            allowLooseArtifacts = false,
         ) ?: return null
         if (splitArtifacts.video.length() <= MIN_RECOVERED_MEDIA_BYTES ||
             splitArtifacts.audio.length() <= MIN_RECOVERED_MEDIA_BYTES
@@ -1367,7 +1463,8 @@ class DownloadWorker @AssistedInject constructor(
         if (
             !remuxResult.commandResult.isSuccess ||
             !mergedOutputFile.exists() ||
-            mergedOutputFile.length() <= MIN_RECOVERED_MEDIA_BYTES
+            mergedOutputFile.length() <= MIN_RECOVERED_MEDIA_BYTES ||
+            !isUsablePrimaryMediaFile(mergedOutputFile, expectedDurationSeconds)
         ) {
             appendDebugTrace(
                 taskId,
@@ -1594,26 +1691,12 @@ class DownloadWorker @AssistedInject constructor(
         targetPath: String,
         stderr: String,
     ): String? {
-        val extension = File(targetPath).extension.lowercase()
-        if (extension !in CONTAINER_SENSITIVE_EXTENSIONS) return null
-
-        val videoExtension = File(videoPath).extension.lowercase()
-        val audioExtension = File(audioPath).extension.lowercase()
-        val lower = stderr.lowercase()
-        val hasExplicitContainerFailure = lower.contains("codec not currently supported in container") ||
-            lower.contains("could not find tag for codec") ||
-            (lower.contains("could not write header") && lower.contains("incorrect codec parameters"))
-        val hasWebmLikeSource = videoExtension == "webm" || audioExtension in WEBM_LIKE_AUDIO_EXTENSIONS
-
-        if (!hasExplicitContainerFailure && !(extension == "mp4" && hasWebmLikeSource)) {
-            return null
-        }
-
-        return if (videoExtension == "webm" && audioExtension in WEBM_LIKE_AUDIO_EXTENSIONS) {
-            "webm"
-        } else {
-            "mkv"
-        }
+        return resolveCompatibleContainerFallback(
+            requestedExtension = File(targetPath).extension,
+            videoExtension = File(videoPath).extension,
+            audioExtension = File(audioPath).extension,
+            stderr = stderr,
+        )
     }
 
     private fun replaceFileExtension(path: String, extension: String): String {
@@ -1626,6 +1709,7 @@ class DownloadWorker @AssistedInject constructor(
     private fun findSplitMediaArtifacts(
         outputTemplate: String,
         currentOutputPath: String?,
+        allowLooseArtifacts: Boolean,
     ): SplitMediaArtifacts? {
         val currentOutputFile = currentOutputPath?.let(::File)
         val parent = currentOutputFile?.parentFile
@@ -1639,15 +1723,15 @@ class DownloadWorker @AssistedInject constructor(
             ?.filter { candidate ->
                 candidate.isFile &&
                     candidate.name.startsWith(stem) &&
-                    candidate.length() > 0L &&
-                    isTemporarySplitArtifact(candidate)
+                    candidate.length() > 0L
             }
-            ?.sortedByDescending { it.lastModified() }
             .orEmpty()
-
-        val video = candidates.firstOrNull(::isPossibleVideoSplitArtifact) ?: return null
-        val audio = candidates.firstOrNull(::isPossibleAudioSplitArtifact) ?: return null
-        return SplitMediaArtifacts(video = video, audio = audio)
+        val selectedPair = selectDistinctSplitArtifacts(
+            candidates = candidates,
+            allowLooseArtifacts = allowLooseArtifacts,
+            detectRole = ::detectSplitArtifactRole,
+        ) ?: return null
+        return SplitMediaArtifacts(video = selectedPair.first, audio = selectedPair.second)
     }
 
     private fun cleanupOrphanedManagedArtifacts(outputTemplate: String, taskId: String) {
@@ -1657,6 +1741,7 @@ class DownloadWorker @AssistedInject constructor(
         val recoverableSplitArtifacts = findSplitMediaArtifacts(
             outputTemplate = outputTemplate,
             currentOutputPath = null,
+            allowLooseArtifacts = false,
         )
         val primaryExists = parent.listFiles()
             ?.any { candidate ->
@@ -1697,7 +1782,10 @@ class DownloadWorker @AssistedInject constructor(
         return file.extension.lowercase() in PRIMARY_MEDIA_EXTENSIONS
     }
 
-    private fun isUsablePrimaryMediaFile(file: File): Boolean {
+    private fun isUsablePrimaryMediaFile(
+        file: File,
+        expectedDurationSeconds: Long? = null,
+    ): Boolean {
         if (!file.exists() || !file.isFile) return false
         if (!isLikelyPrimaryMediaFile(file)) return false
         if (file.length() <= MIN_RECOVERED_MEDIA_BYTES) return false
@@ -1708,7 +1796,10 @@ class DownloadWorker @AssistedInject constructor(
             val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
                 ?.toLongOrNull()
                 ?: 0L
-            durationMs > 0L
+            isRecoveredDurationPlausible(
+                actualDurationMs = durationMs,
+                expectedDurationSeconds = expectedDurationSeconds,
+            )
         }.getOrDefault(false).also {
             runCatching { retriever.release() }
         }
@@ -1718,10 +1809,11 @@ class DownloadWorker @AssistedInject constructor(
         currentOutputPath: String?,
         stderr: String,
         sawExistingFileReuse: Boolean,
+        expectedDurationSeconds: Long?,
     ): Boolean {
         if (!sawExistingFileReuse || currentOutputPath.isNullOrBlank()) return false
         val file = File(currentOutputPath)
-        if (!file.exists() || isUsablePrimaryMediaFile(file)) return false
+        if (!file.exists() || isUsablePrimaryMediaFile(file, expectedDurationSeconds)) return false
 
         val lower = stderr.lowercase()
         return lower.contains("postprocessing:") &&
@@ -1733,21 +1825,49 @@ class DownloadWorker @AssistedInject constructor(
     }
 
     private fun isTemporarySplitArtifact(file: File): Boolean {
-        val lower = file.name.lowercase()
-        return Regex(""".*\.f[a-z0-9_-]+.*\..+""").matches(lower) ||
-            lower.contains(".fdash-") ||
-            lower.contains(".video.") ||
-            lower.contains(".audio.")
+        return isLooseSplitArtifactName(file.name)
     }
 
     private fun isPossibleVideoSplitArtifact(file: File): Boolean {
-        if (!isTemporarySplitArtifact(file)) return false
-        return file.extension.lowercase() in VIDEO_ARTIFACT_EXTENSIONS
+        return detectSplitArtifactRole(file) == SplitArtifactRole.VIDEO
     }
 
     private fun isPossibleAudioSplitArtifact(file: File): Boolean {
-        if (!isTemporarySplitArtifact(file)) return false
-        return file.extension.lowercase() in AUDIO_ARTIFACT_EXTENSIONS
+        return detectSplitArtifactRole(file) == SplitArtifactRole.AUDIO
+    }
+
+    private fun detectSplitArtifactRole(file: File): SplitArtifactRole? {
+        if (!isTemporarySplitArtifact(file)) return null
+        return splitArtifactRoleFromName(file) ?: probeSplitArtifactRole(file)
+    }
+
+    private fun probeSplitArtifactRole(file: File): SplitArtifactRole? {
+        val retriever = MediaMetadataRetriever()
+        return runCatching {
+            retriever.setDataSource(file.absolutePath)
+            val hasVideo = parseMetadataFlag(
+                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_VIDEO),
+            )
+            val hasAudio = parseMetadataFlag(
+                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_AUDIO),
+            )
+            when {
+                hasVideo && !hasAudio -> SplitArtifactRole.VIDEO
+                hasAudio && !hasVideo -> SplitArtifactRole.AUDIO
+                hasVideo -> SplitArtifactRole.VIDEO
+                hasAudio -> SplitArtifactRole.AUDIO
+                else -> null
+            }
+        }.getOrNull().also {
+            runCatching { retriever.release() }
+        }
+    }
+
+    private fun parseMetadataFlag(value: String?): Boolean {
+        return when (value?.trim()?.lowercase()) {
+            "1", "yes", "true" -> true
+            else -> false
+        }
     }
 
     private fun isTemporaryDownloadArtifactName(fileName: String): Boolean {
@@ -1787,7 +1907,9 @@ class DownloadWorker @AssistedInject constructor(
     }
 
     private fun appendDebugTrace(taskId: String, message: String) {
-        val normalized = message.trim().replace("\n", " ")
+        val normalized = SensitiveDataSanitizer.sanitize(
+            message.trim().replace("\n", " "),
+        )
         if (normalized.isBlank()) return
 
         val entry = "${System.currentTimeMillis()}: $normalized"
@@ -1821,10 +1943,11 @@ class DownloadWorker @AssistedInject constructor(
         if (isClosedStreamFailure(shortRaw.lowercase())) {
             return "Download was interrupted before yt-dlp returned a stable error. Please retry."
         }
+        val sanitized = SensitiveDataSanitizer.sanitize(shortRaw)
         return if (isStorageDenied(throwable, shortRaw)) {
-            "Storage denied: $shortRaw"
+            "Storage denied: $sanitized"
         } else {
-            shortRaw
+            sanitized
         }
     }
 
@@ -2118,12 +2241,6 @@ class DownloadWorker @AssistedInject constructor(
             "wav",
             "webm",
         )
-        val WEBM_LIKE_AUDIO_EXTENSIONS = setOf(
-            "webm",
-            "weba",
-            "opus",
-            "ogg",
-        )
         val THUMBNAIL_SIDECAR_EXTENSIONS = setOf(
             "jpg",
             "jpeg",
@@ -2143,12 +2260,6 @@ class DownloadWorker @AssistedInject constructor(
             "json",
             "infojson",
             "nfo",
-        )
-        val CONTAINER_SENSITIVE_EXTENSIONS = setOf(
-            "mp4",
-            "m4v",
-            "mov",
-            "3gp",
         )
     }
 
@@ -2172,6 +2283,40 @@ class DownloadWorker @AssistedInject constructor(
         if (normalized.equals("n/a", ignoreCase = true)) return null
         if (normalized.equals("unknown", ignoreCase = true)) return null
         return normalized
+    }
+
+    private fun parseLegacyOptionsFromInputData(): DownloadOptions? {
+        val url = inputData.getString(WorkerKeys.URL) ?: return null
+        val formatId = inputData.getString(WorkerKeys.FORMAT_ID) ?: return null
+        val outputTemplate = inputData.getString(WorkerKeys.OUTPUT_TEMPLATE) ?: return null
+        return DownloadOptions(
+            url = url,
+            formatId = formatId,
+            outputTemplate = outputTemplate,
+            extractorArgs = inputData.getString(WorkerKeys.EXTRACTOR_ARGS).orEmpty().ifBlank { null },
+            fallbackExtractorArgs = inputData.getString(WorkerKeys.FALLBACK_EXTRACTOR_ARGS).orEmpty().ifBlank { null },
+            loadInfoJsonPath = inputData.getString(WorkerKeys.LOAD_INFO_JSON_PATH).orEmpty().ifBlank { null },
+            userAgentHeader = inputData.getString(WorkerKeys.USER_AGENT_HEADER).orEmpty().ifBlank { null },
+            youtubeAuthEnabled = inputData.getBoolean(WorkerKeys.YOUTUBE_AUTH_ENABLED, false),
+            youtubeCookiesPath = inputData.getString(WorkerKeys.YOUTUBE_COOKIES_PATH).orEmpty().ifBlank { null },
+            youtubePoToken = inputData.getString(WorkerKeys.YOUTUBE_PO_TOKEN).orEmpty().ifBlank { null },
+            youtubePoTokenClientHint = inputData.getString(WorkerKeys.YOUTUBE_PO_TOKEN_CLIENT_HINT) ?: "web.gvs",
+            youtubeDataSyncId = inputData.getString(WorkerKeys.YOUTUBE_DATA_SYNC_ID).orEmpty().ifBlank { null },
+            mergeOutputFormat = inputData.getString(WorkerKeys.MERGE_OUTPUT_FORMAT).orEmpty().ifBlank { null },
+            preferredVideoHeight = inputData.getInt(WorkerKeys.PREFERRED_VIDEO_HEIGHT, -1).takeIf { it > 0 },
+            downloadVideoOnly = inputData.getBoolean(WorkerKeys.DOWNLOAD_VIDEO_ONLY, false),
+            isPlaylistEnabled = inputData.getBoolean(WorkerKeys.PLAYLIST_ENABLED, false),
+            shouldDownloadSubtitles = inputData.getBoolean(WorkerKeys.DOWNLOAD_SUBTITLES, false),
+            shouldEmbedSubtitles = inputData.getBoolean(WorkerKeys.EMBED_SUBTITLES, false),
+            shouldEmbedMetadata = inputData.getBoolean(WorkerKeys.EMBED_METADATA, true),
+            shouldEmbedThumbnail = inputData.getBoolean(WorkerKeys.EMBED_THUMBNAIL, false),
+            shouldWriteThumbnail = inputData.getBoolean(WorkerKeys.WRITE_THUMBNAIL, false),
+            extractAudio = inputData.getBoolean(WorkerKeys.EXTRACT_AUDIO, false),
+            audioFormat = inputData.getString(WorkerKeys.AUDIO_FORMAT).orEmpty().ifBlank { null },
+            audioBitrateKbps = inputData.getInt(WorkerKeys.AUDIO_BITRATE, -1).takeIf { it > 0 },
+            playlistItemIndex = inputData.getInt(WorkerKeys.PLAYLIST_ITEM_INDEX, -1).takeIf { it > 0 },
+            playlistFolderName = inputData.getString(WorkerKeys.PLAYLIST_FOLDER_NAME).orEmpty().ifBlank { null },
+        )
     }
 
     private data class SplitSelectors(

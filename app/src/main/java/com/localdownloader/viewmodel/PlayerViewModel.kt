@@ -17,6 +17,7 @@ import androidx.media3.common.Tracks
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
+import com.localdownloader.audio.AudioPlaybackManager
 import com.localdownloader.data.PlaybackSession
 import com.localdownloader.data.PlaybackSessionStore
 import com.localdownloader.domain.models.DownloadTask
@@ -40,6 +41,7 @@ class PlayerViewModel @Inject constructor(
     private val playbackSessionStore: PlaybackSessionStore,
     private val savedStateHandle: SavedStateHandle,
     private val logger: Logger,
+    private val audioPlaybackManager: AudioPlaybackManager,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(PlayerUiState())
     val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
@@ -174,6 +176,8 @@ class PlayerViewModel @Inject constructor(
             }
             return
         }
+
+        audioPlaybackManager.pausePlayback()
 
         if (currentSessionKey == sessionKey && currentPlayablePath == playablePath && player.mediaItemCount > 0) {
             _uiState.update { state ->

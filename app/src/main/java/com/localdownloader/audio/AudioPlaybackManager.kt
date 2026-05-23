@@ -132,6 +132,15 @@ class AudioPlaybackManager @Inject constructor(
         }
     }
 
+    fun pausePlayback() {
+        scope.launch {
+            if (currentQueue.isEmpty()) return@launch
+            player.pause()
+            AudioPlaybackService.start(appContext)
+            updateState()
+        }
+    }
+
     fun seekBy(offsetMs: Long) {
         scope.launch {
             if (currentQueue.isEmpty()) return@launch

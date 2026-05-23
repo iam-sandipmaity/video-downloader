@@ -4,20 +4,25 @@ import android.content.Context
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.webkit.JavascriptInterface
+import android.webkit.ConsoleMessage
+import android.webkit.WebChromeClient
 import android.webkit.WebView
+import android.webkit.WebViewClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLDecoder
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -63,17 +68,31 @@ object YoutubePoTokenGenerator {
         private val webView = WebView(context)
         private val poTokenContinuations = linkedMapOf<String, kotlin.coroutines.Continuation<String>>()
         private var initializationContinuation: kotlin.coroutines.Continuation<BotGuardWebView>? = null
+        private var botguardInitializationStarted = false
 
         init {
             webView.settings.apply {
                 javaScriptEnabled = true
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    safeBrowsingEnabled = false
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                    safeBrowsingEnabled = true
                 }
                 userAgentString = USER_AGENT
                 blockNetworkLoads = true
             }
-            webView.addJavascriptInterface(this, JS_INTERFACE)
+            webView.webChromeClient = object : WebChromeClient() {
+                override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
+                    return handleBridgeConsoleMessage(consoleMessage.message()) || super.onConsoleMessage(consoleMessage)
+                }
+            }
+            webView.webViewClient = object : WebViewClient() {
+                override fun onPageFinished(view: WebView?, url: String?) {
+                    super.onPageFinished(view, url)
+                    if (!botguardInitializationStarted) {
+                        botguardInitializationStarted = true
+                        downloadAndRunBotguard()
+                    }
+                }
+            }
         }
 
         suspend fun generatePoToken(identifier: String): String {
@@ -94,9 +113,9 @@ object YoutubePoTokenGenerator {
                                 if (i != 0) poTokenU8String += ","
                                 poTokenU8String += poTokenU8[i]
                             }
-                            $JS_INTERFACE.onObtainPoTokenResult(identifier, poTokenU8String)
+                            postNativeMessage("po_token_result", JSON.stringify({ identifier: identifier, poTokenU8: poTokenU8String }))
                         } catch (error) {
-                            $JS_INTERFACE.onObtainPoTokenError(identifier, error + "\n" + error.stack)
+                            postNativeMessage("po_token_error", JSON.stringify({ identifier: identifier, error: error + "\n" + error.stack }))
                         }
                         """.trimIndent(),
                         null,
@@ -124,10 +143,7 @@ object YoutubePoTokenGenerator {
                     withContext(Dispatchers.Main) {
                         webView.loadDataWithBaseURL(
                             "https://www.youtube.com",
-                            html.replaceFirst(
-                                "</script>",
-                                "\n$JS_INTERFACE.downloadAndRunBotguard()</script>",
-                            ),
+                            html.replaceFirst("</script>", "\n${nativeBridgeJavascript()}\n</script>"),
                             "text/html",
                             "utf-8",
                             null,
@@ -137,8 +153,7 @@ object YoutubePoTokenGenerator {
             }
         }
 
-        @JavascriptInterface
-        fun downloadAndRunBotguard() {
+        private fun downloadAndRunBotguard() {
             scope.launch {
                 runCatching {
                     val responseBody = makeBotguardServiceRequest(
@@ -154,12 +169,12 @@ object YoutubePoTokenGenerator {
                                 data = $parsedChallengeData
                                 runBotGuard(data).then(function (result) {
                                     this.webPoSignalOutput = result.webPoSignalOutput
-                                    $JS_INTERFACE.onRunBotguardResult(result.botguardResponse)
+                                    postNativeMessage("botguard_result", result.botguardResponse)
                                 }, function (error) {
-                                    $JS_INTERFACE.onJsInitializationError(error + "\n" + error.stack)
+                                    postNativeMessage("js_init_error", error + "\n" + error.stack)
                                 })
                             } catch (error) {
-                                $JS_INTERFACE.onJsInitializationError(error + "\n" + error.stack)
+                                postNativeMessage("js_init_error", error + "\n" + error.stack)
                             }
                             """.trimIndent(),
                             null,
@@ -169,8 +184,7 @@ object YoutubePoTokenGenerator {
             }
         }
 
-        @JavascriptInterface
-        fun onRunBotguardResult(botguardResponse: String) {
+        private fun onRunBotguardResult(botguardResponse: String) {
             scope.launch {
                 runCatching {
                     val response = makeBotguardServiceRequest(
@@ -191,18 +205,15 @@ object YoutubePoTokenGenerator {
             }
         }
 
-        @JavascriptInterface
-        fun onJsInitializationError(error: String) {
+        private fun onJsInitializationError(error: String) {
             failInitialization(IllegalStateException(error))
         }
 
-        @JavascriptInterface
-        fun onObtainPoTokenError(identifier: String, error: String) {
+        private fun onObtainPoTokenError(identifier: String, error: String) {
             poTokenContinuations.remove(identifier)?.resumeWithException(IllegalStateException(error))
         }
 
-        @JavascriptInterface
-        fun onObtainPoTokenResult(identifier: String, poTokenU8: String) {
+        private fun onObtainPoTokenResult(identifier: String, poTokenU8: String) {
             runCatching {
                 YoutubePoTokenJavascriptUtil.u8ToBase64(poTokenU8)
             }.onSuccess { poToken ->
@@ -210,6 +221,53 @@ object YoutubePoTokenGenerator {
             }.onFailure { error ->
                 poTokenContinuations.remove(identifier)?.resumeWithException(error)
             }
+        }
+
+        private fun handleBridgeConsoleMessage(message: String?): Boolean {
+            val rawMessage = message.orEmpty()
+            if (!rawMessage.startsWith(CONSOLE_BRIDGE_PREFIX)) {
+                return false
+            }
+
+            val decodedPayload = runCatching {
+                URLDecoder.decode(rawMessage.removePrefix(CONSOLE_BRIDGE_PREFIX), Charsets.UTF_8.name())
+            }.getOrNull() ?: return true
+            val envelope = runCatching {
+                Json.decodeFromString<BridgeEnvelope>(decodedPayload)
+            }.getOrNull() ?: return true
+
+            when (envelope.type) {
+                "botguard_result" -> onRunBotguardResult(envelope.payload)
+                "js_init_error" -> onJsInitializationError(envelope.payload)
+                "po_token_result" -> {
+                    val payload = runCatching {
+                        Json.decodeFromString<PoTokenBridgePayload>(envelope.payload)
+                    }.getOrNull() ?: return true
+                    onObtainPoTokenResult(
+                        identifier = payload.identifier,
+                        poTokenU8 = payload.poTokenU8.orEmpty(),
+                    )
+                }
+                "po_token_error" -> {
+                    val payload = runCatching {
+                        Json.decodeFromString<PoTokenBridgePayload>(envelope.payload)
+                    }.getOrNull() ?: return true
+                    onObtainPoTokenError(
+                        identifier = payload.identifier,
+                        error = payload.error.orEmpty(),
+                    )
+                }
+            }
+            return true
+        }
+
+        private fun nativeBridgeJavascript(): String {
+            return """
+                function postNativeMessage(type, payload) {
+                  const envelope = JSON.stringify({ type: type, payload: payload });
+                  console.log("${CONSOLE_BRIDGE_PREFIX}" + encodeURIComponent(envelope));
+                }
+            """.trimIndent()
         }
 
         private fun failInitialization(error: Throwable) {
@@ -268,6 +326,19 @@ object YoutubePoTokenGenerator {
         }
     }
 
+    @Serializable
+    private data class BridgeEnvelope(
+        val type: String,
+        val payload: String,
+    )
+
+    @Serializable
+    private data class PoTokenBridgePayload(
+        val identifier: String,
+        val poTokenU8: String? = null,
+        val error: String? = null,
+    )
+
     // These BotGuard constants currently mirror LibreTube's implementation:
     // GOOGLE_API_KEY:
     // https://github.com/libre-tube/LibreTube/blob/73e9a0fd9bf7f5ee1d6acb22d2fc4d8353bcc815/app/src/main/java/com/github/libretube/api/ExternalApi.kt#L23
@@ -280,5 +351,5 @@ object YoutubePoTokenGenerator {
     private const val USER_AGENT =
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
             "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.3"
-    private const val JS_INTERFACE = "LocalDownloaderPoTokenBridge"
+    private const val CONSOLE_BRIDGE_PREFIX = "__LOCALDOWNLOADER_PO__"
 }

@@ -1240,7 +1240,7 @@ private fun RecoveryHelperCard(
             }
             RecoveryActionChip(label = "Try Cookies", onClick = onOpenCookies)
             if (isYoutubeTask) {
-                RecoveryActionChip(label = "PO generation", onClick = onOpenYoutubeAccess)
+                RecoveryActionChip(label = "YouTube access", onClick = onOpenYoutubeAccess)
             }
         }
 
@@ -1732,13 +1732,13 @@ private fun buildRecoveryGuidance(
 ): String {
     return when {
         isStuck && isYoutubeTask ->
-            "This YouTube item has not updated for ${formatElapsedLabel(currentTimeMs - task.updatedAtEpochMs)}. Cookies or PO generation often help when playback access checks interrupt the download."
+            "This YouTube item has not updated for ${formatElapsedLabel(currentTimeMs - task.updatedAtEpochMs)}. Cookies or refreshed YouTube access often help when playback access checks interrupt the download."
 
         isStuck ->
             "This item has not updated for ${formatElapsedLabel(currentTimeMs - task.updatedAtEpochMs)}. Cookies can help if the site needs a signed-in or region-matched session."
 
         isYoutubeTask ->
-            "YouTube failures often improve after adding cookies and refreshing PO generation from Settings or More."
+            "YouTube failures often improve after adding cookies and refreshing YouTube access from Settings or More."
 
         else ->
             "If this download failed after redirects, rate limits, or protected access, try cookies first. If it still fails, export the logs and report the issue."

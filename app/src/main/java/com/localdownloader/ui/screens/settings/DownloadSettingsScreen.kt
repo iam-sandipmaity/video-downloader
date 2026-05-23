@@ -105,15 +105,15 @@ fun DownloadSettingsScreen(
                     icon = Icons.Rounded.VideoFile,
                     title = stringResource(R.string.download_defaults_video_container_title),
                     subtitle = stringResource(R.string.download_defaults_video_container_subtitle),
-                    value = uiState.selectedContainer.uppercase(),
+                    value = containerDisplayLabel(context, uiState.selectedContainer),
                     onClick = {
-                        val containers = listOf("mp4", "webm", "mkv", "mov")
+                        val containers = listOf("auto", "mp4", "webm", "mkv", "mov")
                         choiceDialog = SettingChoiceDialogState(
                             title = context.getString(R.string.download_defaults_video_container_title),
-                            selected = uiState.selectedContainer.uppercase(),
+                            selected = containerDisplayLabel(context, uiState.selectedContainer),
                             options = containers.map { container ->
                                 SettingChoiceOption(
-                                    title = container.uppercase(),
+                                    title = containerDisplayLabel(context, container),
                                     subtitle = containerDescription(context, container),
                                     onSelect = { onDefaultVideoContainerChanged(container) },
                                 )

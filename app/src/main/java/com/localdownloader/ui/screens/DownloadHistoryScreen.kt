@@ -27,10 +27,13 @@ import androidx.compose.material.icons.outlined.Article
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
@@ -43,11 +46,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.Alignment
@@ -66,7 +69,15 @@ import androidx.compose.ui.unit.dp
 import com.localdownloader.R
 import com.localdownloader.domain.models.DownloadStatus
 import com.localdownloader.domain.models.DownloadTask
+import com.localdownloader.ui.components.InlineFeedbackCard
 import com.localdownloader.ui.components.PreferencePageScaffold
+import com.localdownloader.ui.screens.settings.SettingChoiceDialog
+import com.localdownloader.ui.screens.settings.SettingChoiceDialogState
+import com.localdownloader.ui.screens.settings.SettingChoiceOption
+import com.localdownloader.ui.screens.settings.SettingConfirmDialog
+import com.localdownloader.ui.screens.settings.SettingConfirmDialogState
+import com.localdownloader.ui.support.shareAppLogs
+import com.localdownloader.utils.SensitiveDataSanitizer
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -75,6 +86,12 @@ import java.util.Locale
 @Composable
 fun DownloadHistoryScreen(
     tasks: List<DownloadTask>,
+    retentionDays: Int,
+    infoMessage: String? = null,
+    errorMessage: String? = null,
+    onDismissMessage: (() -> Unit)? = null,
+    onRetentionDaysChanged: (Int) -> Unit,
+    onClearFailedAndCanceledHistory: () -> Unit,
     onBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -88,6 +105,9 @@ fun DownloadHistoryScreen(
     }
     var selectedFilter by rememberSaveable { mutableStateOf(HistoryFilter.All.name) }
     var selectedTask by remember { mutableStateOf<DownloadTask?>(null) }
+    var showActionsMenu by remember { mutableStateOf(false) }
+    var choiceDialog by remember { mutableStateOf<SettingChoiceDialogState?>(null) }
+    var confirmDialog by remember { mutableStateOf<SettingConfirmDialogState?>(null) }
 
     val currentFilter = runCatching { HistoryFilter.valueOf(selectedFilter) }
         .getOrDefault(HistoryFilter.All)
@@ -95,12 +115,100 @@ fun DownloadHistoryScreen(
     val completedCount = historyItems.count { it.status == DownloadStatus.COMPLETED }
     val failedCount = historyItems.count { it.status == DownloadStatus.FAILED }
     val canceledCount = historyItems.count { it.status == DownloadStatus.CANCELED }
+    val purgeableHistoryCount = historyItems.count(::isPurgeableHistoryTask)
+    val retentionLabel = context.resources.getQuantityString(R.plurals.common_days, retentionDays, retentionDays)
+
+    LaunchedEffect(historyItems, selectedTask?.id) {
+        val currentSelected = selectedTask ?: return@LaunchedEffect
+        if (historyItems.none { it.id == currentSelected.id }) {
+            selectedTask = null
+        }
+    }
+
+    choiceDialog?.let { state ->
+        SettingChoiceDialog(
+            state = state,
+            onDismiss = { choiceDialog = null },
+        )
+    }
+    confirmDialog?.let { state ->
+        SettingConfirmDialog(
+            state = state,
+            onDismiss = { confirmDialog = null },
+        )
+    }
 
     PreferencePageScaffold(
         title = stringResource(R.string.history_title),
         onBack = onBack,
         modifier = modifier,
+        actions = {
+            Box {
+                IconButton(onClick = { showActionsMenu = true }) {
+                    Icon(
+                        imageVector = Icons.Outlined.MoreVert,
+                        contentDescription = stringResource(R.string.history_actions),
+                    )
+                }
+                DropdownMenu(
+                    expanded = showActionsMenu,
+                    onDismissRequest = { showActionsMenu = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.history_retention_action)) },
+                        onClick = {
+                            showActionsMenu = false
+                            choiceDialog = SettingChoiceDialogState(
+                                title = context.getString(R.string.history_retention_title),
+                                selected = retentionLabel,
+                                options = listOf(7, 15, 30, 90, 180).map { days ->
+                                    SettingChoiceOption(
+                                        title = context.resources.getQuantityString(R.plurals.common_days, days, days),
+                                        subtitle = historyRetentionDescription(context, days),
+                                        onSelect = { onRetentionDaysChanged(days) },
+                                    )
+                                },
+                            )
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.history_clear_failed_action)) },
+                        enabled = purgeableHistoryCount > 0,
+                        onClick = {
+                            showActionsMenu = false
+                            confirmDialog = SettingConfirmDialogState(
+                                title = context.getString(R.string.history_clear_failed_title),
+                                body = context.getString(R.string.history_clear_failed_body),
+                                confirmLabel = context.getString(R.string.common_clear),
+                                destructive = true,
+                                onConfirm = onClearFailedAndCanceledHistory,
+                            )
+                        },
+                    )
+                }
+            }
+        },
     ) {
+        infoMessage?.takeIf { it.isNotBlank() }?.let { message ->
+            item {
+                InlineFeedbackCard(
+                    label = stringResource(R.string.history_feedback_label),
+                    message = message,
+                    isError = false,
+                    onDismiss = onDismissMessage ?: {},
+                )
+            }
+        }
+        errorMessage?.takeIf { it.isNotBlank() }?.let { message ->
+            item {
+                InlineFeedbackCard(
+                    label = stringResource(R.string.history_feedback_label),
+                    message = message,
+                    isError = true,
+                    onDismiss = onDismissMessage ?: {},
+                )
+            }
+        }
         item {
             Surface(
                 shape = RoundedCornerShape(30.dp),
@@ -136,6 +244,14 @@ fun DownloadHistoryScreen(
                                     historyFilterLabel(currentFilter, context).lowercase(Locale.getDefault()),
                                 ),
                                 style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                text = stringResource(
+                                    R.string.history_auto_cleanup_summary,
+                                    retentionLabel,
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
@@ -446,11 +562,18 @@ private fun HistoryCard(
             ) {
                 FilledTonalButton(
                     onClick = onOpenLog,
-                    enabled = !task.debugTrace.isNullOrBlank(),
                 ) {
                     Icon(Icons.Outlined.Visibility, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(R.string.history_view_log))
+                    Text(
+                        stringResource(
+                            if (task.debugTrace.isNullOrBlank()) {
+                                R.string.history_view_details
+                            } else {
+                                R.string.history_view_log
+                            },
+                        ),
+                    )
                 }
             }
         }
@@ -534,7 +657,7 @@ private fun HistoryMetaPill(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun HistoryLogSheet(
     task: DownloadTask,
@@ -542,8 +665,9 @@ private fun HistoryLogSheet(
 ) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
-    val fullTrace = task.debugTrace.orEmpty().ifBlank { context.getString(R.string.history_no_task_log) }
-    var copied by remember { mutableStateOf(false) }
+    val hasTaskTrace = !task.debugTrace.isNullOrBlank()
+    val fullTrace = if (hasTaskTrace) task.debugTrace.orEmpty() else buildHistoryDiagnosticSummary(task, context)
+    var copied by remember(task.id, hasTaskTrace) { mutableStateOf(false) }
     val logListState = rememberLazyListState()
     val sheetScrollGuard = rememberBottomSheetScrollGuard(logListState)
 
@@ -563,7 +687,13 @@ private fun HistoryLogSheet(
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
-                        text = stringResource(R.string.history_full_log),
+                        text = stringResource(
+                            if (hasTaskTrace) {
+                                R.string.history_full_log
+                            } else {
+                                R.string.history_task_details
+                            },
+                        ),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -579,6 +709,23 @@ private fun HistoryLogSheet(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+            }
+
+            if (!hasTaskTrace) {
+                item {
+                    Surface(
+                        shape = RoundedCornerShape(18.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.history_log_privacy_notice),
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        )
+                    }
                 }
             }
 
@@ -602,24 +749,40 @@ private fun HistoryLogSheet(
             }
 
             item {
-                Row(
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     FilledTonalButton(
                         onClick = {
                             clipboardManager.setText(AnnotatedString(fullTrace))
                             copied = true
                         },
-                        modifier = Modifier.weight(1f),
                     ) {
                         Icon(Icons.Outlined.ContentCopy, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(if (copied) stringResource(R.string.common_copied) else stringResource(R.string.history_copy_log))
+                        Text(
+                            if (copied) {
+                                stringResource(R.string.common_copied)
+                            } else {
+                                stringResource(
+                                    if (hasTaskTrace) {
+                                        R.string.history_copy_log
+                                    } else {
+                                        R.string.history_copy_details
+                                    },
+                                )
+                            },
+                        )
+                    }
+                    FilledTonalButton(
+                        onClick = { shareAppLogs(context, task = task) },
+                    ) {
+                        Text(stringResource(R.string.history_export_app_logs))
                     }
                     TextButton(
                         onClick = onDismiss,
-                        modifier = Modifier.weight(1f),
                     ) {
                         Text(stringResource(R.string.common_close))
                     }
@@ -682,6 +845,47 @@ private fun historyFilterLabel(filter: HistoryFilter, context: android.content.C
         HistoryFilter.Failed -> context.getString(R.string.history_filter_failed)
         HistoryFilter.Canceled -> context.getString(R.string.history_filter_canceled)
     }
+}
+
+private fun isPurgeableHistoryTask(task: DownloadTask): Boolean {
+    return task.status == DownloadStatus.FAILED || task.status == DownloadStatus.CANCELED
+}
+
+private fun historyRetentionDescription(context: android.content.Context, days: Int): String {
+    return when (days) {
+        7 -> context.getString(R.string.history_retention_7)
+        15 -> context.getString(R.string.history_retention_15)
+        30 -> context.getString(R.string.history_retention_30)
+        90 -> context.getString(R.string.history_retention_90)
+        else -> context.getString(R.string.history_retention_180)
+    }
+}
+
+private fun buildHistoryDiagnosticSummary(
+    task: DownloadTask,
+    context: android.content.Context,
+): String {
+    return buildString {
+        appendLine(context.getString(R.string.history_no_task_log))
+        appendLine(context.getString(R.string.history_log_privacy_notice))
+        appendLine()
+        appendLine("Title: ${task.title}")
+        appendLine("Status: ${historyStatusLabel(task.status, context)}")
+        appendLine("Updated: ${formatDate(task.updatedAtEpochMs)}")
+        appendLine("Source: ${SensitiveDataSanitizer.describeUrl(task.url)}")
+        appendLine("Progress: ${task.progressPercent}%")
+        task.totalSizeStr?.takeIf { it.isNotBlank() }?.let { appendLine("Total size: $it") }
+        task.downloadedStr?.takeIf { it.isNotBlank() }?.let { appendLine("Downloaded: $it") }
+        task.outputPath?.takeIf { it.isNotBlank() }?.let {
+            appendLine("Saved file: ${SensitiveDataSanitizer.describePath(it)}")
+        }
+        if (task.subtitlePaths.isNotEmpty()) {
+            appendLine("Subtitle files: ${task.subtitlePaths.size}")
+        }
+        task.errorMessage?.takeIf { it.isNotBlank() }?.let {
+            appendLine("Error: ${SensitiveDataSanitizer.sanitize(it)}")
+        }
+    }.trim()
 }
 
 @Composable

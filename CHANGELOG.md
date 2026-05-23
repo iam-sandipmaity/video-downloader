@@ -1,5 +1,39 @@
 # Changelog
 
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Changed
+- **Auto container defaults** - single-file video downloads now default to `Auto` container resolution, and the picker surfaces the safer final output container more honestly instead of always implying `mp4`
+- **Explicit MP4 safety filtering** - choosing `mp4` now prefers MP4-safe video-plus-audio combinations and keeps codec intent clearer for AVC1, AV1, and VP9-family picks
+- **Container-routing polish** - YouTube merge routing now chooses cleaner final targets for AVC1, AV1, and VP9/Opus selections before worker recovery needs to step in
+
+### Fixed
+- **Postprocessing recovery loops** - optional yt-dlp postprocessing failures now salvage already-finished media more reliably instead of cascading into unnecessary redownload attempts
+- **VP9/WebM merge behavior** - VP9 plus Opus downloads now resolve straight to `webm` when appropriate instead of first attempting a known-fragile `mp4` merge path
+- **History trace visibility** - restored sanitized per-task debug traces in Download History so completed and failed tasks remain inspectable again
+- **Recovered thumbnail sidecars** - recovery paths no longer export stray thumbnail `.webp` files into public Downloads when thumbnail embedding extras cannot be completed
+- **In-app video playback handoff** - opening a video now pauses background audio playback from the app, and the center play/pause overlay is visually centered again
+
+## [1.7.2.0] - 2026-05-23
+
+### Changed
+- **Security hardening release** - bundled the vulnerability-fix pass into one follow-up release covering update trust, storage handling, WebView safety, and diagnostic-data retention
+- **Scoped storage alignment** - Android 10 now follows the same app-specific download staging plus public-export flow as newer Android versions, so legacy external-storage behavior is no longer required
+
+### Fixed
+- **TLS downgrade during analysis** - removed the insecure certificate-check bypass from the analysis fallback path
+- **Sensitive local data exposure** - moved download secrets out of task persistence, cleared terminal task traces, disabled Android backup for app data, and tightened log/export handling
+- **Runtime update verification gaps** - app and FFmpeg updates now verify signer identity, while yt-dlp updates now require and validate the published checksum manifest before replacement
+- **WebView trust boundaries** - hardened preview, cookie-capture, and YouTube access WebViews, and retired the in-app PO-token generator in favor of safer saved session hints
+- **File-sharing surface area** - narrowed `FileProvider` cache exposure to the exact update and export directories the app actually shares
+
+### Technical
+- **App version bump** - release metadata updated to `1.7.2.0`
+
 ## [1.7.2] - 2026-05-22
 
 ### Added
@@ -275,9 +309,6 @@
 - **External preview plumbing** - added `ExternalOpenRequest` and `ExternalPreviewScreen` for external file and link handling
 - **File and rendering support** - expanded `FileUtils` for imported external-open files and managed-file sync, added `coil-gif` for animated GIF rendering, and added manifest intent filters for share targets, web links, supported file opens, and MHTML/MHT preview
 
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 

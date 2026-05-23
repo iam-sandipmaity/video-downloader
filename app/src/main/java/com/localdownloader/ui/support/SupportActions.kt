@@ -6,6 +6,7 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.core.content.FileProvider
 import com.localdownloader.domain.models.DownloadTask
+import com.localdownloader.utils.SensitiveDataSanitizer
 import java.io.File
 import java.util.ArrayList
 
@@ -13,6 +14,7 @@ private const val ISSUE_TRACKER_URL = "https://github.com/iam-sandipmaity/video-
 private const val LOGS_DIRECTORY = "logs"
 private const val APP_LOG_FILE = "app.log"
 private const val CRASH_LOG_FILE = "crash.log"
+private const val MAX_SHARED_LOG_FILES = 4
 
 fun openSupportIssue(
     context: Context,
@@ -65,15 +67,39 @@ fun shareAppLogs(
         }
     }
 
-    context.startActivity(Intent.createChooser(shareIntent, "Share log.txt"))
+    context.startActivity(Intent.createChooser(shareIntent, "Share app logs"))
 }
 
 private fun availableLogFiles(context: Context): List<File> {
     val logsDir = File(context.filesDir, LOGS_DIRECTORY)
-    return listOf(
-        File(logsDir, APP_LOG_FILE),
-        File(logsDir, CRASH_LOG_FILE),
-    ).filter { it.exists() && it.length() > 0L }
+    return logsDir.listFiles()
+        ?.filter(::isShareableLogFile)
+        ?.sortedByDescending { it.lastModified() }
+        ?.filter(::hasMeaningfulLogContent)
+        ?.take(MAX_SHARED_LOG_FILES)
+        .orEmpty()
+}
+
+private fun isShareableLogFile(file: File): Boolean {
+    if (!file.isFile || !file.exists()) return false
+    return when {
+        file.name == APP_LOG_FILE -> true
+        file.name == "$APP_LOG_FILE.1" -> true
+        file.name.startsWith("app-") && file.name.endsWith(".log") -> true
+        file.name == CRASH_LOG_FILE -> true
+        file.name == "$CRASH_LOG_FILE.1" -> true
+        file.name.startsWith("crash-") && file.name.endsWith(".log") -> true
+        else -> false
+    }
+}
+
+private fun hasMeaningfulLogContent(file: File): Boolean {
+    if (file.length() <= 0L) return false
+    return runCatching {
+        file.bufferedReader().useLines { lines ->
+            lines.any { it.isNotBlank() }
+        }
+    }.getOrDefault(false)
 }
 
 private fun buildIssueTitle(
@@ -104,7 +130,7 @@ private fun buildIssueBody(
         appendLine()
         appendLine("## Task details")
         appendLine("- Title: ${task?.title?.ifBlank { "Unknown" } ?: "Unknown"}")
-        appendLine("- URL: ${task?.url?.ifBlank { "Unknown" } ?: "Unknown"}")
+        appendLine("- URL: ${SensitiveDataSanitizer.describeUrl(task?.url)}")
         appendLine("- Status: ${task?.status?.name ?: "Unknown"}")
         appendLine("- Progress: ${task?.progressPercent ?: 0}%")
         task?.speed?.takeIf { it.isNotBlank() }?.let { appendLine("- Speed: $it") }
@@ -112,7 +138,7 @@ private fun buildIssueBody(
         appendLine()
         appendLine("## What to attach")
         appendLine("- Screenshot of the queue or error state")
-        appendLine("- Shared log.txt / crash log from the app")
+        appendLine("- Shared app logs from the app")
         appendLine("- Short note explaining what you expected and what happened instead")
     }.trim()
 }

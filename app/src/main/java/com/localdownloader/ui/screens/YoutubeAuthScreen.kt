@@ -1,8 +1,10 @@
 package com.localdownloader.ui.screens
 
+import android.os.Build
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
-import android.webkit.WebStorage
+import android.webkit.WebResourceRequest
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.background
@@ -37,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,11 +48,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.res.stringResource
 import com.localdownloader.domain.models.YoutubeAuthConfig
 import com.localdownloader.R
 import com.localdownloader.ui.components.InlineFeedbackCard
@@ -57,6 +60,7 @@ import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.utils.CookieTextCodec
 import com.localdownloader.utils.WebViewCookieExporter
 import com.localdownloader.utils.YoutubePoTokenGenerator
+import com.localdownloader.utils.WebViewSessionSanitizer
 import com.localdownloader.viewmodel.FormatMessageScope
 import com.localdownloader.viewmodel.FormatUiState
 import java.text.DateFormat
@@ -79,6 +83,7 @@ fun YoutubeAuthScreen(
     modifier: Modifier = Modifier,
 ) {
     val authConfig = uiState.youtubeAuthConfig
+    val hasSavedTokens = authConfig.hasPoTokens()
     val infoMessage = uiState.infoMessageFor(FormatMessageScope.YOUTUBE_ACCESS)
     val errorMessage = uiState.errorMessageFor(FormatMessageScope.YOUTUBE_ACCESS)
     val hasYoutubeCookie = remember(uiState.cookieProfiles) {
@@ -129,8 +134,10 @@ fun YoutubeAuthScreen(
                     StatusChip(
                         title = if (authConfig.isConfigured()) stringResource(R.string.youtube_access_ready_title) else stringResource(R.string.youtube_access_not_ready_title),
                         subtitle = when {
-                            authConfig.isConfigured() && hasYoutubeCookie ->
+                            authConfig.isConfigured() && hasYoutubeCookie && hasSavedTokens ->
                                 stringResource(R.string.youtube_access_ready_body)
+                            authConfig.isConfigured() && hasYoutubeCookie ->
+                                stringResource(R.string.youtube_access_ready_without_tokens_body)
                             authConfig.isConfigured() ->
                                 stringResource(R.string.youtube_access_missing_cookie_body)
                             else ->
@@ -166,11 +173,24 @@ fun YoutubeAuthScreen(
                             fontWeight = FontWeight.SemiBold,
                         )
                         DetailRow(stringResource(R.string.youtube_access_client), authConfig.clientHint)
-                        DetailRow(stringResource(R.string.youtube_access_cookie_saved), if (hasYoutubeCookie) stringResource(R.string.common_yes) else stringResource(R.string.common_no))
-                        DetailRow(stringResource(R.string.youtube_access_gvs_token), previewToken(authConfig.gvsToken))
-                        DetailRow(stringResource(R.string.youtube_access_player_token), previewToken(authConfig.playerToken))
-                        DetailRow(stringResource(R.string.youtube_access_subtitle_token), previewToken(authConfig.subsToken.ifBlank { authConfig.playerToken }))
-                        DetailRow(stringResource(R.string.youtube_access_data_sync_id), previewToken(authConfig.dataSyncId))
+                        DetailRow(
+                            stringResource(R.string.youtube_access_cookie_saved),
+                            if (hasYoutubeCookie) stringResource(R.string.common_yes) else stringResource(R.string.common_no),
+                        )
+                        authConfig.visitorData.takeIf { it.isNotBlank() }?.let { visitorData ->
+                            DetailRow(stringResource(R.string.youtube_access_visitor_data), previewToken(visitorData))
+                        }
+                        authConfig.dataSyncId.takeIf { it.isNotBlank() }?.let { dataSyncId ->
+                            DetailRow(stringResource(R.string.youtube_access_data_sync_id), previewToken(dataSyncId))
+                        }
+                        if (hasSavedTokens) {
+                            DetailRow(stringResource(R.string.youtube_access_gvs_token), previewToken(authConfig.gvsToken))
+                            DetailRow(stringResource(R.string.youtube_access_player_token), previewToken(authConfig.playerToken))
+                            DetailRow(
+                                stringResource(R.string.youtube_access_subtitle_token),
+                                previewToken(authConfig.subsToken.ifBlank { authConfig.playerToken }),
+                            )
+                        }
                         DetailRow(
                             stringResource(R.string.youtube_access_updated),
                             if (authConfig.updatedAtEpochMs > 0L) {
@@ -232,9 +252,17 @@ fun YoutubeAuthLoginScreen(
     val coroutineScope = rememberCoroutineScope()
     var title by rememberSaveable { mutableStateOf(context.getString(R.string.youtube_access_login_title)) }
     var isSaving by rememberSaveable { mutableStateOf(false) }
+    var captureAdvancedTokens by rememberSaveable { mutableStateOf(false) }
     var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var webView by remember { mutableStateOf<WebView?>(null) }
-    val initialUrl = YoutubePoTokenGenerator.SAMPLE_VIDEO_URL
+    val initialUrl = YOUTUBE_ACCESS_SAMPLE_URL
+
+    DisposableEffect(Unit) {
+        onDispose {
+            WebViewSessionSanitizer.clearAndDestroy(webView)
+            webView = null
+        }
+    }
 
     Scaffold(
         modifier = modifier,
@@ -249,7 +277,13 @@ fun YoutubeAuthLoginScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(
+                        onClick = {
+                            WebViewSessionSanitizer.clearAndDestroy(webView)
+                            webView = null
+                            onBack()
+                        },
+                    ) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
@@ -295,25 +329,24 @@ fun YoutubeAuthLoginScreen(
                                             url = "https://www.youtube.com",
                                         )
                                     }
-                                    val generated = YoutubePoTokenGenerator.generate(
+                                    cookieText to buildYoutubeAuthConfig(
                                         context = currentWebView.context,
                                         visitorData = visitorData,
                                         dataSyncId = dataSyncId,
-                                    )
-                                    cookieText to YoutubeAuthConfig(
-                                        enabled = true,
-                                        clientHint = "web.gvs",
-                                        gvsToken = generated.gvsToken,
-                                        playerToken = generated.playerToken,
-                                        subsToken = generated.subsToken,
-                                        visitorData = generated.visitorData,
-                                        dataSyncId = generated.dataSyncId,
+                                        captureAdvancedTokens = captureAdvancedTokens,
                                     )
                                 }.onSuccess { (cookieText, authConfig) ->
+                                    WebViewSessionSanitizer.clearAndDestroy(webView)
+                                    webView = null
                                     onConfirm(cookieText, authConfig)
                                 }.onFailure { error ->
                                     isSaving = false
-                                    errorMessage = error.message ?: context.getString(R.string.youtube_access_login_error)
+                                    val baseMessage = error.message ?: context.getString(R.string.youtube_access_login_error)
+                                    errorMessage = if (captureAdvancedTokens) {
+                                        "$baseMessage ${context.getString(R.string.youtube_access_login_advanced_error_hint)}"
+                                    } else {
+                                        baseMessage
+                                    }
                                 }
                             }
                         },
@@ -356,6 +389,39 @@ fun YoutubeAuthLoginScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+                        shape = RoundedCornerShape(18.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.youtube_access_login_advanced_title),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                                Text(
+                                    text = stringResource(R.string.youtube_access_login_advanced_body),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Switch(
+                                checked = captureAdvancedTokens,
+                                enabled = !isSaving,
+                                onCheckedChange = { captureAdvancedTokens = it },
+                            )
+                        }
+                    }
                     errorMessage?.let {
                         Text(
                             text = it,
@@ -372,16 +438,33 @@ fun YoutubeAuthLoginScreen(
                 AndroidView(
                     modifier = Modifier.fillMaxSize(),
                     factory = { context ->
-                        CookieManager.getInstance().removeAllCookies(null)
-                        CookieManager.getInstance().flush()
-                        WebStorage.getInstance().deleteAllData()
+                        WebViewSessionSanitizer.resetSession()
                         WebView(context).apply {
                             webView = this
                             settings.javaScriptEnabled = true
                             settings.domStorageEnabled = true
+                            settings.allowFileAccess = false
+                            settings.allowContentAccess = false
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                                settings.safeBrowsingEnabled = true
+                            }
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                                settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+                            }
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+                                settings.allowFileAccessFromFileURLs = false
+                                settings.allowUniversalAccessFromFileURLs = false
+                            }
                             CookieManager.getInstance().setAcceptCookie(true)
                             CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
-                            webViewClient = WebViewClient()
+                            webViewClient = object : WebViewClient() {
+                                override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                                    val scheme = request?.url?.scheme.orEmpty()
+                                    return scheme.isNotBlank() &&
+                                        !scheme.equals("https", ignoreCase = true) &&
+                                        !scheme.equals("about", ignoreCase = true)
+                                }
+                            }
                             webChromeClient = object : WebChromeClient() {
                                 override fun onReceivedTitle(view: WebView?, pageTitle: String?) {
                                     if (!pageTitle.isNullOrBlank()) {
@@ -404,6 +487,37 @@ private suspend fun WebView.awaitJavascriptString(script: String): String {
             continuation.resume(decodeJavascriptValue(raw))
         }
     }
+}
+
+private suspend fun buildYoutubeAuthConfig(
+    context: android.content.Context,
+    visitorData: String,
+    dataSyncId: String,
+    captureAdvancedTokens: Boolean,
+): YoutubeAuthConfig {
+    if (!captureAdvancedTokens) {
+        return YoutubeAuthConfig(
+            enabled = true,
+            clientHint = "web.gvs",
+            visitorData = visitorData,
+            dataSyncId = dataSyncId,
+        )
+    }
+
+    val generatedTokens = YoutubePoTokenGenerator.generate(
+        context = context,
+        visitorData = visitorData,
+        dataSyncId = dataSyncId,
+    )
+    return YoutubeAuthConfig(
+        enabled = true,
+        clientHint = "web.gvs",
+        gvsToken = generatedTokens.gvsToken,
+        playerToken = generatedTokens.playerToken,
+        subsToken = generatedTokens.subsToken,
+        visitorData = generatedTokens.visitorData,
+        dataSyncId = generatedTokens.dataSyncId,
+    )
 }
 
 private fun decodeJavascriptValue(raw: String?): String {
@@ -466,3 +580,5 @@ private fun previewToken(token: String): String {
     if (trimmed.isBlank()) return "Not set"
     return if (trimmed.length <= 26) trimmed else trimmed.take(12) + "..." + trimmed.takeLast(10)
 }
+
+private const val YOUTUBE_ACCESS_SAMPLE_URL = "https://www.youtube.com/watch?v=aqz-KE-bpKQ"

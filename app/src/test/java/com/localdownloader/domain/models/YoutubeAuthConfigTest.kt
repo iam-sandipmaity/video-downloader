@@ -1,7 +1,9 @@
 package com.localdownloader.domain.models
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class YoutubeAuthConfigTest {
@@ -24,5 +26,16 @@ class YoutubeAuthConfigTest {
     @Test
     fun buildPoTokenValue_returnsNullWhenAllTokensBlank() {
         assertNull(YoutubeAuthConfig().buildPoTokenValue())
+    }
+
+    @Test
+    fun isConfigured_returnsTrueWhenSessionHintsExistWithoutTokens() {
+        val config = YoutubeAuthConfig(
+            visitorData = "visitor123",
+            dataSyncId = "sync456",
+        )
+
+        assertTrue(config.isConfigured())
+        assertFalse(config.hasPoTokens())
     }
 }

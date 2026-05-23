@@ -8,6 +8,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.File
@@ -39,6 +40,7 @@ class DownloadViewModel @Inject constructor(
                     state.copy(
                         autoRemoveMissingFilesFromLibrary = settings.autoRemoveMissingFilesFromLibrary,
                         deleteFromStorageWhenRemovedInApp = settings.deleteFromStorageWhenRemovedInApp,
+                        downloadHistoryRetentionDays = settings.downloadHistoryRetentionDays,
                     )
                 }
                 maybeAutoSyncMissingFiles(uiState.value.tasks)
@@ -387,6 +389,52 @@ class DownloadViewModel @Inject constructor(
         }
     }
 
+    fun setDownloadHistoryRetentionDays(value: Int) {
+        val normalized = value.coerceIn(MIN_DOWNLOAD_HISTORY_RETENTION_DAYS, MAX_DOWNLOAD_HISTORY_RETENTION_DAYS)
+        logger.i("DownloadViewModel", "download history retention update requested days=$normalized")
+        viewModelScope.launch {
+            runCatching {
+                val settings = repository.observeSettings().first()
+                if (settings.downloadHistoryRetentionDays == normalized) return@runCatching normalized
+                repository.updateSettings(settings.copy(downloadHistoryRetentionDays = normalized))
+                normalized
+            }.onSuccess { days ->
+                _uiState.update { state ->
+                    state.copy(
+                        infoMessage = "Failed and canceled history will auto-clean after $days day(s).",
+                        errorMessage = null,
+                    )
+                }
+            }.onFailure { error ->
+                logger.e("DownloadViewModel", "download history retention update failed", error)
+                _uiState.update { state -> state.copy(errorMessage = error.message) }
+            }
+        }
+    }
+
+    fun clearFailedAndCanceledHistory() {
+        logger.i("DownloadViewModel", "clear failed and canceled history requested")
+        viewModelScope.launch {
+            repository.clearFailedAndCanceledHistory()
+                .onSuccess { removedCount ->
+                    _uiState.update { state ->
+                        state.copy(
+                            infoMessage = if (removedCount == 0) {
+                                "No failed or canceled history items to clear."
+                            } else {
+                                "Cleared $removedCount failed or canceled history item(s)."
+                            },
+                            errorMessage = null,
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    logger.e("DownloadViewModel", "clear failed and canceled history failed", error)
+                    _uiState.update { state -> state.copy(errorMessage = error.message) }
+                }
+        }
+    }
+
     fun refreshLibrary() {
         logger.i("DownloadViewModel", "media library refresh requested")
         viewModelScope.launch {
@@ -440,5 +488,10 @@ class DownloadViewModel @Inject constructor(
                     logger.e("DownloadViewModel", "auto sync missing media failed", error)
                 }
         }
+    }
+
+    private companion object {
+        const val MIN_DOWNLOAD_HISTORY_RETENTION_DAYS = 7
+        const val MAX_DOWNLOAD_HISTORY_RETENTION_DAYS = 180
     }
 }

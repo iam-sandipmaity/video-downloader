@@ -586,6 +586,12 @@ fun DownloaderApp(
             composable(Routes.History) {
                 DownloadHistoryScreen(
                     tasks = downloadState.tasks,
+                    retentionDays = downloadState.downloadHistoryRetentionDays,
+                    infoMessage = downloadState.infoMessage,
+                    errorMessage = downloadState.errorMessage,
+                    onDismissMessage = downloadViewModel::dismissMessage,
+                    onRetentionDaysChanged = downloadViewModel::setDownloadHistoryRetentionDays,
+                    onClearFailedAndCanceledHistory = downloadViewModel::clearFailedAndCanceledHistory,
                     onBack = { navController.popBackStack() },
                 )
             }

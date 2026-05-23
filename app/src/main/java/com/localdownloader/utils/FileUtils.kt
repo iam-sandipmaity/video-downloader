@@ -13,6 +13,8 @@ import com.localdownloader.domain.models.AppSettings
 import com.localdownloader.ui.model.ExternalOpenRequest
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
+import java.io.InputStream
+import java.io.OutputStream
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -48,24 +50,24 @@ class FileUtils @Inject constructor(
     /**
      * Returns the downloads directory for yt-dlp output.
      *
-     * Android 11+ (API 30+): app-specific external storage (`Android/data/…`).
+     * Android 10+ (API 29+): app-specific external storage (`Android/data/...`).
      * On download completion the Worker copies the file to the public Downloads folder
      * so users can find it in their file manager.
      *
-     * Android 10 and below: `/sdcard/Download/LocalDownloader/`
+     * Android 9 and below: `/sdcard/Download/LocalDownloader/`
      */
     fun ensureDownloadsDir(subDirectoryName: String? = null): File {
         val rootFolderName = configuredRootFolderName()
         val normalizedSubdirectory = normalizeSubfolderSetting(subDirectoryName.orEmpty())
             .ifBlank { null }
-        // Android 10 and below: direct path to public Downloads.
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+        // Android 9 and below: direct path to public Downloads.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             val publicDownloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
             val appDir = buildPath(publicDownloads, rootFolderName, normalizedSubdirectory)
             if ((appDir.exists() || appDir.mkdirs()) && appDir.canWrite()) return appDir
         }
 
-        // Android 11+: app-specific external storage.
+        // Android 10+: app-specific external storage.
         val extDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
         val appSpecificDir = extDir?.let { buildPath(it, rootFolderName, normalizedSubdirectory) }
         if (appSpecificDir != null && (appSpecificDir.exists() || appSpecificDir.mkdirs()) && appSpecificDir.canWrite()) {
@@ -87,9 +89,12 @@ class FileUtils @Inject constructor(
     ): String {
         val targetDir = ensureInternalDir(subDirectoryName)
         val targetFile = File(targetDir, sanitizeFileName(targetFileName))
-        context.contentResolver.openInputStream(uri)?.use { input ->
-            targetFile.outputStream().use { output -> input.copyTo(output) }
-        } ?: throw IllegalStateException("Unable to open selected file")
+        copyUriToManagedFile(
+            context = context,
+            uri = uri,
+            targetFile = targetFile,
+            maxBytes = MAX_CACHE_FILE_SIZE,
+        )
         return targetFile.absolutePath
     }
 
@@ -221,16 +226,16 @@ class FileUtils @Inject constructor(
     }
 
     /**
-     * On Android 11+ copies a file from the app-specific directory to the public
+     * On Android 10+ copies a file from the app-specific directory to the public
      * Downloads folder via MediaStore so it becomes visible in file managers.
-     * Returns the public path, or null on Android 10 and below (file is already public).
+     * Returns the public path, or null on Android 9 and below (file is already public).
      */
     fun copyToPublicDownloads(
         sourceFile: File,
         playlistFolderName: String? = null,
         targetFileName: String? = null,
     ): String? {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
 
         val publicDownloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
         val rootFolderName = configuredRootFolderName()
@@ -312,7 +317,7 @@ class FileUtils @Inject constructor(
         if (!targetFile.exists()) return true
         if (targetFile.delete()) return true
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             deleteFromMediaStore(targetFile)?.let { deleted ->
                 if (deleted) return true
             }
@@ -385,7 +390,7 @@ class FileUtils @Inject constructor(
     }
 
     fun normalizeLibraryOutputPath(path: String): String {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return path
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return path
 
         val relativePath = relativePathWithinDownloadsRoot(File(path)) ?: return path
         val publicDownloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
@@ -629,7 +634,12 @@ class FileUtils @Inject constructor(
     }
 
     private fun ensureInternalDir(name: String): File {
-        val dir = File(context.filesDir, name)
+        val root = when (name.substringBefore(File.separator).substringBefore('/').substringBefore('\\')) {
+            "cookies" -> context.noBackupFilesDir
+            "opened" -> context.cacheDir
+            else -> context.filesDir
+        }
+        val dir = File(root, name)
         if (!dir.exists() && !dir.mkdirs()) {
             throw IllegalStateException("Storage denied: unable to create directory ${dir.absolutePath}")
         }
@@ -662,9 +672,12 @@ class FileUtils @Inject constructor(
         val targetDir = ensureInternalDir("opened")
         val sanitizedName = sanitizeFileName(displayName)
         val targetFile = File(targetDir, sanitizedName)
-        context.contentResolver.openInputStream(uri)?.use { input ->
-            targetFile.outputStream().use { output -> input.copyTo(output) }
-        } ?: error("Unable to open shared file.")
+        copyUriToManagedFile(
+            context = context,
+            uri = uri,
+            targetFile = targetFile,
+            maxBytes = MAX_CACHE_FILE_SIZE,
+        )
 
         return ExternalOpenRequest(
             path = targetFile.absolutePath,
@@ -756,9 +769,12 @@ class FileUtils @Inject constructor(
                     throw IllegalStateException("Not enough cache space. Required: ${contentLength / (1024 * 1024)}MB, Available: ${availableSpace / (1024 * 1024)}MB")
                 }
 
-                context.contentResolver.openInputStream(uri)?.use { input ->
-                    dest.outputStream().use { output -> input.copyTo(output) }
-                }
+                copyUriToManagedFile(
+                    context = context,
+                    uri = uri,
+                    targetFile = dest,
+                    maxBytes = MAX_CACHE_FILE_SIZE,
+                )
                 if (dest.exists() && dest.length() > 0) {
                     dest.absolutePath
                 } else {
@@ -773,9 +789,82 @@ class FileUtils @Inject constructor(
 
         private fun getContentLength(context: Context, uri: Uri): Long {
             return try {
-                context.contentResolver.openInputStream(uri)?.available()?.toLong() ?: 0L
+                context.contentResolver.query(
+                    uri,
+                    arrayOf(OpenableColumns.SIZE),
+                    null,
+                    null,
+                    null,
+                )?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        cursor.getLong(0).takeIf { it > 0L }
+                    } else {
+                        null
+                    }
+                } ?: context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { descriptor ->
+                    descriptor.length.takeIf { it > 0L }
+                } ?: 0L
             } catch (_: Exception) {
                 0L
+            }
+        }
+
+        private fun copyUriToManagedFile(
+            context: Context,
+            uri: Uri,
+            targetFile: File,
+            maxBytes: Long,
+        ) {
+            val targetDir = targetFile.parentFile ?: throw IllegalStateException("Unable to resolve target directory.")
+            targetDir.mkdirs()
+            val availableSpace = targetDir.usableSpace
+            val contentLength = getContentLength(context, uri)
+
+            if (contentLength > maxBytes) {
+                throw IllegalStateException("File is too large to cache (${contentLength / (1024 * 1024)}MB). Maximum allowed: ${maxBytes / (1024 * 1024)}MB")
+            }
+            if (contentLength > 0 && contentLength > availableSpace) {
+                throw IllegalStateException("Not enough cache space. Required: ${contentLength / (1024 * 1024)}MB, Available: ${availableSpace / (1024 * 1024)}MB")
+            }
+
+            try {
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    targetFile.outputStream().use { output ->
+                        copyStreamWithLimit(
+                            input = input,
+                            output = output,
+                            maxBytes = maxBytes,
+                            availableSpace = availableSpace,
+                        )
+                    }
+                } ?: error("Unable to open selected file")
+            } catch (error: Throwable) {
+                runCatching { targetFile.delete() }
+                throw error
+            }
+        }
+
+        private fun copyStreamWithLimit(
+            input: InputStream,
+            output: OutputStream,
+            maxBytes: Long,
+            availableSpace: Long,
+        ) {
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            var copiedBytes = 0L
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) break
+
+                copiedBytes += read
+                if (copiedBytes > maxBytes) {
+                    throw IllegalStateException("File is too large to cache (${copiedBytes / (1024 * 1024)}MB). Maximum allowed: ${maxBytes / (1024 * 1024)}MB")
+                }
+                if (copiedBytes > availableSpace) {
+                    throw IllegalStateException("Not enough cache space. Required: ${copiedBytes / (1024 * 1024)}MB, Available: ${availableSpace / (1024 * 1024)}MB")
+                }
+
+                output.write(buffer, 0, read)
             }
         }
 

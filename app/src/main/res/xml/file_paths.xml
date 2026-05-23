@@ -1,14 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
     <files-path
-        name="internal_files"
-        path="." />
+        name="internal_logs"
+        path="logs/" />
+    <files-path
+        name="internal_downloads"
+        path="downloads/" />
     <cache-path
-        name="cache_files"
-        path="." />
-    <external-files-path
-        name="external_files"
-        path="." />
+        name="app_update_installs"
+        path="app-updates/" />
+    <cache-path
+        name="shared_exports"
+        path="shared/" />
     <external-path
         name="external_storage"
         path="Download/LocalDownloader/" />

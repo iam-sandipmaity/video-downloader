@@ -87,6 +87,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.localdownloader.R
+import com.localdownloader.downloader.isAutomaticContainerSelection
+import com.localdownloader.downloader.isChoiceCompatibleWithRequestedContainer
+import com.localdownloader.downloader.resolveMergeContainerCompatibility
 import com.localdownloader.domain.models.FormatChoice
 import com.localdownloader.domain.models.StreamType
 import com.localdownloader.domain.models.VideoQuality
@@ -488,7 +491,7 @@ fun BrowserScreen(
         val optionsListState = rememberLazyListState()
         val sheetScrollGuard = rememberBottomSheetScrollGuard(optionsListState)
         val footerDragBlocker = rememberBottomSheetDragBlocker()
-        val containers = listOf("mp4", "webm", "mkv", "mov")
+        val containers = listOf("auto", "mp4", "webm", "mkv", "mov")
         val audioFormats = listOf("mp3", "m4a", "aac", "opus", "flac", "wav")
         val bitrates = listOf(64, 96, 128, 192, 256, 320)
         val downloadActionSummary = buildDownloadActionSummary(uiState)
@@ -782,8 +785,9 @@ private fun buildDownloadActionSummary(uiState: FormatUiState): String? {
         ).joinToString(" | ")
 
         else -> {
-            val currentChoices = choicesForStreamType(
+            val currentChoices = compatibleChoicesForStreamType(
                 streamType = uiState.selectedStreamType,
+                container = uiState.selectedContainer,
                 videoAudioChoices = uiState.availableVideoAudioChoices,
                 videoOnlyChoices = uiState.availableVideoOnlyChoices,
                 audioOnlyChoices = uiState.availableAudioOnlyChoices,
@@ -791,7 +795,14 @@ private fun buildDownloadActionSummary(uiState: FormatUiState): String? {
             val choice = currentChoices.firstOrNull { it.selector == uiState.selectedFormatSelector }
                 ?: currentChoices.firstOrNull()
             listOfNotNull(
-                choice?.height?.let { "${it}p" } ?: uiState.selectedContainer.uppercase(),
+                choice?.height?.let { "${it}p" } ?: localizedContainerLabel(uiState.selectedContainer),
+                choice?.let {
+                    resolvedOutputContainer(
+                        streamType = uiState.selectedStreamType,
+                        requestedContainer = uiState.selectedContainer,
+                        choice = it,
+                    ).uppercase()
+                },
                 choice?.let { formatChoicePrimarySizeLabel(it) },
             ).joinToString(" | ")
         }
@@ -1227,6 +1238,29 @@ private fun choicesForStreamType(
     }
 }
 
+private fun compatibleChoicesForStreamType(
+    streamType: StreamType,
+    container: String,
+    videoAudioChoices: List<FormatChoice>,
+    videoOnlyChoices: List<FormatChoice>,
+    audioOnlyChoices: List<FormatChoice>,
+): List<FormatChoice> {
+    val baseChoices = choicesForStreamType(
+        streamType = streamType,
+        videoAudioChoices = videoAudioChoices,
+        videoOnlyChoices = videoOnlyChoices,
+        audioOnlyChoices = audioOnlyChoices,
+    )
+    if (streamType != StreamType.VIDEO_AUDIO) {
+        return baseChoices
+    }
+
+    val compatibleChoices = baseChoices.filter { choice ->
+        isChoiceCompatibleWithRequestedContainer(container, choice)
+    }
+    return compatibleChoices.ifEmpty { baseChoices }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SelectionOptionsCard(
@@ -1248,6 +1282,14 @@ private fun SelectionOptionsCard(
     bitrates: List<Int>,
     emptyChoicesMessage: String?,
 ) {
+    val visibleChoices = remember(choices, streamType, container) {
+        if (streamType == StreamType.VIDEO_AUDIO) {
+            choices.filter { choice -> isChoiceCompatibleWithRequestedContainer(container, choice) }
+                .ifEmpty { choices }
+        } else {
+            choices
+        }
+    }
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -1265,23 +1307,37 @@ private fun SelectionOptionsCard(
             }
         }
 
-        if (choices.isNotEmpty()) {
-            val selectedChoice = choices
-                .getOrNull(choices.indexOfFirst { it.selector == selectedFormatSelector })
-                ?: choices.first()
+        if (visibleChoices.isNotEmpty()) {
+            val selectedChoice = visibleChoices
+                .getOrNull(visibleChoices.indexOfFirst { it.selector == selectedFormatSelector })
+                ?: visibleChoices.first()
             FormatChoiceDropdownRow(
                 label = stringResource(R.string.browser_picker_label_format),
-                choices = choices,
-                selectedIndex = choices.indexOfFirst { it.selector == selectedFormatSelector }
+                choices = visibleChoices,
+                selectedIndex = visibleChoices.indexOfFirst { it.selector == selectedFormatSelector }
                     .coerceAtLeast(0),
-                onSelected = { onFormatSelectorChanged(choices[it].selector) },
+                selectedValue = buildSelectedFormatHeadline(
+                    choice = selectedChoice,
+                    streamType = streamType,
+                    requestedContainer = container,
+                ),
+                selectedSupporting = buildSelectedFormatMetadata(
+                    choice = selectedChoice,
+                    streamType = streamType,
+                    requestedContainer = container,
+                ),
+                onSelected = { onFormatSelectorChanged(visibleChoices[it].selector) },
             )
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                buildInlineFormatSummaryChips(selectedChoice).forEach { chip ->
+                buildInlineFormatSummaryChips(
+                    choice = selectedChoice,
+                    streamType = streamType,
+                    requestedContainer = container,
+                ).forEach { chip ->
                     BrowserMetaChip(text = chip)
                 }
             }
@@ -1322,9 +1378,10 @@ private fun SelectionOptionsCard(
                 onSelected = { onAudioBitrateChanged(bitrates[it]) },
             )
         } else {
+            val containerLabels = containers.map { localizedContainerLabel(it) }
             BrowserDropdownRow(
                 label = stringResource(R.string.browser_picker_label_container),
-                options = containers,
+                options = containerLabels,
                 selectedIndex = containers.indexOf(container).coerceAtLeast(0),
                 onSelected = { onContainerChanged(containers[it]) },
             )
@@ -1430,8 +1487,9 @@ private fun PlaylistItemCard(
     val activeContainer = if (item.useGlobalSettings) globalContainer else item.selectedContainer
     val activeAudioFormat = if (item.useGlobalSettings) globalAudioFormat else item.selectedAudioFormat
     val activeAudioBitrate = if (item.useGlobalSettings) globalAudioBitrateKbps else item.audioBitrateKbps
-    val activeChoices = choicesForStreamType(
+    val activeChoices = compatibleChoicesForStreamType(
         streamType = activeStreamType,
+        container = activeContainer,
         videoAudioChoices = item.availableVideoAudioChoices,
         videoOnlyChoices = item.availableVideoOnlyChoices,
         audioOnlyChoices = item.availableAudioOnlyChoices,
@@ -1607,7 +1665,16 @@ private fun buildPlaylistItemSummaryChips(
             }
 
             else -> {
-                add(choice?.height?.let { "${it}p" } ?: container.uppercase())
+                add(choice?.height?.let { "${it}p" } ?: localizedContainerLabel(container))
+                choice?.let {
+                    add(
+                        resolvedOutputContainer(
+                            streamType = streamType,
+                            requestedContainer = container,
+                            choice = it,
+                        ).uppercase(),
+                    )
+                }
                 formatChoicePrimarySizeLabel(choice ?: return@buildList)?.let(::add)
             }
         }
@@ -1653,9 +1720,17 @@ private fun ToggleChipRow(
 }
 
 @Composable
-private fun buildInlineFormatSummaryChips(choice: FormatChoice): List<String> {
+private fun buildInlineFormatSummaryChips(
+    choice: FormatChoice,
+    streamType: StreamType,
+    requestedContainer: String,
+): List<String> {
     return buildList {
-        choice.container.takeIf { it.isNotBlank() }?.let { add(it.uppercase()) }
+        resolvedOutputContainer(
+            streamType = streamType,
+            requestedContainer = requestedContainer,
+            choice = choice,
+        ).takeIf { it.isNotBlank() }?.let { add(it.uppercase()) }
         choice.height?.let { add("${it}p") }
         choice.fps?.takeIf { it > 0 }?.let { add("${it.toInt()} fps") }
         when (choice.streamType) {
@@ -1720,6 +1795,8 @@ private fun FormatChoiceDropdownRow(
     label: String,
     choices: List<FormatChoice>,
     selectedIndex: Int,
+    selectedValue: String,
+    selectedSupporting: String?,
     onSelected: (Int) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -1728,10 +1805,10 @@ private fun FormatChoiceDropdownRow(
         PickerSurface(
             label = label,
             value = listOfNotNull(
-                selectedChoice.label,
+                selectedValue,
                 formatChoicePrimarySizeLabel(selectedChoice),
             ).joinToString(" | "),
-            supporting = buildFormatMenuMetadata(selectedChoice),
+            supporting = selectedSupporting,
             expanded = expanded,
             onClick = { expanded = !expanded },
         )
@@ -1793,10 +1870,17 @@ private fun formatChoiceDisplayLabel(choice: FormatChoice): String {
 }
 
 private fun buildFormatMenuMetadata(choice: FormatChoice): String? {
+    return buildFormatMenuMetadata(choice = choice, containerOverride = choice.container)
+}
+
+private fun buildFormatMenuMetadata(
+    choice: FormatChoice,
+    containerOverride: String,
+): String? {
     return buildList {
         choice.height?.let { add("${it}p") }
         choice.fps?.takeIf { it > 0 }?.let { add("${it.toInt()}fps") }
-        add(choice.container.uppercase())
+        add(containerOverride.uppercase())
         choice.videoCodec?.takeIf { it.isNotBlank() && !it.equals("none", ignoreCase = true) }?.let {
             add("v:${compactCodecLabel(it)}")
         }
@@ -1804,6 +1888,77 @@ private fun buildFormatMenuMetadata(choice: FormatChoice): String? {
             add("a:${compactCodecLabel(it)}")
         }
     }.joinToString(" | ").ifBlank { null }
+}
+
+private fun resolvedOutputContainer(
+    streamType: StreamType,
+    requestedContainer: String,
+    choice: FormatChoice,
+): String {
+    if (streamType == StreamType.AUDIO_ONLY) {
+        return choice.container.lowercase()
+    }
+    if (streamType != StreamType.VIDEO_AUDIO) {
+        return choice.container.ifBlank { requestedContainer }.lowercase()
+    }
+
+    val effectiveRequestedContainer = if (isAutomaticContainerSelection(requestedContainer)) {
+        choice.container
+    } else {
+        requestedContainer
+    }.trim().lowercase().ifBlank { choice.container.lowercase() }
+
+    return resolveMergeContainerCompatibility(
+        requestedContainer = effectiveRequestedContainer,
+        selectedChoice = choice,
+    ).resolvedContainer ?: effectiveRequestedContainer
+}
+
+@Composable
+private fun buildSelectedFormatHeadline(
+    choice: FormatChoice,
+    streamType: StreamType,
+    requestedContainer: String,
+): String {
+    if (streamType == StreamType.AUDIO_ONLY) {
+        return choice.label
+    }
+
+    return buildList {
+        choice.height?.let { add("${it}p") }
+        add(
+            resolvedOutputContainer(
+                streamType = streamType,
+                requestedContainer = requestedContainer,
+                choice = choice,
+            ).uppercase(),
+        )
+        choice.fps?.takeIf { it > 0 }?.let { add("${it.toInt()}fps") }
+    }.joinToString(" ").ifBlank { choice.label }
+}
+
+private fun buildSelectedFormatMetadata(
+    choice: FormatChoice,
+    streamType: StreamType,
+    requestedContainer: String,
+): String? {
+    return buildFormatMenuMetadata(
+        choice = choice,
+        containerOverride = resolvedOutputContainer(
+            streamType = streamType,
+            requestedContainer = requestedContainer,
+            choice = choice,
+        ),
+    )
+}
+
+@Composable
+private fun localizedContainerLabel(container: String): String {
+    return if (isAutomaticContainerSelection(container)) {
+        stringResource(R.string.common_auto)
+    } else {
+        container.uppercase()
+    }
 }
 
 @Composable

@@ -212,14 +212,7 @@ class MainActivity : Hilt_MainActivity() {
             )
 
             Intent.ACTION_VIEW -> {
-                val dataString = intent.dataString
-                if (dataString?.startsWith("http://", ignoreCase = true) == true ||
-                    dataString?.startsWith("https://", ignoreCase = true) == true
-                ) {
-                    dataString
-                } else {
-                    null
-                }
+                normalizeSharedUrlCandidate(intent.dataString)
             }
 
             else -> null
@@ -231,13 +224,20 @@ class MainActivity : Hilt_MainActivity() {
         val matcher = Patterns.WEB_URL.matcher(text)
         while (matcher.find()) {
             val candidate = matcher.group()?.trim()?.trimEnd('.', ',', ';', ')', ']') ?: continue
-            if (candidate.startsWith("http://", ignoreCase = true) ||
-                candidate.startsWith("https://", ignoreCase = true)
-            ) {
-                return candidate
-            }
+            normalizeSharedUrlCandidate(candidate)?.let { return it }
         }
         return null
+    }
+
+    private fun normalizeSharedUrlCandidate(raw: String?): String? {
+        val candidate = raw?.trim().orEmpty()
+        if (candidate.isBlank()) return null
+        return when {
+            candidate.startsWith("https://", ignoreCase = true) -> candidate
+            candidate.startsWith("http://", ignoreCase = true) ->
+                candidate.replaceFirst(HTTP_SCHEME_REGEX, "https://")
+            else -> null
+        }
     }
 
     private fun initializeAppLanguage(initialSettings: AppSettings) {
@@ -329,5 +329,9 @@ class MainActivity : Hilt_MainActivity() {
             .get(0)
             ?.toLanguageTag()
             .orEmpty()
+    }
+
+    private companion object {
+        private val HTTP_SCHEME_REGEX = Regex("^http://", RegexOption.IGNORE_CASE)
     }
 }

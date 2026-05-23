@@ -476,7 +476,7 @@ private fun exportLogText(
     fileName: String,
     text: String,
 ) {
-    val exportFile = File(context.cacheDir, fileName).apply {
+    val exportFile = File(File(context.cacheDir, "shared"), fileName).apply {
         parentFile?.mkdirs()
         writeText(text)
     }

@@ -417,8 +417,16 @@ fun contrastSubtitle(context: Context, mode: ContrastMode): String {
     }
 }
 
+fun containerDisplayLabel(context: Context, container: String): String {
+    return when (container.lowercase()) {
+        "auto" -> context.getString(R.string.common_auto)
+        else -> container.uppercase()
+    }
+}
+
 fun containerDescription(context: Context, container: String): String {
-    return when (container) {
+    return when (container.lowercase()) {
+        "auto" -> context.getString(R.string.container_desc_auto)
         "mp4" -> context.getString(R.string.container_desc_mp4)
         "webm" -> context.getString(R.string.container_desc_webm)
         "mkv" -> context.getString(R.string.container_desc_mkv)

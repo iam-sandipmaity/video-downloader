@@ -16,6 +16,7 @@ import javax.inject.Singleton
 class AppUpdateManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val gitHubReleaseClient: GitHubReleaseClient,
+    private val apkSignatureVerifier: ApkSignatureVerifier,
     private val logger: Logger,
 ) {
 
@@ -60,12 +61,19 @@ class AppUpdateManager @Inject constructor(
             listFiles()?.forEach { if (it.isFile) it.delete() }
         }
         val apkFile = File(updatesDir, assetName)
-        gitHubReleaseClient.downloadFile(downloadUrl, apkFile, onProgress)
-        PreparedAppUpdate(
-            apkPath = apkFile.absolutePath,
-            requiresInstallPermission = !canRequestPackageInstalls(),
-            assetName = assetName,
-        )
+        try {
+            gitHubReleaseClient.downloadFile(downloadUrl, apkFile, onProgress)
+            apkSignatureVerifier.verifyMatchesInstalledSigner(apkFile)
+            PreparedAppUpdate(
+                apkPath = apkFile.absolutePath,
+                requiresInstallPermission = !canRequestPackageInstalls(),
+                assetName = assetName,
+            )
+        } catch (error: Throwable) {
+            apkFile.delete()
+            logger.e("AppUpdateManager", "Failed preparing app update install", error)
+            throw error
+        }
     }
 
     fun refreshPreparedInstall(preparedUpdate: PreparedAppUpdate): PreparedAppUpdate? {

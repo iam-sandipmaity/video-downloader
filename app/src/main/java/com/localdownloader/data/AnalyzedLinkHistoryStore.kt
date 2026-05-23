@@ -22,7 +22,7 @@ class AnalyzedLinkHistoryStore @Inject constructor(
 ) {
     private val mutex = Mutex()
     private val file: File
-        get() = File(context.filesDir, "analyzed-link-history.json")
+        get() = File(context.noBackupFilesDir, "analyzed-link-history.json")
 
     suspend fun load(retentionDays: Int): List<AnalyzedLinkRecord> = mutex.withLock {
         withContext(Dispatchers.IO) {

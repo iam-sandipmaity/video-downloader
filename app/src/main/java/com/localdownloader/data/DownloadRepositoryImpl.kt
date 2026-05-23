@@ -26,6 +26,7 @@ import com.localdownloader.ffmpeg.Compressor
 import com.localdownloader.ffmpeg.FormatConverter
 import com.localdownloader.utils.FileUtils
 import com.localdownloader.utils.Logger
+import com.localdownloader.utils.SensitiveDataSanitizer
 import com.localdownloader.worker.WorkerKeys
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -38,8 +39,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import java.io.File
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -57,14 +56,15 @@ class DownloadRepositoryImpl @Inject constructor(
     private val settingsStore: SettingsStore,
     private val workManager: WorkManager,
     private val fileUtils: FileUtils,
+    private val downloadOptionSecretsStore: DownloadOptionSecretsStore,
     private val logger: Logger,
-    private val json: Json,
 ) : DownloaderRepository {
     private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val workObserverJobs = ConcurrentHashMap.newKeySet<String>()
     private val pauseExpiryJobs = ConcurrentHashMap<String, Job>()
     private val pauseExpiryDeadlines = ConcurrentHashMap<String, Long>()
     private val schedulingMutex = Mutex()
+    private val historyCleanupMutex = Mutex()
 
     init {
         repositoryScope.launch {
@@ -74,6 +74,21 @@ class DownloadRepositoryImpl @Inject constructor(
         }
         repositoryScope.launch {
             downloadTaskStore.awaitInitialLoad()
+            while (true) {
+                delay(FAILED_HISTORY_PRUNE_INTERVAL_MS)
+                runCatching {
+                    pruneFailedAndCanceledHistory(
+                        settingsStore.observeSettings().first().downloadHistoryRetentionDays,
+                    )
+                }.onFailure { error ->
+                    logger.w("DownloadRepository", "Periodic failed history prune failed", error)
+                }
+            }
+        }
+        repositoryScope.launch {
+            downloadTaskStore.awaitInitialLoad()
+            migratePersistedTaskSecrets()
+            pruneFailedAndCanceledHistory(settingsStore.observeSettings().first().downloadHistoryRetentionDays)
             refillQueuedDownloads()
         }
     }
@@ -207,8 +222,7 @@ class DownloadRepositoryImpl @Inject constructor(
             return Result.failure(IllegalStateException("Pause is still finishing. Please try resume again in a moment."))
         }
 
-        val taskOptions = downloadTaskStore.getCachedOptions(taskId)
-            ?.let { serialized -> runCatching { json.decodeFromString<DownloadOptions>(serialized) }.getOrNull() }
+        val taskOptions = loadTaskOptions(taskId)
             ?: return Result.failure(IllegalStateException("No cached download options for task $taskId"))
 
         if (task.pauseExpiresAtEpochMs?.let { it <= System.currentTimeMillis() } == true) {
@@ -253,8 +267,7 @@ class DownloadRepositoryImpl @Inject constructor(
             return Result.failure(IllegalStateException("Only failed or canceled downloads can be retried."))
         }
 
-        val taskOptions = downloadTaskStore.getCachedOptions(taskId)
-            ?.let { serialized -> runCatching { json.decodeFromString<DownloadOptions>(serialized) }.getOrNull() }
+        val taskOptions = loadTaskOptions(taskId)
             ?: return Result.failure(IllegalStateException("No cached download options for task $taskId"))
 
         return runCatching {
@@ -310,7 +323,7 @@ class DownloadRepositoryImpl @Inject constructor(
                 status = DownloadStatus.CANCELED,
                 activeWorkId = task.activeWorkId,
                 pauseExpiresAtEpochMs = null,
-                debugTrace = appendDebugLine(task.debugTrace, "Cancelled by user"),
+                debugTrace = appendDebugLine(task.debugTrace, "Canceled by user"),
                 updatedAtEpochMs = System.currentTimeMillis(),
             )
         }
@@ -472,6 +485,24 @@ class DownloadRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun clearFailedAndCanceledHistory(): Result<Int> {
+        return runCatching {
+            historyCleanupMutex.withLock {
+                val historyTaskIds = downloadTaskStore.getAllTasks()
+                    .asSequence()
+                    .filter { it.status == DownloadStatus.FAILED || it.status == DownloadStatus.CANCELED }
+                    .map { it.id }
+                    .toList()
+                if (historyTaskIds.isEmpty()) return@withLock 0
+                downloadOptionSecretsStore.clear(historyTaskIds)
+                downloadTaskStore.removeMany(historyTaskIds)
+                historyTaskIds.size
+            }
+        }.onFailure { error ->
+            logger.e("DownloadRepository", "clearFailedAndCanceledHistory failed", error)
+        }
+    }
+
     override suspend fun syncDownloadedMedia(removeMissingEntries: Boolean?): Result<MediaSyncResult> {
         return runCatching {
             val settings = settingsStore.observeSettings().first()
@@ -502,7 +533,9 @@ class DownloadRepositoryImpl @Inject constructor(
             }
 
             if (shouldRemoveMissing && missingTasks.isNotEmpty()) {
-                downloadTaskStore.removeMany(missingTasks.map { it.id })
+                val missingIds = missingTasks.map { it.id }
+                downloadOptionSecretsStore.clear(missingIds)
+                downloadTaskStore.removeMany(missingIds)
             }
 
             MediaSyncResult(
@@ -532,6 +565,9 @@ class DownloadRepositoryImpl @Inject constructor(
     override suspend fun updateSettings(settings: AppSettings) {
         val previous = settingsStore.observeSettings().first()
         settingsStore.updateSettings(settings)
+        if (previous.downloadHistoryRetentionDays != settings.downloadHistoryRetentionDays) {
+            pruneFailedAndCanceledHistory(settings.downloadHistoryRetentionDays)
+        }
         if (previous.maxConcurrentDownloads != settings.maxConcurrentDownloads ||
             previous.allowMeteredDownloads != settings.allowMeteredDownloads
         ) {
@@ -557,33 +593,6 @@ class DownloadRepositoryImpl @Inject constructor(
             .setInputData(
                 workDataOf(
                     WorkerKeys.TASK_ID to taskId,
-                    WorkerKeys.URL to options.url,
-                    WorkerKeys.FORMAT_ID to options.formatId,
-                    WorkerKeys.OUTPUT_TEMPLATE to options.outputTemplate,
-                    WorkerKeys.EXTRACTOR_ARGS to (options.extractorArgs ?: ""),
-                    WorkerKeys.FALLBACK_EXTRACTOR_ARGS to (options.fallbackExtractorArgs ?: ""),
-                    WorkerKeys.LOAD_INFO_JSON_PATH to (options.loadInfoJsonPath ?: ""),
-                    WorkerKeys.USER_AGENT_HEADER to (options.userAgentHeader ?: ""),
-                    WorkerKeys.YOUTUBE_AUTH_ENABLED to options.youtubeAuthEnabled,
-                    WorkerKeys.YOUTUBE_COOKIES_PATH to (options.youtubeCookiesPath ?: ""),
-                    WorkerKeys.YOUTUBE_PO_TOKEN to (options.youtubePoToken ?: ""),
-                    WorkerKeys.YOUTUBE_PO_TOKEN_CLIENT_HINT to options.youtubePoTokenClientHint,
-                    WorkerKeys.YOUTUBE_DATA_SYNC_ID to (options.youtubeDataSyncId ?: ""),
-                    WorkerKeys.MERGE_OUTPUT_FORMAT to (options.mergeOutputFormat ?: ""),
-                    WorkerKeys.PREFERRED_VIDEO_HEIGHT to (options.preferredVideoHeight ?: -1),
-                    WorkerKeys.DOWNLOAD_VIDEO_ONLY to options.downloadVideoOnly,
-                    WorkerKeys.PLAYLIST_ENABLED to options.isPlaylistEnabled,
-                    WorkerKeys.DOWNLOAD_SUBTITLES to options.shouldDownloadSubtitles,
-                    WorkerKeys.EMBED_SUBTITLES to options.shouldEmbedSubtitles,
-                    WorkerKeys.EMBED_METADATA to options.shouldEmbedMetadata,
-                    WorkerKeys.EMBED_THUMBNAIL to options.shouldEmbedThumbnail,
-                    WorkerKeys.WRITE_THUMBNAIL to options.shouldWriteThumbnail,
-                    WorkerKeys.EXTRACT_AUDIO to options.extractAudio,
-                    WorkerKeys.AUDIO_FORMAT to (options.audioFormat ?: ""),
-                    WorkerKeys.AUDIO_BITRATE to (options.audioBitrateKbps ?: -1),
-                    WorkerKeys.TITLE_HINT to titleHint,
-                    WorkerKeys.PLAYLIST_ITEM_INDEX to (options.playlistItemIndex ?: -1),
-                    WorkerKeys.PLAYLIST_FOLDER_NAME to (options.playlistFolderName ?: ""),
                 ),
             )
             .setConstraints(
@@ -621,9 +630,10 @@ class DownloadRepositoryImpl @Inject constructor(
             updatedAtEpochMs = System.currentTimeMillis(),
         )
 
+        val persistedOptionsJson = downloadOptionSecretsStore.persist(taskId, options)
         downloadTaskStore.upsert(
             task = queuedTask,
-            optionsJson = json.encodeToString(options),
+            optionsJson = persistedOptionsJson,
         )
 
         return PreparedDownload(
@@ -784,10 +794,7 @@ class DownloadRepositoryImpl @Inject constructor(
                         task.copy(
                             status = DownloadStatus.FAILED,
                             errorMessage = failureMessage,
-                            debugTrace = appendDebugLine(
-                                task.debugTrace,
-                                "Worker finished with logical failure so playlist queue could continue: $failureMessage",
-                            ),
+                            debugTrace = ensureDebugLine(task.debugTrace, "Task failed: $failureMessage"),
                             updatedAtEpochMs = System.currentTimeMillis(),
                         )
                     }
@@ -807,7 +814,7 @@ class DownloadRepositoryImpl @Inject constructor(
                             status = DownloadStatus.CANCELED,
                             activeWorkId = null,
                             pauseExpiresAtEpochMs = null,
-                            debugTrace = appendDebugLine(task.debugTrace, "Worker stopped cleanly after cancel request"),
+                            debugTrace = ensureDebugLine(task.debugTrace, "Task canceled"),
                             updatedAtEpochMs = System.currentTimeMillis(),
                         )
                     }
@@ -824,6 +831,8 @@ class DownloadRepositoryImpl @Inject constructor(
                             updatedAtEpochMs = System.currentTimeMillis(),
                         )
                     }
+                    downloadTaskStore.clearCachedOptions(taskId)
+                    downloadOptionSecretsStore.clear(taskId)
                     triggerQueuedDownloadRefill()
                 }
             }
@@ -846,7 +855,7 @@ class DownloadRepositoryImpl @Inject constructor(
 
                         task.status == DownloadStatus.CANCELED -> task.copy(
                             activeWorkId = null,
-                            debugTrace = appendDebugLine(task.debugTrace, "Worker stopped after cancel request"),
+                            debugTrace = ensureDebugLine(task.debugTrace, "Task canceled"),
                             pauseExpiresAtEpochMs = null,
                             updatedAtEpochMs = System.currentTimeMillis(),
                         ).also { shouldAdvancePlaylist = true }
@@ -855,7 +864,7 @@ class DownloadRepositoryImpl @Inject constructor(
                             status = DownloadStatus.FAILED,
                             activeWorkId = null,
                             errorMessage = failureMessage,
-                            debugTrace = appendDebugLine(task.debugTrace, "WorkManager failed: $failureMessage"),
+                            debugTrace = ensureDebugLine(task.debugTrace, "Task failed: $failureMessage"),
                             pauseExpiresAtEpochMs = null,
                             updatedAtEpochMs = System.currentTimeMillis(),
                         ).also { shouldAdvancePlaylist = true }
@@ -878,7 +887,7 @@ class DownloadRepositoryImpl @Inject constructor(
 
                         task.status == DownloadStatus.CANCELED -> task.copy(
                             activeWorkId = null,
-                            debugTrace = appendDebugLine(task.debugTrace, "WorkManager cancelled"),
+                            debugTrace = ensureDebugLine(task.debugTrace, "Task canceled"),
                             pauseExpiresAtEpochMs = null,
                             updatedAtEpochMs = System.currentTimeMillis(),
                         ).also { shouldAdvancePlaylist = true }
@@ -886,7 +895,7 @@ class DownloadRepositoryImpl @Inject constructor(
                         else -> task.copy(
                             status = DownloadStatus.CANCELED,
                             activeWorkId = null,
-                            debugTrace = appendDebugLine(task.debugTrace, "WorkManager cancelled"),
+                            debugTrace = ensureDebugLine(task.debugTrace, "Task canceled"),
                             pauseExpiresAtEpochMs = null,
                             updatedAtEpochMs = System.currentTimeMillis(),
                         ).also { shouldAdvancePlaylist = true }
@@ -908,21 +917,34 @@ class DownloadRepositoryImpl @Inject constructor(
         if (cleaned.isBlank()) return
         val entry = "${System.currentTimeMillis()}: $cleaned"
         downloadTaskStore.update(taskId) { task ->
-            task.copy(
-                debugTrace = appendDebugLine(task.debugTrace, entry),
-                updatedAtEpochMs = System.currentTimeMillis(),
-            )
+            if (task.status.isTerminal) {
+                task
+            } else {
+                task.copy(
+                    debugTrace = appendDebugLine(task.debugTrace, entry),
+                    updatedAtEpochMs = System.currentTimeMillis(),
+                )
+            }
         }
     }
 
     private fun appendDebugLine(existing: String?, line: String): String {
-        val combined = if (existing.isNullOrBlank()) line else "$existing\n$line"
+        val sanitized = SensitiveDataSanitizer.sanitize(line)
+        val combined = if (existing.isNullOrBlank()) sanitized else "$existing\n$sanitized"
         return combined.takeLast(MAX_DEBUG_TRACE_CHARS)
+    }
+
+    private fun ensureDebugLine(existing: String?, line: String): String {
+        return if (existing.isNullOrBlank()) {
+            appendDebugLine(existing, line)
+        } else {
+            existing
+        }
     }
 
     private suspend fun loadTaskOptions(taskId: String): DownloadOptions? {
         val optionsJson = downloadTaskStore.getCachedOptions(taskId) ?: return null
-        return runCatching { json.decodeFromString<DownloadOptions>(optionsJson) }.getOrNull()
+        return downloadOptionSecretsStore.hydrate(taskId, optionsJson)
     }
 
     private fun triggerQueuedDownloadRefill() {
@@ -975,13 +997,11 @@ class DownloadRepositoryImpl @Inject constructor(
         val pauseExpiresAt = task.pauseExpiresAtEpochMs ?: return
         if (task.status != DownloadStatus.PAUSED || pauseExpiresAt > System.currentTimeMillis()) return
 
-        val optionsJson = downloadTaskStore.getCachedOptions(taskId)
-        val cleanedFileCount = optionsJson
-            ?.let { serialized -> runCatching { json.decodeFromString<DownloadOptions>(serialized) }.getOrNull() }
-            ?.let { options -> runCatching { fileUtils.deleteDownloadArtifacts(options.outputTemplate) }.getOrDefault(0) }
-            ?: 0
+        loadTaskOptions(taskId)
+            ?.let { options -> runCatching { fileUtils.deleteDownloadArtifacts(options.outputTemplate) } }
 
         downloadTaskStore.clearCachedOptions(taskId)
+        downloadOptionSecretsStore.clear(taskId)
         downloadTaskStore.update(taskId) { current ->
             current.copy(
                 status = DownloadStatus.CANCELED,
@@ -990,13 +1010,50 @@ class DownloadRepositoryImpl @Inject constructor(
                 errorMessage = "Paused download expired after 10 minutes. Cached data was cleaned up.",
                 debugTrace = appendDebugLine(
                     current.debugTrace,
-                    "Pause expired after 10 minutes. Removed $cleanedFileCount cached download artifact(s).",
+                    "Paused download expired after 10 minutes. Cached data was cleaned up.",
                 ),
                 updatedAtEpochMs = System.currentTimeMillis(),
             )
         }
         pauseExpiryJobs.remove(taskId)?.cancel()
         pauseExpiryDeadlines.remove(taskId)
+    }
+
+    private suspend fun migratePersistedTaskSecrets() {
+        downloadTaskStore.getAllTasks().forEach { task ->
+            if (task.status == DownloadStatus.COMPLETED) {
+                if (downloadTaskStore.getCachedOptions(task.id) != null) {
+                    downloadTaskStore.clearCachedOptions(task.id)
+                }
+                downloadOptionSecretsStore.clear(task.id)
+                return@forEach
+            }
+
+            val optionsJson = downloadTaskStore.getCachedOptions(task.id) ?: return@forEach
+            val migratedJson = downloadOptionSecretsStore.migratePersistedOptions(task.id, optionsJson)
+            if (migratedJson != null && migratedJson != optionsJson) {
+                downloadTaskStore.cacheOptions(task.id, migratedJson)
+            }
+        }
+    }
+
+    private suspend fun pruneFailedAndCanceledHistory(retentionDays: Int): Int {
+        return historyCleanupMutex.withLock {
+            val normalizedDays = retentionDays.coerceIn(MIN_FAILED_HISTORY_RETENTION_DAYS, MAX_FAILED_HISTORY_RETENTION_DAYS)
+            val cutoff = System.currentTimeMillis() - normalizedDays * DAY_IN_MILLIS
+            val staleTaskIds = downloadTaskStore.getAllTasks()
+                .asSequence()
+                .filter {
+                    (it.status == DownloadStatus.FAILED || it.status == DownloadStatus.CANCELED) &&
+                        it.updatedAtEpochMs < cutoff
+                }
+                .map { it.id }
+                .toList()
+            if (staleTaskIds.isEmpty()) return@withLock 0
+            downloadOptionSecretsStore.clear(staleTaskIds)
+            downloadTaskStore.removeMany(staleTaskIds)
+            staleTaskIds.size
+        }
     }
 
     private fun buildRenamedFileName(rawName: String, currentName: String): String {
@@ -1036,6 +1093,7 @@ class DownloadRepositoryImpl @Inject constructor(
             }
         }
 
+        downloadOptionSecretsStore.clear(removedIds)
         downloadTaskStore.removeMany(removedIds)
 
         if (failedIds.isNotEmpty()) {
@@ -1047,6 +1105,10 @@ class DownloadRepositoryImpl @Inject constructor(
     private companion object {
         const val MAX_DEBUG_TRACE_CHARS = 250_000
         const val PAUSE_RESUME_WINDOW_MS = 10 * 60 * 1000L
+        const val DAY_IN_MILLIS = 24L * 60L * 60L * 1000L
+        const val MIN_FAILED_HISTORY_RETENTION_DAYS = 7
+        const val MAX_FAILED_HISTORY_RETENTION_DAYS = 180
+        const val FAILED_HISTORY_PRUNE_INTERVAL_MS = 12L * 60L * 60L * 1000L
     }
 
     private fun isSupportedSubtitlePath(path: String): Boolean {
