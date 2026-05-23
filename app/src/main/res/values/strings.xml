@@ -507,15 +507,15 @@
 
     <string name="youtube_access_title">YouTube Access</string>
     <string name="youtube_access_use_saved">Use saved YouTube access</string>
-    <string name="youtube_access_use_saved_body">Applies your YouTube cookies and saved session hints on tougher downloads.</string>
+    <string name="youtube_access_use_saved_body">Applies your YouTube cookies, saved session hints, and any optional advanced tokens on tougher downloads.</string>
     <string name="youtube_access_ready_title">Ready for long-form retries</string>
     <string name="youtube_access_not_ready_title">Not configured yet</string>
-    <string name="youtube_access_ready_body">Cookies, session hints, and any legacy tokens are saved.</string>
+    <string name="youtube_access_ready_body">Cookies, session hints, and any optional advanced tokens are saved.</string>
     <string name="youtube_access_ready_without_tokens_body">Cookies and session hints are saved.</string>
     <string name="youtube_access_missing_cookie_body">Session hints are saved, but the YouTube cookie is missing.</string>
     <string name="youtube_access_not_ready_body">Save access once, then retry the blocked YouTube link.</string>
     <string name="youtube_access_login_generate">Login &amp; Save Access</string>
-    <string name="youtube_access_intro_body">This opens a dedicated YouTube sign-in page, captures the matching cookie session, and saves the visitor and data-sync hints that yt-dlp can reuse on stricter retries.</string>
+    <string name="youtube_access_intro_body">This opens a dedicated YouTube sign-in page, captures the matching cookie session, and saves the visitor and data-sync hints that yt-dlp can reuse on stricter retries. The login screen can also generate advanced PO tokens when you explicitly turn that on.</string>
     <string name="youtube_access_saved_details">Saved Details</string>
     <string name="youtube_access_feedback_label">YouTube access</string>
     <string name="youtube_access_client">Client</string>
@@ -531,8 +531,11 @@
     <string name="youtube_access_login_title">YouTube Login</string>
     <string name="youtube_access_login_save">Save Access</string>
     <string name="youtube_access_login_saving">Saving...</string>
-    <string name="youtube_access_login_intro">Sign in if needed, let the sample YouTube page load, then tap Save Access.</string>
-    <string name="youtube_access_login_body">This screen refreshes its own WebView session so the saved cookie and session hints belong to the same YouTube login flow.</string>
+    <string name="youtube_access_login_intro">Sign in if needed, let the sample YouTube page load, choose whether to generate advanced tokens, then tap Save Access.</string>
+    <string name="youtube_access_login_body">This screen refreshes its own WebView session so the saved cookie and session hints belong to the same YouTube login flow. Advanced token capture is optional and only runs when you turn it on here.</string>
+    <string name="youtube_access_login_advanced_title">Generate advanced PO tokens</string>
+    <string name="youtube_access_login_advanced_body">Optional. Captures GVS, player, and subtitle tokens for stricter retries. This takes longer and runs extra YouTube token challenge code inside an isolated WebView.</string>
+    <string name="youtube_access_login_advanced_error_hint">Turn the advanced option off to save only cookies and session hints.</string>
     <string name="youtube_access_login_not_ready">YouTube visitor data is not ready yet. Let the sample video page finish loading, then try Save Access again.</string>
     <string name="youtube_access_login_error">Unable to save YouTube access.</string>
 
