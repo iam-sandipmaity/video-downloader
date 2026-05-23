@@ -29,16 +29,13 @@ internal fun resolveMergeContainerCompatibility(
         return MergeContainerCompatibility(resolvedContainer = normalizedContainer)
     }
 
-    return if ((choice.height ?: 0) >= HIGH_RES_AV1_HEIGHT_THRESHOLD) {
+    return if (isAv1Codec(choice.videoCodec)) {
         MergeContainerCompatibility(
             resolvedContainer = "mkv",
-            queueNote = "High-resolution AV1 video was switched from MP4 to MKV for more reliable merging.",
+            queueNote = "AV1 video was switched from MP4 to MKV for more reliable merging.",
         )
     } else {
-        MergeContainerCompatibility(
-            resolvedContainer = normalizedContainer,
-            queueNote = "AV1 MP4 merges can still vary by FFmpeg support on some devices.",
-        )
+        MergeContainerCompatibility(resolvedContainer = normalizedContainer)
     }
 }
 
@@ -46,8 +43,6 @@ private fun isAv1Codec(codec: String?): Boolean {
     val normalized = codec?.trim()?.lowercase().orEmpty()
     return normalized == "av1" || normalized.startsWith("av01")
 }
-
-private const val HIGH_RES_AV1_HEIGHT_THRESHOLD = 1440
 
 private val MP4_FAMILY_CONTAINERS = setOf(
     "mp4",

@@ -20,7 +20,7 @@ class YoutubeMuxedFormatRoutingTest {
         )
 
         assertEquals(
-            "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best",
+            "bestvideo[height<=1080][ext=mp4][vcodec^=vp9]+bestaudio[ext=m4a]/bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080][vcodec^=vp9]+bestaudio/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best",
             routing.selector,
         )
         assertNotNull(routing.queueNote)
@@ -57,6 +57,28 @@ class YoutubeMuxedFormatRoutingTest {
 
         assertEquals("401+140/401+bestaudio/401/best", routing.selector)
         assertNull(routing.queueNote)
+    }
+
+    @Test
+    fun resolveYoutubeFormatRouting_preservesAvc1WhenReroutingMuxedYoutubeMp4Choice() {
+        val routing = resolveYoutubeFormatRouting(
+            sourceUrl = "https://www.youtube.com/watch?v=test",
+            streamType = StreamType.VIDEO_AUDIO,
+            selectedChoice = muxedChoice(container = "mp4", height = 1080).copy(
+                selector = "301/b[ext=mp4]/b/best",
+                videoCodec = "avc1.640028",
+                audioCodec = "mp4a.40.2",
+            ),
+            requestedContainer = "mp4",
+            fallbackSelector = "301/b[ext=mp4]/b/best",
+            hasMergedVideoAudioChoice = true,
+        )
+
+        assertEquals(
+            "bestvideo[height<=1080][ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080][vcodec^=avc1]+bestaudio/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best",
+            routing.selector,
+        )
+        assertNotNull(routing.queueNote)
     }
 
     private fun muxedChoice(

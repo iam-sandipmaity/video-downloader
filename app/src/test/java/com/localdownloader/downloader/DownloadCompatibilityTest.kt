@@ -23,7 +23,7 @@ class DownloadCompatibilityTest {
     }
 
     @Test
-    fun resolveMergeContainerCompatibility_keepsLowerResAv1Mp4ButWarns() {
+    fun resolveMergeContainerCompatibility_switchesLowerResAv1Mp4ToMkvToo() {
         val result = resolveMergeContainerCompatibility(
             requestedContainer = "mp4",
             selectedChoice = mergedChoice(
@@ -32,7 +32,7 @@ class DownloadCompatibilityTest {
             ),
         )
 
-        assertEquals("mp4", result.resolvedContainer)
+        assertEquals("mkv", result.resolvedContainer)
         assertNotNull(result.queueNote)
     }
 
