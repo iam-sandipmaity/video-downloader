@@ -187,6 +187,7 @@ class DownloadWorker @AssistedInject constructor(
             taskId = taskId,
             outputTemplate = outputTemplate,
             preferredExtension = options.mergeOutputFormat,
+            expectedDurationSeconds = options.expectedDurationSeconds,
         )
         var result = if (recoveredPendingOutput != null) {
             outputPath = recoveredPendingOutput
@@ -421,6 +422,7 @@ class DownloadWorker @AssistedInject constructor(
                 currentOutputPath = outputPath,
                 outputTemplate = outputTemplate,
                 preferredExtension = options.mergeOutputFormat,
+                expectedDurationSeconds = options.expectedDurationSeconds,
             )
             if (recoveredOutputPath != null) {
                 outputPath = recoveredOutputPath
@@ -447,6 +449,7 @@ class DownloadWorker @AssistedInject constructor(
                 currentOutputPath = outputPath,
                 stderr = result.stderr,
                 sawExistingFileReuse = reusedExistingDownloadFile,
+                expectedDurationSeconds = options.expectedDurationSeconds,
             )
         ) {
             val invalidExistingPath = outputPath
@@ -1170,6 +1173,7 @@ class DownloadWorker @AssistedInject constructor(
         currentOutputPath: String?,
         outputTemplate: String,
         preferredExtension: String?,
+        expectedDurationSeconds: Long?,
     ): String? {
         if (!isRecoverablePostprocessingFailure(stderr)) return null
 
@@ -1177,6 +1181,7 @@ class DownloadWorker @AssistedInject constructor(
             taskId = taskId,
             stderr = stderr,
             currentOutputPath = currentOutputPath,
+            expectedDurationSeconds = expectedDurationSeconds,
         )?.let { return it }
 
         val splitArtifacts = findSplitMediaArtifacts(
@@ -1214,7 +1219,8 @@ class DownloadWorker @AssistedInject constructor(
         if (
             !remuxResult.commandResult.isSuccess ||
             !mergedOutputFile.exists() ||
-            mergedOutputFile.length() <= MIN_RECOVERED_MEDIA_BYTES
+            mergedOutputFile.length() <= MIN_RECOVERED_MEDIA_BYTES ||
+            !isUsablePrimaryMediaFile(mergedOutputFile, expectedDurationSeconds)
         ) {
             appendDebugTrace(
                 taskId,
@@ -1236,6 +1242,7 @@ class DownloadWorker @AssistedInject constructor(
         taskId: String,
         stderr: String,
         currentOutputPath: String?,
+        expectedDurationSeconds: Long?,
     ): String? {
         val currentFile = currentOutputPath
             ?.let(::File)
@@ -1253,11 +1260,12 @@ class DownloadWorker @AssistedInject constructor(
                 taskId = taskId,
                 sourceFile = currentFile,
                 preferMpegTsInput = true,
+                expectedDurationSeconds = expectedDurationSeconds,
             )?.let { return it }
             return null
         }
 
-        return if (isUsablePrimaryMediaFile(currentFile)) {
+        return if (isUsablePrimaryMediaFile(currentFile, expectedDurationSeconds)) {
             currentFile.absolutePath
         } else {
             null
@@ -1268,6 +1276,7 @@ class DownloadWorker @AssistedInject constructor(
         taskId: String,
         sourceFile: File,
         preferMpegTsInput: Boolean,
+        expectedDurationSeconds: Long?,
     ): String? {
         if (sourceFile.extension.lowercase() !in VIDEO_ARTIFACT_EXTENSIONS) return null
 
@@ -1278,12 +1287,6 @@ class DownloadWorker @AssistedInject constructor(
         safeDelete(tempRepairPath)
 
         val repairAttempts = buildList {
-            add(
-                SingleFileRepairAttempt(
-                    label = "stream copy remux",
-                    forceInputFormat = null,
-                ),
-            )
             if (preferMpegTsInput) {
                 add(
                     SingleFileRepairAttempt(
@@ -1292,6 +1295,12 @@ class DownloadWorker @AssistedInject constructor(
                     ),
                 )
             }
+            add(
+                SingleFileRepairAttempt(
+                    label = "stream copy remux",
+                    forceInputFormat = null,
+                ),
+            )
         }
 
         for (attempt in repairAttempts) {
@@ -1306,7 +1315,11 @@ class DownloadWorker @AssistedInject constructor(
                 forceInputFormat = attempt.forceInputFormat,
             )
             val repairedFile = File(tempRepairPath)
-            if (result.isSuccess && repairedFile.exists() && isUsablePrimaryMediaFile(repairedFile)) {
+            if (
+                result.isSuccess &&
+                repairedFile.exists() &&
+                isUsablePrimaryMediaFile(repairedFile, expectedDurationSeconds)
+            ) {
                 if (sourceFile.delete() && repairedFile.renameTo(sourceFile)) {
                     appendDebugTrace(taskId, "Standalone media repair succeeded and replaced the original file")
                     return sourceFile.absolutePath
@@ -1324,6 +1337,7 @@ class DownloadWorker @AssistedInject constructor(
         taskId: String,
         outputTemplate: String,
         preferredExtension: String?,
+        expectedDurationSeconds: Long?,
     ): String? {
         val splitArtifacts = findSplitMediaArtifacts(
             outputTemplate = outputTemplate,
@@ -1361,7 +1375,8 @@ class DownloadWorker @AssistedInject constructor(
         if (
             !remuxResult.commandResult.isSuccess ||
             !mergedOutputFile.exists() ||
-            mergedOutputFile.length() <= MIN_RECOVERED_MEDIA_BYTES
+            mergedOutputFile.length() <= MIN_RECOVERED_MEDIA_BYTES ||
+            !isUsablePrimaryMediaFile(mergedOutputFile, expectedDurationSeconds)
         ) {
             appendDebugTrace(
                 taskId,
@@ -1691,7 +1706,10 @@ class DownloadWorker @AssistedInject constructor(
         return file.extension.lowercase() in PRIMARY_MEDIA_EXTENSIONS
     }
 
-    private fun isUsablePrimaryMediaFile(file: File): Boolean {
+    private fun isUsablePrimaryMediaFile(
+        file: File,
+        expectedDurationSeconds: Long? = null,
+    ): Boolean {
         if (!file.exists() || !file.isFile) return false
         if (!isLikelyPrimaryMediaFile(file)) return false
         if (file.length() <= MIN_RECOVERED_MEDIA_BYTES) return false
@@ -1702,7 +1720,10 @@ class DownloadWorker @AssistedInject constructor(
             val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
                 ?.toLongOrNull()
                 ?: 0L
-            durationMs > 0L
+            isRecoveredDurationPlausible(
+                actualDurationMs = durationMs,
+                expectedDurationSeconds = expectedDurationSeconds,
+            )
         }.getOrDefault(false).also {
             runCatching { retriever.release() }
         }
@@ -1712,10 +1733,11 @@ class DownloadWorker @AssistedInject constructor(
         currentOutputPath: String?,
         stderr: String,
         sawExistingFileReuse: Boolean,
+        expectedDurationSeconds: Long?,
     ): Boolean {
         if (!sawExistingFileReuse || currentOutputPath.isNullOrBlank()) return false
         val file = File(currentOutputPath)
-        if (!file.exists() || isUsablePrimaryMediaFile(file)) return false
+        if (!file.exists() || isUsablePrimaryMediaFile(file, expectedDurationSeconds)) return false
 
         val lower = stderr.lowercase()
         return lower.contains("postprocessing:") &&

@@ -6,6 +6,7 @@ import com.localdownloader.data.AnalyzedLinkHistoryStore
 import com.localdownloader.domain.models.AccentPreset
 import com.localdownloader.downloader.FormatSelectorBuilder
 import com.localdownloader.downloader.YoutubeRequestPlanner
+import com.localdownloader.downloader.resolveMergeContainerCompatibility
 import com.localdownloader.domain.models.AnalyzedLinkRecord
 import com.localdownloader.domain.models.AppSettings
 import com.localdownloader.domain.models.ContrastMode
@@ -1299,6 +1300,7 @@ class FormatViewModel @Inject constructor(
         fun buildOptionsForSelection(
             sourceUrl: String,
             sourceThumbnailUrl: String?,
+            sourceDurationSeconds: Long?,
             streamType: StreamType,
             selectedSelector: String?,
             container: String,
@@ -1307,7 +1309,7 @@ class FormatViewModel @Inject constructor(
             customFileName: String,
             choiceBundle: ChoiceBundle,
             targetCategory: FileUtils.MediaFolderCategory,
-        ): DownloadOptions {
+        ): BuiltSelectionOptions {
             val selectedChoice = resolveSelectedChoice(
                 streamType = streamType,
                 selectedSelector = selectedSelector,
@@ -1340,6 +1342,10 @@ class FormatViewModel @Inject constructor(
                 selectedChoice.isMerged -> selectedChoice.container.ifBlank { container.ifBlank { null } }
                 else -> container.ifBlank { null }
             }
+            val mergeCompatibility = resolveMergeContainerCompatibility(
+                requestedContainer = mergeContainer,
+                selectedChoice = selectedChoice,
+            )
             val activeOutputTemplate = if (isAudioOnly) {
                 state.audioOutputTemplate
             } else {
@@ -1357,41 +1363,45 @@ class FormatViewModel @Inject constructor(
                 outputTemplate = resolvedOutputTemplate,
                 requestedFileName = customFileName,
             )
-            return DownloadOptions(
-                url = sourceUrl,
-                formatId = formatSelector,
-                outputTemplate = namedOutputTemplate,
-                thumbnailUrl = sourceThumbnailUrl,
-                extractorArgs = downloadExtractorArgs,
-                fallbackExtractorArgs = fallbackExtractorArgs,
-                loadInfoJsonPath = null,
-                userAgentHeader = if (state.cookiesEnabled && state.cookieUserAgentEnabled) {
-                    CookieTextCodec.COOKIE_USER_AGENT
-                } else {
-                    null
-                },
-                youtubeAuthEnabled = runtimeCookiesPath != null && youtubeAuthConfig != null,
-                youtubeCookiesPath = runtimeCookiesPath,
-                youtubePoToken = youtubeAuthConfig?.buildPoTokenValue(),
-                youtubePoTokenClientHint = youtubeAuthConfig?.clientHint ?: "web.gvs",
-                youtubeDataSyncId = youtubeAuthConfig?.dataSyncId?.ifBlank { null },
-                mergeOutputFormat = mergeContainer,
-                preferredVideoHeight = selectedChoice?.height ?: state.selectedQuality.maxHeight,
-                downloadVideoOnly = streamType == StreamType.VIDEO_ONLY,
-                isPlaylistEnabled = info.isPlaylist || state.enablePlaylist,
-                shouldDownloadSubtitles = state.downloadSubtitles || state.embedSubtitles,
-                shouldEmbedSubtitles = state.embedSubtitles && !isAudioOnly && !shouldBypassMediaPostProcessing,
-                shouldEmbedMetadata = state.embedMetadata && !shouldBypassMediaPostProcessing,
-                shouldEmbedThumbnail = state.embedThumbnail && !shouldBypassMediaPostProcessing,
-                shouldWriteThumbnail = state.writeThumbnail,
-                extractAudio = isAudioOnly,
-                audioFormat = if (isAudioOnly) audioFormat.ifBlank { null } else null,
-                audioBitrateKbps = if (isAudioOnly) audioBitrateKbps else null,
+            return BuiltSelectionOptions(
+                options = DownloadOptions(
+                    url = sourceUrl,
+                    formatId = formatSelector,
+                    outputTemplate = namedOutputTemplate,
+                    thumbnailUrl = sourceThumbnailUrl,
+                    extractorArgs = downloadExtractorArgs,
+                    fallbackExtractorArgs = fallbackExtractorArgs,
+                    loadInfoJsonPath = null,
+                    userAgentHeader = if (state.cookiesEnabled && state.cookieUserAgentEnabled) {
+                        CookieTextCodec.COOKIE_USER_AGENT
+                    } else {
+                        null
+                    },
+                    youtubeAuthEnabled = runtimeCookiesPath != null && youtubeAuthConfig != null,
+                    youtubeCookiesPath = runtimeCookiesPath,
+                    youtubePoToken = youtubeAuthConfig?.buildPoTokenValue(),
+                    youtubePoTokenClientHint = youtubeAuthConfig?.clientHint ?: "web.gvs",
+                    youtubeDataSyncId = youtubeAuthConfig?.dataSyncId?.ifBlank { null },
+                    mergeOutputFormat = mergeCompatibility.resolvedContainer,
+                    preferredVideoHeight = selectedChoice?.height ?: state.selectedQuality.maxHeight,
+                    expectedDurationSeconds = sourceDurationSeconds,
+                    downloadVideoOnly = streamType == StreamType.VIDEO_ONLY,
+                    isPlaylistEnabled = info.isPlaylist || state.enablePlaylist,
+                    shouldDownloadSubtitles = state.downloadSubtitles || state.embedSubtitles,
+                    shouldEmbedSubtitles = state.embedSubtitles && !isAudioOnly && !shouldBypassMediaPostProcessing,
+                    shouldEmbedMetadata = state.embedMetadata && !shouldBypassMediaPostProcessing,
+                    shouldEmbedThumbnail = state.embedThumbnail && !shouldBypassMediaPostProcessing,
+                    shouldWriteThumbnail = state.writeThumbnail,
+                    extractAudio = isAudioOnly,
+                    audioFormat = if (isAudioOnly) audioFormat.ifBlank { null } else null,
+                    audioBitrateKbps = if (isAudioOnly) audioBitrateKbps else null,
+                ),
+                queueNote = mergeCompatibility.queueNote,
             )
         }
 
         if (info.isPlaylist) {
-            val requests = state.playlistItems
+            val builtRequests = state.playlistItems
                 .filter { it.isSelected }
                 .map { item ->
                     val itemStreamType = if (item.useGlobalSettings) state.selectedStreamType else item.selectedStreamType
@@ -1404,9 +1414,10 @@ class FormatViewModel @Inject constructor(
                         videoOnlyChoices = item.availableVideoOnlyChoices,
                         audioOnlyChoices = item.availableAudioOnlyChoices,
                     )
-                    val options = buildOptionsForSelection(
+                    val builtSelection = buildOptionsForSelection(
                         sourceUrl = item.entry.webpageUrl,
                         sourceThumbnailUrl = item.entry.thumbnailUrl ?: info.thumbnailUrl,
+                        sourceDurationSeconds = item.entry.durationSeconds ?: info.durationSeconds,
                         streamType = itemStreamType,
                         selectedSelector = itemSelector,
                         container = itemContainer,
@@ -1416,16 +1427,22 @@ class FormatViewModel @Inject constructor(
                         choiceBundle = itemChoiceBundle,
                         targetCategory = FileUtils.MediaFolderCategory.PLAYLIST,
                     )
+                    val options = builtSelection.options
                     logger.i(
                         "FormatViewModel",
                         "Queueing playlist item index=${item.entry.playlistItemIndex} url=${item.entry.webpageUrl} formatSelector=${options.formatId} extractAudio=${options.extractAudio}",
                     )
-                    PlaylistDownloadRequest(
-                        entry = item.entry,
-                        options = options,
-                        titleHint = item.customFileName.trim().ifBlank { item.entry.title },
+                    BuiltPlaylistRequest(
+                        request = PlaylistDownloadRequest(
+                            entry = item.entry,
+                            options = options,
+                            titleHint = item.customFileName.trim().ifBlank { item.entry.title },
+                        ),
+                        queueNote = builtSelection.queueNote,
                     )
                 }
+            val requests = builtRequests.map { it.request }
+            val queueNotes = builtRequests.mapNotNull { it.queueNote }.distinct()
             val playlistResult = runCatching {
                 repository.enqueuePlaylistDownload(
                     playlistTitle = info.title,
@@ -1447,6 +1464,10 @@ class FormatViewModel @Inject constructor(
                                 queuedMessageSuffix?.takeIf { it.isNotBlank() }?.let {
                                     append(" ")
                                     append(it)
+                                }
+                                if (queueNotes.isNotEmpty()) {
+                                    append(" ")
+                                    append(queueNotes.joinToString(" "))
                                 }
                             },
                             lastQueuedStreamType = current.selectedStreamType,
@@ -1474,9 +1495,10 @@ class FormatViewModel @Inject constructor(
             return
         }
 
-        val options = buildOptionsForSelection(
+        val builtSelection = buildOptionsForSelection(
             sourceUrl = info.webpageUrl,
             sourceThumbnailUrl = info.thumbnailUrl,
+            sourceDurationSeconds = info.durationSeconds,
             streamType = state.selectedStreamType,
             selectedSelector = state.selectedFormatSelector,
             container = state.selectedContainer,
@@ -1495,6 +1517,7 @@ class FormatViewModel @Inject constructor(
                 else -> FileUtils.MediaFolderCategory.OTHER
             },
         )
+        val options = builtSelection.options
         logger.i(
             "FormatViewModel",
             "Queueing download for URL=${options.url}, formatSelector=${options.formatId}, extractAudio=${options.extractAudio}",
@@ -1520,6 +1543,10 @@ class FormatViewModel @Inject constructor(
                         infoMessage = buildString {
                             append("Added to queue. Task: $taskId")
                             queuedMessageSuffix?.takeIf { it.isNotBlank() }?.let {
+                                append(" ")
+                                append(it)
+                            }
+                            builtSelection.queueNote?.takeIf { it.isNotBlank() }?.let {
                                 append(" ")
                                 append(it)
                             }
@@ -1726,6 +1753,16 @@ class FormatViewModel @Inject constructor(
         val videoAudioChoices: List<FormatChoice>,
         val videoOnlyChoices: List<FormatChoice>,
         val audioOnlyChoices: List<FormatChoice>,
+    )
+
+    private data class BuiltSelectionOptions(
+        val options: DownloadOptions,
+        val queueNote: String?,
+    )
+
+    private data class BuiltPlaylistRequest(
+        val request: PlaylistDownloadRequest,
+        val queueNote: String?,
     )
 
     private fun buildPlaylistItemStates(
