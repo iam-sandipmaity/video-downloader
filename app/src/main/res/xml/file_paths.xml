@@ -7,11 +7,11 @@
         name="internal_downloads"
         path="downloads/" />
     <cache-path
-        name="cache_files"
-        path="." />
-    <external-files-path
-        name="external_files"
-        path="." />
+        name="app_update_installs"
+        path="app-updates/" />
+    <cache-path
+        name="shared_exports"
+        path="shared/" />
     <external-path
         name="external_storage"
         path="Download/LocalDownloader/" />

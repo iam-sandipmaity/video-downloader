@@ -50,24 +50,24 @@ class FileUtils @Inject constructor(
     /**
      * Returns the downloads directory for yt-dlp output.
      *
-     * Android 11+ (API 30+): app-specific external storage (`Android/data/…`).
+     * Android 10+ (API 29+): app-specific external storage (`Android/data/...`).
      * On download completion the Worker copies the file to the public Downloads folder
      * so users can find it in their file manager.
      *
-     * Android 10 and below: `/sdcard/Download/LocalDownloader/`
+     * Android 9 and below: `/sdcard/Download/LocalDownloader/`
      */
     fun ensureDownloadsDir(subDirectoryName: String? = null): File {
         val rootFolderName = configuredRootFolderName()
         val normalizedSubdirectory = normalizeSubfolderSetting(subDirectoryName.orEmpty())
             .ifBlank { null }
-        // Android 10 and below: direct path to public Downloads.
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+        // Android 9 and below: direct path to public Downloads.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             val publicDownloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
             val appDir = buildPath(publicDownloads, rootFolderName, normalizedSubdirectory)
             if ((appDir.exists() || appDir.mkdirs()) && appDir.canWrite()) return appDir
         }
 
-        // Android 11+: app-specific external storage.
+        // Android 10+: app-specific external storage.
         val extDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
         val appSpecificDir = extDir?.let { buildPath(it, rootFolderName, normalizedSubdirectory) }
         if (appSpecificDir != null && (appSpecificDir.exists() || appSpecificDir.mkdirs()) && appSpecificDir.canWrite()) {
@@ -226,16 +226,16 @@ class FileUtils @Inject constructor(
     }
 
     /**
-     * On Android 11+ copies a file from the app-specific directory to the public
+     * On Android 10+ copies a file from the app-specific directory to the public
      * Downloads folder via MediaStore so it becomes visible in file managers.
-     * Returns the public path, or null on Android 10 and below (file is already public).
+     * Returns the public path, or null on Android 9 and below (file is already public).
      */
     fun copyToPublicDownloads(
         sourceFile: File,
         playlistFolderName: String? = null,
         targetFileName: String? = null,
     ): String? {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
 
         val publicDownloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
         val rootFolderName = configuredRootFolderName()
@@ -317,7 +317,7 @@ class FileUtils @Inject constructor(
         if (!targetFile.exists()) return true
         if (targetFile.delete()) return true
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             deleteFromMediaStore(targetFile)?.let { deleted ->
                 if (deleted) return true
             }
@@ -390,7 +390,7 @@ class FileUtils @Inject constructor(
     }
 
     fun normalizeLibraryOutputPath(path: String): String {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return path
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return path
 
         val relativePath = relativePathWithinDownloadsRoot(File(path)) ?: return path
         val publicDownloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
