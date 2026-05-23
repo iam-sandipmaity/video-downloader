@@ -79,6 +79,26 @@ class DownloadOptionSecretsStoreTest {
     }
 
     @Test
+    fun applyPersistedSecrets_usesMaterializedCookiesPathOverride() {
+        val baseOptions = DownloadOptions(
+            url = "https://example.com/video",
+            formatId = "best",
+            youtubeAuthEnabled = true,
+        )
+        val secrets = PersistedDownloadOptionSecrets(
+            youtubeCookiesPath = "/tmp/original-cookies.txt",
+            youtubeCookiesText = "# Netscape HTTP Cookie File",
+        )
+
+        val hydrated = baseOptions.applyPersistedSecrets(
+            secrets = secrets,
+            youtubeCookiesPath = "/tmp/materialized-cookies.txt",
+        )
+
+        assertEquals("/tmp/materialized-cookies.txt", hydrated.youtubeCookiesPath)
+    }
+
+    @Test
     fun containsPersistedSecrets_ignoresNonSensitiveFlagsAlone() {
         val options = DownloadOptions(
             url = "https://example.com/video",
