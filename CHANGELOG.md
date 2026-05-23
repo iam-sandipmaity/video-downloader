@@ -1,5 +1,25 @@
 # Changelog
 
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.7.2.0] - 2026-05-23
+
+### Changed
+- **Security hardening release** - bundled the vulnerability-fix pass into one follow-up release covering update trust, storage handling, WebView safety, and diagnostic-data retention
+- **Scoped storage alignment** - Android 10 now follows the same app-specific download staging plus public-export flow as newer Android versions, so legacy external-storage behavior is no longer required
+
+### Fixed
+- **TLS downgrade during analysis** - removed the insecure certificate-check bypass from the analysis fallback path
+- **Sensitive local data exposure** - moved download secrets out of task persistence, cleared terminal task traces, disabled Android backup for app data, and tightened log/export handling
+- **Runtime update verification gaps** - app and FFmpeg updates now verify signer identity, while yt-dlp updates now require and validate the published checksum manifest before replacement
+- **WebView trust boundaries** - hardened preview, cookie-capture, and YouTube access WebViews, and retired the in-app PO-token generator in favor of safer saved session hints
+- **File-sharing surface area** - narrowed `FileProvider` cache exposure to the exact update and export directories the app actually shares
+
+### Technical
+- **App version bump** - release metadata updated to `1.7.2.0`
+
 ## [1.7.2] - 2026-05-22
 
 ### Added
@@ -275,9 +295,6 @@
 - **External preview plumbing** - added `ExternalOpenRequest` and `ExternalPreviewScreen` for external file and link handling
 - **File and rendering support** - expanded `FileUtils` for imported external-open files and managed-file sync, added `coil-gif` for animated GIF rendering, and added manifest intent filters for share targets, web links, supported file opens, and MHTML/MHT preview
 
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
