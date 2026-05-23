@@ -37,6 +37,27 @@ class DownloadCompatibilityTest {
     }
 
     @Test
+    fun resolveMergeContainerCompatibility_switchesVp9OpusMp4ToWebm() {
+        val result = resolveMergeContainerCompatibility(
+            requestedContainer = "mp4",
+            selectedChoice = FormatChoice(
+                selector = "248+251",
+                label = "1080p webm merge",
+                streamType = StreamType.VIDEO_AUDIO,
+                container = "webm",
+                height = 1080,
+                isMerged = true,
+                isImageLike = false,
+                videoCodec = "vp9",
+                audioCodec = "opus",
+            ),
+        )
+
+        assertEquals("webm", result.resolvedContainer)
+        assertNotNull(result.queueNote)
+    }
+
+    @Test
     fun resolveMergeContainerCompatibility_ignoresMuxedChoices() {
         val result = resolveMergeContainerCompatibility(
             requestedContainer = "mp4",

@@ -22,6 +22,12 @@ internal fun resolveMergeContainerCompatibility(
     if (!choice.isMerged && !choice.selector.contains("+")) {
         return MergeContainerCompatibility(resolvedContainer = normalizedContainer)
     }
+    if (normalizedContainer in MP4_FAMILY_CONTAINERS && shouldPreferWebmContainer(choice)) {
+        return MergeContainerCompatibility(
+            resolvedContainer = "webm",
+            queueNote = "WebM-friendly video was switched from MP4 to WEBM for a more reliable merge.",
+        )
+    }
     if (normalizedContainer !in MP4_FAMILY_CONTAINERS) {
         return MergeContainerCompatibility(resolvedContainer = normalizedContainer)
     }
@@ -42,6 +48,18 @@ internal fun resolveMergeContainerCompatibility(
 private fun isAv1Codec(codec: String?): Boolean {
     val normalized = codec?.trim()?.lowercase().orEmpty()
     return normalized == "av1" || normalized.startsWith("av01")
+}
+
+private fun shouldPreferWebmContainer(choice: FormatChoice): Boolean {
+    val normalizedContainer = choice.container.trim().lowercase()
+    val normalizedVideoCodec = choice.videoCodec?.trim()?.lowercase().orEmpty()
+    val normalizedAudioCodec = choice.audioCodec?.trim()?.lowercase().orEmpty()
+
+    return normalizedContainer == "webm" ||
+        normalizedVideoCodec.startsWith("vp9") ||
+        normalizedVideoCodec.startsWith("vp8") ||
+        normalizedAudioCodec.startsWith("opus") ||
+        normalizedAudioCodec.startsWith("vorbis")
 }
 
 private val MP4_FAMILY_CONTAINERS = setOf(
