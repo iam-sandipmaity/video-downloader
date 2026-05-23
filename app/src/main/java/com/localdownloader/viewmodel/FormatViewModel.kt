@@ -7,6 +7,7 @@ import com.localdownloader.domain.models.AccentPreset
 import com.localdownloader.downloader.FormatSelectorBuilder
 import com.localdownloader.downloader.YoutubeRequestPlanner
 import com.localdownloader.downloader.resolveMergeContainerCompatibility
+import com.localdownloader.downloader.resolveYoutubeFormatRouting
 import com.localdownloader.domain.models.AnalyzedLinkRecord
 import com.localdownloader.domain.models.AppSettings
 import com.localdownloader.domain.models.ContrastMode
@@ -1331,6 +1332,14 @@ class FormatViewModel @Inject constructor(
                     container = container,
                 )
             }
+            val youtubeRouting = resolveYoutubeFormatRouting(
+                sourceUrl = sourceUrl,
+                streamType = streamType,
+                selectedChoice = selectedChoice,
+                requestedContainer = container,
+                fallbackSelector = formatSelector,
+                hasMergedVideoAudioChoice = choiceBundle.videoAudioChoices.any { it.isMerged },
+            )
             val isAudioOnly = streamType == StreamType.AUDIO_ONLY
             val shouldBypassMediaPostProcessing = !info.isPlaylist && selectedChoice?.isImageLike == true
             val runtimeCookiesPath = resolveRuntimeCookiesPathForUrl(sourceUrl)
@@ -1366,7 +1375,7 @@ class FormatViewModel @Inject constructor(
             return BuiltSelectionOptions(
                 options = DownloadOptions(
                     url = sourceUrl,
-                    formatId = formatSelector,
+                    formatId = youtubeRouting.selector,
                     outputTemplate = namedOutputTemplate,
                     thumbnailUrl = sourceThumbnailUrl,
                     extractorArgs = downloadExtractorArgs,
@@ -1396,7 +1405,10 @@ class FormatViewModel @Inject constructor(
                     audioFormat = if (isAudioOnly) audioFormat.ifBlank { null } else null,
                     audioBitrateKbps = if (isAudioOnly) audioBitrateKbps else null,
                 ),
-                queueNote = mergeCompatibility.queueNote,
+                queueNote = listOfNotNull(
+                    youtubeRouting.queueNote,
+                    mergeCompatibility.queueNote,
+                ).distinct().joinToString(" ").ifBlank { null },
             )
         }
 
