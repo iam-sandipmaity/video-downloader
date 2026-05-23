@@ -1603,26 +1603,12 @@ class DownloadWorker @AssistedInject constructor(
         targetPath: String,
         stderr: String,
     ): String? {
-        val extension = File(targetPath).extension.lowercase()
-        if (extension !in CONTAINER_SENSITIVE_EXTENSIONS) return null
-
-        val videoExtension = File(videoPath).extension.lowercase()
-        val audioExtension = File(audioPath).extension.lowercase()
-        val lower = stderr.lowercase()
-        val hasExplicitContainerFailure = lower.contains("codec not currently supported in container") ||
-            lower.contains("could not find tag for codec") ||
-            (lower.contains("could not write header") && lower.contains("incorrect codec parameters"))
-        val hasWebmLikeSource = videoExtension == "webm" || audioExtension in WEBM_LIKE_AUDIO_EXTENSIONS
-
-        if (!hasExplicitContainerFailure && !(extension == "mp4" && hasWebmLikeSource)) {
-            return null
-        }
-
-        return if (videoExtension == "webm" && audioExtension in WEBM_LIKE_AUDIO_EXTENSIONS) {
-            "webm"
-        } else {
-            "mkv"
-        }
+        return resolveCompatibleContainerFallback(
+            requestedExtension = File(targetPath).extension,
+            videoExtension = File(videoPath).extension,
+            audioExtension = File(audioPath).extension,
+            stderr = stderr,
+        )
     }
 
     private fun replaceFileExtension(path: String, extension: String): String {
@@ -2137,12 +2123,6 @@ class DownloadWorker @AssistedInject constructor(
             "wav",
             "webm",
         )
-        val WEBM_LIKE_AUDIO_EXTENSIONS = setOf(
-            "webm",
-            "weba",
-            "opus",
-            "ogg",
-        )
         val THUMBNAIL_SIDECAR_EXTENSIONS = setOf(
             "jpg",
             "jpeg",
@@ -2162,12 +2142,6 @@ class DownloadWorker @AssistedInject constructor(
             "json",
             "infojson",
             "nfo",
-        )
-        val CONTAINER_SENSITIVE_EXTENSIONS = setOf(
-            "mp4",
-            "m4v",
-            "mov",
-            "3gp",
         )
     }
 
