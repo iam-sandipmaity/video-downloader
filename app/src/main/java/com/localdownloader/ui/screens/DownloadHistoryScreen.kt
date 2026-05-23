@@ -48,7 +48,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,6 +66,8 @@ import com.localdownloader.R
 import com.localdownloader.domain.models.DownloadStatus
 import com.localdownloader.domain.models.DownloadTask
 import com.localdownloader.ui.components.PreferencePageScaffold
+import com.localdownloader.ui.support.shareAppLogs
+import com.localdownloader.utils.SensitiveDataSanitizer
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -446,11 +447,18 @@ private fun HistoryCard(
             ) {
                 FilledTonalButton(
                     onClick = onOpenLog,
-                    enabled = !task.debugTrace.isNullOrBlank(),
                 ) {
                     Icon(Icons.Outlined.Visibility, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(R.string.history_view_log))
+                    Text(
+                        stringResource(
+                            if (task.debugTrace.isNullOrBlank()) {
+                                R.string.history_view_details
+                            } else {
+                                R.string.history_view_log
+                            },
+                        ),
+                    )
                 }
             }
         }
@@ -534,7 +542,7 @@ private fun HistoryMetaPill(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun HistoryLogSheet(
     task: DownloadTask,
@@ -542,8 +550,9 @@ private fun HistoryLogSheet(
 ) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
-    val fullTrace = task.debugTrace.orEmpty().ifBlank { context.getString(R.string.history_no_task_log) }
-    var copied by remember { mutableStateOf(false) }
+    val hasTaskTrace = !task.debugTrace.isNullOrBlank()
+    val fullTrace = if (hasTaskTrace) task.debugTrace.orEmpty() else buildHistoryDiagnosticSummary(task, context)
+    var copied by remember(task.id, hasTaskTrace) { mutableStateOf(false) }
     val logListState = rememberLazyListState()
     val sheetScrollGuard = rememberBottomSheetScrollGuard(logListState)
 
@@ -563,7 +572,13 @@ private fun HistoryLogSheet(
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
-                        text = stringResource(R.string.history_full_log),
+                        text = stringResource(
+                            if (hasTaskTrace) {
+                                R.string.history_full_log
+                            } else {
+                                R.string.history_task_details
+                            },
+                        ),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -579,6 +594,23 @@ private fun HistoryLogSheet(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+            }
+
+            if (!hasTaskTrace) {
+                item {
+                    Surface(
+                        shape = RoundedCornerShape(18.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.history_log_privacy_notice),
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        )
+                    }
                 }
             }
 
@@ -602,24 +634,40 @@ private fun HistoryLogSheet(
             }
 
             item {
-                Row(
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     FilledTonalButton(
                         onClick = {
                             clipboardManager.setText(AnnotatedString(fullTrace))
                             copied = true
                         },
-                        modifier = Modifier.weight(1f),
                     ) {
                         Icon(Icons.Outlined.ContentCopy, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(if (copied) stringResource(R.string.common_copied) else stringResource(R.string.history_copy_log))
+                        Text(
+                            if (copied) {
+                                stringResource(R.string.common_copied)
+                            } else {
+                                stringResource(
+                                    if (hasTaskTrace) {
+                                        R.string.history_copy_log
+                                    } else {
+                                        R.string.history_copy_details
+                                    },
+                                )
+                            },
+                        )
+                    }
+                    FilledTonalButton(
+                        onClick = { shareAppLogs(context, task = task) },
+                    ) {
+                        Text(stringResource(R.string.history_export_app_logs))
                     }
                     TextButton(
                         onClick = onDismiss,
-                        modifier = Modifier.weight(1f),
                     ) {
                         Text(stringResource(R.string.common_close))
                     }
@@ -682,6 +730,33 @@ private fun historyFilterLabel(filter: HistoryFilter, context: android.content.C
         HistoryFilter.Failed -> context.getString(R.string.history_filter_failed)
         HistoryFilter.Canceled -> context.getString(R.string.history_filter_canceled)
     }
+}
+
+private fun buildHistoryDiagnosticSummary(
+    task: DownloadTask,
+    context: android.content.Context,
+): String {
+    return buildString {
+        appendLine(context.getString(R.string.history_no_task_log))
+        appendLine(context.getString(R.string.history_log_privacy_notice))
+        appendLine()
+        appendLine("Title: ${task.title}")
+        appendLine("Status: ${historyStatusLabel(task.status, context)}")
+        appendLine("Updated: ${formatDate(task.updatedAtEpochMs)}")
+        appendLine("Source: ${SensitiveDataSanitizer.describeUrl(task.url)}")
+        appendLine("Progress: ${task.progressPercent}%")
+        task.totalSizeStr?.takeIf { it.isNotBlank() }?.let { appendLine("Total size: $it") }
+        task.downloadedStr?.takeIf { it.isNotBlank() }?.let { appendLine("Downloaded: $it") }
+        task.outputPath?.takeIf { it.isNotBlank() }?.let {
+            appendLine("Saved file: ${SensitiveDataSanitizer.describePath(it)}")
+        }
+        if (task.subtitlePaths.isNotEmpty()) {
+            appendLine("Subtitle files: ${task.subtitlePaths.size}")
+        }
+        task.errorMessage?.takeIf { it.isNotBlank() }?.let {
+            appendLine("Error: ${SensitiveDataSanitizer.sanitize(it)}")
+        }
+    }.trim()
 }
 
 @Composable

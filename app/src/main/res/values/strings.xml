@@ -362,12 +362,17 @@
     <string name="history_empty_title">No matching history yet</string>
     <string name="history_empty_body">Change the filter or finish a few downloads from Home and the full task history will build up here.</string>
     <string name="history_view_log">View log</string>
+    <string name="history_view_details">View details</string>
     <string name="history_full_log">Full log</string>
+    <string name="history_task_details">Task details</string>
     <string name="history_copy_log">Copy log</string>
+    <string name="history_copy_details">Copy details</string>
+    <string name="history_export_app_logs">Export app logs</string>
     <string name="history_failure_reason">Failure reason</string>
     <string name="history_saved_path">Saved path</string>
     <string name="history_recent_log_lines">Recent log lines</string>
     <string name="history_no_task_log">No task-specific log captured for this item.</string>
+    <string name="history_log_privacy_notice">Task-specific logs are cleared after a download finishes or stops to avoid retaining sensitive trace data. Export app logs if deeper diagnostics are needed.</string>
     <string name="history_finished_successfully">Finished successfully</string>
     <string name="history_stopped_with_error">Stopped with an error</string>
     <string name="history_canceled_before_completion">Canceled before completion</string>
