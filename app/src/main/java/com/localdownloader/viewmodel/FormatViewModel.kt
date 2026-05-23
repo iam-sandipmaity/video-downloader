@@ -1371,7 +1371,7 @@ class FormatViewModel @Inject constructor(
                     null
                 },
                 youtubeAuthEnabled = runtimeCookiesPath != null && youtubeAuthConfig != null,
-                youtubeCookiesPath = runtimeCookiesPath,
+                cookiesPath = runtimeCookiesPath,
                 youtubePoToken = youtubeAuthConfig?.buildPoTokenValue(),
                 youtubePoTokenClientHint = youtubeAuthConfig?.clientHint ?: "web.gvs",
                 youtubeDataSyncId = youtubeAuthConfig?.dataSyncId?.ifBlank { null },

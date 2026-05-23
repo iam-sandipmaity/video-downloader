@@ -5,6 +5,7 @@ import com.localdownloader.domain.models.DownloadOptions
 import com.localdownloader.utils.Logger
 import com.localdownloader.utils.SecureTextFileStore
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -53,7 +54,7 @@ class DownloadOptionSecretsStore @Inject constructor(
             return if (secrets != null) {
                 persisted.options.applyPersistedSecrets(
                     secrets = secrets,
-                    youtubeCookiesPath = materializeRuntimeCookiesIfNeeded(taskId, secrets),
+                    cookiesPath = materializeRuntimeCookiesIfNeeded(taskId, secrets),
                 )
             } else {
                 logger.w(
@@ -141,9 +142,9 @@ class DownloadOptionSecretsStore @Inject constructor(
         taskId: String,
         secrets: PersistedDownloadOptionSecrets,
     ): String? {
-        val cookiesText = secrets.youtubeCookiesText?.trim().orEmpty()
+        val cookiesText = secrets.cookiesText?.trim().orEmpty()
         if (cookiesText.isBlank()) {
-            return secrets.youtubeCookiesPath
+            return secrets.cookiesPath
         }
         val targetFile = runtimeCookiesFile(taskId)
         targetFile.parentFile?.mkdirs()
@@ -176,14 +177,16 @@ internal data class PersistedDownloadOptionSecrets(
     val fallbackExtractorArgs: String? = null,
     val loadInfoJsonPath: String? = null,
     val userAgentHeader: String? = null,
-    val youtubeCookiesPath: String? = null,
-    val youtubeCookiesText: String? = null,
+    @SerialName("youtubeCookiesPath")
+    val cookiesPath: String? = null,
+    @SerialName("youtubeCookiesText")
+    val cookiesText: String? = null,
     val youtubePoToken: String? = null,
     val youtubeDataSyncId: String? = null,
 ) {
     companion object {
         fun from(options: DownloadOptions): PersistedDownloadOptionSecrets {
-            val cookiesPath = options.youtubeCookiesPath
+            val cookiesPath = options.cookiesPath
             val cookiesText = cookiesPath
                 ?.takeIf { it.isNotBlank() }
                 ?.let(::File)
@@ -195,8 +198,8 @@ internal data class PersistedDownloadOptionSecrets(
                 fallbackExtractorArgs = options.fallbackExtractorArgs,
                 loadInfoJsonPath = options.loadInfoJsonPath,
                 userAgentHeader = options.userAgentHeader,
-                youtubeCookiesPath = cookiesPath,
-                youtubeCookiesText = cookiesText,
+                cookiesPath = cookiesPath,
+                cookiesText = cookiesText,
                 youtubePoToken = options.youtubePoToken,
                 youtubeDataSyncId = options.youtubeDataSyncId,
             )
@@ -209,7 +212,7 @@ internal fun DownloadOptions.containsPersistedSecrets(): Boolean {
         !fallbackExtractorArgs.isNullOrBlank() ||
         !loadInfoJsonPath.isNullOrBlank() ||
         !userAgentHeader.isNullOrBlank() ||
-        !youtubeCookiesPath.isNullOrBlank() ||
+        !cookiesPath.isNullOrBlank() ||
         !youtubePoToken.isNullOrBlank() ||
         !youtubeDataSyncId.isNullOrBlank()
 }
@@ -220,7 +223,7 @@ internal fun DownloadOptions.redactedForPersistence(): DownloadOptions {
         fallbackExtractorArgs = null,
         loadInfoJsonPath = null,
         userAgentHeader = null,
-        youtubeCookiesPath = null,
+        cookiesPath = null,
         youtubePoToken = null,
         youtubeDataSyncId = null,
     )
@@ -228,14 +231,14 @@ internal fun DownloadOptions.redactedForPersistence(): DownloadOptions {
 
 internal fun DownloadOptions.applyPersistedSecrets(
     secrets: PersistedDownloadOptionSecrets,
-    youtubeCookiesPath: String? = secrets.youtubeCookiesPath,
+    cookiesPath: String? = secrets.cookiesPath,
 ): DownloadOptions {
     return copy(
         extractorArgs = secrets.extractorArgs,
         fallbackExtractorArgs = secrets.fallbackExtractorArgs,
         loadInfoJsonPath = secrets.loadInfoJsonPath,
         userAgentHeader = secrets.userAgentHeader,
-        youtubeCookiesPath = youtubeCookiesPath,
+        cookiesPath = cookiesPath,
         youtubePoToken = secrets.youtubePoToken,
         youtubeDataSyncId = secrets.youtubeDataSyncId,
     )

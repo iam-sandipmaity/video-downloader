@@ -1,5 +1,6 @@
 package com.localdownloader.domain.models
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
@@ -16,7 +17,8 @@ data class DownloadOptions(
     val loadInfoJsonPath: String? = null,
     val userAgentHeader: String? = null,
     val youtubeAuthEnabled: Boolean = false,
-    val youtubeCookiesPath: String? = null,
+    @SerialName("youtubeCookiesPath")
+    val cookiesPath: String? = null,
     val youtubePoToken: String? = null,
     val youtubePoTokenClientHint: String = "web.gvs",
     val youtubeDataSyncId: String? = null,
