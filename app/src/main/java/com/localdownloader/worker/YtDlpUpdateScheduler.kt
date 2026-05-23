@@ -9,6 +9,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.localdownloader.updates.UpdatePreferencesStore
+import com.localdownloader.updates.YtDlpUpdateManager
 import com.localdownloader.utils.Logger
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.concurrent.TimeUnit
@@ -24,6 +25,16 @@ class YtDlpUpdateScheduler @Inject constructor(
 ) {
 
     fun scheduleIfDue(nowEpochMs: Long = System.currentTimeMillis()) {
+        if (!YtDlpUpdateManager.IN_APP_RUNTIME_UPDATES_ENABLED) {
+            updatePreferencesStore.disableYtDlpAutoUpdateIfEnabled()
+            cancelScheduled()
+            logger.w(
+                "YtDlpUpdateScheduler",
+                "Skipping yt-dlp update schedule because in-app updates are disabled for security",
+            )
+            return
+        }
+
         val preferences = updatePreferencesStore.currentPreferences()
         if (!preferences.autoUpdateYtDlp) {
             logger.i("YtDlpUpdateScheduler", "Skipping yt-dlp update schedule because auto-update is disabled")

@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.R
+import com.localdownloader.updates.YtDlpUpdateManager
 import com.localdownloader.viewmodel.UpdateSectionUiState
 import com.localdownloader.viewmodel.UpdatesUiState
 import com.localdownloader.updates.FfmpegReleaseChannel
@@ -80,6 +81,7 @@ fun UpdatesScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val ytDlpUpdatesEnabled = YtDlpUpdateManager.IN_APP_RUNTIME_UPDATES_ENABLED
     var ytDlpChannelDialog by remember { mutableStateOf(false) }
     var ffmpegChannelDialog by remember { mutableStateOf(false) }
 
@@ -211,16 +213,29 @@ fun UpdatesScreen(
                 UpdateValueRow(
                     icon = Icons.Outlined.Settings,
                     title = stringResource(R.string.updates_ytdlp_source),
-                    subtitle = uiState.preferences.ytDlpChannel.description,
+                    subtitle = if (ytDlpUpdatesEnabled) {
+                        uiState.preferences.ytDlpChannel.description
+                    } else {
+                        stringResource(R.string.updates_ytdlp_source_disabled_subtitle)
+                    },
                     value = uiState.preferences.ytDlpChannel.id,
-                    onClick = { ytDlpChannelDialog = true },
+                    onClick = if (ytDlpUpdatesEnabled) {
+                        { ytDlpChannelDialog = true }
+                    } else {
+                        null
+                    },
                 )
                 DividerInset()
                 UpdateToggleRow(
                     icon = Icons.Outlined.Sync,
                     title = stringResource(R.string.updates_auto_update_ytdlp),
-                    subtitle = stringResource(R.string.updates_ytdlp_auto_subtitle),
+                    subtitle = if (ytDlpUpdatesEnabled) {
+                        stringResource(R.string.updates_ytdlp_auto_subtitle)
+                    } else {
+                        stringResource(R.string.updates_ytdlp_auto_disabled_subtitle)
+                    },
                     checked = uiState.preferences.autoUpdateYtDlp,
+                    enabled = ytDlpUpdatesEnabled,
                     onCheckedChange = onAutoUpdateYtDlpChanged,
                 )
                 DividerInset()
@@ -420,6 +435,7 @@ private fun UpdateToggleRow(
     title: String,
     subtitle: String,
     checked: Boolean,
+    enabled: Boolean = true,
     onCheckedChange: (Boolean) -> Unit,
 ) {
     Row(
@@ -452,6 +468,7 @@ private fun UpdateToggleRow(
         }
         Switch(
             checked = checked,
+            enabled = enabled,
             onCheckedChange = onCheckedChange,
         )
     }

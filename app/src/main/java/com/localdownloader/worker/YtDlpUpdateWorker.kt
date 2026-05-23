@@ -25,6 +25,16 @@ class YtDlpUpdateWorker @AssistedInject constructor(
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
+        if (!YtDlpUpdateManager.IN_APP_RUNTIME_UPDATES_ENABLED) {
+            updatePreferencesStore.disableYtDlpAutoUpdateIfEnabled()
+            updateStateStore.markAttemptSucceeded("disabled_for_security")
+            logger.w(
+                "YtDlpUpdateWorker",
+                "Stopping queued yt-dlp update because in-app updates are disabled for security",
+            )
+            return Result.success()
+        }
+
         val attemptNumber = runAttemptCount + 1
         updateStateStore.markAttemptStarted()
         logger.i("YtDlpUpdateWorker", "Starting yt-dlp runtime update attempt=$attemptNumber")

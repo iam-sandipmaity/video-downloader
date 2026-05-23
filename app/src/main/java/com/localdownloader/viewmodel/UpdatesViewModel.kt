@@ -36,7 +36,14 @@ class UpdatesViewModel @Inject constructor(
     private var initialized = false
 
     fun initialize() {
-        val preferences = updatePreferencesStore.currentPreferences()
+        val storedPreferences = updatePreferencesStore.currentPreferences()
+        val preferences = if (YtDlpUpdateManager.IN_APP_RUNTIME_UPDATES_ENABLED) {
+            storedPreferences
+        } else {
+            updatePreferencesStore.disableYtDlpAutoUpdateIfEnabled()
+            ytDlpUpdateScheduler.cancelScheduled()
+            storedPreferences.copy(autoUpdateYtDlp = false)
+        }
         _uiState.value = _uiState.value.copy(
             preferences = preferences,
             app = _uiState.value.app.copy(currentVersion = appUpdateManager.currentVersionLabel()),
@@ -76,6 +83,17 @@ class UpdatesViewModel @Inject constructor(
     }
 
     fun setAutoUpdateYtDlp(enabled: Boolean) {
+        if (!YtDlpUpdateManager.IN_APP_RUNTIME_UPDATES_ENABLED) {
+            updatePreferencesStore.disableYtDlpAutoUpdateIfEnabled()
+            ytDlpUpdateScheduler.cancelScheduled()
+            _uiState.value = _uiState.value.copy(
+                preferences = _uiState.value.preferences.copy(autoUpdateYtDlp = false),
+                infoMessage = YtDlpUpdateManager.IN_APP_RUNTIME_UPDATES_DISABLED_REASON,
+                errorMessage = null,
+            )
+            return
+        }
+
         updatePreferencesStore.setAutoUpdateYtDlp(enabled)
         _uiState.value = _uiState.value.copy(
             preferences = _uiState.value.preferences.copy(autoUpdateYtDlp = enabled),
@@ -166,6 +184,14 @@ class UpdatesViewModel @Inject constructor(
     }
 
     fun installYtDlpUpdate() {
+        if (!YtDlpUpdateManager.IN_APP_RUNTIME_UPDATES_ENABLED) {
+            _uiState.value = _uiState.value.copy(
+                infoMessage = null,
+                errorMessage = YtDlpUpdateManager.IN_APP_RUNTIME_UPDATES_DISABLED_REASON,
+            )
+            return
+        }
+
         val channel = _uiState.value.preferences.ytDlpChannel
         viewModelScope.launch {
             if (hasBlockingDownloads()) {
@@ -278,7 +304,11 @@ class UpdatesViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(
                 ytDlp = _uiState.value.ytDlp.fromCheck(check).copy(
                     isChecking = false,
-                    lastStatus = ytDlpUpdateStateStore.lastStatus(),
+                    lastStatus = if (YtDlpUpdateManager.IN_APP_RUNTIME_UPDATES_ENABLED) {
+                        ytDlpUpdateStateStore.lastStatus()
+                    } else {
+                        null
+                    },
                 ),
             )
         }.onFailure { error ->
@@ -286,7 +316,11 @@ class UpdatesViewModel @Inject constructor(
                 ytDlp = _uiState.value.ytDlp.copy(
                     isChecking = false,
                     summary = error.message ?: "Failed to check yt-dlp updates.",
-                    lastStatus = ytDlpUpdateStateStore.lastStatus(),
+                    lastStatus = if (YtDlpUpdateManager.IN_APP_RUNTIME_UPDATES_ENABLED) {
+                        ytDlpUpdateStateStore.lastStatus()
+                    } else {
+                        null
+                    },
                 ),
             )
         }
@@ -327,7 +361,7 @@ data class UpdatesUiState(
     ),
     val ytDlp: UpdateSectionUiState = UpdateSectionUiState(
         title = "yt-dlp update",
-        subtitle = "Switch sources and install newer downloader builds when extractor changes are needed.",
+        subtitle = "In-app yt-dlp installs are disabled until release authenticity can be verified independently.",
     ),
     val ffmpeg: UpdateSectionUiState = UpdateSectionUiState(
         title = "FFmpeg update",

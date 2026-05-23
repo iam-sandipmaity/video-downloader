@@ -424,6 +424,8 @@
     <string name="updates_app_changelog_subtitle">Read the latest app release notes and the full bundled app changelog.</string>
     <string name="updates_ytdlp_current_subtitle">The embedded yt-dlp runtime currently used by the app.</string>
     <string name="updates_ytdlp_auto_subtitle">Keep checking the selected source in the background when the app starts.</string>
+    <string name="updates_ytdlp_auto_disabled_subtitle">Disabled for security until yt-dlp releases can be authenticated independently.</string>
+    <string name="updates_ytdlp_source_disabled_subtitle">Read-only while in-app yt-dlp installs are disabled for security.</string>
     <string name="updates_ytdlp_changelog_subtitle_fallback">Open the documentation-style changelog page for yt-dlp.</string>
     <string name="updates_ytdlp_changelog_subtitle_ready">Read what changed in the latest yt-dlp release.</string>
     <string name="updates_ffmpeg_current_subtitle">The FFmpeg runtime currently resolving for merges and media processing.</string>

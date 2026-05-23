@@ -57,7 +57,7 @@ enum class FfmpegReleaseChannel(
 
 data class UpdatePreferences(
     val includePrereleaseAppReleases: Boolean = false,
-    val autoUpdateYtDlp: Boolean = true,
+    val autoUpdateYtDlp: Boolean = false,
     val ytDlpChannel: YtDlpReleaseChannel = YtDlpReleaseChannel.STABLE,
     val ffmpegChannel: FfmpegReleaseChannel = FfmpegReleaseChannel.STABLE,
 )
