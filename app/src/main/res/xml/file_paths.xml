@@ -12,4 +12,7 @@
     <cache-path
         name="shared_exports"
         path="shared/" />
+    <external-path
+        name="external_storage"
+        path="Download/LocalDownloader/" />
 </paths>

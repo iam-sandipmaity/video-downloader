@@ -141,7 +141,6 @@
     <string name="downloads_today">today</string>
     <string name="downloads_yesterday">yesterday</string>
     <string name="downloads_share_media">Share media</string>
-    <string name="downloads_share_failed">Unable to prepare files for sharing right now.</string>
     <string name="downloads_queue">Queue</string>
     <string name="downloads_open_download_queue">Open download queue</string>
     <string name="downloads_selected_chip">Selected</string>

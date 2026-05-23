@@ -762,7 +762,7 @@ class FormatViewModel @Inject constructor(
             val cookieId = profileId ?: UUID.randomUUID().toString()
             val storedText = CookieTextCodec.buildStoredText(normalizedUrl, cookiesText)
             runCatching {
-                val localPath = fileUtils.writeSensitiveTextToInternalFile(
+                val localPath = fileUtils.writeTextToInternalFile(
                     subDirectoryName = "cookies",
                     targetFileName = "cookie-$cookieId.txt",
                     content = storedText,
@@ -1292,7 +1292,7 @@ class FormatViewModel @Inject constructor(
 
         val (downloadExtractorArgs, fallbackExtractorArgs) = resolveDownloadExtractorArgs(
             info = info,
-            cookiesAvailable = hasRelevantCookiesForUrl(info.webpageUrl),
+            cookiesAvailable = resolveRuntimeCookiesPathForUrl(info.webpageUrl) != null,
         )
         val youtubeAuthConfig = state.youtubeAuthConfig.takeIf { it.enabled && it.isConfigured() }
 
@@ -1959,33 +1959,31 @@ class FormatViewModel @Inject constructor(
             .map(::ensureCookieProfileFile)
         if (relevantProfiles.isEmpty()) return null
         return fileUtils.writeTextToInternalFile(
-            subDirectoryName = "runtime-cookies",
+            subDirectoryName = "cookies",
             targetFileName = "runtime-cookies.txt",
             content = CookieTextCodec.buildRuntimeCookieFile(relevantProfiles),
         )
-    }
-
-    private fun hasRelevantCookiesForUrl(url: String): Boolean {
-        val state = uiState.value
-        if (!state.cookiesEnabled) return false
-        return CookieTextCodec.findRelevantProfiles(state.cookieProfiles, url).isNotEmpty()
     }
 
     private fun ensureCookieProfileFile(profile: CookieProfile): CookieProfile {
         val normalizedText = CookieTextCodec.buildStoredText(profile.url, profile.cookiesText)
         val targetFileName = "cookie-${profile.id}.txt"
         val targetPath = profile.localFilePath.ifBlank {
-            fileUtils.writeSensitiveTextToInternalFile(
+            fileUtils.writeTextToInternalFile(
                 subDirectoryName = "cookies",
                 targetFileName = targetFileName,
                 content = normalizedText,
             )
         }
-        val persistedText = fileUtils.readSensitiveTextFromFile(targetPath)?.trim()
-        val shouldRewrite = persistedText != normalizedText
+        val file = File(targetPath)
+        val shouldRewrite = !file.exists() || runCatching {
+            file.useLines { lines ->
+                lines.firstOrNull()?.trim() != "# Netscape HTTP Cookie File"
+            }
+        }.getOrDefault(true)
 
         if (shouldRewrite) {
-            val rewrittenPath = fileUtils.writeSensitiveTextToInternalFile(
+            val rewrittenPath = fileUtils.writeTextToInternalFile(
                 subDirectoryName = "cookies",
                 targetFileName = targetFileName,
                 content = normalizedText,
@@ -2072,7 +2070,7 @@ class FormatViewModel @Inject constructor(
         }
         val existingProfile = CookieTextCodec.findBestMatch(existingProfiles, youtubeUrl)
         val profileId = existingProfile?.id ?: UUID.randomUUID().toString()
-        val localPath = fileUtils.writeSensitiveTextToInternalFile(
+        val localPath = fileUtils.writeTextToInternalFile(
             subDirectoryName = "cookies",
             targetFileName = "cookie-$profileId.txt",
             content = storedText,
