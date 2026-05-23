@@ -271,6 +271,30 @@ class DownloadWorker @AssistedInject constructor(
             }
         }
 
+        if (!result.isSuccess && shouldTryExplicitSplitDownloadAfterPostprocessingFailure(lastAttemptOptions, result.stderr)) {
+            appendDebugTrace(taskId, "Retrying with explicit split-stream recovery after postprocessing failure")
+            val splitResult = tryExplicitSplitDownload(
+                options = lastAttemptOptions.copy(loadInfoJsonPath = null),
+                originalOutputTemplate = outputTemplate,
+                taskId = taskId,
+                onRunDownload = { attemptOptions, stageLabel ->
+                    runDownloadWithExtractorFallbacks(
+                        attemptOptions.copy(loadInfoJsonPath = null),
+                        stageLabel,
+                    )
+                },
+            )
+            if (splitResult.isSuccess) {
+                outputPath = splitResult.outputPath
+                result = CommandResult(exitCode = 0, stdout = "", stderr = "")
+            } else {
+                appendDebugTrace(
+                    taskId,
+                    "Explicit split recovery after postprocessing failure failed: ${splitResult.errorMessage.orEmpty().take(MAX_OUTPUT_TRACE_LINE_LENGTH).ifBlank { "unknown error" }}",
+                )
+            }
+        }
+
         if (!result.isSuccess && shouldRetryWithYoutubeSelectorRecovery(options, result.stderr)) {
             val recoveryAttempts = youtubeSameSelectorRecoveryAttempts(options)
             recoveryAttempts.forEachIndexed { index, attempt ->
@@ -775,6 +799,16 @@ class DownloadWorker @AssistedInject constructor(
         if (options.extractAudio || options.downloadVideoOnly) return false
         if (splitFormatSelector(options.formatId) == null) return false
         return isYoutubeFormatAccessFailure(stderr)
+    }
+
+    private fun shouldTryExplicitSplitDownloadAfterPostprocessingFailure(
+        options: DownloadOptions,
+        stderr: String,
+    ): Boolean {
+        if (options.extractAudio || options.downloadVideoOnly) return false
+        if (!isYoutubeUrl(options.url)) return false
+        if (splitFormatSelector(options.formatId) == null) return false
+        return isRecoverablePostprocessingFailure(stderr)
     }
 
     private fun dedupeRecoveryAttempts(attempts: List<SafeModeAttempt>): List<SafeModeAttempt> {
