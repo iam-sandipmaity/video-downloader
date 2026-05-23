@@ -124,7 +124,11 @@ private fun WebArchivePreview(
                 settings.javaScriptEnabled = false
                 settings.loadsImagesAutomatically = true
                 settings.allowFileAccess = true
-                settings.allowContentAccess = true
+                settings.allowContentAccess = false
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+                    settings.allowFileAccessFromFileURLs = false
+                    settings.allowUniversalAccessFromFileURLs = false
+                }
                 settings.cacheMode = WebSettings.LOAD_DEFAULT
                 loadUrl(File(request.path).toURI().toString())
             }

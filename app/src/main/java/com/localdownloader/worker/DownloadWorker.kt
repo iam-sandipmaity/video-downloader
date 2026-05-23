@@ -24,6 +24,7 @@ import com.localdownloader.ffmpeg.FfmpegExecutor
 import com.localdownloader.notifications.AppNotifications
 import com.localdownloader.utils.FileUtils
 import com.localdownloader.utils.Logger
+import com.localdownloader.utils.SensitiveDataSanitizer
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import androidx.hilt.work.HiltWorker
@@ -1787,7 +1788,9 @@ class DownloadWorker @AssistedInject constructor(
     }
 
     private fun appendDebugTrace(taskId: String, message: String) {
-        val normalized = message.trim().replace("\n", " ")
+        val normalized = SensitiveDataSanitizer.sanitize(
+            message.trim().replace("\n", " "),
+        )
         if (normalized.isBlank()) return
 
         val entry = "${System.currentTimeMillis()}: $normalized"
@@ -1821,10 +1824,11 @@ class DownloadWorker @AssistedInject constructor(
         if (isClosedStreamFailure(shortRaw.lowercase())) {
             return "Download was interrupted before yt-dlp returned a stable error. Please retry."
         }
+        val sanitized = SensitiveDataSanitizer.sanitize(shortRaw)
         return if (isStorageDenied(throwable, shortRaw)) {
-            "Storage denied: $shortRaw"
+            "Storage denied: $sanitized"
         } else {
-            shortRaw
+            sanitized
         }
     }
 

@@ -13,6 +13,8 @@ import com.localdownloader.domain.models.AppSettings
 import com.localdownloader.ui.model.ExternalOpenRequest
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
+import java.io.InputStream
+import java.io.OutputStream
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -87,9 +89,12 @@ class FileUtils @Inject constructor(
     ): String {
         val targetDir = ensureInternalDir(subDirectoryName)
         val targetFile = File(targetDir, sanitizeFileName(targetFileName))
-        context.contentResolver.openInputStream(uri)?.use { input ->
-            targetFile.outputStream().use { output -> input.copyTo(output) }
-        } ?: throw IllegalStateException("Unable to open selected file")
+        copyUriToManagedFile(
+            context = context,
+            uri = uri,
+            targetFile = targetFile,
+            maxBytes = MAX_CACHE_FILE_SIZE,
+        )
         return targetFile.absolutePath
     }
 
@@ -629,7 +634,12 @@ class FileUtils @Inject constructor(
     }
 
     private fun ensureInternalDir(name: String): File {
-        val dir = File(context.filesDir, name)
+        val root = when (name.substringBefore(File.separator).substringBefore('/').substringBefore('\\')) {
+            "cookies" -> context.noBackupFilesDir
+            "opened" -> context.cacheDir
+            else -> context.filesDir
+        }
+        val dir = File(root, name)
         if (!dir.exists() && !dir.mkdirs()) {
             throw IllegalStateException("Storage denied: unable to create directory ${dir.absolutePath}")
         }
@@ -662,9 +672,12 @@ class FileUtils @Inject constructor(
         val targetDir = ensureInternalDir("opened")
         val sanitizedName = sanitizeFileName(displayName)
         val targetFile = File(targetDir, sanitizedName)
-        context.contentResolver.openInputStream(uri)?.use { input ->
-            targetFile.outputStream().use { output -> input.copyTo(output) }
-        } ?: error("Unable to open shared file.")
+        copyUriToManagedFile(
+            context = context,
+            uri = uri,
+            targetFile = targetFile,
+            maxBytes = MAX_CACHE_FILE_SIZE,
+        )
 
         return ExternalOpenRequest(
             path = targetFile.absolutePath,
@@ -756,9 +769,12 @@ class FileUtils @Inject constructor(
                     throw IllegalStateException("Not enough cache space. Required: ${contentLength / (1024 * 1024)}MB, Available: ${availableSpace / (1024 * 1024)}MB")
                 }
 
-                context.contentResolver.openInputStream(uri)?.use { input ->
-                    dest.outputStream().use { output -> input.copyTo(output) }
-                }
+                copyUriToManagedFile(
+                    context = context,
+                    uri = uri,
+                    targetFile = dest,
+                    maxBytes = MAX_CACHE_FILE_SIZE,
+                )
                 if (dest.exists() && dest.length() > 0) {
                     dest.absolutePath
                 } else {
@@ -773,9 +789,82 @@ class FileUtils @Inject constructor(
 
         private fun getContentLength(context: Context, uri: Uri): Long {
             return try {
-                context.contentResolver.openInputStream(uri)?.available()?.toLong() ?: 0L
+                context.contentResolver.query(
+                    uri,
+                    arrayOf(OpenableColumns.SIZE),
+                    null,
+                    null,
+                    null,
+                )?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        cursor.getLong(0).takeIf { it > 0L }
+                    } else {
+                        null
+                    }
+                } ?: context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { descriptor ->
+                    descriptor.length.takeIf { it > 0L }
+                } ?: 0L
             } catch (_: Exception) {
                 0L
+            }
+        }
+
+        private fun copyUriToManagedFile(
+            context: Context,
+            uri: Uri,
+            targetFile: File,
+            maxBytes: Long,
+        ) {
+            val targetDir = targetFile.parentFile ?: throw IllegalStateException("Unable to resolve target directory.")
+            targetDir.mkdirs()
+            val availableSpace = targetDir.usableSpace
+            val contentLength = getContentLength(context, uri)
+
+            if (contentLength > maxBytes) {
+                throw IllegalStateException("File is too large to cache (${contentLength / (1024 * 1024)}MB). Maximum allowed: ${maxBytes / (1024 * 1024)}MB")
+            }
+            if (contentLength > 0 && contentLength > availableSpace) {
+                throw IllegalStateException("Not enough cache space. Required: ${contentLength / (1024 * 1024)}MB, Available: ${availableSpace / (1024 * 1024)}MB")
+            }
+
+            try {
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    targetFile.outputStream().use { output ->
+                        copyStreamWithLimit(
+                            input = input,
+                            output = output,
+                            maxBytes = maxBytes,
+                            availableSpace = availableSpace,
+                        )
+                    }
+                } ?: error("Unable to open selected file")
+            } catch (error: Throwable) {
+                runCatching { targetFile.delete() }
+                throw error
+            }
+        }
+
+        private fun copyStreamWithLimit(
+            input: InputStream,
+            output: OutputStream,
+            maxBytes: Long,
+            availableSpace: Long,
+        ) {
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            var copiedBytes = 0L
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) break
+
+                copiedBytes += read
+                if (copiedBytes > maxBytes) {
+                    throw IllegalStateException("File is too large to cache (${copiedBytes / (1024 * 1024)}MB). Maximum allowed: ${maxBytes / (1024 * 1024)}MB")
+                }
+                if (copiedBytes > availableSpace) {
+                    throw IllegalStateException("Not enough cache space. Required: ${copiedBytes / (1024 * 1024)}MB, Available: ${availableSpace / (1024 * 1024)}MB")
+                }
+
+                output.write(buffer, 0, read)
             }
         }
 

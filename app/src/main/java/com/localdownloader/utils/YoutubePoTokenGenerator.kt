@@ -67,8 +67,8 @@ object YoutubePoTokenGenerator {
         init {
             webView.settings.apply {
                 javaScriptEnabled = true
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    safeBrowsingEnabled = false
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                    safeBrowsingEnabled = true
                 }
                 userAgentString = USER_AGENT
                 blockNetworkLoads = true

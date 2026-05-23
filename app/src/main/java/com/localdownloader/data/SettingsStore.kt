@@ -16,6 +16,7 @@ import com.localdownloader.domain.models.CookieProfile
 import com.localdownloader.domain.models.SYSTEM_LANGUAGE_TAG
 import com.localdownloader.domain.models.ThemeMode
 import com.localdownloader.domain.models.YoutubeAuthConfig
+import com.localdownloader.utils.SensitiveDataSanitizer
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import java.io.File
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -36,6 +38,11 @@ class SettingsStore @Inject constructor(
     @ApplicationContext private val context: Context,
     private val json: Json,
 ) {
+    private val secureCookieDir: File
+        get() = File(context.noBackupFilesDir, "cookies")
+    private val secureYoutubeAuthFile: File
+        get() = File(File(context.noBackupFilesDir, "auth"), "youtube-auth-config.json")
+
     private object Keys {
         val languageTag = stringPreferencesKey("language_tag")
         val themeMode = stringPreferencesKey("theme_mode")
@@ -125,6 +132,8 @@ class SettingsStore @Inject constructor(
     }
 
     suspend fun updateSettings(settings: AppSettings) {
+        val persistedCookieProfiles = prepareCookieProfilesForPersistence(settings.cookieProfiles)
+        persistYoutubeAuthConfig(settings.youtubeAuthConfig)
         context.settingsDataStore.edit { prefs ->
             prefs[Keys.languageTag] = settings.languageTag
             prefs[Keys.themeMode] = settings.themeMode.name
@@ -155,8 +164,8 @@ class SettingsStore @Inject constructor(
             prefs[Keys.analyzedLinkHistoryRetentionDays] = settings.analyzedLinkHistoryRetentionDays
             prefs[Keys.cookiesEnabled] = settings.cookiesEnabled
             prefs[Keys.cookieUserAgentEnabled] = settings.cookieUserAgentEnabled
-            prefs[Keys.cookieProfiles] = json.encodeToString(settings.cookieProfiles)
-            prefs[Keys.youtubeAuthConfig] = json.encodeToString(settings.youtubeAuthConfig)
+            prefs[Keys.cookieProfiles] = json.encodeToString(persistedCookieProfiles)
+            prefs[Keys.youtubeAuthConfig] = json.encodeToString(redactedYoutubeAuthConfig(settings.youtubeAuthConfig))
             prefs[Keys.hasSeenDownloadSetupNotice] = settings.hasSeenDownloadSetupNotice
             prefs[Keys.maxConcurrent] = settings.maxConcurrentDownloads
             prefs[Keys.allowMeteredDownloads] = settings.allowMeteredDownloads
@@ -167,16 +176,100 @@ class SettingsStore @Inject constructor(
     private fun decodeCookieProfiles(raw: String?): List<CookieProfile> {
         val payload = raw?.trim().orEmpty()
         if (payload.isBlank()) return emptyList()
-        return runCatching { json.decodeFromString<List<CookieProfile>>(payload) }.getOrDefault(emptyList())
+        return runCatching { json.decodeFromString<List<CookieProfile>>(payload) }
+            .getOrDefault(emptyList())
+            .map(::hydrateCookieProfile)
     }
 
     private fun decodeYoutubeAuthConfig(raw: String?): YoutubeAuthConfig {
         val payload = raw?.trim().orEmpty()
-        if (payload.isBlank()) return YoutubeAuthConfig()
-        return runCatching { json.decodeFromString<YoutubeAuthConfig>(payload) }.getOrDefault(YoutubeAuthConfig())
+        val prefConfig = if (payload.isBlank()) {
+            YoutubeAuthConfig()
+        } else {
+            runCatching { json.decodeFromString<YoutubeAuthConfig>(payload) }.getOrDefault(YoutubeAuthConfig())
+        }
+        return readPersistedYoutubeAuthConfig() ?: prefConfig
     }
 
     private inline fun <reified T : Enum<T>> String.toEnumOrDefault(default: T): T {
         return runCatching { enumValueOf<T>(this) }.getOrDefault(default)
+    }
+
+    private fun prepareCookieProfilesForPersistence(profiles: List<CookieProfile>): List<CookieProfile> {
+        return profiles.map { profile ->
+            val cookiesText = profile.cookiesText.trim()
+            if (cookiesText.isBlank()) {
+                profile.copy(cookiesText = "")
+            } else {
+                val targetFile = secureCookieFile(profile.id)
+                targetFile.parentFile?.mkdirs()
+                if (!targetFile.exists() || runCatching { targetFile.readText() }.getOrNull() != cookiesText) {
+                    targetFile.writeText(cookiesText)
+                }
+                profile.copy(
+                    cookiesText = "",
+                    localFilePath = targetFile.absolutePath,
+                )
+            }
+        }
+    }
+
+    private fun hydrateCookieProfile(profile: CookieProfile): CookieProfile {
+        val resolvedText = profile.localFilePath
+            .trim()
+            .takeIf { it.isNotBlank() }
+            ?.let(::File)
+            ?.takeIf { it.exists() && it.isFile }
+            ?.let { file -> runCatching { file.readText() }.getOrNull() }
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?: profile.cookiesText
+
+        return profile.copy(
+            cookiesText = resolvedText,
+            localFilePath = profile.localFilePath.trim(),
+        )
+    }
+
+    private fun persistYoutubeAuthConfig(config: YoutubeAuthConfig) {
+        if (config == YoutubeAuthConfig()) {
+            runCatching { secureYoutubeAuthFile.delete() }
+            return
+        }
+
+        secureYoutubeAuthFile.parentFile?.mkdirs()
+        val serialized = json.encodeToString(config)
+        if (!secureYoutubeAuthFile.exists() || runCatching { secureYoutubeAuthFile.readText() }.getOrNull() != serialized) {
+            secureYoutubeAuthFile.writeText(serialized)
+        }
+    }
+
+    private fun readPersistedYoutubeAuthConfig(): YoutubeAuthConfig? {
+        return secureYoutubeAuthFile
+            .takeIf { it.exists() && it.isFile }
+            ?.let { file ->
+                runCatching { json.decodeFromString<YoutubeAuthConfig>(file.readText()) }
+                    .onFailure { error ->
+                        android.util.Log.w(
+                            "SettingsStore",
+                            SensitiveDataSanitizer.sanitize("Failed reading secure YouTube auth config: ${error.message.orEmpty()}"),
+                        )
+                    }
+                    .getOrNull()
+            }
+    }
+
+    private fun redactedYoutubeAuthConfig(config: YoutubeAuthConfig): YoutubeAuthConfig {
+        return config.copy(
+            gvsToken = "",
+            playerToken = "",
+            subsToken = "",
+            visitorData = "",
+            dataSyncId = "",
+        )
+    }
+
+    private fun secureCookieFile(profileId: String): File {
+        return File(secureCookieDir.apply { mkdirs() }, "cookie-$profileId.txt")
     }
 }

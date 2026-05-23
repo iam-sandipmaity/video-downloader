@@ -26,6 +26,7 @@ import com.localdownloader.ffmpeg.Compressor
 import com.localdownloader.ffmpeg.FormatConverter
 import com.localdownloader.utils.FileUtils
 import com.localdownloader.utils.Logger
+import com.localdownloader.utils.SensitiveDataSanitizer
 import com.localdownloader.worker.WorkerKeys
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -824,6 +825,7 @@ class DownloadRepositoryImpl @Inject constructor(
                             updatedAtEpochMs = System.currentTimeMillis(),
                         )
                     }
+                    downloadTaskStore.clearCachedOptions(taskId)
                     triggerQueuedDownloadRefill()
                 }
             }
@@ -916,7 +918,8 @@ class DownloadRepositoryImpl @Inject constructor(
     }
 
     private fun appendDebugLine(existing: String?, line: String): String {
-        val combined = if (existing.isNullOrBlank()) line else "$existing\n$line"
+        val sanitized = SensitiveDataSanitizer.sanitize(line)
+        val combined = if (existing.isNullOrBlank()) sanitized else "$existing\n$sanitized"
         return combined.takeLast(MAX_DEBUG_TRACE_CHARS)
     }
 

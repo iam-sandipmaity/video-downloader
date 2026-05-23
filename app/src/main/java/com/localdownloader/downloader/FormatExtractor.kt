@@ -5,6 +5,7 @@ import com.localdownloader.domain.models.MediaFormat
 import com.localdownloader.domain.models.PlaylistEntry
 import com.localdownloader.domain.models.VideoInfo
 import com.localdownloader.utils.Logger
+import com.localdownloader.utils.SensitiveDataSanitizer
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import java.util.zip.CRC32
@@ -460,7 +461,7 @@ class FormatExtractor @Inject constructor(
     }
 
     private fun sanitizeAnalyzeFailureMessage(message: String): String {
-        val normalized = message.trim()
+        val normalized = SensitiveDataSanitizer.sanitize(message.trim())
         return if (looksLikeClosedStreamFailure(normalized)) {
             "Link analysis was interrupted before yt-dlp returned a usable result. Please try again."
         } else {

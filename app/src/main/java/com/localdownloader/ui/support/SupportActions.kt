@@ -6,6 +6,7 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.core.content.FileProvider
 import com.localdownloader.domain.models.DownloadTask
+import com.localdownloader.utils.SensitiveDataSanitizer
 import java.io.File
 import java.util.ArrayList
 
@@ -104,7 +105,7 @@ private fun buildIssueBody(
         appendLine()
         appendLine("## Task details")
         appendLine("- Title: ${task?.title?.ifBlank { "Unknown" } ?: "Unknown"}")
-        appendLine("- URL: ${task?.url?.ifBlank { "Unknown" } ?: "Unknown"}")
+        appendLine("- URL: ${SensitiveDataSanitizer.describeUrl(task?.url)}")
         appendLine("- Status: ${task?.status?.name ?: "Unknown"}")
         appendLine("- Progress: ${task?.progressPercent ?: 0}%")
         task?.speed?.takeIf { it.isNotBlank() }?.let { appendLine("- Speed: $it") }

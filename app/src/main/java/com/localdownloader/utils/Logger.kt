@@ -55,23 +55,27 @@ class Logger @Inject constructor(
     }
 
     fun d(tag: String, message: String) {
-        Log.d(tag, message)
-        appendAsync(level = "D", tag = tag, message = message)
+        val sanitized = SensitiveDataSanitizer.sanitize(message)
+        Log.d(tag, sanitized)
+        appendAsync(level = "D", tag = tag, message = sanitized)
     }
 
     fun i(tag: String, message: String) {
-        Log.i(tag, message)
-        appendAsync(level = "I", tag = tag, message = message)
+        val sanitized = SensitiveDataSanitizer.sanitize(message)
+        Log.i(tag, sanitized)
+        appendAsync(level = "I", tag = tag, message = sanitized)
     }
 
     fun w(tag: String, message: String, throwable: Throwable? = null) {
-        Log.w(tag, message, throwable)
-        appendAsync(level = "W", tag = tag, message = message, throwable = throwable)
+        val sanitized = SensitiveDataSanitizer.sanitize(message)
+        Log.w(tag, sanitized, throwable)
+        appendAsync(level = "W", tag = tag, message = sanitized, throwable = throwable)
     }
 
     fun e(tag: String, message: String, throwable: Throwable? = null) {
-        Log.e(tag, message, throwable)
-        appendAsync(level = "E", tag = tag, message = message, throwable = throwable)
+        val sanitized = SensitiveDataSanitizer.sanitize(message)
+        Log.e(tag, sanitized, throwable)
+        appendAsync(level = "E", tag = tag, message = sanitized, throwable = throwable)
     }
 
     fun logFilePath(): String = currentLogFile().absolutePath
@@ -189,6 +193,8 @@ class Logger @Inject constructor(
                 throwable.printStackTrace(printWriter)
             }
             writer.toString()
+                .lineSequence()
+                .joinToString("\n") { SensitiveDataSanitizer.sanitize(it) }
         }
     }
 

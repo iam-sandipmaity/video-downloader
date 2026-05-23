@@ -800,9 +800,14 @@ class FormatViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 val current = uiState.value
+                val profilePath = current.cookieProfiles
+                    .firstOrNull { it.id == profileId }
+                    ?.localFilePath
+                    ?.takeIf { it.isNotBlank() }
                 val updatedProfiles = current.cookieProfiles.filterNot { it.id == profileId }
                 val newSettings = current.appSettings.copy(cookieProfiles = updatedProfiles)
                 repository.updateSettings(newSettings)
+                profilePath?.let(fileUtils::deleteManagedFile)
                 _uiState.update { state ->
                     state.copy(
                         appSettings = newSettings,
@@ -828,8 +833,11 @@ class FormatViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 val current = uiState.value
+                val profilePaths = current.cookieProfiles
+                    .mapNotNull { profile -> profile.localFilePath.takeIf { it.isNotBlank() } }
                 val newSettings = current.appSettings.copy(cookieProfiles = emptyList())
                 repository.updateSettings(newSettings)
+                profilePaths.forEach(fileUtils::deleteManagedFile)
                 _uiState.update { state ->
                     state.copy(
                         appSettings = newSettings,
