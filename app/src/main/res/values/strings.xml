@@ -358,9 +358,22 @@
     <string name="queue_ago_suffix">%1$s ago</string>
 
     <string name="history_title">History</string>
+    <string name="history_actions">History actions</string>
     <string name="history_task_summary">Task summary</string>
     <string name="history_empty_title">No matching history yet</string>
     <string name="history_empty_body">Change the filter or finish a few downloads from Home and the full task history will build up here.</string>
+    <string name="history_feedback_label">History update</string>
+    <string name="history_retention_action">Auto-clean failed history</string>
+    <string name="history_retention_title">Failed history retention</string>
+    <string name="history_auto_cleanup_summary">Failed and canceled history auto-cleans after %1$s. Saved downloads stay in your library until you remove them.</string>
+    <string name="history_clear_failed_action">Clear failed and canceled</string>
+    <string name="history_clear_failed_title">Clear failed and canceled history</string>
+    <string name="history_clear_failed_body">This removes failed and canceled items from History. Saved completed downloads stay in your library.</string>
+    <string name="history_retention_7">A short privacy-first cleanup window for recent failures.</string>
+    <string name="history_retention_15">A balanced two-week window for troubleshooting recent issues.</string>
+    <string name="history_retention_30">Keep one month of failed and canceled history before cleanup.</string>
+    <string name="history_retention_90">A longer support window for recurring site or network problems.</string>
+    <string name="history_retention_180">Keep a six-month failed-history trail for slower-moving troubleshooting.</string>
     <string name="history_view_log">View log</string>
     <string name="history_view_details">View details</string>
     <string name="history_full_log">Full log</string>

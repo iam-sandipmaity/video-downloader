@@ -64,6 +64,7 @@ class DownloadRepositoryImpl @Inject constructor(
     private val pauseExpiryJobs = ConcurrentHashMap<String, Job>()
     private val pauseExpiryDeadlines = ConcurrentHashMap<String, Long>()
     private val schedulingMutex = Mutex()
+    private val historyCleanupMutex = Mutex()
 
     init {
         repositoryScope.launch {
@@ -73,8 +74,22 @@ class DownloadRepositoryImpl @Inject constructor(
         }
         repositoryScope.launch {
             downloadTaskStore.awaitInitialLoad()
+            while (true) {
+                delay(FAILED_HISTORY_PRUNE_INTERVAL_MS)
+                runCatching {
+                    pruneFailedAndCanceledHistory(
+                        settingsStore.observeSettings().first().downloadHistoryRetentionDays,
+                    )
+                }.onFailure { error ->
+                    logger.w("DownloadRepository", "Periodic failed history prune failed", error)
+                }
+            }
+        }
+        repositoryScope.launch {
+            downloadTaskStore.awaitInitialLoad()
             migratePersistedTaskSecrets()
             clearTerminalTaskDebugTraces()
+            pruneFailedAndCanceledHistory(settingsStore.observeSettings().first().downloadHistoryRetentionDays)
             refillQueuedDownloads()
         }
     }
@@ -471,6 +486,24 @@ class DownloadRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun clearFailedAndCanceledHistory(): Result<Int> {
+        return runCatching {
+            historyCleanupMutex.withLock {
+                val historyTaskIds = downloadTaskStore.getAllTasks()
+                    .asSequence()
+                    .filter { it.status == DownloadStatus.FAILED || it.status == DownloadStatus.CANCELED }
+                    .map { it.id }
+                    .toList()
+                if (historyTaskIds.isEmpty()) return@withLock 0
+                downloadOptionSecretsStore.clear(historyTaskIds)
+                downloadTaskStore.removeMany(historyTaskIds)
+                historyTaskIds.size
+            }
+        }.onFailure { error ->
+            logger.e("DownloadRepository", "clearFailedAndCanceledHistory failed", error)
+        }
+    }
+
     override suspend fun syncDownloadedMedia(removeMissingEntries: Boolean?): Result<MediaSyncResult> {
         return runCatching {
             val settings = settingsStore.observeSettings().first()
@@ -533,6 +566,9 @@ class DownloadRepositoryImpl @Inject constructor(
     override suspend fun updateSettings(settings: AppSettings) {
         val previous = settingsStore.observeSettings().first()
         settingsStore.updateSettings(settings)
+        if (previous.downloadHistoryRetentionDays != settings.downloadHistoryRetentionDays) {
+            pruneFailedAndCanceledHistory(settings.downloadHistoryRetentionDays)
+        }
         if (previous.maxConcurrentDownloads != settings.maxConcurrentDownloads ||
             previous.allowMeteredDownloads != settings.allowMeteredDownloads
         ) {
@@ -1006,6 +1042,25 @@ class DownloadRepositoryImpl @Inject constructor(
             }
     }
 
+    private suspend fun pruneFailedAndCanceledHistory(retentionDays: Int): Int {
+        return historyCleanupMutex.withLock {
+            val normalizedDays = retentionDays.coerceIn(MIN_FAILED_HISTORY_RETENTION_DAYS, MAX_FAILED_HISTORY_RETENTION_DAYS)
+            val cutoff = System.currentTimeMillis() - normalizedDays * DAY_IN_MILLIS
+            val staleTaskIds = downloadTaskStore.getAllTasks()
+                .asSequence()
+                .filter {
+                    (it.status == DownloadStatus.FAILED || it.status == DownloadStatus.CANCELED) &&
+                        it.updatedAtEpochMs < cutoff
+                }
+                .map { it.id }
+                .toList()
+            if (staleTaskIds.isEmpty()) return@withLock 0
+            downloadOptionSecretsStore.clear(staleTaskIds)
+            downloadTaskStore.removeMany(staleTaskIds)
+            staleTaskIds.size
+        }
+    }
+
     private fun buildRenamedFileName(rawName: String, currentName: String): String {
         val currentExtension = currentName.substringAfterLast('.', "")
         val sanitized = fileUtils.sanitizeFileName(rawName.trim())
@@ -1055,6 +1110,10 @@ class DownloadRepositoryImpl @Inject constructor(
     private companion object {
         const val MAX_DEBUG_TRACE_CHARS = 250_000
         const val PAUSE_RESUME_WINDOW_MS = 10 * 60 * 1000L
+        const val DAY_IN_MILLIS = 24L * 60L * 60L * 1000L
+        const val MIN_FAILED_HISTORY_RETENTION_DAYS = 7
+        const val MAX_FAILED_HISTORY_RETENTION_DAYS = 180
+        const val FAILED_HISTORY_PRUNE_INTERVAL_MS = 12L * 60L * 60L * 1000L
     }
 
     private fun isSupportedSubtitlePath(path: String): Boolean {

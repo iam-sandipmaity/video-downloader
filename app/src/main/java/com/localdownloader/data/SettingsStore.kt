@@ -71,6 +71,7 @@ class SettingsStore @Inject constructor(
         val appLogRetentionDays = intPreferencesKey("app_log_retention_days")
         val keepAnalyzedLinkHistory = booleanPreferencesKey("keep_analyzed_link_history")
         val analyzedLinkHistoryRetentionDays = intPreferencesKey("analyzed_link_history_retention_days")
+        val downloadHistoryRetentionDays = intPreferencesKey("download_history_retention_days")
         val cookiesEnabled = booleanPreferencesKey("cookies_enabled")
         val cookieUserAgentEnabled = booleanPreferencesKey("cookie_user_agent_enabled")
         val cookieProfiles = stringPreferencesKey("cookie_profiles_json")
@@ -119,6 +120,7 @@ class SettingsStore @Inject constructor(
                     appLogRetentionDays = prefs[Keys.appLogRetentionDays] ?: 15,
                     keepAnalyzedLinkHistory = prefs[Keys.keepAnalyzedLinkHistory] ?: true,
                     analyzedLinkHistoryRetentionDays = prefs[Keys.analyzedLinkHistoryRetentionDays] ?: 15,
+                    downloadHistoryRetentionDays = prefs[Keys.downloadHistoryRetentionDays] ?: 30,
                     cookiesEnabled = prefs[Keys.cookiesEnabled] ?: false,
                     cookieUserAgentEnabled = prefs[Keys.cookieUserAgentEnabled] ?: false,
                     cookieProfiles = decodeCookieProfiles(prefs[Keys.cookieProfiles]),
@@ -162,6 +164,7 @@ class SettingsStore @Inject constructor(
             prefs[Keys.appLogRetentionDays] = settings.appLogRetentionDays
             prefs[Keys.keepAnalyzedLinkHistory] = settings.keepAnalyzedLinkHistory
             prefs[Keys.analyzedLinkHistoryRetentionDays] = settings.analyzedLinkHistoryRetentionDays
+            prefs[Keys.downloadHistoryRetentionDays] = settings.downloadHistoryRetentionDays
             prefs[Keys.cookiesEnabled] = settings.cookiesEnabled
             prefs[Keys.cookieUserAgentEnabled] = settings.cookieUserAgentEnabled
             prefs[Keys.cookieProfiles] = json.encodeToString(persistedCookieProfiles)

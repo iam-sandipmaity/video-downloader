@@ -7,6 +7,7 @@ data class DownloadUiState(
     val expandedDebugTaskIds: Set<String> = emptySet(),
     val autoRemoveMissingFilesFromLibrary: Boolean = true,
     val deleteFromStorageWhenRemovedInApp: Boolean = true,
+    val downloadHistoryRetentionDays: Int = 30,
     val infoMessage: String? = null,
     val errorMessage: String? = null,
 )

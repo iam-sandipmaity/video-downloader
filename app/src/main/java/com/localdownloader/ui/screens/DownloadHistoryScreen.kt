@@ -27,10 +27,13 @@ import androidx.compose.material.icons.outlined.Article
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
@@ -43,6 +46,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -65,7 +69,13 @@ import androidx.compose.ui.unit.dp
 import com.localdownloader.R
 import com.localdownloader.domain.models.DownloadStatus
 import com.localdownloader.domain.models.DownloadTask
+import com.localdownloader.ui.components.InlineFeedbackCard
 import com.localdownloader.ui.components.PreferencePageScaffold
+import com.localdownloader.ui.screens.settings.SettingChoiceDialog
+import com.localdownloader.ui.screens.settings.SettingChoiceDialogState
+import com.localdownloader.ui.screens.settings.SettingChoiceOption
+import com.localdownloader.ui.screens.settings.SettingConfirmDialog
+import com.localdownloader.ui.screens.settings.SettingConfirmDialogState
 import com.localdownloader.ui.support.shareAppLogs
 import com.localdownloader.utils.SensitiveDataSanitizer
 import java.text.SimpleDateFormat
@@ -76,6 +86,12 @@ import java.util.Locale
 @Composable
 fun DownloadHistoryScreen(
     tasks: List<DownloadTask>,
+    retentionDays: Int,
+    infoMessage: String? = null,
+    errorMessage: String? = null,
+    onDismissMessage: (() -> Unit)? = null,
+    onRetentionDaysChanged: (Int) -> Unit,
+    onClearFailedAndCanceledHistory: () -> Unit,
     onBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -89,6 +105,9 @@ fun DownloadHistoryScreen(
     }
     var selectedFilter by rememberSaveable { mutableStateOf(HistoryFilter.All.name) }
     var selectedTask by remember { mutableStateOf<DownloadTask?>(null) }
+    var showActionsMenu by remember { mutableStateOf(false) }
+    var choiceDialog by remember { mutableStateOf<SettingChoiceDialogState?>(null) }
+    var confirmDialog by remember { mutableStateOf<SettingConfirmDialogState?>(null) }
 
     val currentFilter = runCatching { HistoryFilter.valueOf(selectedFilter) }
         .getOrDefault(HistoryFilter.All)
@@ -96,12 +115,100 @@ fun DownloadHistoryScreen(
     val completedCount = historyItems.count { it.status == DownloadStatus.COMPLETED }
     val failedCount = historyItems.count { it.status == DownloadStatus.FAILED }
     val canceledCount = historyItems.count { it.status == DownloadStatus.CANCELED }
+    val purgeableHistoryCount = historyItems.count(::isPurgeableHistoryTask)
+    val retentionLabel = context.resources.getQuantityString(R.plurals.common_days, retentionDays, retentionDays)
+
+    LaunchedEffect(historyItems, selectedTask?.id) {
+        val currentSelected = selectedTask ?: return@LaunchedEffect
+        if (historyItems.none { it.id == currentSelected.id }) {
+            selectedTask = null
+        }
+    }
+
+    choiceDialog?.let { state ->
+        SettingChoiceDialog(
+            state = state,
+            onDismiss = { choiceDialog = null },
+        )
+    }
+    confirmDialog?.let { state ->
+        SettingConfirmDialog(
+            state = state,
+            onDismiss = { confirmDialog = null },
+        )
+    }
 
     PreferencePageScaffold(
         title = stringResource(R.string.history_title),
         onBack = onBack,
         modifier = modifier,
+        actions = {
+            Box {
+                IconButton(onClick = { showActionsMenu = true }) {
+                    Icon(
+                        imageVector = Icons.Outlined.MoreVert,
+                        contentDescription = stringResource(R.string.history_actions),
+                    )
+                }
+                DropdownMenu(
+                    expanded = showActionsMenu,
+                    onDismissRequest = { showActionsMenu = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.history_retention_action)) },
+                        onClick = {
+                            showActionsMenu = false
+                            choiceDialog = SettingChoiceDialogState(
+                                title = context.getString(R.string.history_retention_title),
+                                selected = retentionLabel,
+                                options = listOf(7, 15, 30, 90, 180).map { days ->
+                                    SettingChoiceOption(
+                                        title = context.resources.getQuantityString(R.plurals.common_days, days, days),
+                                        subtitle = historyRetentionDescription(context, days),
+                                        onSelect = { onRetentionDaysChanged(days) },
+                                    )
+                                },
+                            )
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.history_clear_failed_action)) },
+                        enabled = purgeableHistoryCount > 0,
+                        onClick = {
+                            showActionsMenu = false
+                            confirmDialog = SettingConfirmDialogState(
+                                title = context.getString(R.string.history_clear_failed_title),
+                                body = context.getString(R.string.history_clear_failed_body),
+                                confirmLabel = context.getString(R.string.common_clear),
+                                destructive = true,
+                                onConfirm = onClearFailedAndCanceledHistory,
+                            )
+                        },
+                    )
+                }
+            }
+        },
     ) {
+        infoMessage?.takeIf { it.isNotBlank() }?.let { message ->
+            item {
+                InlineFeedbackCard(
+                    label = stringResource(R.string.history_feedback_label),
+                    message = message,
+                    isError = false,
+                    onDismiss = onDismissMessage ?: {},
+                )
+            }
+        }
+        errorMessage?.takeIf { it.isNotBlank() }?.let { message ->
+            item {
+                InlineFeedbackCard(
+                    label = stringResource(R.string.history_feedback_label),
+                    message = message,
+                    isError = true,
+                    onDismiss = onDismissMessage ?: {},
+                )
+            }
+        }
         item {
             Surface(
                 shape = RoundedCornerShape(30.dp),
@@ -137,6 +244,14 @@ fun DownloadHistoryScreen(
                                     historyFilterLabel(currentFilter, context).lowercase(Locale.getDefault()),
                                 ),
                                 style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                text = stringResource(
+                                    R.string.history_auto_cleanup_summary,
+                                    retentionLabel,
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
@@ -729,6 +844,20 @@ private fun historyFilterLabel(filter: HistoryFilter, context: android.content.C
         HistoryFilter.Completed -> context.getString(R.string.history_filter_completed)
         HistoryFilter.Failed -> context.getString(R.string.history_filter_failed)
         HistoryFilter.Canceled -> context.getString(R.string.history_filter_canceled)
+    }
+}
+
+private fun isPurgeableHistoryTask(task: DownloadTask): Boolean {
+    return task.status == DownloadStatus.FAILED || task.status == DownloadStatus.CANCELED
+}
+
+private fun historyRetentionDescription(context: android.content.Context, days: Int): String {
+    return when (days) {
+        7 -> context.getString(R.string.history_retention_7)
+        15 -> context.getString(R.string.history_retention_15)
+        30 -> context.getString(R.string.history_retention_30)
+        90 -> context.getString(R.string.history_retention_90)
+        else -> context.getString(R.string.history_retention_180)
     }
 }
 

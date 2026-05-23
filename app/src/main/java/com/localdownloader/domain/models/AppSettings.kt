@@ -33,6 +33,7 @@ data class AppSettings(
     val appLogRetentionDays: Int = 15,
     val keepAnalyzedLinkHistory: Boolean = true,
     val analyzedLinkHistoryRetentionDays: Int = 15,
+    val downloadHistoryRetentionDays: Int = 30,
     val cookiesEnabled: Boolean = false,
     val cookieUserAgentEnabled: Boolean = false,
     val cookieProfiles: List<CookieProfile> = emptyList(),

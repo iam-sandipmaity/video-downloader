@@ -36,6 +36,7 @@ interface DownloaderRepository {
     suspend fun clearCompletedDownloads(): Result<Int>
     suspend fun clearCompletedLibraryEntries(): Result<Int>
     suspend fun deleteAllCompletedMedia(): Result<Int>
+    suspend fun clearFailedAndCanceledHistory(): Result<Int>
     suspend fun syncDownloadedMedia(removeMissingEntries: Boolean? = null): Result<MediaSyncResult>
     fun observeDownloadQueue(): Flow<List<DownloadTask>>
 
