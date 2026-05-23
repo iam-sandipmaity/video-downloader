@@ -122,15 +122,16 @@ downloads.
 
 #### Remediation
 
-- cleared `debugTrace` for completed downloads
-- added startup cleanup for already-persisted completed task traces
-- kept traces only where they still provide value for non-terminal failure and
-  recovery scenarios
+- kept `debugTrace` sanitized before persistence and display
+- continued clearing cached download options and secret-bearing task state
+- preserved task history traces for troubleshooting instead of removing them at
+  terminal states
 
 #### Validation
 
-After the fix, successful downloads do not retain persistent internal traces in
-history storage.
+After the update, successful downloads retain only sanitized history traces
+while cached options and sensitive values are still removed from persistent
+storage.
 
 ## Audit Note
 

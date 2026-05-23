@@ -88,7 +88,6 @@ class DownloadRepositoryImpl @Inject constructor(
         repositoryScope.launch {
             downloadTaskStore.awaitInitialLoad()
             migratePersistedTaskSecrets()
-            clearTerminalTaskDebugTraces()
             pruneFailedAndCanceledHistory(settingsStore.observeSettings().first().downloadHistoryRetentionDays)
             refillQueuedDownloads()
         }
@@ -324,7 +323,7 @@ class DownloadRepositoryImpl @Inject constructor(
                 status = DownloadStatus.CANCELED,
                 activeWorkId = task.activeWorkId,
                 pauseExpiresAtEpochMs = null,
-                debugTrace = null,
+                debugTrace = appendDebugLine(task.debugTrace, "Canceled by user"),
                 updatedAtEpochMs = System.currentTimeMillis(),
             )
         }
@@ -795,7 +794,7 @@ class DownloadRepositoryImpl @Inject constructor(
                         task.copy(
                             status = DownloadStatus.FAILED,
                             errorMessage = failureMessage,
-                            debugTrace = null,
+                            debugTrace = ensureDebugLine(task.debugTrace, "Task failed: $failureMessage"),
                             updatedAtEpochMs = System.currentTimeMillis(),
                         )
                     }
@@ -815,7 +814,7 @@ class DownloadRepositoryImpl @Inject constructor(
                             status = DownloadStatus.CANCELED,
                             activeWorkId = null,
                             pauseExpiresAtEpochMs = null,
-                            debugTrace = null,
+                            debugTrace = ensureDebugLine(task.debugTrace, "Task canceled"),
                             updatedAtEpochMs = System.currentTimeMillis(),
                         )
                     }
@@ -828,7 +827,6 @@ class DownloadRepositoryImpl @Inject constructor(
                             activeWorkId = null,
                             progressPercent = task.progressPercent.coerceAtLeast(100),
                             outputPath = outputPath ?: task.outputPath,
-                            debugTrace = null,
                             pauseExpiresAtEpochMs = null,
                             updatedAtEpochMs = System.currentTimeMillis(),
                         )
@@ -857,7 +855,7 @@ class DownloadRepositoryImpl @Inject constructor(
 
                         task.status == DownloadStatus.CANCELED -> task.copy(
                             activeWorkId = null,
-                            debugTrace = null,
+                            debugTrace = ensureDebugLine(task.debugTrace, "Task canceled"),
                             pauseExpiresAtEpochMs = null,
                             updatedAtEpochMs = System.currentTimeMillis(),
                         ).also { shouldAdvancePlaylist = true }
@@ -866,7 +864,7 @@ class DownloadRepositoryImpl @Inject constructor(
                             status = DownloadStatus.FAILED,
                             activeWorkId = null,
                             errorMessage = failureMessage,
-                            debugTrace = null,
+                            debugTrace = ensureDebugLine(task.debugTrace, "Task failed: $failureMessage"),
                             pauseExpiresAtEpochMs = null,
                             updatedAtEpochMs = System.currentTimeMillis(),
                         ).also { shouldAdvancePlaylist = true }
@@ -889,7 +887,7 @@ class DownloadRepositoryImpl @Inject constructor(
 
                         task.status == DownloadStatus.CANCELED -> task.copy(
                             activeWorkId = null,
-                            debugTrace = null,
+                            debugTrace = ensureDebugLine(task.debugTrace, "Task canceled"),
                             pauseExpiresAtEpochMs = null,
                             updatedAtEpochMs = System.currentTimeMillis(),
                         ).also { shouldAdvancePlaylist = true }
@@ -897,7 +895,7 @@ class DownloadRepositoryImpl @Inject constructor(
                         else -> task.copy(
                             status = DownloadStatus.CANCELED,
                             activeWorkId = null,
-                            debugTrace = null,
+                            debugTrace = ensureDebugLine(task.debugTrace, "Task canceled"),
                             pauseExpiresAtEpochMs = null,
                             updatedAtEpochMs = System.currentTimeMillis(),
                         ).also { shouldAdvancePlaylist = true }
@@ -934,6 +932,14 @@ class DownloadRepositoryImpl @Inject constructor(
         val sanitized = SensitiveDataSanitizer.sanitize(line)
         val combined = if (existing.isNullOrBlank()) sanitized else "$existing\n$sanitized"
         return combined.takeLast(MAX_DEBUG_TRACE_CHARS)
+    }
+
+    private fun ensureDebugLine(existing: String?, line: String): String {
+        return if (existing.isNullOrBlank()) {
+            appendDebugLine(existing, line)
+        } else {
+            existing
+        }
     }
 
     private suspend fun loadTaskOptions(taskId: String): DownloadOptions? {
@@ -1002,7 +1008,10 @@ class DownloadRepositoryImpl @Inject constructor(
                 activeWorkId = null,
                 pauseExpiresAtEpochMs = null,
                 errorMessage = "Paused download expired after 10 minutes. Cached data was cleaned up.",
-                debugTrace = null,
+                debugTrace = appendDebugLine(
+                    current.debugTrace,
+                    "Paused download expired after 10 minutes. Cached data was cleaned up.",
+                ),
                 updatedAtEpochMs = System.currentTimeMillis(),
             )
         }
@@ -1026,20 +1035,6 @@ class DownloadRepositoryImpl @Inject constructor(
                 downloadTaskStore.cacheOptions(task.id, migratedJson)
             }
         }
-    }
-
-    private fun clearTerminalTaskDebugTraces() {
-        downloadTaskStore.getAllTasks()
-            .asSequence()
-            .filter { it.status.isTerminal && !it.debugTrace.isNullOrBlank() }
-            .forEach { task ->
-                downloadTaskStore.update(task.id) { current ->
-                    current.copy(
-                        debugTrace = null,
-                        updatedAtEpochMs = System.currentTimeMillis(),
-                    )
-                }
-            }
     }
 
     private suspend fun pruneFailedAndCanceledHistory(retentionDays: Int): Int {
