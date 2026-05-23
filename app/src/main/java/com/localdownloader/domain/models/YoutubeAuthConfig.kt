@@ -14,6 +14,16 @@ data class YoutubeAuthConfig(
     val updatedAtEpochMs: Long = 0L,
 ) {
     fun isConfigured(): Boolean {
+        return hasSessionHints()
+    }
+
+    fun hasSessionHints(): Boolean {
+        return hasPoTokens() ||
+            visitorData.trim().isNotBlank() ||
+            dataSyncId.trim().isNotBlank()
+    }
+
+    fun hasPoTokens(): Boolean {
         return buildPoTokenValue() != null
     }
 

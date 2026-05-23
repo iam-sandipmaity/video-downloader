@@ -3,6 +3,8 @@ package com.localdownloader.ui.screens
 import android.os.Build
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebSettings
 import android.webkit.WebStorage
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -57,7 +59,6 @@ import com.localdownloader.ui.components.InlineFeedbackCard
 import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.utils.CookieTextCodec
 import com.localdownloader.utils.WebViewCookieExporter
-import com.localdownloader.utils.YoutubePoTokenGenerator
 import com.localdownloader.viewmodel.FormatMessageScope
 import com.localdownloader.viewmodel.FormatUiState
 import java.text.DateFormat
@@ -80,6 +81,7 @@ fun YoutubeAuthScreen(
     modifier: Modifier = Modifier,
 ) {
     val authConfig = uiState.youtubeAuthConfig
+    val hasSavedTokens = authConfig.hasPoTokens()
     val infoMessage = uiState.infoMessageFor(FormatMessageScope.YOUTUBE_ACCESS)
     val errorMessage = uiState.errorMessageFor(FormatMessageScope.YOUTUBE_ACCESS)
     val hasYoutubeCookie = remember(uiState.cookieProfiles) {
@@ -130,8 +132,10 @@ fun YoutubeAuthScreen(
                     StatusChip(
                         title = if (authConfig.isConfigured()) stringResource(R.string.youtube_access_ready_title) else stringResource(R.string.youtube_access_not_ready_title),
                         subtitle = when {
-                            authConfig.isConfigured() && hasYoutubeCookie ->
+                            authConfig.isConfigured() && hasYoutubeCookie && hasSavedTokens ->
                                 stringResource(R.string.youtube_access_ready_body)
+                            authConfig.isConfigured() && hasYoutubeCookie ->
+                                stringResource(R.string.youtube_access_ready_without_tokens_body)
                             authConfig.isConfigured() ->
                                 stringResource(R.string.youtube_access_missing_cookie_body)
                             else ->
@@ -167,11 +171,24 @@ fun YoutubeAuthScreen(
                             fontWeight = FontWeight.SemiBold,
                         )
                         DetailRow(stringResource(R.string.youtube_access_client), authConfig.clientHint)
-                        DetailRow(stringResource(R.string.youtube_access_cookie_saved), if (hasYoutubeCookie) stringResource(R.string.common_yes) else stringResource(R.string.common_no))
-                        DetailRow(stringResource(R.string.youtube_access_gvs_token), previewToken(authConfig.gvsToken))
-                        DetailRow(stringResource(R.string.youtube_access_player_token), previewToken(authConfig.playerToken))
-                        DetailRow(stringResource(R.string.youtube_access_subtitle_token), previewToken(authConfig.subsToken.ifBlank { authConfig.playerToken }))
-                        DetailRow(stringResource(R.string.youtube_access_data_sync_id), previewToken(authConfig.dataSyncId))
+                        DetailRow(
+                            stringResource(R.string.youtube_access_cookie_saved),
+                            if (hasYoutubeCookie) stringResource(R.string.common_yes) else stringResource(R.string.common_no),
+                        )
+                        authConfig.visitorData.takeIf { it.isNotBlank() }?.let { visitorData ->
+                            DetailRow(stringResource(R.string.youtube_access_visitor_data), previewToken(visitorData))
+                        }
+                        authConfig.dataSyncId.takeIf { it.isNotBlank() }?.let { dataSyncId ->
+                            DetailRow(stringResource(R.string.youtube_access_data_sync_id), previewToken(dataSyncId))
+                        }
+                        if (hasSavedTokens) {
+                            DetailRow(stringResource(R.string.youtube_access_gvs_token), previewToken(authConfig.gvsToken))
+                            DetailRow(stringResource(R.string.youtube_access_player_token), previewToken(authConfig.playerToken))
+                            DetailRow(
+                                stringResource(R.string.youtube_access_subtitle_token),
+                                previewToken(authConfig.subsToken.ifBlank { authConfig.playerToken }),
+                            )
+                        }
                         DetailRow(
                             stringResource(R.string.youtube_access_updated),
                             if (authConfig.updatedAtEpochMs > 0L) {
@@ -235,7 +252,7 @@ fun YoutubeAuthLoginScreen(
     var isSaving by rememberSaveable { mutableStateOf(false) }
     var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var webView by remember { mutableStateOf<WebView?>(null) }
-    val initialUrl = YoutubePoTokenGenerator.SAMPLE_VIDEO_URL
+    val initialUrl = YOUTUBE_ACCESS_SAMPLE_URL
 
     Scaffold(
         modifier = modifier,
@@ -296,19 +313,11 @@ fun YoutubeAuthLoginScreen(
                                             url = "https://www.youtube.com",
                                         )
                                     }
-                                    val generated = YoutubePoTokenGenerator.generate(
-                                        context = currentWebView.context,
-                                        visitorData = visitorData,
-                                        dataSyncId = dataSyncId,
-                                    )
                                     cookieText to YoutubeAuthConfig(
                                         enabled = true,
                                         clientHint = "web.gvs",
-                                        gvsToken = generated.gvsToken,
-                                        playerToken = generated.playerToken,
-                                        subsToken = generated.subsToken,
-                                        visitorData = generated.visitorData,
-                                        dataSyncId = generated.dataSyncId,
+                                        visitorData = visitorData,
+                                        dataSyncId = dataSyncId,
                                     )
                                 }.onSuccess { (cookieText, authConfig) ->
                                     onConfirm(cookieText, authConfig)
@@ -385,9 +394,23 @@ fun YoutubeAuthLoginScreen(
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
                                 settings.safeBrowsingEnabled = true
                             }
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                                settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+                            }
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+                                settings.allowFileAccessFromFileURLs = false
+                                settings.allowUniversalAccessFromFileURLs = false
+                            }
                             CookieManager.getInstance().setAcceptCookie(true)
                             CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
-                            webViewClient = WebViewClient()
+                            webViewClient = object : WebViewClient() {
+                                override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                                    val scheme = request?.url?.scheme.orEmpty()
+                                    return scheme.isNotBlank() &&
+                                        !scheme.equals("https", ignoreCase = true) &&
+                                        !scheme.equals("about", ignoreCase = true)
+                                }
+                            }
                             webChromeClient = object : WebChromeClient() {
                                 override fun onReceivedTitle(view: WebView?, pageTitle: String?) {
                                     if (!pageTitle.isNullOrBlank()) {
@@ -472,3 +495,5 @@ private fun previewToken(token: String): String {
     if (trimmed.isBlank()) return "Not set"
     return if (trimmed.length <= 26) trimmed else trimmed.take(12) + "..." + trimmed.takeLast(10)
 }
+
+private const val YOUTUBE_ACCESS_SAMPLE_URL = "https://www.youtube.com/watch?v=aqz-KE-bpKQ"

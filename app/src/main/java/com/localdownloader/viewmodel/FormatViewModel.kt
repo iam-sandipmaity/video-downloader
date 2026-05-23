@@ -916,7 +916,7 @@ class FormatViewModel @Inject constructor(
                 scopedMessageState(
                     state = state,
                     scope = FormatMessageScope.YOUTUBE_ACCESS,
-                    errorMessage = "PO token generation did not complete. Try loading the sample video again.",
+                    errorMessage = "No YouTube session hints were captured yet. Let the sample video load, then try Save Access again.",
                 )
             }
             return
@@ -969,7 +969,7 @@ class FormatViewModel @Inject constructor(
                 scopedMessageState(
                     state = state,
                     scope = FormatMessageScope.YOUTUBE_ACCESS,
-                    errorMessage = "Generate YouTube access first, then turn it on.",
+                    errorMessage = "Save YouTube access first, then turn it on.",
                 )
             }
             return
@@ -1002,7 +1002,7 @@ class FormatViewModel @Inject constructor(
                         appSettings = newSettings,
                         youtubeAuthConfig = YoutubeAuthConfig(),
                         messageScope = FormatMessageScope.YOUTUBE_ACCESS,
-                        infoMessage = "Saved YouTube PO tokens were cleared.",
+                        infoMessage = "Saved YouTube access was cleared.",
                         errorMessage = null,
                     )
                 }
