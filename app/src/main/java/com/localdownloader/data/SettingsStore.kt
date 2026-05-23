@@ -17,6 +17,7 @@ import com.localdownloader.domain.models.SYSTEM_LANGUAGE_TAG
 import com.localdownloader.domain.models.ThemeMode
 import com.localdownloader.domain.models.YoutubeAuthConfig
 import com.localdownloader.utils.SensitiveDataSanitizer
+import com.localdownloader.utils.SecureTextFileStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -37,6 +38,7 @@ private val Context.settingsDataStore: DataStore<Preferences> by preferencesData
 class SettingsStore @Inject constructor(
     @ApplicationContext private val context: Context,
     private val json: Json,
+    private val secureTextFileStore: SecureTextFileStore,
 ) {
     private val secureCookieDir: File
         get() = File(context.noBackupFilesDir, "cookies")
@@ -206,8 +208,8 @@ class SettingsStore @Inject constructor(
             } else {
                 val targetFile = secureCookieFile(profile.id)
                 targetFile.parentFile?.mkdirs()
-                if (!targetFile.exists() || runCatching { targetFile.readText() }.getOrNull() != cookiesText) {
-                    targetFile.writeText(cookiesText)
+                if (!targetFile.exists() || runCatching { secureTextFileStore.readText(targetFile) }.getOrNull() != cookiesText) {
+                    secureTextFileStore.writeText(targetFile, cookiesText)
                 }
                 profile.copy(
                     cookiesText = "",
@@ -223,7 +225,7 @@ class SettingsStore @Inject constructor(
             .takeIf { it.isNotBlank() }
             ?.let(::File)
             ?.takeIf { it.exists() && it.isFile }
-            ?.let { file -> runCatching { file.readText() }.getOrNull() }
+            ?.let { file -> runCatching { secureTextFileStore.readText(file) }.getOrNull() }
             ?.trim()
             ?.takeIf { it.isNotBlank() }
             ?: profile.cookiesText
@@ -242,8 +244,8 @@ class SettingsStore @Inject constructor(
 
         secureYoutubeAuthFile.parentFile?.mkdirs()
         val serialized = json.encodeToString(config)
-        if (!secureYoutubeAuthFile.exists() || runCatching { secureYoutubeAuthFile.readText() }.getOrNull() != serialized) {
-            secureYoutubeAuthFile.writeText(serialized)
+        if (!secureYoutubeAuthFile.exists() || runCatching { secureTextFileStore.readText(secureYoutubeAuthFile) }.getOrNull() != serialized) {
+            secureTextFileStore.writeText(secureYoutubeAuthFile, serialized)
         }
     }
 
@@ -251,7 +253,9 @@ class SettingsStore @Inject constructor(
         return secureYoutubeAuthFile
             .takeIf { it.exists() && it.isFile }
             ?.let { file ->
-                runCatching { json.decodeFromString<YoutubeAuthConfig>(file.readText()) }
+                runCatching {
+                    secureTextFileStore.readText(file)?.let { json.decodeFromString<YoutubeAuthConfig>(it) }
+                }
                     .onFailure { error ->
                         android.util.Log.w(
                             "SettingsStore",

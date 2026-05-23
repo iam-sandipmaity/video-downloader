@@ -27,6 +27,7 @@ import javax.inject.Singleton
 class FileUtils @Inject constructor(
     @ApplicationContext private val context: Context,
     settingsStore: SettingsStore,
+    private val secureTextFileStore: SecureTextFileStore,
 ) {
     private val conversionDirName = "converted"
     private val binDirName = "bin"
@@ -107,6 +108,23 @@ class FileUtils @Inject constructor(
         val targetFile = File(targetDir, sanitizeFileName(targetFileName))
         targetFile.writeText(content)
         return targetFile.absolutePath
+    }
+
+    fun writeSensitiveTextToInternalFile(
+        subDirectoryName: String,
+        targetFileName: String,
+        content: String,
+    ): String {
+        val targetDir = ensureInternalDir(subDirectoryName)
+        val targetFile = File(targetDir, sanitizeFileName(targetFileName))
+        secureTextFileStore.writeText(targetFile, content)
+        return targetFile.absolutePath
+    }
+
+    fun readSensitiveTextFromFile(path: String): String? {
+        val trimmedPath = path.trim()
+        if (trimmedPath.isBlank()) return null
+        return runCatching { secureTextFileStore.readText(File(trimmedPath)) }.getOrNull()
     }
 
     fun readTextFromUri(uri: Uri): String {
@@ -637,6 +655,8 @@ class FileUtils @Inject constructor(
         val root = when (name.substringBefore(File.separator).substringBefore('/').substringBefore('\\')) {
             "cookies" -> context.noBackupFilesDir
             "opened" -> context.cacheDir
+            "runtime-cookies" -> context.cacheDir
+            "shared" -> context.cacheDir
             else -> context.filesDir
         }
         val dir = File(root, name)

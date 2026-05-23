@@ -3,6 +3,7 @@ package com.localdownloader.ui.screens
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -65,6 +66,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -89,10 +91,15 @@ import com.localdownloader.ui.model.buildVideoLibraryItems
 import com.localdownloader.ui.model.formatMediaDate
 import com.localdownloader.ui.model.label
 import com.localdownloader.viewmodel.DownloadUiState
+import java.io.File
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
+import java.util.UUID
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -124,6 +131,7 @@ fun DownloadsScreen(
     var selectedTaskIds by rememberSaveable { mutableStateOf(emptyList<String>()) }
     var showHeaderMenu by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     val items = remember(uiState.tasks) { buildVideoLibraryItems(uiState.tasks) }
     val audioItems = remember(items) { items.filter { it.exists && it.mediaKind == MediaKind.AUDIO } }
@@ -542,7 +550,11 @@ fun DownloadsScreen(
                             Text(stringResource(R.string.common_clear))
                         }
                         FilledTonalButton(
-                            onClick = { shareDownloadedFiles(context, selectedShareableItems) },
+                            onClick = {
+                                scope.launch {
+                                    shareDownloadedFiles(context, selectedShareableItems)
+                                }
+                            },
                             enabled = selectedShareableItems.isNotEmpty(),
                         ) {
                             Icon(Icons.Outlined.Share, contentDescription = null)
@@ -689,7 +701,9 @@ fun DownloadsScreen(
                             }
                         },
                         onShare = {
-                            shareDownloadedFiles(context, listOf(item))
+                            scope.launch {
+                                shareDownloadedFiles(context, listOf(item))
+                            }
                         },
                         onRename = {
                             renameTarget = item
@@ -1153,20 +1167,25 @@ private fun formatDownloadRelativeDate(epochMs: Long): String {
     }
 }
 
-private fun shareDownloadedFiles(context: Context, items: List<VideoLibraryItem>) {
-    val uris = ArrayList<Uri>(
-        items.count { it.file?.exists() == true },
-    )
-    items.forEach { item ->
-        item.file?.takeIf { it.exists() }?.let { file ->
-            uris += FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.fileprovider",
-                file,
-            )
+private suspend fun shareDownloadedFiles(context: Context, items: List<VideoLibraryItem>) {
+    val stagedFiles = runCatching {
+        withContext(Dispatchers.IO) {
+            stageDownloadedFilesForShare(context, items)
         }
+    }.getOrElse {
+        Toast.makeText(context, context.getString(R.string.downloads_share_failed), Toast.LENGTH_SHORT).show()
+        return
     }
-    if (uris.isEmpty()) return
+    if (stagedFiles.isEmpty()) return
+
+    val uris = ArrayList<Uri>(stagedFiles.size)
+    stagedFiles.forEach { file ->
+        uris += FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file,
+        )
+    }
 
     val shareIntent = if (uris.size == 1) {
         Intent(Intent.ACTION_SEND).apply {
@@ -1184,6 +1203,80 @@ private fun shareDownloadedFiles(context: Context, items: List<VideoLibraryItem>
 
     context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.downloads_share_media)))
 }
+
+private fun stageDownloadedFilesForShare(context: Context, items: List<VideoLibraryItem>): List<File> {
+    val sourceFiles = items.mapNotNull { item -> item.file?.takeIf { it.exists() && it.isFile } }
+    if (sourceFiles.isEmpty()) return emptyList()
+
+    val sharedRoot = File(context.cacheDir, "shared")
+    if (!sharedRoot.exists() && !sharedRoot.mkdirs()) {
+        throw IllegalStateException("Unable to create share cache directory.")
+    }
+    pruneExpiredShareSessions(sharedRoot)
+    val requiredBytes = sourceFiles.sumOf { it.length() }
+    if (requiredBytes > sharedRoot.usableSpace) {
+        throw IllegalStateException("Not enough cache space to stage the selected files.")
+    }
+
+    val sessionDir = File(sharedRoot, "downloads-share-${System.currentTimeMillis()}-${UUID.randomUUID().toString().take(8)}")
+    if (!sessionDir.mkdirs()) {
+        throw IllegalStateException("Unable to create share session directory.")
+    }
+
+    return try {
+        sourceFiles.map { sourceFile ->
+            val stagedFile = resolveUniqueShareTarget(sessionDir, sourceFile.name)
+            sourceFile.inputStream().use { input ->
+                stagedFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+            stagedFile
+        }
+    } catch (error: Throwable) {
+        deleteShareSessionRecursively(sessionDir)
+        throw error
+    }
+}
+
+private fun pruneExpiredShareSessions(sharedRoot: File) {
+    val cutoff = System.currentTimeMillis() - SHARE_CACHE_RETENTION_MS
+    sharedRoot.listFiles()
+        ?.filter { candidate ->
+            candidate.isDirectory &&
+                candidate.name.startsWith("downloads-share-") &&
+                candidate.lastModified() < cutoff
+        }
+        ?.forEach(::deleteShareSessionRecursively)
+}
+
+private fun deleteShareSessionRecursively(file: File) {
+    if (file.isDirectory) {
+        file.listFiles()?.forEach(::deleteShareSessionRecursively)
+    }
+    runCatching { file.delete() }
+}
+
+private fun resolveUniqueShareTarget(parentDir: File, originalName: String): File {
+    var candidate = File(parentDir, originalName)
+    if (!candidate.exists()) return candidate
+
+    val stem = originalName.substringBeforeLast('.', originalName)
+    val extension = originalName.substringAfterLast('.', "").takeIf { it.isNotBlank() }
+    var counter = 2
+    while (candidate.exists()) {
+        val resolvedName = if (extension == null) {
+            "$stem ($counter)"
+        } else {
+            "$stem ($counter).$extension"
+        }
+        candidate = File(parentDir, resolvedName)
+        counter += 1
+    }
+    return candidate
+}
+
+private const val SHARE_CACHE_RETENTION_MS = 24L * 60L * 60L * 1000L
 
 private enum class DownloadsFilter(@StringRes val labelRes: Int) {
     All(R.string.downloads_filter_all),

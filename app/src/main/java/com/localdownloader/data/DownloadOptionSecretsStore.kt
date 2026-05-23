@@ -3,6 +3,7 @@ package com.localdownloader.data
 import android.content.Context
 import com.localdownloader.domain.models.DownloadOptions
 import com.localdownloader.utils.Logger
+import com.localdownloader.utils.SecureTextFileStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
@@ -17,6 +18,7 @@ class DownloadOptionSecretsStore @Inject constructor(
     @ApplicationContext private val context: Context,
     private val json: Json,
     private val logger: Logger,
+    private val secureTextFileStore: SecureTextFileStore,
 ) {
 
     fun persist(taskId: String, options: DownloadOptions): String {
@@ -100,12 +102,7 @@ class DownloadOptionSecretsStore @Inject constructor(
     private fun writeSecrets(taskId: String, secrets: PersistedDownloadOptionSecrets) {
         val target = secretsFile(taskId)
         target.parentFile?.mkdirs()
-        val tempFile = File(target.parentFile, "${target.name}.tmp")
-        tempFile.writeText(json.encodeToString(secrets))
-        if (!tempFile.renameTo(target)) {
-            tempFile.copyTo(target, overwrite = true)
-            tempFile.delete()
-        }
+        secureTextFileStore.writeText(target, json.encodeToString(secrets))
     }
 
     private fun readSecrets(taskId: String): PersistedDownloadOptionSecrets? {
@@ -114,7 +111,7 @@ class DownloadOptionSecretsStore @Inject constructor(
             return null
         }
         return runCatching {
-            json.decodeFromString<PersistedDownloadOptionSecrets>(secretFile.readText())
+            secureTextFileStore.readText(secretFile)?.let { json.decodeFromString<PersistedDownloadOptionSecrets>(it) }
         }.onFailure { error ->
             logger.w("DownloadOptionSecretsStore", "Failed reading persisted secrets for taskId=$taskId", error)
         }.getOrNull()
