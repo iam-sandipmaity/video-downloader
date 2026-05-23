@@ -79,7 +79,7 @@ class DownloadEngine @Inject constructor(
             )
         }
 
-        if (options.shouldEmbedMetadata) {
+        if (shouldRequestMetadataEmbedding(options)) {
             args += "--embed-metadata"
         }
         if (options.shouldEmbedThumbnail) {
@@ -206,6 +206,21 @@ class DownloadEngine @Inject constructor(
             )
         }
         return configuredArgs.ifBlank { null }
+    }
+
+    private fun shouldRequestMetadataEmbedding(options: DownloadOptions): Boolean {
+        if (!options.shouldEmbedMetadata) return false
+
+        val normalizedContainer = options.mergeOutputFormat?.trim()?.lowercase().orEmpty()
+        if (normalizedContainer == "mkv") {
+            logger.i(
+                "DownloadEngine",
+                "Skipping yt-dlp metadata embedding for MKV output because the current runtime does not provide ffprobe",
+            )
+            return false
+        }
+
+        return true
     }
 
     private fun subtitleArgs(

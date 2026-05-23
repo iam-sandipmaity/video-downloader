@@ -268,7 +268,7 @@ class DownloadWorker @AssistedInject constructor(
             outputPath = recoveredOutputPath
             if (options.shouldWriteThumbnail) {
                 shouldGenerateThumbnailFallback = true
-            } else if (!options.shouldEmbedThumbnail) {
+            } else {
                 cleanupThumbnailSidecars(recoveredOutputPath)
             }
             appendDebugTrace(
@@ -506,7 +506,7 @@ class DownloadWorker @AssistedInject constructor(
                 outputPath = recoveredOutputPath
                 if (options.shouldWriteThumbnail) {
                     shouldGenerateThumbnailFallback = true
-                } else if (!options.shouldEmbedThumbnail) {
+                } else {
                     cleanupThumbnailSidecars(recoveredOutputPath)
                 }
                 appendDebugTrace(
