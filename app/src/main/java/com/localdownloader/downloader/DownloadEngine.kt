@@ -53,7 +53,7 @@ class DownloadEngine @Inject constructor(
 
         // Apply cookies if a valid cookies file path is available.
         // These are used for cookie-backed site sessions, including tougher YouTube cases.
-        val cookiesPath = options.cookiesPath
+        val cookiesPath = options.youtubeCookiesPath
         if (!cookiesPath.isNullOrBlank() && File(cookiesPath).exists()) {
             args += listOf("--cookies", cookiesPath)
         }
@@ -149,7 +149,7 @@ class DownloadEngine @Inject constructor(
             args += listOf("--add-header", "User-Agent:${options.userAgentHeader}")
         }
 
-        val cookiesPath = options.cookiesPath
+        val cookiesPath = options.youtubeCookiesPath
         if (!cookiesPath.isNullOrBlank() && File(cookiesPath).exists()) {
             args += listOf("--cookies", cookiesPath)
         }

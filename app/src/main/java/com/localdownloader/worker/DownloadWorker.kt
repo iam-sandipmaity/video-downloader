@@ -764,7 +764,7 @@ class DownloadWorker @AssistedInject constructor(
     }
 
     private fun hasUsableCookies(options: DownloadOptions): Boolean {
-        val cookiesPath = options.cookiesPath ?: return false
+        val cookiesPath = options.youtubeCookiesPath ?: return false
         return File(cookiesPath).exists()
     }
 
@@ -2184,7 +2184,7 @@ class DownloadWorker @AssistedInject constructor(
             loadInfoJsonPath = inputData.getString(WorkerKeys.LOAD_INFO_JSON_PATH).orEmpty().ifBlank { null },
             userAgentHeader = inputData.getString(WorkerKeys.USER_AGENT_HEADER).orEmpty().ifBlank { null },
             youtubeAuthEnabled = inputData.getBoolean(WorkerKeys.YOUTUBE_AUTH_ENABLED, false),
-            cookiesPath = inputData.getString(WorkerKeys.COOKIES_PATH).orEmpty().ifBlank { null },
+            youtubeCookiesPath = inputData.getString(WorkerKeys.YOUTUBE_COOKIES_PATH).orEmpty().ifBlank { null },
             youtubePoToken = inputData.getString(WorkerKeys.YOUTUBE_PO_TOKEN).orEmpty().ifBlank { null },
             youtubePoTokenClientHint = inputData.getString(WorkerKeys.YOUTUBE_PO_TOKEN_CLIENT_HINT) ?: "web.gvs",
             youtubeDataSyncId = inputData.getString(WorkerKeys.YOUTUBE_DATA_SYNC_ID).orEmpty().ifBlank { null },

@@ -10,7 +10,7 @@ object WorkerKeys {
     const val LOAD_INFO_JSON_PATH = "load_info_json_path"
     const val USER_AGENT_HEADER = "user_agent_header"
     const val YOUTUBE_AUTH_ENABLED = "youtube_auth_enabled"
-    const val COOKIES_PATH = "youtube_cookies_path"
+    const val YOUTUBE_COOKIES_PATH = "youtube_cookies_path"
     const val YOUTUBE_PO_TOKEN = "youtube_po_token"
     const val YOUTUBE_PO_TOKEN_CLIENT_HINT = "youtube_po_token_client_hint"
     const val YOUTUBE_DATA_SYNC_ID = "youtube_data_sync_id"
