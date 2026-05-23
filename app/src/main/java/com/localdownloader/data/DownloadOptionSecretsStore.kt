@@ -51,10 +51,7 @@ class DownloadOptionSecretsStore @Inject constructor(
             }
             val secrets = readSecrets(taskId)
             return if (secrets != null) {
-                persisted.options.applyPersistedSecrets(
-                    secrets = secrets,
-                    youtubeCookiesPath = materializeRuntimeCookiesIfNeeded(taskId, secrets),
-                )
+                persisted.options.applyPersistedSecrets(secrets)
             } else {
                 logger.w(
                     "DownloadOptionSecretsStore",
@@ -88,7 +85,6 @@ class DownloadOptionSecretsStore @Inject constructor(
 
     fun clear(taskId: String) {
         secretsFile(taskId).delete()
-        runtimeCookiesFile(taskId).delete()
     }
 
     fun clear(taskIds: Collection<String>) {
@@ -125,32 +121,8 @@ class DownloadOptionSecretsStore @Inject constructor(
         return File(secretsDir(), "${sanitizeTaskId(taskId)}.json")
     }
 
-    private fun runtimeCookiesFile(taskId: String): File {
-        return File(runtimeCookiesDir(), "${sanitizeTaskId(taskId)}.txt")
-    }
-
     private fun secretsDir(): File {
         return File(context.noBackupFilesDir, SECRET_DIR_NAME)
-    }
-
-    private fun runtimeCookiesDir(): File {
-        return File(context.cacheDir, RUNTIME_COOKIE_DIR_NAME)
-    }
-
-    private fun materializeRuntimeCookiesIfNeeded(
-        taskId: String,
-        secrets: PersistedDownloadOptionSecrets,
-    ): String? {
-        val cookiesText = secrets.youtubeCookiesText?.trim().orEmpty()
-        if (cookiesText.isBlank()) {
-            return secrets.youtubeCookiesPath
-        }
-        val targetFile = runtimeCookiesFile(taskId)
-        targetFile.parentFile?.mkdirs()
-        if (!targetFile.exists() || runCatching { targetFile.readText() }.getOrNull() != cookiesText) {
-            targetFile.writeText(cookiesText)
-        }
-        return targetFile.absolutePath
     }
 
     private fun sanitizeTaskId(taskId: String): String {
@@ -159,7 +131,6 @@ class DownloadOptionSecretsStore @Inject constructor(
 
     private companion object {
         private const val SECRET_DIR_NAME = "task-option-secrets"
-        private const val RUNTIME_COOKIE_DIR_NAME = "runtime-cookies-tasks"
         private val SAFE_TASK_ID_REGEX = Regex("[^A-Za-z0-9._-]")
     }
 }
@@ -177,26 +148,17 @@ internal data class PersistedDownloadOptionSecrets(
     val loadInfoJsonPath: String? = null,
     val userAgentHeader: String? = null,
     val youtubeCookiesPath: String? = null,
-    val youtubeCookiesText: String? = null,
     val youtubePoToken: String? = null,
     val youtubeDataSyncId: String? = null,
 ) {
     companion object {
         fun from(options: DownloadOptions): PersistedDownloadOptionSecrets {
-            val cookiesPath = options.youtubeCookiesPath
-            val cookiesText = cookiesPath
-                ?.takeIf { it.isNotBlank() }
-                ?.let(::File)
-                ?.takeIf { it.exists() && it.isFile }
-                ?.let { file -> runCatching { file.readText() }.getOrNull() }
-                ?.takeIf { it.isNotBlank() }
             return PersistedDownloadOptionSecrets(
                 extractorArgs = options.extractorArgs,
                 fallbackExtractorArgs = options.fallbackExtractorArgs,
                 loadInfoJsonPath = options.loadInfoJsonPath,
                 userAgentHeader = options.userAgentHeader,
-                youtubeCookiesPath = cookiesPath,
-                youtubeCookiesText = cookiesText,
+                youtubeCookiesPath = options.youtubeCookiesPath,
                 youtubePoToken = options.youtubePoToken,
                 youtubeDataSyncId = options.youtubeDataSyncId,
             )
@@ -226,16 +188,13 @@ internal fun DownloadOptions.redactedForPersistence(): DownloadOptions {
     )
 }
 
-internal fun DownloadOptions.applyPersistedSecrets(
-    secrets: PersistedDownloadOptionSecrets,
-    youtubeCookiesPath: String? = secrets.youtubeCookiesPath,
-): DownloadOptions {
+internal fun DownloadOptions.applyPersistedSecrets(secrets: PersistedDownloadOptionSecrets): DownloadOptions {
     return copy(
         extractorArgs = secrets.extractorArgs,
         fallbackExtractorArgs = secrets.fallbackExtractorArgs,
         loadInfoJsonPath = secrets.loadInfoJsonPath,
         userAgentHeader = secrets.userAgentHeader,
-        youtubeCookiesPath = youtubeCookiesPath,
+        youtubeCookiesPath = secrets.youtubeCookiesPath,
         youtubePoToken = secrets.youtubePoToken,
         youtubeDataSyncId = secrets.youtubeDataSyncId,
     )
