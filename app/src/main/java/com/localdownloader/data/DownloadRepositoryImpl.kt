@@ -39,8 +39,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import java.io.File
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -58,8 +56,8 @@ class DownloadRepositoryImpl @Inject constructor(
     private val settingsStore: SettingsStore,
     private val workManager: WorkManager,
     private val fileUtils: FileUtils,
+    private val downloadOptionSecretsStore: DownloadOptionSecretsStore,
     private val logger: Logger,
-    private val json: Json,
 ) : DownloaderRepository {
     private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val workObserverJobs = ConcurrentHashMap.newKeySet<String>()
@@ -75,6 +73,7 @@ class DownloadRepositoryImpl @Inject constructor(
         }
         repositoryScope.launch {
             downloadTaskStore.awaitInitialLoad()
+            migratePersistedTaskSecrets()
             refillQueuedDownloads()
         }
     }
@@ -208,8 +207,7 @@ class DownloadRepositoryImpl @Inject constructor(
             return Result.failure(IllegalStateException("Pause is still finishing. Please try resume again in a moment."))
         }
 
-        val taskOptions = downloadTaskStore.getCachedOptions(taskId)
-            ?.let { serialized -> runCatching { json.decodeFromString<DownloadOptions>(serialized) }.getOrNull() }
+        val taskOptions = loadTaskOptions(taskId)
             ?: return Result.failure(IllegalStateException("No cached download options for task $taskId"))
 
         if (task.pauseExpiresAtEpochMs?.let { it <= System.currentTimeMillis() } == true) {
@@ -254,8 +252,7 @@ class DownloadRepositoryImpl @Inject constructor(
             return Result.failure(IllegalStateException("Only failed or canceled downloads can be retried."))
         }
 
-        val taskOptions = downloadTaskStore.getCachedOptions(taskId)
-            ?.let { serialized -> runCatching { json.decodeFromString<DownloadOptions>(serialized) }.getOrNull() }
+        val taskOptions = loadTaskOptions(taskId)
             ?: return Result.failure(IllegalStateException("No cached download options for task $taskId"))
 
         return runCatching {
@@ -503,7 +500,9 @@ class DownloadRepositoryImpl @Inject constructor(
             }
 
             if (shouldRemoveMissing && missingTasks.isNotEmpty()) {
-                downloadTaskStore.removeMany(missingTasks.map { it.id })
+                val missingIds = missingTasks.map { it.id }
+                downloadOptionSecretsStore.clear(missingIds)
+                downloadTaskStore.removeMany(missingIds)
             }
 
             MediaSyncResult(
@@ -558,33 +557,6 @@ class DownloadRepositoryImpl @Inject constructor(
             .setInputData(
                 workDataOf(
                     WorkerKeys.TASK_ID to taskId,
-                    WorkerKeys.URL to options.url,
-                    WorkerKeys.FORMAT_ID to options.formatId,
-                    WorkerKeys.OUTPUT_TEMPLATE to options.outputTemplate,
-                    WorkerKeys.EXTRACTOR_ARGS to (options.extractorArgs ?: ""),
-                    WorkerKeys.FALLBACK_EXTRACTOR_ARGS to (options.fallbackExtractorArgs ?: ""),
-                    WorkerKeys.LOAD_INFO_JSON_PATH to (options.loadInfoJsonPath ?: ""),
-                    WorkerKeys.USER_AGENT_HEADER to (options.userAgentHeader ?: ""),
-                    WorkerKeys.YOUTUBE_AUTH_ENABLED to options.youtubeAuthEnabled,
-                    WorkerKeys.YOUTUBE_COOKIES_PATH to (options.youtubeCookiesPath ?: ""),
-                    WorkerKeys.YOUTUBE_PO_TOKEN to (options.youtubePoToken ?: ""),
-                    WorkerKeys.YOUTUBE_PO_TOKEN_CLIENT_HINT to options.youtubePoTokenClientHint,
-                    WorkerKeys.YOUTUBE_DATA_SYNC_ID to (options.youtubeDataSyncId ?: ""),
-                    WorkerKeys.MERGE_OUTPUT_FORMAT to (options.mergeOutputFormat ?: ""),
-                    WorkerKeys.PREFERRED_VIDEO_HEIGHT to (options.preferredVideoHeight ?: -1),
-                    WorkerKeys.DOWNLOAD_VIDEO_ONLY to options.downloadVideoOnly,
-                    WorkerKeys.PLAYLIST_ENABLED to options.isPlaylistEnabled,
-                    WorkerKeys.DOWNLOAD_SUBTITLES to options.shouldDownloadSubtitles,
-                    WorkerKeys.EMBED_SUBTITLES to options.shouldEmbedSubtitles,
-                    WorkerKeys.EMBED_METADATA to options.shouldEmbedMetadata,
-                    WorkerKeys.EMBED_THUMBNAIL to options.shouldEmbedThumbnail,
-                    WorkerKeys.WRITE_THUMBNAIL to options.shouldWriteThumbnail,
-                    WorkerKeys.EXTRACT_AUDIO to options.extractAudio,
-                    WorkerKeys.AUDIO_FORMAT to (options.audioFormat ?: ""),
-                    WorkerKeys.AUDIO_BITRATE to (options.audioBitrateKbps ?: -1),
-                    WorkerKeys.TITLE_HINT to titleHint,
-                    WorkerKeys.PLAYLIST_ITEM_INDEX to (options.playlistItemIndex ?: -1),
-                    WorkerKeys.PLAYLIST_FOLDER_NAME to (options.playlistFolderName ?: ""),
                 ),
             )
             .setConstraints(
@@ -622,9 +594,10 @@ class DownloadRepositoryImpl @Inject constructor(
             updatedAtEpochMs = System.currentTimeMillis(),
         )
 
+        val persistedOptionsJson = downloadOptionSecretsStore.persist(taskId, options)
         downloadTaskStore.upsert(
             task = queuedTask,
-            optionsJson = json.encodeToString(options),
+            optionsJson = persistedOptionsJson,
         )
 
         return PreparedDownload(
@@ -826,6 +799,7 @@ class DownloadRepositoryImpl @Inject constructor(
                         )
                     }
                     downloadTaskStore.clearCachedOptions(taskId)
+                    downloadOptionSecretsStore.clear(taskId)
                     triggerQueuedDownloadRefill()
                 }
             }
@@ -925,7 +899,7 @@ class DownloadRepositoryImpl @Inject constructor(
 
     private suspend fun loadTaskOptions(taskId: String): DownloadOptions? {
         val optionsJson = downloadTaskStore.getCachedOptions(taskId) ?: return null
-        return runCatching { json.decodeFromString<DownloadOptions>(optionsJson) }.getOrNull()
+        return downloadOptionSecretsStore.hydrate(taskId, optionsJson)
     }
 
     private fun triggerQueuedDownloadRefill() {
@@ -978,13 +952,12 @@ class DownloadRepositoryImpl @Inject constructor(
         val pauseExpiresAt = task.pauseExpiresAtEpochMs ?: return
         if (task.status != DownloadStatus.PAUSED || pauseExpiresAt > System.currentTimeMillis()) return
 
-        val optionsJson = downloadTaskStore.getCachedOptions(taskId)
-        val cleanedFileCount = optionsJson
-            ?.let { serialized -> runCatching { json.decodeFromString<DownloadOptions>(serialized) }.getOrNull() }
+        val cleanedFileCount = loadTaskOptions(taskId)
             ?.let { options -> runCatching { fileUtils.deleteDownloadArtifacts(options.outputTemplate) }.getOrDefault(0) }
             ?: 0
 
         downloadTaskStore.clearCachedOptions(taskId)
+        downloadOptionSecretsStore.clear(taskId)
         downloadTaskStore.update(taskId) { current ->
             current.copy(
                 status = DownloadStatus.CANCELED,
@@ -1000,6 +973,24 @@ class DownloadRepositoryImpl @Inject constructor(
         }
         pauseExpiryJobs.remove(taskId)?.cancel()
         pauseExpiryDeadlines.remove(taskId)
+    }
+
+    private suspend fun migratePersistedTaskSecrets() {
+        downloadTaskStore.getAllTasks().forEach { task ->
+            if (task.status == DownloadStatus.COMPLETED) {
+                if (downloadTaskStore.getCachedOptions(task.id) != null) {
+                    downloadTaskStore.clearCachedOptions(task.id)
+                }
+                downloadOptionSecretsStore.clear(task.id)
+                return@forEach
+            }
+
+            val optionsJson = downloadTaskStore.getCachedOptions(task.id) ?: return@forEach
+            val migratedJson = downloadOptionSecretsStore.migratePersistedOptions(task.id, optionsJson)
+            if (migratedJson != null && migratedJson != optionsJson) {
+                downloadTaskStore.cacheOptions(task.id, migratedJson)
+            }
+        }
     }
 
     private fun buildRenamedFileName(rawName: String, currentName: String): String {
@@ -1039,6 +1030,7 @@ class DownloadRepositoryImpl @Inject constructor(
             }
         }
 
+        downloadOptionSecretsStore.clear(removedIds)
         downloadTaskStore.removeMany(removedIds)
 
         if (failedIds.isNotEmpty()) {

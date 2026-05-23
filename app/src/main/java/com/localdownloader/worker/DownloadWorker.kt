@@ -12,6 +12,7 @@ import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.localdownloader.data.DownloadTaskStore
+import com.localdownloader.data.DownloadOptionSecretsStore
 import com.localdownloader.data.SettingsStore
 import com.localdownloader.domain.models.DownloadOptions
 import com.localdownloader.domain.models.DownloadStatus
@@ -37,6 +38,7 @@ class DownloadWorker @AssistedInject constructor(
     @Assisted params: WorkerParameters,
     private val downloadEngine: DownloadEngine,
     private val downloadTaskStore: DownloadTaskStore,
+    private val downloadOptionSecretsStore: DownloadOptionSecretsStore,
     private val settingsStore: SettingsStore,
     private val repository: DownloaderRepository,
     private val ffmpegExecutor: FfmpegExecutor,
@@ -47,47 +49,32 @@ class DownloadWorker @AssistedInject constructor(
     override suspend fun doWork(): Result {
         val taskId = inputData.getString(WorkerKeys.TASK_ID) ?: id.toString()
         logger.i("DownloadWorker", "doWork started taskId=$taskId")
-        val url = inputData.getString(WorkerKeys.URL)
-            ?: return Result.failure(workDataOf(WorkerKeys.ERROR_MESSAGE to "Missing URL"))
-        val formatId = inputData.getString(WorkerKeys.FORMAT_ID)
-            ?: return Result.failure(workDataOf(WorkerKeys.ERROR_MESSAGE to "Missing format id"))
-        val outputTemplate = inputData.getString(WorkerKeys.OUTPUT_TEMPLATE)
-            ?: return Result.failure(workDataOf(WorkerKeys.ERROR_MESSAGE to "Missing output template"))
-        val titleHint = inputData.getString(WorkerKeys.TITLE_HINT).orEmpty()
+        downloadTaskStore.awaitInitialLoad()
+        val persistedTask = downloadTaskStore.getTask(taskId)
+        val storedOptions = downloadTaskStore.getCachedOptions(taskId)
+            ?.let { serialized -> downloadOptionSecretsStore.hydrate(taskId, serialized) }
+        val legacyOptions = if (storedOptions == null) parseLegacyOptionsFromInputData() else null
+        val options = storedOptions
+            ?: legacyOptions
+            ?: return Result.failure(workDataOf(WorkerKeys.ERROR_MESSAGE to "Missing download options"))
+        val migratedLegacyOptions = storedOptions == null && legacyOptions != null
+        if (migratedLegacyOptions) {
+            logger.w("DownloadWorker", "Falling back to legacy WorkManager input for taskId=$taskId during migration")
+        }
+        val url = options.url
+        val formatId = options.formatId
+        val outputTemplate = options.outputTemplate
+        val titleHint = persistedTask?.title?.takeIf { it.isNotBlank() }
+            ?: inputData.getString(WorkerKeys.TITLE_HINT).orEmpty()
         logger.i(
             "DownloadWorker",
             "Input parsed taskId=$taskId url=$url format=$formatId outputTemplate=$outputTemplate title='$titleHint'",
         )
-
-        val options = DownloadOptions(
-            url = url,
-            formatId = formatId,
-            outputTemplate = outputTemplate,
-            extractorArgs = inputData.getString(WorkerKeys.EXTRACTOR_ARGS).orEmpty().ifBlank { null },
-            fallbackExtractorArgs = inputData.getString(WorkerKeys.FALLBACK_EXTRACTOR_ARGS).orEmpty().ifBlank { null },
-            loadInfoJsonPath = inputData.getString(WorkerKeys.LOAD_INFO_JSON_PATH).orEmpty().ifBlank { null },
-            userAgentHeader = inputData.getString(WorkerKeys.USER_AGENT_HEADER).orEmpty().ifBlank { null },
-            youtubeAuthEnabled = inputData.getBoolean(WorkerKeys.YOUTUBE_AUTH_ENABLED, false),
-            youtubeCookiesPath = inputData.getString(WorkerKeys.YOUTUBE_COOKIES_PATH).orEmpty().ifBlank { null },
-            youtubePoToken = inputData.getString(WorkerKeys.YOUTUBE_PO_TOKEN).orEmpty().ifBlank { null },
-            youtubePoTokenClientHint = inputData.getString(WorkerKeys.YOUTUBE_PO_TOKEN_CLIENT_HINT) ?: "web.gvs",
-            youtubeDataSyncId = inputData.getString(WorkerKeys.YOUTUBE_DATA_SYNC_ID).orEmpty().ifBlank { null },
-            mergeOutputFormat = inputData.getString(WorkerKeys.MERGE_OUTPUT_FORMAT).orEmpty().ifBlank { null },
-            preferredVideoHeight = inputData.getInt(WorkerKeys.PREFERRED_VIDEO_HEIGHT, -1).takeIf { it > 0 },
-            downloadVideoOnly = inputData.getBoolean(WorkerKeys.DOWNLOAD_VIDEO_ONLY, false),
-            isPlaylistEnabled = inputData.getBoolean(WorkerKeys.PLAYLIST_ENABLED, false),
-            shouldDownloadSubtitles = inputData.getBoolean(WorkerKeys.DOWNLOAD_SUBTITLES, false),
-            shouldEmbedSubtitles = inputData.getBoolean(WorkerKeys.EMBED_SUBTITLES, false),
-            shouldEmbedMetadata = inputData.getBoolean(WorkerKeys.EMBED_METADATA, true),
-            shouldEmbedThumbnail = inputData.getBoolean(WorkerKeys.EMBED_THUMBNAIL, false),
-            shouldWriteThumbnail = inputData.getBoolean(WorkerKeys.WRITE_THUMBNAIL, false),
-            extractAudio = inputData.getBoolean(WorkerKeys.EXTRACT_AUDIO, false),
-            audioFormat = inputData.getString(WorkerKeys.AUDIO_FORMAT).orEmpty().ifBlank { null },
-            audioBitrateKbps = inputData.getInt(WorkerKeys.AUDIO_BITRATE, -1).takeIf { it > 0 },
-            playlistItemIndex = inputData.getInt(WorkerKeys.PLAYLIST_ITEM_INDEX, -1).takeIf { it > 0 },
-            playlistFolderName = inputData.getString(WorkerKeys.PLAYLIST_FOLDER_NAME).orEmpty().ifBlank { null },
+        logger.d(
+            "DownloadWorker",
+            "Loaded options taskId=$taskId playlist=${options.isPlaylistEnabled} extractAudio=${options.extractAudio} " +
+                "format=$formatId authEnabled=${options.youtubeAuthEnabled}",
         )
-        logger.d("DownloadWorker", "DownloadOptions: $options")
         val shouldContinuePlaylistQueue = options.isPlaylistEnabled && options.playlistItemIndex != null
 
         val runningTitle = titleHint.ifBlank { "Downloading..." }
@@ -96,6 +83,9 @@ class DownloadWorker @AssistedInject constructor(
             url = url,
             title = runningTitle,
         )
+        if (migratedLegacyOptions) {
+            downloadTaskStore.cacheOptions(taskId, downloadOptionSecretsStore.persist(taskId, options))
+        }
         appendDebugTrace(taskId, "Worker started")
         appendDebugTrace(taskId, "Input accepted: format=$formatId")
         appendDebugTrace(taskId, "Output template: $outputTemplate")
@@ -2176,6 +2166,40 @@ class DownloadWorker @AssistedInject constructor(
         if (normalized.equals("n/a", ignoreCase = true)) return null
         if (normalized.equals("unknown", ignoreCase = true)) return null
         return normalized
+    }
+
+    private fun parseLegacyOptionsFromInputData(): DownloadOptions? {
+        val url = inputData.getString(WorkerKeys.URL) ?: return null
+        val formatId = inputData.getString(WorkerKeys.FORMAT_ID) ?: return null
+        val outputTemplate = inputData.getString(WorkerKeys.OUTPUT_TEMPLATE) ?: return null
+        return DownloadOptions(
+            url = url,
+            formatId = formatId,
+            outputTemplate = outputTemplate,
+            extractorArgs = inputData.getString(WorkerKeys.EXTRACTOR_ARGS).orEmpty().ifBlank { null },
+            fallbackExtractorArgs = inputData.getString(WorkerKeys.FALLBACK_EXTRACTOR_ARGS).orEmpty().ifBlank { null },
+            loadInfoJsonPath = inputData.getString(WorkerKeys.LOAD_INFO_JSON_PATH).orEmpty().ifBlank { null },
+            userAgentHeader = inputData.getString(WorkerKeys.USER_AGENT_HEADER).orEmpty().ifBlank { null },
+            youtubeAuthEnabled = inputData.getBoolean(WorkerKeys.YOUTUBE_AUTH_ENABLED, false),
+            youtubeCookiesPath = inputData.getString(WorkerKeys.YOUTUBE_COOKIES_PATH).orEmpty().ifBlank { null },
+            youtubePoToken = inputData.getString(WorkerKeys.YOUTUBE_PO_TOKEN).orEmpty().ifBlank { null },
+            youtubePoTokenClientHint = inputData.getString(WorkerKeys.YOUTUBE_PO_TOKEN_CLIENT_HINT) ?: "web.gvs",
+            youtubeDataSyncId = inputData.getString(WorkerKeys.YOUTUBE_DATA_SYNC_ID).orEmpty().ifBlank { null },
+            mergeOutputFormat = inputData.getString(WorkerKeys.MERGE_OUTPUT_FORMAT).orEmpty().ifBlank { null },
+            preferredVideoHeight = inputData.getInt(WorkerKeys.PREFERRED_VIDEO_HEIGHT, -1).takeIf { it > 0 },
+            downloadVideoOnly = inputData.getBoolean(WorkerKeys.DOWNLOAD_VIDEO_ONLY, false),
+            isPlaylistEnabled = inputData.getBoolean(WorkerKeys.PLAYLIST_ENABLED, false),
+            shouldDownloadSubtitles = inputData.getBoolean(WorkerKeys.DOWNLOAD_SUBTITLES, false),
+            shouldEmbedSubtitles = inputData.getBoolean(WorkerKeys.EMBED_SUBTITLES, false),
+            shouldEmbedMetadata = inputData.getBoolean(WorkerKeys.EMBED_METADATA, true),
+            shouldEmbedThumbnail = inputData.getBoolean(WorkerKeys.EMBED_THUMBNAIL, false),
+            shouldWriteThumbnail = inputData.getBoolean(WorkerKeys.WRITE_THUMBNAIL, false),
+            extractAudio = inputData.getBoolean(WorkerKeys.EXTRACT_AUDIO, false),
+            audioFormat = inputData.getString(WorkerKeys.AUDIO_FORMAT).orEmpty().ifBlank { null },
+            audioBitrateKbps = inputData.getInt(WorkerKeys.AUDIO_BITRATE, -1).takeIf { it > 0 },
+            playlistItemIndex = inputData.getInt(WorkerKeys.PLAYLIST_ITEM_INDEX, -1).takeIf { it > 0 },
+            playlistFolderName = inputData.getString(WorkerKeys.PLAYLIST_FOLDER_NAME).orEmpty().ifBlank { null },
+        )
     }
 
     private data class SplitSelectors(
