@@ -162,24 +162,32 @@ class FormatViewModel @Inject constructor(
         restoreIntoReady: Boolean,
     ) {
         logger.i("FormatViewModel", "Analyze requested for URL: $url")
-        if (!urlValidator.isValidHttpUrl(url)) {
+        val normalizedUrl = urlValidator.normalizeForSecureUse(url)
+        if (normalizedUrl == null) {
             logger.w("FormatViewModel", "Rejected analyze request due to invalid URL: $url")
             _uiState.update { state ->
                 scopedMessageState(
                     state = state,
                     scope = FormatMessageScope.BROWSER,
-                    errorMessage = "Please enter a valid http/https URL.",
+                    errorMessage = "Please enter a valid URL. Only secure HTTPS links are allowed.",
                 )
             }
             return
+        }
+        val secureUrl = normalizedUrl.normalizedUrl
+        val upgradeNotice = if (normalizedUrl.upgradedToHttps) {
+            "Insecure HTTP was upgraded to HTTPS before analysis."
+        } else {
+            null
         }
 
         viewModelScope.launch {
             _uiState.update { state ->
                 state.copy(
+                    urlInput = secureUrl,
                     isAnalyzing = true,
                     errorMessage = null,
-                    infoMessage = null,
+                    infoMessage = upgradeNotice,
                     videoInfo = null,
                     availableVideoAudioChoices = emptyList(),
                     availableVideoOnlyChoices = emptyList(),
@@ -187,14 +195,14 @@ class FormatViewModel @Inject constructor(
                     playlistItems = emptyList(),
                     selectedFormatSelector = null,
                     customFileName = "",
-                    restoringReadyItemUrl = if (restoreIntoReady) url else state.restoringReadyItemUrl,
+                    restoringReadyItemUrl = if (restoreIntoReady) secureUrl else state.restoringReadyItemUrl,
                 )
             }
 
-            val runtimeCookiesPath = resolveRuntimeCookiesPathForUrl(url)
+            val runtimeCookiesPath = resolveRuntimeCookiesPathForUrl(secureUrl)
             val result = runCatching {
                 repository.analyzeUrl(
-                    url = url,
+                    url = secureUrl,
                     cookiesPath = runtimeCookiesPath,
                     userAgent = if (uiState.value.cookiesEnabled && uiState.value.cookieUserAgentEnabled) {
                         CookieTextCodec.COOKIE_USER_AGENT
@@ -210,7 +218,7 @@ class FormatViewModel @Inject constructor(
                 onSuccess = { info ->
                     logger.i(
                         "FormatViewModel",
-                        "Analyze success for URL: $url, title='${info.title}', formats=${info.formats.size}",
+                        "Analyze success for URL: $secureUrl, title='${info.title}', formats=${info.formats.size}",
                     )
                     val choiceBundle = buildChoices(info)
                     val selectedSelector = firstSelectorForStreamType(
@@ -243,19 +251,22 @@ class FormatViewModel @Inject constructor(
                                 buildReadyRecord(info),
                             ),
                             restoringReadyItemUrl = null,
-                            infoMessage = when {
-                                info.isPlaylist -> {
-                                    val itemCount = info.playlistCount ?: info.playlistEntries.size
-                                    "Playlist ready: $itemCount items will queue one by one."
-                                }
-                                else -> "Found ${info.formats.size} formats."
-                            },
+                            infoMessage = listOfNotNull(
+                                upgradeNotice,
+                                when {
+                                    info.isPlaylist -> {
+                                        val itemCount = info.playlistCount ?: info.playlistEntries.size
+                                        "Playlist ready: $itemCount items will queue one by one."
+                                    }
+                                    else -> "Found ${info.formats.size} formats."
+                                },
+                            ).joinToString(" "),
                         )
                     }
                     persistReadyRecordIfNeeded(info)
                 },
                 onFailure = { error ->
-                    logger.e("FormatViewModel", "Analyze failed for URL: $url", error)
+                    logger.e("FormatViewModel", "Analyze failed for URL: $secureUrl", error)
                     val baseMessage = error.message?.takeIf { it.isNotBlank() } ?: "Failed to analyze URL."
                     _uiState.update { state ->
                         state.copy(
