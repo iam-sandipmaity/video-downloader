@@ -74,6 +74,7 @@ class DownloadRepositoryImpl @Inject constructor(
         repositoryScope.launch {
             downloadTaskStore.awaitInitialLoad()
             migratePersistedTaskSecrets()
+            clearCompletedTaskDebugTraces()
             refillQueuedDownloads()
         }
     }
@@ -794,6 +795,7 @@ class DownloadRepositoryImpl @Inject constructor(
                             activeWorkId = null,
                             progressPercent = task.progressPercent.coerceAtLeast(100),
                             outputPath = outputPath ?: task.outputPath,
+                            debugTrace = null,
                             pauseExpiresAtEpochMs = null,
                             updatedAtEpochMs = System.currentTimeMillis(),
                         )
@@ -991,6 +993,20 @@ class DownloadRepositoryImpl @Inject constructor(
                 downloadTaskStore.cacheOptions(task.id, migratedJson)
             }
         }
+    }
+
+    private fun clearCompletedTaskDebugTraces() {
+        downloadTaskStore.getAllTasks()
+            .asSequence()
+            .filter { it.status == DownloadStatus.COMPLETED && !it.debugTrace.isNullOrBlank() }
+            .forEach { task ->
+                downloadTaskStore.update(task.id) { current ->
+                    current.copy(
+                        debugTrace = null,
+                        updatedAtEpochMs = System.currentTimeMillis(),
+                    )
+                }
+            }
     }
 
     private fun buildRenamedFileName(rawName: String, currentName: String): String {

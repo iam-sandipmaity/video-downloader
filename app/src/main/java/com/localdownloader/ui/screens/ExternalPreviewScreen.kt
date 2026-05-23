@@ -2,6 +2,7 @@ package com.localdownloader.ui.screens
 
 import android.os.Build
 import android.webkit.WebSettings
+import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.background
@@ -120,23 +121,61 @@ private fun WebArchivePreview(
     AndroidView(
         factory = { context ->
             WebView(context).apply {
-                webViewClient = WebViewClient()
-                settings.javaScriptEnabled = false
-                settings.loadsImagesAutomatically = true
-                settings.allowFileAccess = true
-                settings.allowContentAccess = false
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
-                    settings.allowFileAccessFromFileURLs = false
-                    settings.allowUniversalAccessFromFileURLs = false
-                }
-                settings.cacheMode = WebSettings.LOAD_DEFAULT
-                loadUrl(File(request.path).toURI().toString())
+                configurePreviewSettings(request)
+                loadPreviewContent(request)
             }
         },
         modifier = modifier.fillMaxSize(),
         update = { webView ->
-            webView.loadUrl(File(request.path).toURI().toString())
+            webView.configurePreviewSettings(request)
+            webView.loadPreviewContent(request)
         },
+    )
+}
+
+private fun WebView.configurePreviewSettings(request: ExternalOpenRequest) {
+    val isWebArchiveFile = request.path.lowercase().endsWith(".mhtml") || request.path.lowercase().endsWith(".mht")
+    webViewClient = object : WebViewClient() {
+        override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean = true
+    }
+    settings.javaScriptEnabled = false
+    settings.loadsImagesAutomatically = true
+    settings.allowFileAccess = isWebArchiveFile
+    settings.allowContentAccess = false
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+        settings.safeBrowsingEnabled = true
+    }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+        settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+    }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+        settings.allowFileAccessFromFileURLs = false
+        settings.allowUniversalAccessFromFileURLs = false
+    }
+    settings.cacheMode = WebSettings.LOAD_DEFAULT
+}
+
+private fun WebView.loadPreviewContent(request: ExternalOpenRequest) {
+    val file = File(request.path)
+    val extension = file.extension.lowercase()
+    if (extension == "mhtml" || extension == "mht") {
+        loadUrl(file.toURI().toString())
+        return
+    }
+
+    val mimeType = when {
+        request.mimeType?.contains("xhtml", ignoreCase = true) == true -> "application/xhtml+xml"
+        else -> "text/html"
+    }
+    val html = runCatching { file.readText() }.getOrElse {
+        "<html><body><pre>Unable to preview this file.</pre></body></html>"
+    }
+    loadDataWithBaseURL(
+        "about:blank",
+        html,
+        mimeType,
+        "utf-8",
+        null,
     )
 }
 

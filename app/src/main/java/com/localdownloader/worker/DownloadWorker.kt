@@ -525,6 +525,7 @@ class DownloadWorker @AssistedInject constructor(
                     progressPercent = 100,
                     outputPath = finalPath,
                     subtitlePaths = exportedBundle.subtitlePaths,
+                    debugTrace = null,
                     downloadedStr = finalSizeLabel ?: task.downloadedStr.takeMeaningfulSizeLabel(),
                     totalSizeStr = finalSizeLabel ?: task.totalSizeStr.takeMeaningfulSizeLabel(),
                     updatedAtEpochMs = System.currentTimeMillis(),

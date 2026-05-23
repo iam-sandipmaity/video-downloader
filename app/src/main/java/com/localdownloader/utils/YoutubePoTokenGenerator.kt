@@ -5,6 +5,8 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.webkit.ConsoleMessage
+import android.webkit.WebResourceRequest
+import android.webkit.WebSettings
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -73,8 +75,17 @@ object YoutubePoTokenGenerator {
         init {
             webView.settings.apply {
                 javaScriptEnabled = true
+                allowFileAccess = false
+                allowContentAccess = false
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
                     safeBrowsingEnabled = true
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+                    allowFileAccessFromFileURLs = false
+                    allowUniversalAccessFromFileURLs = false
                 }
                 userAgentString = USER_AGENT
                 blockNetworkLoads = true
@@ -85,6 +96,8 @@ object YoutubePoTokenGenerator {
                 }
             }
             webView.webViewClient = object : WebViewClient() {
+                override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean = true
+
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
                     if (!botguardInitializationStarted) {
