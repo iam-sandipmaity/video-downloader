@@ -16,7 +16,7 @@ class UpdatePreferencesStore @Inject constructor(
     fun currentPreferences(): UpdatePreferences {
         return UpdatePreferences(
             includePrereleaseAppReleases = prefs.getBoolean(KEY_INCLUDE_PRERELEASE_APP_RELEASES, false),
-            autoUpdateYtDlp = prefs.getBoolean(KEY_AUTO_UPDATE_YTDLP, false),
+            autoUpdateYtDlp = prefs.getBoolean(KEY_AUTO_UPDATE_YTDLP, true),
             ytDlpChannel = YtDlpReleaseChannel.fromId(
                 prefs.getString(KEY_YTDLP_CHANNEL, YtDlpReleaseChannel.STABLE.id),
             ),
@@ -32,12 +32,6 @@ class UpdatePreferencesStore @Inject constructor(
 
     fun setAutoUpdateYtDlp(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_AUTO_UPDATE_YTDLP, enabled).apply()
-    }
-
-    fun disableYtDlpAutoUpdateIfEnabled() {
-        if (prefs.getBoolean(KEY_AUTO_UPDATE_YTDLP, false)) {
-            prefs.edit().putBoolean(KEY_AUTO_UPDATE_YTDLP, false).apply()
-        }
     }
 
     fun setYtDlpChannel(channel: YtDlpReleaseChannel) {
