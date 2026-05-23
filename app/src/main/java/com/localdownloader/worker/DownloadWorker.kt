@@ -230,6 +230,59 @@ class DownloadWorker @AssistedInject constructor(
             }
         }
 
+        suspend fun recoverCompletedMediaFromPostprocessingFailureIfAvailable(): Boolean {
+            if (result.isSuccess || !isRecoverablePostprocessingFailure(result.stderr)) return false
+
+            val thumbnailRecoveredOutput = recoverPrimaryMediaAfterThumbnailFailure(
+                stderr = result.stderr,
+                currentOutputPath = outputPath,
+                outputTemplate = outputTemplate,
+            )
+            if (thumbnailRecoveredOutput != null) {
+                outputPath = thumbnailRecoveredOutput
+                shouldGenerateThumbnailFallback = options.shouldWriteThumbnail
+                if (!options.shouldWriteThumbnail) {
+                    cleanupThumbnailSidecars(thumbnailRecoveredOutput)
+                }
+                appendDebugTrace(
+                    taskId,
+                    "Thumbnail postprocessing failed after media was saved; completing without embedded thumbnail",
+                )
+                result = CommandResult(
+                    exitCode = 0,
+                    stdout = result.stdout,
+                    stderr = result.stderr,
+                )
+                return true
+            }
+
+            val recoveredOutputPath = recoverPrimaryMediaAfterPostprocessingFailure(
+                taskId = taskId,
+                stderr = result.stderr,
+                currentOutputPath = outputPath,
+                outputTemplate = outputTemplate,
+                preferredExtension = options.mergeOutputFormat,
+                expectedDurationSeconds = options.expectedDurationSeconds,
+            ) ?: return false
+
+            outputPath = recoveredOutputPath
+            if (options.shouldWriteThumbnail) {
+                shouldGenerateThumbnailFallback = true
+            } else if (!options.shouldEmbedThumbnail) {
+                cleanupThumbnailSidecars(recoveredOutputPath)
+            }
+            appendDebugTrace(
+                taskId,
+                "Recovered media after yt-dlp postprocessing failure; finishing without optional postprocess extras",
+            )
+            result = CommandResult(
+                exitCode = 0,
+                stdout = result.stdout,
+                stderr = result.stderr,
+            )
+            return true
+        }
+
         if (!result.isSuccess && shouldRetryWithFallbackExtractor(options, result.stderr)) {
             appendDebugTrace(taskId, "Retrying with analyzed YouTube extractor args after initial failure")
             val fallbackOptions = options.copy(
@@ -269,6 +322,8 @@ class DownloadWorker @AssistedInject constructor(
                 )
             }
         }
+
+        recoverCompletedMediaFromPostprocessingFailureIfAvailable()
 
         if (!result.isSuccess && shouldTryExplicitSplitDownloadAfterPostprocessingFailure(lastAttemptOptions, result.stderr)) {
             appendDebugTrace(taskId, "Retrying with explicit split-stream recovery after postprocessing failure")
@@ -1218,6 +1273,7 @@ class DownloadWorker @AssistedInject constructor(
         val splitArtifacts = findSplitMediaArtifacts(
             outputTemplate = outputTemplate,
             currentOutputPath = currentOutputPath,
+            allowLooseArtifacts = true,
         ) ?: return null
         val requestedTargetPath = currentOutputPath
             ?.takeIf { candidate ->
@@ -1373,6 +1429,7 @@ class DownloadWorker @AssistedInject constructor(
         val splitArtifacts = findSplitMediaArtifacts(
             outputTemplate = outputTemplate,
             currentOutputPath = null,
+            allowLooseArtifacts = false,
         ) ?: return null
         if (splitArtifacts.video.length() <= MIN_RECOVERED_MEDIA_BYTES ||
             splitArtifacts.audio.length() <= MIN_RECOVERED_MEDIA_BYTES
@@ -1652,6 +1709,7 @@ class DownloadWorker @AssistedInject constructor(
     private fun findSplitMediaArtifacts(
         outputTemplate: String,
         currentOutputPath: String?,
+        allowLooseArtifacts: Boolean,
     ): SplitMediaArtifacts? {
         val currentOutputFile = currentOutputPath?.let(::File)
         val parent = currentOutputFile?.parentFile
@@ -1665,15 +1723,15 @@ class DownloadWorker @AssistedInject constructor(
             ?.filter { candidate ->
                 candidate.isFile &&
                     candidate.name.startsWith(stem) &&
-                    candidate.length() > 0L &&
-                    isTemporarySplitArtifact(candidate)
+                    candidate.length() > 0L
             }
-            ?.sortedByDescending { it.lastModified() }
             .orEmpty()
-
-        val video = candidates.firstOrNull(::isPossibleVideoSplitArtifact) ?: return null
-        val audio = candidates.firstOrNull(::isPossibleAudioSplitArtifact) ?: return null
-        return SplitMediaArtifacts(video = video, audio = audio)
+        val selectedPair = selectDistinctSplitArtifacts(
+            candidates = candidates,
+            allowLooseArtifacts = allowLooseArtifacts,
+            detectRole = ::detectSplitArtifactRole,
+        ) ?: return null
+        return SplitMediaArtifacts(video = selectedPair.first, audio = selectedPair.second)
     }
 
     private fun cleanupOrphanedManagedArtifacts(outputTemplate: String, taskId: String) {
@@ -1683,6 +1741,7 @@ class DownloadWorker @AssistedInject constructor(
         val recoverableSplitArtifacts = findSplitMediaArtifacts(
             outputTemplate = outputTemplate,
             currentOutputPath = null,
+            allowLooseArtifacts = false,
         )
         val primaryExists = parent.listFiles()
             ?.any { candidate ->
@@ -1766,21 +1825,49 @@ class DownloadWorker @AssistedInject constructor(
     }
 
     private fun isTemporarySplitArtifact(file: File): Boolean {
-        val lower = file.name.lowercase()
-        return Regex(""".*\.f[a-z0-9_-]+.*\..+""").matches(lower) ||
-            lower.contains(".fdash-") ||
-            lower.contains(".video.") ||
-            lower.contains(".audio.")
+        return isLooseSplitArtifactName(file.name)
     }
 
     private fun isPossibleVideoSplitArtifact(file: File): Boolean {
-        if (!isTemporarySplitArtifact(file)) return false
-        return file.extension.lowercase() in VIDEO_ARTIFACT_EXTENSIONS
+        return detectSplitArtifactRole(file) == SplitArtifactRole.VIDEO
     }
 
     private fun isPossibleAudioSplitArtifact(file: File): Boolean {
-        if (!isTemporarySplitArtifact(file)) return false
-        return file.extension.lowercase() in AUDIO_ARTIFACT_EXTENSIONS
+        return detectSplitArtifactRole(file) == SplitArtifactRole.AUDIO
+    }
+
+    private fun detectSplitArtifactRole(file: File): SplitArtifactRole? {
+        if (!isTemporarySplitArtifact(file)) return null
+        return splitArtifactRoleFromName(file) ?: probeSplitArtifactRole(file)
+    }
+
+    private fun probeSplitArtifactRole(file: File): SplitArtifactRole? {
+        val retriever = MediaMetadataRetriever()
+        return runCatching {
+            retriever.setDataSource(file.absolutePath)
+            val hasVideo = parseMetadataFlag(
+                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_VIDEO),
+            )
+            val hasAudio = parseMetadataFlag(
+                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_AUDIO),
+            )
+            when {
+                hasVideo && !hasAudio -> SplitArtifactRole.VIDEO
+                hasAudio && !hasVideo -> SplitArtifactRole.AUDIO
+                hasVideo -> SplitArtifactRole.VIDEO
+                hasAudio -> SplitArtifactRole.AUDIO
+                else -> null
+            }
+        }.getOrNull().also {
+            runCatching { retriever.release() }
+        }
+    }
+
+    private fun parseMetadataFlag(value: String?): Boolean {
+        return when (value?.trim()?.lowercase()) {
+            "1", "yes", "true" -> true
+            else -> false
+        }
     }
 
     private fun isTemporaryDownloadArtifactName(fileName: String): Boolean {
