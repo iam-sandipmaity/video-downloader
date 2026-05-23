@@ -195,7 +195,6 @@ class FormatExtractor @Inject constructor(
             cookiesPath = cookiesPath,
             userAgent = userAgent,
             capturedInfoJsonFile = capturedInfoJsonFile,
-            relaxCertificateChecks = false,
             useLineJsonMode = false,
         )
         if (primaryAttempt.candidate != null) {
@@ -203,43 +202,12 @@ class FormatExtractor @Inject constructor(
         }
 
         if (!isYoutubeUrl(url)) {
-            val lineJsonAttempt = executeAnalyzeAttempt(
-                url = url,
-                extractorArgs = extractorArgs,
-                cookiesPath = cookiesPath,
-                userAgent = userAgent,
-                capturedInfoJsonFile = capturedInfoJsonFile,
-                relaxCertificateChecks = false,
-                useLineJsonMode = true,
-            )
-            if (lineJsonAttempt.candidate != null) {
-                return lineJsonAttempt
-            }
-
-            logger.i(
-                "FormatExtractor",
-                "Analyze retrying with relaxed certificate checks for URL: $url",
-            )
-            val relaxedAttempt = executeAnalyzeAttempt(
-                url = url,
-                extractorArgs = extractorArgs,
-                cookiesPath = cookiesPath,
-                userAgent = userAgent,
-                capturedInfoJsonFile = capturedInfoJsonFile,
-                relaxCertificateChecks = true,
-                useLineJsonMode = false,
-            )
-            if (relaxedAttempt.candidate != null) {
-                return relaxedAttempt
-            }
-
             return executeAnalyzeAttempt(
                 url = url,
                 extractorArgs = extractorArgs,
                 cookiesPath = cookiesPath,
                 userAgent = userAgent,
                 capturedInfoJsonFile = capturedInfoJsonFile,
-                relaxCertificateChecks = true,
                 useLineJsonMode = true,
             )
         }
@@ -253,7 +221,6 @@ class FormatExtractor @Inject constructor(
         cookiesPath: String?,
         userAgent: String?,
         capturedInfoJsonFile: File,
-        relaxCertificateChecks: Boolean,
         useLineJsonMode: Boolean,
     ): AnalyzeAttempt {
         val args = buildAnalyzeArgs(
@@ -262,7 +229,6 @@ class FormatExtractor @Inject constructor(
             cookiesPath = cookiesPath,
             userAgent = userAgent,
             capturedInfoJsonFile = capturedInfoJsonFile,
-            relaxCertificateChecks = relaxCertificateChecks,
             useLineJsonMode = useLineJsonMode,
         )
 
@@ -273,12 +239,12 @@ class FormatExtractor @Inject constructor(
         if (result != null) {
             logger.i(
                 "FormatExtractor",
-                "Analyze command finished exitCode=${result.exitCode}, stdoutLen=${result.stdout.length}, stderrLen=${result.stderr.length}, relaxedCerts=$relaxCertificateChecks, lineJson=$useLineJsonMode",
+                "Analyze command finished exitCode=${result.exitCode}, stdoutLen=${result.stdout.length}, stderrLen=${result.stderr.length}, lineJson=$useLineJsonMode",
             )
         } else {
             logger.w(
                 "FormatExtractor",
-                "Analyze command threw before returning a result, relaxedCerts=$relaxCertificateChecks, lineJson=$useLineJsonMode",
+                "Analyze command threw before returning a result, lineJson=$useLineJsonMode",
                 commandError,
             )
         }
@@ -315,7 +281,7 @@ class FormatExtractor @Inject constructor(
                 val retryResult = executeAnalyzeCommand(args)
                 logger.i(
                     "FormatExtractor",
-                    "Analyze retry finished exitCode=${retryResult.exitCode}, stdoutLen=${retryResult.stdout.length}, stderrLen=${retryResult.stderr.length}, relaxedCerts=$relaxCertificateChecks, lineJson=$useLineJsonMode",
+                    "Analyze retry finished exitCode=${retryResult.exitCode}, stdoutLen=${retryResult.stdout.length}, stderrLen=${retryResult.stderr.length}, lineJson=$useLineJsonMode",
                 )
                 val parsedRetry = parseAnalyzeSuccess(
                     url = url,
@@ -350,44 +316,18 @@ class FormatExtractor @Inject constructor(
         cookiesPath: String?,
         userAgent: String?,
         capturedInfoJsonFile: File,
-        relaxCertificateChecks: Boolean,
         useLineJsonMode: Boolean,
     ): List<String> {
-        return buildList {
-            add(if (useLineJsonMode) "-j" else "-J")
-            add("--skip-download")
-            add("--no-warnings")
-            add("--ignore-config")
-            add("--ignore-errors")
-            add("--no-clean-info-json")
-            add("--print-to-file")
-            add("video:%()j")
-            add(capturedInfoJsonFile.absolutePath)
-            add("-R")
-            add("1")
-            add("--compat-options")
-            add("manifest-filesize-approx")
-            add("--socket-timeout")
-            add("5")
-            add("-P")
-            add(File(context.cacheDir, "tmp").apply { mkdirs() }.absolutePath)
-            if (relaxCertificateChecks) {
-                add("--no-check-certificates")
-            }
-            if (!cookiesPath.isNullOrBlank() && File(cookiesPath).exists()) {
-                add("--cookies")
-                add(cookiesPath)
-            }
-            if (!userAgent.isNullOrBlank()) {
-                add("--add-header")
-                add("User-Agent:$userAgent")
-            }
-            if (!extractorArgs.isNullOrBlank()) {
-                add("--extractor-args")
-                add(extractorArgs)
-            }
-            add(url)
-        }
+        val tempDir = File(context.cacheDir, "tmp").apply { mkdirs() }
+        return buildAnalyzeArgsForRequest(
+            url = url,
+            extractorArgs = extractorArgs,
+            cookiesPath = cookiesPath,
+            userAgent = userAgent,
+            capturedInfoJsonPath = capturedInfoJsonFile.absolutePath,
+            tempDirPath = tempDir.absolutePath,
+            useLineJsonMode = useLineJsonMode,
+        )
     }
 
     private fun extractAnalyzeFailureMessage(stderr: String, stdout: String): String {
@@ -644,6 +584,49 @@ class FormatExtractor @Inject constructor(
         if (stats.maxHeight >= 720 && stats.videoOnly > 0 && stats.audioOnly > 0) return false
         if (stats.total >= 20) return false
         return true
+    }
+}
+
+internal fun buildAnalyzeArgsForRequest(
+    url: String,
+    extractorArgs: String?,
+    cookiesPath: String?,
+    userAgent: String?,
+    capturedInfoJsonPath: String,
+    tempDirPath: String,
+    useLineJsonMode: Boolean,
+): List<String> {
+    return buildList {
+        add(if (useLineJsonMode) "-j" else "-J")
+        add("--skip-download")
+        add("--no-warnings")
+        add("--ignore-config")
+        add("--ignore-errors")
+        add("--no-clean-info-json")
+        add("--print-to-file")
+        add("video:%()j")
+        add(capturedInfoJsonPath)
+        add("-R")
+        add("1")
+        add("--compat-options")
+        add("manifest-filesize-approx")
+        add("--socket-timeout")
+        add("5")
+        add("-P")
+        add(tempDirPath)
+        if (!cookiesPath.isNullOrBlank() && File(cookiesPath).exists()) {
+            add("--cookies")
+            add(cookiesPath)
+        }
+        if (!userAgent.isNullOrBlank()) {
+            add("--add-header")
+            add("User-Agent:$userAgent")
+        }
+        if (!extractorArgs.isNullOrBlank()) {
+            add("--extractor-args")
+            add(extractorArgs)
+        }
+        add(url)
     }
 }
 
