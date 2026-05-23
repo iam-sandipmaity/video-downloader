@@ -26,7 +26,11 @@ object CookieTextCodec {
         return runCatching {
             val uri = URI(candidate)
             val host = uri.host?.trim()?.removePrefix(".")?.ifBlank { null } ?: return null
-            val scheme = uri.scheme?.ifBlank { "https" } ?: "https"
+            val scheme = when (uri.scheme?.lowercase()) {
+                null, "" -> "https"
+                "http" -> "https"
+                else -> uri.scheme
+            }
             val path = uri.path?.takeIf { it.isNotBlank() && it != "/" }.orEmpty()
             buildString {
                 append(scheme)

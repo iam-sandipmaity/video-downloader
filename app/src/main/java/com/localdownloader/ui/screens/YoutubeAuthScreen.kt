@@ -5,7 +5,6 @@ import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
-import android.webkit.WebStorage
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.background
@@ -40,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,6 +59,7 @@ import com.localdownloader.ui.components.InlineFeedbackCard
 import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.utils.CookieTextCodec
 import com.localdownloader.utils.WebViewCookieExporter
+import com.localdownloader.utils.WebViewSessionSanitizer
 import com.localdownloader.viewmodel.FormatMessageScope
 import com.localdownloader.viewmodel.FormatUiState
 import java.text.DateFormat
@@ -254,6 +255,13 @@ fun YoutubeAuthLoginScreen(
     var webView by remember { mutableStateOf<WebView?>(null) }
     val initialUrl = YOUTUBE_ACCESS_SAMPLE_URL
 
+    DisposableEffect(Unit) {
+        onDispose {
+            WebViewSessionSanitizer.clearAndDestroy(webView)
+            webView = null
+        }
+    }
+
     Scaffold(
         modifier = modifier,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -267,7 +275,13 @@ fun YoutubeAuthLoginScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(
+                        onClick = {
+                            WebViewSessionSanitizer.clearAndDestroy(webView)
+                            webView = null
+                            onBack()
+                        },
+                    ) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
@@ -320,6 +334,8 @@ fun YoutubeAuthLoginScreen(
                                         dataSyncId = dataSyncId,
                                     )
                                 }.onSuccess { (cookieText, authConfig) ->
+                                    WebViewSessionSanitizer.clearAndDestroy(webView)
+                                    webView = null
                                     onConfirm(cookieText, authConfig)
                                 }.onFailure { error ->
                                     isSaving = false
@@ -382,9 +398,7 @@ fun YoutubeAuthLoginScreen(
                 AndroidView(
                     modifier = Modifier.fillMaxSize(),
                     factory = { context ->
-                        CookieManager.getInstance().removeAllCookies(null)
-                        CookieManager.getInstance().flush()
-                        WebStorage.getInstance().deleteAllData()
+                        WebViewSessionSanitizer.resetSession()
                         WebView(context).apply {
                             webView = this
                             settings.javaScriptEnabled = true

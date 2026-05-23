@@ -5,7 +5,6 @@ import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
-import android.webkit.WebStorage
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -47,6 +46,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -70,6 +70,7 @@ import com.localdownloader.ui.components.InlineFeedbackCard
 import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.utils.CookieTextCodec
 import com.localdownloader.utils.WebViewCookieExporter
+import com.localdownloader.utils.WebViewSessionSanitizer
 import com.localdownloader.viewmodel.FormatMessageScope
 import com.localdownloader.viewmodel.FormatUiState
 import kotlinx.coroutines.Dispatchers
@@ -390,10 +391,19 @@ fun CookieCaptureScreen(
     onConfirm: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var title by rememberSaveable { mutableStateOf(url) }
+    val secureCaptureUrl = remember(url) { CookieTextCodec.normalizeUrl(url) ?: url }
+    var title by rememberSaveable(secureCaptureUrl) { mutableStateOf(secureCaptureUrl) }
     var isConfirming by rememberSaveable { mutableStateOf(false) }
+    var webView by remember { mutableStateOf<WebView?>(null) }
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+
+    DisposableEffect(Unit) {
+        onDispose {
+            WebViewSessionSanitizer.clearAndDestroy(webView)
+            webView = null
+        }
+    }
 
     Scaffold(
         modifier = modifier,
@@ -408,7 +418,13 @@ fun CookieCaptureScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(
+                        onClick = {
+                            WebViewSessionSanitizer.clearAndDestroy(webView)
+                            webView = null
+                            onBack()
+                        },
+                    ) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
@@ -420,10 +436,12 @@ fun CookieCaptureScreen(
                                 isConfirming = true
                                 val cookieText = runCatching {
                                     withContext(Dispatchers.IO) {
-                                        WebViewCookieExporter.exportForUrl(context, url)
+                                        WebViewCookieExporter.exportForUrl(context, secureCaptureUrl)
                                     }
                                 }.getOrDefault("")
                                 isConfirming = false
+                                WebViewSessionSanitizer.clearAndDestroy(webView)
+                                webView = null
                                 onConfirm(cookieText)
                             }
                         },
@@ -439,10 +457,9 @@ fun CookieCaptureScreen(
                 .fillMaxSize()
                 .padding(innerPadding),
             factory = { context ->
-                CookieManager.getInstance().removeAllCookies(null)
-                CookieManager.getInstance().flush()
-                WebStorage.getInstance().deleteAllData()
+                WebViewSessionSanitizer.resetSession()
                 WebView(context).apply {
+                    webView = this
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
                     settings.allowFileAccess = false
@@ -463,7 +480,6 @@ fun CookieCaptureScreen(
                         override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                             val scheme = request?.url?.scheme.orEmpty()
                             return scheme.isNotBlank() &&
-                                !scheme.equals("http", ignoreCase = true) &&
                                 !scheme.equals("https", ignoreCase = true) &&
                                 !scheme.equals("about", ignoreCase = true)
                         }
@@ -475,7 +491,7 @@ fun CookieCaptureScreen(
                             }
                         }
                     }
-                    loadUrl(url)
+                    loadUrl(secureCaptureUrl)
                 }
             },
         )
