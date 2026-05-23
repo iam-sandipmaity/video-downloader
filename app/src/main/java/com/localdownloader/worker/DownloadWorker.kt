@@ -213,6 +213,7 @@ class DownloadWorker @AssistedInject constructor(
                     task.copy(
                         status = DownloadStatus.FAILED,
                         errorMessage = failureMessage,
+                        debugTrace = null,
                         updatedAtEpochMs = System.currentTimeMillis(),
                     )
                 }
@@ -558,6 +559,7 @@ class DownloadWorker @AssistedInject constructor(
             task.copy(
                 status = DownloadStatus.FAILED,
                 errorMessage = failureMessage,
+                debugTrace = null,
                 updatedAtEpochMs = System.currentTimeMillis(),
             )
         }
