@@ -1,5 +1,6 @@
 package com.localdownloader.ui.screens
 
+import android.os.Build
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebStorage
@@ -379,6 +380,11 @@ fun YoutubeAuthLoginScreen(
                             webView = this
                             settings.javaScriptEnabled = true
                             settings.domStorageEnabled = true
+                            settings.allowFileAccess = false
+                            settings.allowContentAccess = false
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                                settings.safeBrowsingEnabled = true
+                            }
                             CookieManager.getInstance().setAcceptCookie(true)
                             CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
                             webViewClient = WebViewClient()
