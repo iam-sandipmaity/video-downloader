@@ -37,9 +37,9 @@
 
 ### Stable Release
 
-| Obtainium | GitHub | IzzyOnDroid |
-| --- | --- | --- |
-| <a href="https://apps.obtainium.imranr.dev/redirect.html?r=obtainium://add/https://github.com/iam-sandipmaity/video-downloader"><img src="https://github.com/ImranR98/Obtainium/blob/main/assets/graphics/badge_obtainium.png?raw=true" alt="Get it on Obtainium" width="250" /></a> | <a href="https://github.com/iam-sandipmaity/video-downloader/releases"><img src="https://raw.githubusercontent.com/rubenpgrady/get-it-on-github/refs/heads/main/get-it-on-github.png" alt="Get it on GitHub" width="250" /></a> | <a href="#"><img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png" alt="Get it on IzzyOnDroid" width="250" /></a> |
+| Obtainium | GitHub |
+| --- | --- |
+| <a href="https://apps.obtainium.imranr.dev/redirect.html?r=obtainium://add/https://github.com/iam-sandipmaity/video-downloader"><img src="https://github.com/ImranR98/Obtainium/blob/main/assets/graphics/badge_obtainium.png?raw=true" alt="Get it on Obtainium" width="250" /></a> | <a href="https://github.com/iam-sandipmaity/video-downloader/releases"><img src="https://raw.githubusercontent.com/rubenpgrady/get-it-on-github/refs/heads/main/get-it-on-github.png" alt="Get it on GitHub" width="250" /></a> |
 
 ### Nightly / Debug Build
 
