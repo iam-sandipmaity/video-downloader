@@ -1,6 +1,7 @@
 package com.localdownloader.downloader
 
 import com.localdownloader.domain.models.DownloadOptions
+import com.localdownloader.domain.models.audioFormatSupportsBitrateControl
 import com.localdownloader.utils.Logger
 import java.io.File
 import java.util.Locale
@@ -92,7 +93,9 @@ class DownloadEngine @Inject constructor(
         if (options.extractAudio) {
             args += "-x"
             options.audioFormat?.let { args += listOf("--audio-format", it) }
-            options.audioBitrateKbps?.let { args += listOf("--audio-quality", "${it}K") }
+            if (shouldPassAudioQuality(options)) {
+                options.audioBitrateKbps?.let { args += listOf("--audio-quality", "${it}K") }
+            }
         }
 
         args += options.url
@@ -272,4 +275,10 @@ class DownloadEngine @Inject constructor(
 
 internal fun shouldPassMergeOutputFormat(options: DownloadOptions): Boolean {
     return !options.extractAudio && !options.mergeOutputFormat.isNullOrBlank()
+}
+
+internal fun shouldPassAudioQuality(options: DownloadOptions): Boolean {
+    return options.extractAudio &&
+        options.audioBitrateKbps != null &&
+        audioFormatSupportsBitrateControl(options.audioFormat)
 }

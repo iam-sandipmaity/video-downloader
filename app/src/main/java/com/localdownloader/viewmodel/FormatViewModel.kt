@@ -25,6 +25,7 @@ import com.localdownloader.domain.models.ThemeMode
 import com.localdownloader.domain.models.VideoInfo
 import com.localdownloader.domain.models.VideoQuality
 import com.localdownloader.domain.models.YoutubeAuthConfig
+import com.localdownloader.domain.models.audioFormatSupportsBitrateControl
 import com.localdownloader.domain.models.choicesForStreamType
 import com.localdownloader.domain.models.effectiveOutputStreamType
 import com.localdownloader.domain.models.resolveAvailableStreamType
@@ -1505,6 +1506,11 @@ class FormatViewModel @Inject constructor(
                 requestedContainer = mergeContainer,
                 selectedChoice = selectedChoice,
             )
+            val resolvedAudioBitrateKbps = if (isAudioOnly && audioFormatSupportsBitrateControl(audioFormat)) {
+                audioBitrateKbps
+            } else {
+                null
+            }
             val activeOutputTemplate = if (resolvedOutputStreamType == StreamType.AUDIO_ONLY) {
                 state.audioOutputTemplate
             } else {
@@ -1554,7 +1560,7 @@ class FormatViewModel @Inject constructor(
                     extractAudio = isAudioOnly,
                     removeAudioFromVideo = resolvedOutputTransform == OutputTransform.REMOVE_AUDIO,
                     audioFormat = if (isAudioOnly) audioFormat.ifBlank { null } else null,
-                    audioBitrateKbps = if (isAudioOnly) audioBitrateKbps else null,
+                    audioBitrateKbps = resolvedAudioBitrateKbps,
                 ),
                 queueNote = listOfNotNull(
                     youtubeRouting.queueNote,

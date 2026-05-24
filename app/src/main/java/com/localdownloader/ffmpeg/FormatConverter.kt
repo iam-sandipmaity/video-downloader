@@ -1,6 +1,7 @@
 package com.localdownloader.ffmpeg
 
 import com.localdownloader.domain.models.ConversionRequest
+import com.localdownloader.domain.models.audioFormatSupportsBitrateControl
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -146,7 +147,9 @@ class FormatConverter @Inject constructor(
             request.videoBitrateKbps?.let { args += listOf("-b:v", "${it}k") }
         }
 
-        request.audioBitrateKbps?.let { args += listOf("-b:a", "${it}k") }
+        if (audioFormatSupportsBitrateControl(outputExt)) {
+            request.audioBitrateKbps?.let { args += listOf("-b:a", "${it}k") }
+        }
 
         args += listOf("-y", request.outputFilePath)
 
