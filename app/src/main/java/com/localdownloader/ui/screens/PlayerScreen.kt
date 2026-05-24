@@ -144,6 +144,9 @@ fun PlayerScreen(
     var controlsVisible by rememberSaveable { mutableStateOf(true) }
     var gestureFeedback by rememberSaveable { mutableStateOf<String?>(null) }
     var swipeHintVisible by rememberSaveable { mutableStateOf(true) }
+    var compatibilityNoticeVisible by rememberSaveable(playablePath) {
+        mutableStateOf(playbackCompatibilityLabel != null)
+    }
     var swipeAdjustmentOverlay by remember { mutableStateOf<SwipeAdjustmentOverlay?>(null) }
     var swipeSeekOverlay by remember { mutableStateOf<SwipeSeekOverlay?>(null) }
     var playerWidthPx by rememberSaveable { mutableStateOf(0) }
@@ -225,6 +228,14 @@ fun PlayerScreen(
         if (playablePath != null) {
             delay(SWIPE_HINT_MS)
             swipeHintVisible = false
+        }
+    }
+
+    LaunchedEffect(playablePath, playbackCompatibilityLabel) {
+        compatibilityNoticeVisible = playbackCompatibilityLabel != null
+        if (playbackCompatibilityLabel != null) {
+            delay(COMPATIBILITY_NOTICE_MS)
+            compatibilityNoticeVisible = false
         }
     }
 
@@ -629,7 +640,7 @@ fun PlayerScreen(
             if (
                 uiState.errorMessage.isNullOrBlank() &&
                 playbackCompatibilityLabel != null &&
-                (controlsVisible || activePanel != PlayerPanel.NONE)
+                compatibilityNoticeVisible
             ) {
                 Surface(
                     modifier = Modifier
@@ -1864,6 +1875,7 @@ private const val SEEK_INCREMENT_MS = 10_000L
 private const val CONTROLS_AUTO_HIDE_MS = 3_000L
 private const val GESTURE_FEEDBACK_MS = 900L
 private const val SWIPE_HINT_MS = 5_000L
+private const val COMPATIBILITY_NOTICE_MS = 2_000L
 private const val MIN_PINCH_SCALE = 1f
 private const val MAX_PINCH_SCALE = 3f
 private const val DEFAULT_GESTURE_LEVEL = 0.5f
