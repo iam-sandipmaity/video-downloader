@@ -95,6 +95,8 @@ jobs:
           VERSION="${{ steps.version.outputs.version_name }}"
           mv app/build/outputs/apk/debug/app-debug.apk \
              app/build/outputs/apk/debug/video-downloader-v${VERSION}-nightly-debug.apk
+          cp app/build/outputs/apk/debug/video-downloader-v${VERSION}-nightly-debug.apk \
+             app/build/outputs/apk/debug/video-downloader-nightly-debug.apk
 
       - name: Upload nightly debug APK artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -116,15 +118,20 @@ jobs:
           name: video-downloader-v${{ needs.build.outputs.version_name }}-nightly-debug
           path: dist
 
-      - name: Create nightly GitHub prerelease
+      - name: Replace previous rolling nightly prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release delete nightly --yes --cleanup-tag || true
+
+      - name: Create rolling nightly GitHub prerelease
         uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
         with:
-          tag_name: nightly-${{ github.run_number }}
-          name: "Nightly Build #${{ github.run_number }} (v${{ needs.build.outputs.version_name }})"
+          tag_name: nightly
+          name: "Nightly Build (v${{ needs.build.outputs.version_name }})"
           target_commitish: ${{ github.sha }}
           prerelease: true
           generate_release_notes: true
-          files: dist/*.apk
+          files: dist/video-downloader-nightly-debug.apk
 
   release-main:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'

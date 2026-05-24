@@ -39,20 +39,20 @@
 
 | Obtainium | GitHub | IzzyOnDroid |
 | --- | --- | --- |
-| <a href="https://github.com/iam-sandipmaity/video-downloader"><img src="https://github.com/ImranR98/Obtainium/blob/main/assets/graphics/badge_obtainium.png?raw=true" alt="Get it on Obtainium" width="250" /></a> | <a href="https://github.com/iam-sandipmaity/video-downloader/releases"><img src="https://raw.githubusercontent.com/rubenpgrady/get-it-on-github/refs/heads/main/get-it-on-github.png" alt="Get it on GitHub" width="250" /></a> | <a href="#"><img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png" alt="Get it on IzzyOnDroid" width="250" /></a> |
+| <a href="https://apps.obtainium.imranr.dev/redirect.html?r=obtainium://add/https://github.com/iam-sandipmaity/video-downloader"><img src="https://github.com/ImranR98/Obtainium/blob/main/assets/graphics/badge_obtainium.png?raw=true" alt="Get it on Obtainium" width="250" /></a> | <a href="https://github.com/iam-sandipmaity/video-downloader/releases"><img src="https://raw.githubusercontent.com/rubenpgrady/get-it-on-github/refs/heads/main/get-it-on-github.png" alt="Get it on GitHub" width="250" /></a> | <a href="#"><img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png" alt="Get it on IzzyOnDroid" width="250" /></a> |
 
 ### Nightly / Debug Build
 
 > Nightly builds are unstable and may contain bugs. Use at your own risk.
 
 <p align="center">
-  <a href="https://nightly.link/iam-sandipmaity/video-downloader/workflows/android-build.yml/main">
+  <a href="https://github.com/iam-sandipmaity/video-downloader/releases/download/nightly/video-downloader-nightly-debug.apk">
     <img src="https://raw.githubusercontent.com/rubenpgrady/get-it-on-github/refs/heads/main/get-it-on-github.png" alt="Get nightly build on GitHub" width="250" />
   </a>
 </p>
 
 <p align="center">
-  <strong>No GitHub account required</strong> - powered by <a href="https://nightly.link">nightly.link</a>
+  <strong>Direct APK download</strong> from the latest manually published rolling nightly prerelease.
 </p>
 
 ### Requirements
