@@ -24,6 +24,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ### Fixed
 - **Non-YouTube analysis timeout recovery** - slower sites now get safe extended-timeout retries during link analysis without restoring the old insecure certificate-bypass fallback
 - **yt-dlp runtime updater flow** - the app now routes yt-dlp updates through the downloader's own self-update path instead of manually replacing the embedded runtime file, improving real extractor compatibility recovery
+- **Audio extraction merge flags** - audio-only downloads no longer pass invalid yt-dlp merge-output arguments like `m4a`, restoring direct `Audio only` downloads on sites that expose standalone audio formats
+- **Audio-only source classification** - links that only expose audio containers, including JioSaavn-style `m4a` sources, now stay under `Audio only` instead of being mislabeled as `Video + audio`, and unavailable video tabs are disabled
 - **Site compatibility regressions after 1.7.2.0** - restored newer extractor/runtime recovery behavior for pages that had started failing or exposing fewer formats after the security release, including tougher generic-site and article-video cases
 - **Postprocessing recovery loops** - optional yt-dlp postprocessing failures now salvage already-finished media more reliably instead of cascading into unnecessary redownload attempts
 - **VP9/WebM merge behavior** - VP9 plus Opus downloads now resolve straight to `webm` when appropriate instead of first attempting a known-fragile `mp4` merge path
