@@ -20,6 +20,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -67,6 +68,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberScrollState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -534,9 +536,13 @@ fun DownloadsScreen(
                 shape = RoundedCornerShape(24.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
             ) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
                         text = if (selectedTaskIds.isEmpty()) {
@@ -550,62 +556,59 @@ fun DownloadsScreen(
                         },
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    FilterChip(
+                        selected = allVisibleSelected,
+                        onClick = {
+                            selectedTaskIds = if (allVisibleSelected) {
+                                selectedTaskIds.filterNot(visibleItemIds::contains)
+                            } else {
+                                (selectedTaskIds + visibleItemIds).distinct()
+                            }
+                        },
+                        label = {
+                            Text(
+                                stringResource(
+                                    if (allVisibleSelected) {
+                                        R.string.downloads_clear_visible
+                                    } else {
+                                        R.string.downloads_select_visible
+                                    },
+                                ),
+                            )
+                        },
+                    )
+                    TextButton(
+                        onClick = { selectedTaskIds = emptyList() },
+                        enabled = selectedTaskIds.isNotEmpty(),
                     ) {
-                        FilterChip(
-                            selected = allVisibleSelected,
-                            onClick = {
-                                selectedTaskIds = if (allVisibleSelected) {
-                                    selectedTaskIds.filterNot(visibleItemIds::contains)
-                                } else {
-                                    (selectedTaskIds + visibleItemIds).distinct()
-                                }
-                            },
-                            label = {
-                                Text(
-                                    stringResource(
-                                        if (allVisibleSelected) {
-                                            R.string.downloads_clear_visible
-                                        } else {
-                                            R.string.downloads_select_visible
-                                        },
-                                    ),
-                                )
-                            },
-                        )
-                        TextButton(
-                            onClick = { selectedTaskIds = emptyList() },
-                            enabled = selectedTaskIds.isNotEmpty(),
-                        ) {
-                            Text(stringResource(R.string.common_clear))
-                        }
-                        FilledTonalButton(
-                            onClick = { shareDownloadedFiles(context, selectedShareableItems) },
-                            enabled = selectedShareableItems.isNotEmpty(),
-                        ) {
-                            Icon(Icons.Outlined.Share, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.common_share))
-                        }
-                        FilledTonalButton(
-                            onClick = { selectionAction = SelectedDownloadsAction.REMOVE_FROM_APP },
-                            enabled = selectedTaskIds.isNotEmpty(),
-                        ) {
-                            Icon(Icons.Outlined.DeleteOutline, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.downloads_remove_from_app))
-                        }
-                        FilledTonalButton(
-                            onClick = { selectionAction = SelectedDownloadsAction.PERMANENT_DELETE },
-                            enabled = selectedTaskIds.isNotEmpty(),
-                        ) {
-                            Icon(Icons.Outlined.DeleteForever, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.downloads_delete_forever))
-                        }
+                        Text(stringResource(R.string.common_clear))
+                    }
+                    FilledTonalButton(
+                        onClick = { shareDownloadedFiles(context, selectedShareableItems) },
+                        enabled = selectedShareableItems.isNotEmpty(),
+                    ) {
+                        Icon(Icons.Outlined.Share, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.common_share))
+                    }
+                    FilledTonalButton(
+                        onClick = { selectionAction = SelectedDownloadsAction.REMOVE_FROM_APP },
+                        enabled = selectedTaskIds.isNotEmpty(),
+                    ) {
+                        Icon(Icons.Outlined.DeleteOutline, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.downloads_remove_from_app))
+                    }
+                    FilledTonalButton(
+                        onClick = { selectionAction = SelectedDownloadsAction.PERMANENT_DELETE },
+                        enabled = selectedTaskIds.isNotEmpty(),
+                    ) {
+                        Icon(Icons.Outlined.DeleteForever, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.downloads_delete_forever))
                     }
                 }
             }
