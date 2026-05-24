@@ -223,13 +223,25 @@ Requirements:
 ```bash
 git clone https://github.com/iam-sandipmaity/video-downloader
 cd video-downloader
-gradle :app:assembleDebug
+gradle :app:assembleStandardDebug
 ```
 
 Debug APK output:
 
 ```text
-app/build/outputs/apk/debug/app-debug.apk
+app/build/outputs/apk/standard/debug/app-standard-debug.apk
+```
+
+Repo-safe build for IzzyOnDroid or F-Droid style distribution:
+
+```bash
+gradle :app:assembleRepoSafeDebug
+```
+
+Repo-safe APK output:
+
+```text
+app/build/outputs/apk/repoSafe/debug/app-repoSafe-debug.apk
 ```
 
 ## Repository Docs

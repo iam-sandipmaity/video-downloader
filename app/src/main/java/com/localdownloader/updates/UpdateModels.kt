@@ -1,5 +1,6 @@
 package com.localdownloader.updates
 
+import com.localdownloader.BuildConfig
 import kotlinx.serialization.Serializable
 import java.math.BigInteger
 
@@ -57,7 +58,7 @@ enum class FfmpegReleaseChannel(
 
 data class UpdatePreferences(
     val includePrereleaseAppReleases: Boolean = false,
-    val autoUpdateYtDlp: Boolean = true,
+    val autoUpdateYtDlp: Boolean = BuildConfig.YTDLP_AUTO_UPDATE_DEFAULT,
     val ytDlpChannel: YtDlpReleaseChannel = YtDlpReleaseChannel.STABLE,
     val ffmpegChannel: FfmpegReleaseChannel = FfmpegReleaseChannel.STABLE,
 )

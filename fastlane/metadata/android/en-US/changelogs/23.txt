@@ -1,0 +1,1 @@
+Added Downloads and History search, smarter recovery guidance, broader player format handling with external-player fallback, safer video defaults, repo-safe yt-dlp update behavior, and stronger audio plus FFmpeg recovery.

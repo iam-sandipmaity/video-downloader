@@ -131,6 +131,15 @@ Main pieces:
 Manual runtime installs are intentionally guarded when downloads are active so
 runtime replacement does not race against ongoing work.
 
+Build distribution now matters for the yt-dlp auto-update default:
+
+- `standard` keeps the existing background auto-update default
+- `repoSafe` starts with manual yt-dlp updates and lets the user opt into
+  background checks later
+
+This split is specifically meant to keep repository-style distributions safer
+for stores that are sensitive to self-updating executable runtimes.
+
 ---
 
 ## 6. Localization

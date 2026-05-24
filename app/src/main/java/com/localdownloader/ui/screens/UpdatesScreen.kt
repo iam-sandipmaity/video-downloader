@@ -50,8 +50,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
-import com.localdownloader.ui.components.PreferencePageScaffold
+import com.localdownloader.BuildConfig
 import com.localdownloader.R
+import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.viewmodel.UpdateSectionUiState
 import com.localdownloader.viewmodel.UpdatesUiState
 import com.localdownloader.updates.FfmpegReleaseChannel
@@ -219,7 +220,13 @@ fun UpdatesScreen(
                 UpdateToggleRow(
                     icon = Icons.Outlined.Sync,
                     title = stringResource(R.string.updates_auto_update_ytdlp),
-                    subtitle = stringResource(R.string.updates_ytdlp_auto_subtitle),
+                    subtitle = stringResource(
+                        if (BuildConfig.YTDLP_AUTO_UPDATE_DEFAULT) {
+                            R.string.updates_ytdlp_auto_subtitle
+                        } else {
+                            R.string.updates_ytdlp_auto_subtitle_repo_safe
+                        },
+                    ),
                     checked = uiState.preferences.autoUpdateYtDlp,
                     onCheckedChange = onAutoUpdateYtDlpChanged,
                 )

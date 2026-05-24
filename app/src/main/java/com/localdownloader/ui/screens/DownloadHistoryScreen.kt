@@ -24,11 +24,13 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Article
+import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -42,6 +44,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -104,6 +107,7 @@ fun DownloadHistoryScreen(
         }.sortedByDescending { it.updatedAtEpochMs }
     }
     var selectedFilter by rememberSaveable { mutableStateOf(HistoryFilter.All.name) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
     var selectedTask by remember { mutableStateOf<DownloadTask?>(null) }
     var showActionsMenu by remember { mutableStateOf(false) }
     var choiceDialog by remember { mutableStateOf<SettingChoiceDialogState?>(null) }
@@ -111,7 +115,11 @@ fun DownloadHistoryScreen(
 
     val currentFilter = runCatching { HistoryFilter.valueOf(selectedFilter) }
         .getOrDefault(HistoryFilter.All)
-    val filteredItems = historyItems.filter { currentFilter.matches(it.status) }
+    val normalizedSearchQuery = searchQuery.trim()
+    val searchActive = normalizedSearchQuery.isNotBlank()
+    val filteredItems = historyItems
+        .filter { currentFilter.matches(it.status) }
+        .filter { it.matchesHistorySearch(normalizedSearchQuery) }
     val completedCount = historyItems.count { it.status == DownloadStatus.COMPLETED }
     val failedCount = historyItems.count { it.status == DownloadStatus.FAILED }
     val canceledCount = historyItems.count { it.status == DownloadStatus.CANCELED }
@@ -237,12 +245,22 @@ fun DownloadHistoryScreen(
                                 fontWeight = FontWeight.SemiBold,
                             )
                             Text(
-                                text = stringResource(
-                                    R.string.history_summary_showing,
-                                    filteredItems.size,
-                                    historyItems.size,
-                                    historyFilterLabel(currentFilter, context).lowercase(Locale.getDefault()),
-                                ),
+                                text = if (searchActive) {
+                                    stringResource(
+                                        R.string.history_summary_showing_search,
+                                        filteredItems.size,
+                                        historyItems.size,
+                                        normalizedSearchQuery,
+                                        historyFilterLabel(currentFilter, context).lowercase(Locale.getDefault()),
+                                    )
+                                } else {
+                                    stringResource(
+                                        R.string.history_summary_showing,
+                                        filteredItems.size,
+                                        historyItems.size,
+                                        historyFilterLabel(currentFilter, context).lowercase(Locale.getDefault()),
+                                    )
+                                },
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -283,6 +301,34 @@ fun DownloadHistoryScreen(
                         }
                     }
                 }
+            }
+        }
+        if (historyItems.isNotEmpty() || searchActive) {
+            item {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text(stringResource(R.string.history_search_label)) },
+                    placeholder = { Text(stringResource(R.string.history_search_placeholder)) },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Outlined.Search,
+                            contentDescription = null,
+                        )
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotBlank()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Clear,
+                                    contentDescription = stringResource(R.string.history_clear_search),
+                                )
+                            }
+                        }
+                    },
+                )
             }
         }
         item {
@@ -327,12 +373,22 @@ fun DownloadHistoryScreen(
                             }
                         }
                         Text(
-                            text = stringResource(R.string.history_empty_title),
+                            text = stringResource(
+                                if (searchActive) {
+                                    R.string.history_search_empty_title
+                                } else {
+                                    R.string.history_empty_title
+                                },
+                            ),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.SemiBold,
                         )
                         Text(
-                            text = stringResource(R.string.history_empty_body),
+                            text = if (searchActive) {
+                                stringResource(R.string.history_search_empty_body, normalizedSearchQuery)
+                            } else {
+                                stringResource(R.string.history_empty_body)
+                            },
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -858,6 +914,25 @@ private fun historyRetentionDescription(context: android.content.Context, days: 
         30 -> context.getString(R.string.history_retention_30)
         90 -> context.getString(R.string.history_retention_90)
         else -> context.getString(R.string.history_retention_180)
+    }
+}
+
+private fun DownloadTask.matchesHistorySearch(query: String): Boolean {
+    if (query.isBlank()) return true
+    val sourceHost = historySourceLabel(url).takeIf { it.isNotBlank() }
+    val outputName = outputPath
+        ?.replace('\\', '/')
+        ?.substringAfterLast('/')
+        ?.takeIf { it.isNotBlank() }
+    return listOfNotNull(
+        title,
+        sourceHost,
+        outputName,
+        outputPath,
+        errorMessage,
+        debugTrace,
+    ).any { value ->
+        value.contains(query, ignoreCase = true)
     }
 }
 

@@ -12,6 +12,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.localdownloader.AppLaunchRouter
+import com.localdownloader.media.isLikelyPlayableMediaPath
 import java.io.File
 
 object AppNotifications {
@@ -355,12 +356,6 @@ object AppNotifications {
     }
 
     private fun isPlayableMediaPath(path: String?): Boolean {
-        val extension = path?.substringAfterLast('.', "")?.lowercase().orEmpty()
-        return extension in PLAYABLE_MEDIA_EXTENSIONS
+        return isLikelyPlayableMediaPath(path)
     }
-
-    private val PLAYABLE_MEDIA_EXTENSIONS = setOf(
-        "mp4", "mkv", "webm", "mov", "avi", "m4v", "3gp", "ts", "m2ts", "mpeg", "mpg",
-        "mp3", "m4a", "aac", "opus", "ogg", "wav", "flac", "amr",
-    )
 }

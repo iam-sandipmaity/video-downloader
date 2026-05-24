@@ -96,6 +96,7 @@ import com.localdownloader.domain.models.StreamType
 import com.localdownloader.domain.models.VideoQuality
 import com.localdownloader.domain.models.VideoInfo
 import com.localdownloader.domain.models.AnalyzedLinkRecord
+import com.localdownloader.domain.models.audioFormatSupportsBitrateControl
 import com.localdownloader.domain.models.choicesForStreamType
 import com.localdownloader.domain.models.effectiveOutputStreamType
 import com.localdownloader.ui.components.InlineFeedbackCard
@@ -808,10 +809,12 @@ private fun buildDownloadActionSummary(uiState: FormatUiState): String? {
     }
 
     return when (uiState.selectedStreamType) {
-        StreamType.AUDIO_ONLY -> listOf(
-            uiState.selectedAudioFormat.uppercase(),
-            "${uiState.audioBitrateKbps} kbps",
-        ).joinToString(" | ")
+        StreamType.AUDIO_ONLY -> buildList {
+            add(uiState.selectedAudioFormat.uppercase())
+            if (audioFormatSupportsBitrateControl(uiState.selectedAudioFormat)) {
+                add("${uiState.audioBitrateKbps} kbps")
+            }
+        }.joinToString(" | ")
 
         else -> {
             val currentChoices = compatibleChoicesForStreamType(
@@ -1413,18 +1416,21 @@ private fun SelectionOptionsCard(
         }
 
         if (effectiveStreamType == StreamType.AUDIO_ONLY) {
+            val showsBitrateControl = audioFormatSupportsBitrateControl(audioFormat)
             BrowserDropdownRow(
                 label = stringResource(R.string.browser_picker_label_audio_format),
                 options = audioFormats,
                 selectedIndex = audioFormats.indexOf(audioFormat).coerceAtLeast(0),
                 onSelected = { onAudioFormatChanged(audioFormats[it]) },
             )
-            BrowserDropdownRow(
-                label = stringResource(R.string.browser_picker_label_bitrate),
-                options = bitrates.map { "$it kbps" },
-                selectedIndex = bitrates.indexOf(audioBitrateKbps).coerceAtLeast(0),
-                onSelected = { onAudioBitrateChanged(bitrates[it]) },
-            )
+            if (showsBitrateControl) {
+                BrowserDropdownRow(
+                    label = stringResource(R.string.browser_picker_label_bitrate),
+                    options = bitrates.map { "$it kbps" },
+                    selectedIndex = bitrates.indexOf(audioBitrateKbps).coerceAtLeast(0),
+                    onSelected = { onAudioBitrateChanged(bitrates[it]) },
+                )
+            }
         } else {
             val containerLabels = containers.map { localizedContainerLabel(it) }
             BrowserDropdownRow(
@@ -1734,7 +1740,9 @@ private fun buildPlaylistItemSummaryChips(
         when (streamType) {
             StreamType.AUDIO_ONLY -> {
                 add(audioFormat.uppercase())
-                add("${audioBitrateKbps} kbps")
+                if (audioFormatSupportsBitrateControl(audioFormat)) {
+                    add("${audioBitrateKbps} kbps")
+                }
             }
 
             else -> {

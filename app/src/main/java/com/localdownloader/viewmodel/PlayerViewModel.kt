@@ -22,6 +22,7 @@ import com.localdownloader.audio.PlaybackConflictManager
 import com.localdownloader.data.PlaybackSession
 import com.localdownloader.data.PlaybackSessionStore
 import com.localdownloader.domain.models.DownloadTask
+import com.localdownloader.media.resolvePreferredMediaMimeType
 import com.localdownloader.utils.Logger
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -115,7 +116,10 @@ class PlayerViewModel @Inject constructor(
             logger.e("PlayerViewModel", "Playback error", error)
             _uiState.update { state ->
                 state.copy(
-                    errorMessage = error.message ?: "Unable to play this media file.",
+                    errorMessage = friendlyPlaybackErrorMessage(
+                        rawMessage = error.message,
+                        playablePath = currentPlayablePath,
+                    ),
                     isBuffering = false,
                 )
             }
@@ -583,8 +587,11 @@ class PlayerViewModel @Inject constructor(
             explicitSubtitlePaths = explicitSubtitlePaths,
         )
         return MediaItem.Builder()
-            .setUri(Uri.fromFile(playableFile))
-            .setSubtitleConfigurations(subtitleConfigurations)
+            .apply {
+                setUri(Uri.fromFile(playableFile))
+                resolvePreferredMediaMimeType(playableFile.name)?.let(::setMimeType)
+                setSubtitleConfigurations(subtitleConfigurations)
+            }
             .build()
     }
 

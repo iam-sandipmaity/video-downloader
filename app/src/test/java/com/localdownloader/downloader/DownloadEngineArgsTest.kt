@@ -30,4 +30,30 @@ class DownloadEngineArgsTest {
 
         assertTrue(shouldPassMergeOutputFormat(options))
     }
+
+    @Test
+    fun shouldPassAudioQuality_skipsBitrateForWavExtraction() {
+        val options = DownloadOptions(
+            url = "https://example.com/watch",
+            formatId = "bestaudio",
+            extractAudio = true,
+            audioFormat = "wav",
+            audioBitrateKbps = 192,
+        )
+
+        assertFalse(shouldPassAudioQuality(options))
+    }
+
+    @Test
+    fun shouldPassAudioQuality_keepsBitrateForMp3Extraction() {
+        val options = DownloadOptions(
+            url = "https://example.com/watch",
+            formatId = "bestaudio",
+            extractAudio = true,
+            audioFormat = "mp3",
+            audioBitrateKbps = 192,
+        )
+
+        assertTrue(shouldPassAudioQuality(options))
+    }
 }

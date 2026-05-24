@@ -1,6 +1,7 @@
 package com.localdownloader.updates
 
 import android.content.Context
+import com.localdownloader.BuildConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -16,7 +17,11 @@ class UpdatePreferencesStore @Inject constructor(
     fun currentPreferences(): UpdatePreferences {
         return UpdatePreferences(
             includePrereleaseAppReleases = prefs.getBoolean(KEY_INCLUDE_PRERELEASE_APP_RELEASES, false),
-            autoUpdateYtDlp = prefs.getBoolean(KEY_AUTO_UPDATE_YTDLP, true),
+            autoUpdateYtDlp = if (prefs.contains(KEY_AUTO_UPDATE_YTDLP)) {
+                prefs.getBoolean(KEY_AUTO_UPDATE_YTDLP, BuildConfig.YTDLP_AUTO_UPDATE_DEFAULT)
+            } else {
+                BuildConfig.YTDLP_AUTO_UPDATE_DEFAULT
+            },
             ytDlpChannel = YtDlpReleaseChannel.fromId(
                 prefs.getString(KEY_YTDLP_CHANNEL, YtDlpReleaseChannel.STABLE.id),
             ),

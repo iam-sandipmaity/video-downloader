@@ -6,13 +6,22 @@
     <files-path
         name="internal_downloads"
         path="downloads/" />
+    <files-path
+        name="internal_converted"
+        path="converted/" />
     <cache-path
         name="app_update_installs"
         path="app-updates/" />
     <cache-path
         name="shared_exports"
         path="shared/" />
+    <cache-path
+        name="opened_media"
+        path="opened/" />
+    <external-files-path
+        name="app_specific_downloads"
+        path="Download/" />
     <external-path
         name="external_storage"
-        path="Download/LocalDownloader/" />
+        path="Download/" />
 </paths>

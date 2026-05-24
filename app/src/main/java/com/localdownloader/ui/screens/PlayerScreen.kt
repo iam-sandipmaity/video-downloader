@@ -1,11 +1,13 @@
 package com.localdownloader.ui.screens
 
 import android.app.Activity
-import android.media.AudioManager
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
+import android.media.AudioManager
 import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -36,8 +38,8 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.filled.Pause
@@ -48,6 +50,7 @@ import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material.icons.outlined.FullscreenExit
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.PictureInPictureAlt
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Subtitles
@@ -83,10 +86,12 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.FileProvider
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -96,7 +101,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.localdownloader.MainActivity
+import com.localdownloader.R
 import com.localdownloader.domain.models.DownloadTask
+import com.localdownloader.media.builtInPlaybackCompatibilityLabel
+import com.localdownloader.media.isLikelyAudioPath
+import com.localdownloader.media.isLikelyVideoPath
+import com.localdownloader.media.resolvePreferredMediaMimeType
 import com.localdownloader.viewmodel.PlayerTrackOption
 import com.localdownloader.viewmodel.PlayerUiState
 import com.localdownloader.viewmodel.PlayerViewModel
@@ -122,6 +132,9 @@ fun PlayerScreen(
     val allowBackgroundPlayback = remember(playablePath) {
         isLikelyAudioFile(playablePath)
     }
+    val playbackCompatibilityLabel = remember(playablePath) {
+        builtInPlaybackCompatibilityLabel(playablePath)
+    }
     val uiState by playerViewModel.uiState.collectAsStateWithLifecycle()
     val selectedAudioTrack = uiState.audioTracks.firstOrNull { it.isSelected }
     val selectedSubtitleTrack = uiState.subtitleTracks.firstOrNull { it.isSelected }
@@ -131,6 +144,9 @@ fun PlayerScreen(
     var controlsVisible by rememberSaveable { mutableStateOf(true) }
     var gestureFeedback by rememberSaveable { mutableStateOf<String?>(null) }
     var swipeHintVisible by rememberSaveable { mutableStateOf(true) }
+    var compatibilityNoticeVisible by rememberSaveable(playablePath) {
+        mutableStateOf(playbackCompatibilityLabel != null)
+    }
     var swipeAdjustmentOverlay by remember { mutableStateOf<SwipeAdjustmentOverlay?>(null) }
     var swipeSeekOverlay by remember { mutableStateOf<SwipeSeekOverlay?>(null) }
     var playerWidthPx by rememberSaveable { mutableStateOf(0) }
@@ -212,6 +228,14 @@ fun PlayerScreen(
         if (playablePath != null) {
             delay(SWIPE_HINT_MS)
             swipeHintVisible = false
+        }
+    }
+
+    LaunchedEffect(playablePath, playbackCompatibilityLabel) {
+        compatibilityNoticeVisible = playbackCompatibilityLabel != null
+        if (playbackCompatibilityLabel != null) {
+            delay(COMPATIBILITY_NOTICE_MS)
+            compatibilityNoticeVisible = false
         }
     }
 
@@ -510,9 +534,15 @@ fun PlayerScreen(
                 },
                 canEnterPictureInPicture = uiState.isAvailable && isLikelyVideoFile(playablePath),
                 isRotationLocked = uiState.isLocked,
+                canOpenExternally = playablePath != null,
                 onBack = {
                     playerViewModel.persistPlaybackState()
                     onBack()
+                },
+                onOpenExternally = {
+                    if (!openMediaExternally(context, playablePath)) {
+                        gestureFeedback = context.getString(R.string.player_open_external_unavailable)
+                    }
                 },
                 onPlayPause = {
                     playerViewModel.togglePlayback()
@@ -607,6 +637,30 @@ fun PlayerScreen(
                 )
             }
 
+            if (
+                uiState.errorMessage.isNullOrBlank() &&
+                playbackCompatibilityLabel != null &&
+                compatibilityNoticeVisible
+            ) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(horizontal = 16.dp, vertical = 84.dp),
+                    color = Color.Black.copy(alpha = 0.72f),
+                    shape = RoundedCornerShape(22.dp),
+                ) {
+                    Text(
+                        text = stringResource(
+                            R.string.player_compatibility_notice,
+                            playbackCompatibilityLabel,
+                        ),
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        color = Color.White.copy(alpha = 0.92f),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
+
             uiState.errorMessage?.takeIf { it.isNotBlank() }?.let { message ->
                 Surface(
                     modifier = Modifier
@@ -615,12 +669,26 @@ fun PlayerScreen(
                     color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.92f),
                     shape = RoundedCornerShape(22.dp),
                 ) {
-                    Text(
-                        text = message,
+                    Column(
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+                    ) {
+                        Text(
+                            text = message,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        if (playablePath != null) {
+                            TextButton(
+                                onClick = {
+                                    if (!openMediaExternally(context, playablePath)) {
+                                        gestureFeedback = context.getString(R.string.player_open_external_unavailable)
+                                    }
+                                },
+                            ) {
+                                Text(text = stringResource(R.string.player_open_external))
+                            }
+                        }
+                    }
                 }
             }
         } else {
@@ -898,7 +966,9 @@ private fun BoxScope.PlayerChrome(
     selectedSubtitleLabel: String,
     canEnterPictureInPicture: Boolean,
     isRotationLocked: Boolean,
+    canOpenExternally: Boolean,
     onBack: () -> Unit,
+    onOpenExternally: () -> Unit,
     onPlayPause: () -> Unit,
     onFullscreenToggle: () -> Unit,
     onEnterPictureInPicture: () -> Unit,
@@ -946,13 +1016,24 @@ private fun BoxScope.PlayerChrome(
                     }
                     Text(
                         text = title,
-                        modifier = Modifier.padding(start = 6.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(start = 6.dp),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Medium,
                         color = Color.White,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
+                    if (canOpenExternally) {
+                        IconButton(onClick = onOpenExternally) {
+                            Icon(
+                                imageVector = Icons.Outlined.OpenInNew,
+                                contentDescription = stringResource(R.string.player_open_external_description),
+                                tint = Color.White,
+                            )
+                        }
+                    }
                 }
             }
 
@@ -1492,13 +1573,44 @@ private fun formatPlaybackTime(timeMs: Long): String {
 }
 
 private fun isLikelyVideoFile(path: String?): Boolean {
-    val extension = path?.substringAfterLast('.', "")?.lowercase().orEmpty()
-    return extension in setOf("mp4", "mkv", "webm", "mov", "avi", "m4v", "3gp", "ts", "m2ts", "mpeg", "mpg")
+    return isLikelyVideoPath(path)
 }
 
 private fun isLikelyAudioFile(path: String?): Boolean {
-    val extension = path?.substringAfterLast('.', "")?.lowercase().orEmpty()
-    return extension in setOf("mp3", "m4a", "aac", "wav", "flac", "ogg", "opus", "amr", "3ga", "wma")
+    return isLikelyAudioPath(path)
+}
+
+private fun openMediaExternally(
+    context: Context,
+    path: String?,
+): Boolean {
+    val file = path?.takeIf { it.isNotBlank() }?.let(::File)?.takeIf { it.exists() } ?: return false
+    val uri = try {
+        FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file,
+        )
+    } catch (_: IllegalArgumentException) {
+        return false
+    }
+    val mimeType = resolvePreferredMediaMimeType(file.name)
+        ?: when {
+            isLikelyVideoPath(file.name) -> "video/*"
+            isLikelyAudioPath(file.name) -> "audio/*"
+            else -> "*/*"
+        }
+
+    val intent = Intent(Intent.ACTION_VIEW)
+        .setDataAndType(uri, mimeType)
+        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+
+    return try {
+        context.startActivity(intent)
+        true
+    } catch (_: ActivityNotFoundException) {
+        false
+    }
 }
 
 private fun formatSpeed(speed: Float): String {
@@ -1763,6 +1875,7 @@ private const val SEEK_INCREMENT_MS = 10_000L
 private const val CONTROLS_AUTO_HIDE_MS = 3_000L
 private const val GESTURE_FEEDBACK_MS = 900L
 private const val SWIPE_HINT_MS = 5_000L
+private const val COMPATIBILITY_NOTICE_MS = 2_000L
 private const val MIN_PINCH_SCALE = 1f
 private const val MAX_PINCH_SCALE = 3f
 private const val DEFAULT_GESTURE_LEVEL = 0.5f

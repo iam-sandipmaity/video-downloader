@@ -3,6 +3,8 @@ package com.localdownloader.ui.model
 import com.localdownloader.audio.AudioQueueItem
 import com.localdownloader.domain.models.DownloadStatus
 import com.localdownloader.domain.models.DownloadTask
+import com.localdownloader.media.isLikelyAudioPath
+import com.localdownloader.media.isLikelyVideoPath
 import java.io.File
 import java.time.Instant
 import java.time.ZoneId
@@ -46,10 +48,9 @@ fun List<VideoLibraryItem>.toAudioQueueItems(): List<AudioQueueItem> {
 }
 
 fun resolveMediaKind(file: File?): MediaKind {
-    val extension = file?.extension?.lowercase().orEmpty()
-    return when (extension) {
-        "mp4", "mkv", "webm", "mov", "avi", "m4v", "3gp" -> MediaKind.VIDEO
-        "mp3", "m4a", "aac", "opus", "ogg", "wav", "flac", "amr" -> MediaKind.AUDIO
+    return when {
+        isLikelyVideoPath(file?.name) -> MediaKind.VIDEO
+        isLikelyAudioPath(file?.name) -> MediaKind.AUDIO
         else -> MediaKind.OTHER
     }
 }

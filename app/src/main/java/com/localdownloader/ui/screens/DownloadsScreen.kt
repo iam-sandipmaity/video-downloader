@@ -23,8 +23,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -41,6 +39,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.DeleteForever
@@ -49,9 +48,9 @@ import androidx.compose.material.icons.outlined.DriveFileRenameOutline
 import androidx.compose.material.icons.outlined.PauseCircle
 import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -70,6 +69,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -94,7 +94,6 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DownloadsScreen(
     uiState: DownloadUiState,
@@ -115,6 +114,7 @@ fun DownloadsScreen(
 ) {
     var selectedFilter by rememberSaveable { mutableStateOf(DownloadsFilter.All.name) }
     var sortNewestFirst by rememberSaveable { mutableStateOf(true) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
     var renameTarget by remember { mutableStateOf<VideoLibraryItem?>(null) }
     var renameValue by rememberSaveable { mutableStateOf("") }
     var deleteTarget by remember { mutableStateOf<VideoLibraryItem?>(null) }
@@ -129,8 +129,11 @@ fun DownloadsScreen(
     val audioItems = remember(items) { items.filter { it.exists && it.mediaKind == MediaKind.AUDIO } }
     val currentFilter = runCatching { DownloadsFilter.valueOf(selectedFilter) }
         .getOrDefault(DownloadsFilter.All)
+    val normalizedSearchQuery = searchQuery.trim()
+    val searchActive = normalizedSearchQuery.isNotBlank()
     val filteredItems = items
         .filter { currentFilter.matches(it.mediaKind) }
+        .filter { it.matchesDownloadsSearch(normalizedSearchQuery) }
         .let { candidates ->
             if (sortNewestFirst) {
                 candidates.sortedByDescending { it.task.updatedAtEpochMs }
@@ -315,7 +318,7 @@ fun DownloadsScreen(
                 ),
             )
             .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -326,8 +329,32 @@ fun DownloadsScreen(
                 modifier = Modifier
                     .weight(1f)
                     .padding(end = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
+                val headerSupportingText = when {
+                    selectionMode -> null
+                    searchActive -> {
+                        pluralStringResource(
+                            R.plurals.downloads_search_results,
+                            filteredItems.size,
+                            filteredItems.size,
+                            normalizedSearchQuery,
+                        )
+                    }
+                    items.isNotEmpty() -> {
+                        pluralStringResource(R.plurals.downloads_saved_ready, items.size, items.size)
+                    }
+                    hasActiveDownloads -> {
+                        pluralStringResource(
+                            R.plurals.downloads_active_in_progress,
+                            activeDownloadsCount,
+                            activeDownloadsCount,
+                        )
+                    }
+                    else -> {
+                        stringResource(R.string.downloads_empty_help)
+                    }
+                }
                 Text(
                     text = if (selectionMode) {
                         selectedTitle
@@ -338,28 +365,13 @@ fun DownloadsScreen(
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onBackground,
                 )
-                Text(
-                    text = when {
-                        selectionMode -> {
-                            stringResource(R.string.downloads_selection_help)
-                        }
-                        items.isNotEmpty() -> {
-                            pluralStringResource(R.plurals.downloads_saved_ready, items.size, items.size)
-                        }
-                        hasActiveDownloads -> {
-                            pluralStringResource(
-                                R.plurals.downloads_active_in_progress,
-                                activeDownloadsCount,
-                                activeDownloadsCount,
-                            )
-                        }
-                        else -> {
-                            stringResource(R.string.downloads_empty_help)
-                        }
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.78f),
-                )
+                if (headerSupportingText != null) {
+                    Text(
+                        text = headerSupportingText,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.78f),
+                    )
+                }
             }
             Row(
                 modifier = Modifier.padding(start = 8.dp),
@@ -446,39 +458,64 @@ fun DownloadsScreen(
         }
 
         if (items.isNotEmpty()) {
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                FilterChip(
-                    selected = sortNewestFirst,
+                CompactDownloadsToggle(
+                    modifier = Modifier.weight(1f),
+                    selected = true,
                     onClick = { sortNewestFirst = !sortNewestFirst },
-                    label = {
-                        Text(
-                            stringResource(
-                                if (sortNewestFirst) {
-                                    R.string.downloads_newest_first
-                                } else {
-                                    R.string.downloads_oldest_first
-                                },
-                            ),
-                        )
-                    },
+                    label = stringResource(
+                        if (sortNewestFirst) {
+                            R.string.downloads_newest_short
+                        } else {
+                            R.string.downloads_oldest_short
+                        },
+                    ),
                 )
-                DownloadsFilter.entries.filter { it != DownloadsFilter.All }.forEach { filter ->
-                    FilterChip(
+                DownloadsFilter.entries.forEach { filter ->
+                    CompactDownloadsToggle(
+                        modifier = Modifier.weight(1f),
                         selected = currentFilter == filter,
                         onClick = {
-                            selectedFilter = if (currentFilter == filter) {
-                                DownloadsFilter.All.name
-                            } else {
+                            selectedFilter = if (filter == DownloadsFilter.All || currentFilter != filter) {
                                 filter.name
+                            } else {
+                                DownloadsFilter.All.name
                             }
                         },
-                        label = { Text(stringResource(filter.labelRes)) },
+                        label = stringResource(filter.labelRes),
                     )
                 }
             }
+        }
+
+        if (items.isNotEmpty() || searchActive) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text(stringResource(R.string.downloads_search_label)) },
+                placeholder = { Text(stringResource(R.string.downloads_search_placeholder)) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Outlined.Search,
+                        contentDescription = null,
+                    )
+                },
+                trailingIcon = {
+                    if (searchQuery.isNotBlank()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(
+                                imageVector = Icons.Outlined.Clear,
+                                contentDescription = stringResource(R.string.downloads_clear_search),
+                            )
+                        }
+                    }
+                },
+            )
         }
 
         AnimatedVisibility(
@@ -490,82 +527,61 @@ fun DownloadsScreen(
         ) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
+                shape = RoundedCornerShape(20.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
             ) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 10.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        text = if (selectedTaskIds.isEmpty()) {
-                            stringResource(R.string.downloads_select_files_to_unlock)
+                    SelectionToolbarAction(
+                        modifier = Modifier.weight(1f),
+                        icon = if (allVisibleSelected) {
+                            Icons.Outlined.CheckCircle
                         } else {
-                            pluralStringResource(
-                                R.plurals.downloads_selected_files_count,
-                                selectedTaskIds.size,
-                                selectedTaskIds.size,
-                            )
+                            Icons.Outlined.RadioButtonUnchecked
                         },
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        label = stringResource(R.string.downloads_filter_all),
+                        highlighted = allVisibleSelected,
+                        onClick = {
+                            selectedTaskIds = if (allVisibleSelected) {
+                                selectedTaskIds.filterNot(visibleItemIds::contains)
+                            } else {
+                                (selectedTaskIds + visibleItemIds).distinct()
+                            }
+                        },
                     )
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        FilterChip(
-                            selected = allVisibleSelected,
-                            onClick = {
-                                selectedTaskIds = if (allVisibleSelected) {
-                                    selectedTaskIds.filterNot(visibleItemIds::contains)
-                                } else {
-                                    (selectedTaskIds + visibleItemIds).distinct()
-                                }
-                            },
-                            label = {
-                                Text(
-                                    stringResource(
-                                        if (allVisibleSelected) {
-                                            R.string.downloads_clear_visible
-                                        } else {
-                                            R.string.downloads_select_visible
-                                        },
-                                    ),
-                                )
-                            },
-                        )
-                        TextButton(
-                            onClick = { selectedTaskIds = emptyList() },
-                            enabled = selectedTaskIds.isNotEmpty(),
-                        ) {
-                            Text(stringResource(R.string.common_clear))
-                        }
-                        FilledTonalButton(
-                            onClick = { shareDownloadedFiles(context, selectedShareableItems) },
-                            enabled = selectedShareableItems.isNotEmpty(),
-                        ) {
-                            Icon(Icons.Outlined.Share, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.common_share))
-                        }
-                        FilledTonalButton(
-                            onClick = { selectionAction = SelectedDownloadsAction.REMOVE_FROM_APP },
-                            enabled = selectedTaskIds.isNotEmpty(),
-                        ) {
-                            Icon(Icons.Outlined.DeleteOutline, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.downloads_remove_from_app))
-                        }
-                        FilledTonalButton(
-                            onClick = { selectionAction = SelectedDownloadsAction.PERMANENT_DELETE },
-                            enabled = selectedTaskIds.isNotEmpty(),
-                        ) {
-                            Icon(Icons.Outlined.DeleteForever, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.downloads_delete_forever))
-                        }
-                    }
+                    SelectionToolbarAction(
+                        modifier = Modifier.weight(1f),
+                        icon = Icons.Outlined.Clear,
+                        label = stringResource(R.string.common_clear),
+                        onClick = { selectedTaskIds = emptyList() },
+                        enabled = selectedTaskIds.isNotEmpty(),
+                    )
+                    SelectionToolbarAction(
+                        modifier = Modifier.weight(1f),
+                        icon = Icons.Outlined.Share,
+                        label = stringResource(R.string.common_share),
+                        onClick = { shareDownloadedFiles(context, selectedShareableItems) },
+                        enabled = selectedShareableItems.isNotEmpty(),
+                    )
+                    SelectionToolbarAction(
+                        modifier = Modifier.weight(1f),
+                        icon = Icons.Outlined.DeleteOutline,
+                        label = stringResource(R.string.common_remove),
+                        onClick = { selectionAction = SelectedDownloadsAction.REMOVE_FROM_APP },
+                        enabled = selectedTaskIds.isNotEmpty(),
+                    )
+                    SelectionToolbarAction(
+                        modifier = Modifier.weight(1f),
+                        icon = Icons.Outlined.DeleteForever,
+                        label = stringResource(R.string.common_delete),
+                        onClick = { selectionAction = SelectedDownloadsAction.PERMANENT_DELETE },
+                        enabled = selectedTaskIds.isNotEmpty(),
+                    )
                 }
             }
         }
@@ -634,8 +650,12 @@ fun DownloadsScreen(
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
             ) {
                 Text(
-                    text = when (currentFilter) {
-                        DownloadsFilter.All -> {
+                    text = when {
+                        searchActive -> stringResource(
+                            R.string.downloads_no_search_results,
+                            normalizedSearchQuery,
+                        )
+                        currentFilter == DownloadsFilter.All -> {
                             if (hasActiveDownloads) {
                                 stringResource(R.string.downloads_running_empty_all)
                             } else {
@@ -707,6 +727,101 @@ fun DownloadsScreen(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun CompactDownloadsToggle(
+    selected: Boolean,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val backgroundColor = if (selected) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surfaceContainerLow
+    }
+    val contentColor = if (selected) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    Surface(
+        modifier = modifier.clickable(onClick = onClick),
+        shape = RoundedCornerShape(14.dp),
+        color = backgroundColor,
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 9.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = contentColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SelectionToolbarAction(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    highlighted: Boolean = false,
+) {
+    val backgroundColor = when {
+        highlighted -> MaterialTheme.colorScheme.primaryContainer
+        enabled -> MaterialTheme.colorScheme.surface
+        else -> MaterialTheme.colorScheme.surfaceContainerLow
+    }
+    val contentColor = when {
+        highlighted -> MaterialTheme.colorScheme.onPrimaryContainer
+        enabled -> MaterialTheme.colorScheme.onSurface
+        else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.42f)
+    }
+
+    Surface(
+        modifier = modifier.then(
+            if (enabled) {
+                Modifier.clickable(onClick = onClick)
+            } else {
+                Modifier
+            },
+        ),
+        shape = RoundedCornerShape(16.dp),
+        color = backgroundColor,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 2.dp, vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = contentColor,
+                modifier = Modifier.size(18.dp),
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = contentColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
@@ -1140,6 +1255,27 @@ private fun compactDownloadQualityLabel(value: String?): String? {
     val raw = value?.trim().orEmpty()
     if (raw.isBlank()) return null
     return raw.substringBefore(" ").substringBefore("(").trim().ifBlank { null }
+}
+
+private fun VideoLibraryItem.matchesDownloadsSearch(query: String): Boolean {
+    if (query.isBlank()) return true
+    val sourceHost = runCatching {
+        Uri.parse(task.url).host?.removePrefix("www.")
+    }.getOrNull()
+    val outputName = task.outputPath
+        ?.replace('\\', '/')
+        ?.substringAfterLast('/')
+        ?.takeIf { it.isNotBlank() }
+    return listOfNotNull(
+        displayTitle,
+        task.title,
+        file?.name,
+        outputName,
+        task.outputPath,
+        sourceHost,
+    ).any { value ->
+        value.contains(query, ignoreCase = true)
+    }
 }
 
 @Composable

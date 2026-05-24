@@ -1084,7 +1084,6 @@ private fun DownloadTaskHeroCard(
                         RecoveryHelperCard(
                             task = task,
                             currentTimeMs = currentTimeMs,
-                            isStuck = isStuck,
                             isYoutubeTask = isYoutubeTask,
                             onRetry = if (task.status == DownloadStatus.FAILED) {
                                 { onRetry(task.id) }
@@ -1197,7 +1196,6 @@ private fun TaskSourceBadge(
 private fun RecoveryHelperCard(
     task: DownloadTask,
     currentTimeMs: Long,
-    isStuck: Boolean,
     isYoutubeTask: Boolean,
     onRetry: (() -> Unit)?,
     onOpenCookies: () -> Unit,
@@ -1205,11 +1203,79 @@ private fun RecoveryHelperCard(
     onExportLogs: () -> Unit,
     onReportIssue: () -> Unit,
 ) {
-    val guidance = buildRecoveryGuidance(
-        task = task,
-        currentTimeMs = currentTimeMs,
-        isStuck = isStuck,
-        isYoutubeTask = isYoutubeTask,
+    val diagnosis = classifyRecoveryCategory(task, currentTimeMs)
+    val elapsedLabel = formatElapsedLabel(currentTimeMs - task.updatedAtEpochMs)
+    val title = when (diagnosis) {
+        RecoveryCategory.STUCK_YOUTUBE,
+        RecoveryCategory.STUCK_GENERAL,
+        -> stringResource(R.string.queue_recovery_title_stuck)
+
+        RecoveryCategory.YOUTUBE_ACCESS,
+        RecoveryCategory.SESSION_OR_REGION,
+        -> stringResource(R.string.queue_recovery_title_access)
+
+        RecoveryCategory.NETWORK_OR_RATE_LIMIT -> stringResource(R.string.queue_recovery_title_network)
+        RecoveryCategory.POSTPROCESSING -> stringResource(R.string.queue_recovery_title_postprocessing)
+        RecoveryCategory.RUNTIME_OR_DEVICE -> stringResource(R.string.queue_recovery_title_runtime)
+        RecoveryCategory.EXTRACTOR_OR_FORMAT -> stringResource(R.string.queue_recovery_title_compatibility)
+        RecoveryCategory.UNKNOWN -> stringResource(R.string.queue_recovery_title_default)
+    }
+    val causeLabel = when (diagnosis) {
+        RecoveryCategory.STUCK_YOUTUBE -> stringResource(R.string.queue_recovery_cause_stuck_youtube)
+        RecoveryCategory.STUCK_GENERAL -> stringResource(R.string.queue_recovery_cause_stuck)
+        RecoveryCategory.YOUTUBE_ACCESS -> stringResource(R.string.queue_recovery_cause_access_youtube)
+        RecoveryCategory.SESSION_OR_REGION -> stringResource(R.string.queue_recovery_cause_access)
+        RecoveryCategory.NETWORK_OR_RATE_LIMIT -> stringResource(R.string.queue_recovery_cause_network)
+        RecoveryCategory.POSTPROCESSING -> stringResource(R.string.queue_recovery_cause_postprocessing)
+        RecoveryCategory.RUNTIME_OR_DEVICE -> stringResource(R.string.queue_recovery_cause_runtime)
+        RecoveryCategory.EXTRACTOR_OR_FORMAT -> stringResource(R.string.queue_recovery_cause_compatibility)
+        RecoveryCategory.UNKNOWN -> stringResource(R.string.queue_recovery_cause_unknown)
+    }
+    val guidance = when (diagnosis) {
+        RecoveryCategory.STUCK_YOUTUBE ->
+            stringResource(R.string.queue_recovery_stuck_youtube, elapsedLabel)
+
+        RecoveryCategory.STUCK_GENERAL ->
+            stringResource(R.string.queue_recovery_stuck, elapsedLabel)
+
+        RecoveryCategory.YOUTUBE_ACCESS ->
+            stringResource(R.string.queue_recovery_access_youtube)
+
+        RecoveryCategory.SESSION_OR_REGION ->
+            stringResource(R.string.queue_recovery_access_generic)
+
+        RecoveryCategory.NETWORK_OR_RATE_LIMIT ->
+            stringResource(R.string.queue_recovery_network)
+
+        RecoveryCategory.POSTPROCESSING ->
+            stringResource(R.string.queue_recovery_postprocessing)
+
+        RecoveryCategory.RUNTIME_OR_DEVICE ->
+            stringResource(R.string.queue_recovery_runtime)
+
+        RecoveryCategory.EXTRACTOR_OR_FORMAT ->
+            stringResource(R.string.queue_recovery_compatibility)
+
+        RecoveryCategory.UNKNOWN ->
+            stringResource(
+                if (isYoutubeTask) {
+                    R.string.queue_recovery_youtube
+                } else {
+                    R.string.queue_recovery_default
+                },
+            )
+    }
+    val showCookiesAction = diagnosis in setOf(
+        RecoveryCategory.STUCK_YOUTUBE,
+        RecoveryCategory.STUCK_GENERAL,
+        RecoveryCategory.YOUTUBE_ACCESS,
+        RecoveryCategory.SESSION_OR_REGION,
+    )
+    val showYoutubeAccessAction = isYoutubeTask && diagnosis in setOf(
+        RecoveryCategory.STUCK_YOUTUBE,
+        RecoveryCategory.YOUTUBE_ACCESS,
+        RecoveryCategory.EXTRACTOR_OR_FORMAT,
+        RecoveryCategory.UNKNOWN,
     )
 
     Column(
@@ -1219,28 +1285,63 @@ private fun RecoveryHelperCard(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(
-            text = if (isStuck) "Download may be stuck" else "Troubleshooting help",
+            text = title,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
         )
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.46f),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.queue_recovery_likely_cause),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = causeLabel,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+            }
+        }
         Text(
             text = guidance,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            onRetry?.let {
-                RecoveryActionChip(label = "Retry", onClick = it)
-            }
-            RecoveryActionChip(label = "Try Cookies", onClick = onOpenCookies)
-            if (isYoutubeTask) {
-                RecoveryActionChip(label = "YouTube access", onClick = onOpenYoutubeAccess)
+        if (onRetry != null || showCookiesAction || showYoutubeAccessAction) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                onRetry?.let {
+                    RecoveryActionChip(
+                        label = stringResource(R.string.queue_action_retry),
+                        onClick = it,
+                    )
+                }
+                if (showCookiesAction) {
+                    RecoveryActionChip(
+                        label = stringResource(R.string.queue_try_cookies),
+                        onClick = onOpenCookies,
+                    )
+                }
+                if (showYoutubeAccessAction) {
+                    RecoveryActionChip(
+                        label = stringResource(R.string.queue_po_generation),
+                        onClick = onOpenYoutubeAccess,
+                    )
+                }
             }
         }
 
@@ -1250,8 +1351,14 @@ private fun RecoveryHelperCard(
                 .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            RecoveryActionChip(label = "Export log.txt", onClick = onExportLogs)
-            RecoveryActionChip(label = "Report issue", onClick = onReportIssue)
+            RecoveryActionChip(
+                label = stringResource(R.string.queue_export_log),
+                onClick = onExportLogs,
+            )
+            RecoveryActionChip(
+                label = stringResource(R.string.queue_report_issue),
+                onClick = onReportIssue,
+            )
         }
     }
 }
@@ -1724,25 +1831,133 @@ private fun buildTaskFooterMessageEnhanced(
     }
 }
 
-private fun buildRecoveryGuidance(
-    task: DownloadTask,
-    currentTimeMs: Long,
-    isStuck: Boolean,
-    isYoutubeTask: Boolean,
-): String {
-    return when {
-        isStuck && isYoutubeTask ->
-            "This YouTube item has not updated for ${formatElapsedLabel(currentTimeMs - task.updatedAtEpochMs)}. Cookies or refreshed YouTube access often help when playback access checks interrupt the download."
+internal enum class RecoveryCategory {
+    STUCK_YOUTUBE,
+    STUCK_GENERAL,
+    YOUTUBE_ACCESS,
+    SESSION_OR_REGION,
+    NETWORK_OR_RATE_LIMIT,
+    POSTPROCESSING,
+    RUNTIME_OR_DEVICE,
+    EXTRACTOR_OR_FORMAT,
+    UNKNOWN,
+}
 
-        isStuck ->
-            "This item has not updated for ${formatElapsedLabel(currentTimeMs - task.updatedAtEpochMs)}. Cookies can help if the site needs a signed-in or region-matched session."
-
-        isYoutubeTask ->
-            "YouTube failures often improve after adding cookies and refreshing YouTube access from Settings or More."
-
-        else ->
-            "If this download failed after redirects, rate limits, or protected access, try cookies first. If it still fails, export the logs and report the issue."
+internal fun classifyRecoveryCategory(task: DownloadTask, currentTimeMs: Long): RecoveryCategory {
+    val isYoutubeTask = isYoutubeUrl(task.url)
+    if (isPotentiallyStuck(task, currentTimeMs)) {
+        return if (isYoutubeTask) {
+            RecoveryCategory.STUCK_YOUTUBE
+        } else {
+            RecoveryCategory.STUCK_GENERAL
+        }
     }
+
+    val recoveryText = buildRecoverySignalText(task)
+
+    if (containsRecoverySignal(
+            recoveryText,
+            "missing runtime binary",
+            "missing yt-dlp script",
+            "libpython",
+            "exec format",
+            "not initialized",
+            "unsupported abi",
+            "abi mismatch",
+        )
+    ) {
+        return RecoveryCategory.RUNTIME_OR_DEVICE
+    }
+
+    if (containsRecoverySignal(
+            recoveryText,
+            "ffmpeg",
+            "postprocess",
+            "post-process",
+            "merge",
+            "mux",
+            "remux",
+            "thumbnail",
+            "stream-copy",
+            "aac audio fallback",
+            "codec",
+        )
+    ) {
+        return RecoveryCategory.POSTPROCESSING
+    }
+
+    if (containsRecoverySignal(
+            recoveryText,
+            "timed out",
+            "timeout",
+            "connection reset",
+            "network is unreachable",
+            "temporary failure in name resolution",
+            "dns",
+            "too many requests",
+            "429",
+            "503",
+            "rate limit",
+            "temporarily unavailable",
+            "connection aborted",
+        )
+    ) {
+        return RecoveryCategory.NETWORK_OR_RATE_LIMIT
+    }
+
+    if (isYoutubeTask && containsRecoverySignal(
+            recoveryText,
+            "sign in",
+            "signin",
+            "use --cookies",
+            "authenticated",
+            "po token",
+            "visitor data",
+            "playback",
+            "confirm you're not a bot",
+            "age restricted",
+            "age-restricted",
+            "members-only",
+            "members only",
+            "private video",
+        )
+    ) {
+        return RecoveryCategory.YOUTUBE_ACCESS
+    }
+
+    if (containsRecoverySignal(
+            recoveryText,
+            "login",
+            "sign in",
+            "account required",
+            "403",
+            "401",
+            "forbidden",
+            "geo",
+            "region",
+            "captcha",
+            "cookie",
+            "premium",
+        )
+    ) {
+        return RecoveryCategory.SESSION_OR_REGION
+    }
+
+    if (containsRecoverySignal(
+            recoveryText,
+            "requested format is not available",
+            "format is not available",
+            "unable to extract",
+            "unsupported url",
+            "no video formats",
+            "extractor",
+            "video unavailable",
+        )
+    ) {
+        return RecoveryCategory.EXTRACTOR_OR_FORMAT
+    }
+
+    return RecoveryCategory.UNKNOWN
 }
 
 private fun isYoutubeUrl(url: String): Boolean {
@@ -1754,6 +1969,20 @@ private fun isPotentiallyStuck(task: DownloadTask, currentTimeMs: Long): Boolean
     if (task.status != DownloadStatus.RUNNING) return false
     if (task.progressPercent >= 100) return false
     return currentTimeMs - task.updatedAtEpochMs >= STUCK_THRESHOLD_MS
+}
+
+private fun buildRecoverySignalText(task: DownloadTask): String {
+    return listOfNotNull(
+        task.errorMessage,
+        task.debugTrace,
+    ).joinToString(separator = "\n")
+}
+
+private fun containsRecoverySignal(
+    text: String,
+    vararg phrases: String,
+): Boolean {
+    return phrases.any { phrase -> text.contains(phrase, ignoreCase = true) }
 }
 
 private fun formatElapsedLabel(elapsedMs: Long): String {

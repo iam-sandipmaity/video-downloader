@@ -87,7 +87,23 @@ class DownloadWorker @AssistedInject constructor(
             downloadTaskStore.cacheOptions(taskId, downloadOptionSecretsStore.persist(taskId, options))
         }
         appendDebugTrace(taskId, "Worker started")
-        appendDebugTrace(taskId, "Input accepted: format=$formatId")
+        appendDebugTrace(
+            taskId,
+            buildString {
+                append("Input accepted: format=$formatId")
+                if (options.extractAudio) {
+                    options.audioFormat?.let { format ->
+                        append(" audioFormat=$format")
+                    }
+                    options.audioBitrateKbps?.let { bitrate ->
+                        append(" audioBitrate=${bitrate}K")
+                    }
+                }
+                if (options.removeAudioFromVideo) {
+                    append(" removeAudio=true")
+                }
+            },
+        )
         appendDebugTrace(taskId, "Output template: $outputTemplate")
         cleanupOrphanedManagedArtifacts(outputTemplate = outputTemplate, taskId = taskId)
 
@@ -106,6 +122,7 @@ class DownloadWorker @AssistedInject constructor(
         )
 
         var outputPath: String? = null
+        var downloadedPrimaryPath: String? = null
         var lastLoggedProgress = -1
         var lastAttemptOptions = options
         var shouldGenerateThumbnailFallback = false
@@ -161,7 +178,13 @@ class DownloadWorker @AssistedInject constructor(
                     if (line.contains("has already been downloaded", ignoreCase = true)) {
                         reusedExistingDownloadFile = true
                     }
-                    parseOutputPath(line)?.let { parsed -> outputPath = parsed }
+                    val downloadedPrimary = parseDownloadedPrimaryPath(line)
+                    if (downloadedPrimary != null) {
+                        downloadedPrimaryPath = downloadedPrimary
+                        outputPath = downloadedPrimary
+                    } else {
+                        parseOutputPath(line)?.let { parsed -> outputPath = parsed }
+                    }
                 },
             )
         }
@@ -260,11 +283,16 @@ class DownloadWorker @AssistedInject constructor(
                 taskId = taskId,
                 stderr = result.stderr,
                 currentOutputPath = outputPath,
+                downloadedPrimaryPath = downloadedPrimaryPath,
                 outputTemplate = outputTemplate,
                 preferredExtension = options.mergeOutputFormat,
                 expectedDurationSeconds = options.expectedDurationSeconds,
             ) ?: return false
 
+            val recoveredOriginalDownload = options.extractAudio &&
+                !downloadedPrimaryPath.isNullOrBlank() &&
+                downloadedPrimaryPath == recoveredOutputPath &&
+                downloadedPrimaryPath != outputPath
             outputPath = recoveredOutputPath
             if (options.shouldWriteThumbnail) {
                 shouldGenerateThumbnailFallback = true
@@ -273,7 +301,11 @@ class DownloadWorker @AssistedInject constructor(
             }
             appendDebugTrace(
                 taskId,
-                "Recovered media after yt-dlp postprocessing failure; finishing without optional postprocess extras",
+                if (recoveredOriginalDownload) {
+                    "Recovered the original downloaded audio after conversion failed; finishing with the source file instead of the requested extracted format"
+                } else {
+                    "Recovered media after yt-dlp postprocessing failure; finishing without optional postprocess extras"
+                },
             )
             result = CommandResult(
                 exitCode = 0,
@@ -498,6 +530,7 @@ class DownloadWorker @AssistedInject constructor(
                 taskId = taskId,
                 stderr = result.stderr,
                 currentOutputPath = outputPath,
+                downloadedPrimaryPath = downloadedPrimaryPath,
                 outputTemplate = outputTemplate,
                 preferredExtension = options.mergeOutputFormat,
                 expectedDurationSeconds = options.expectedDurationSeconds,
@@ -1137,11 +1170,30 @@ class DownloadWorker @AssistedInject constructor(
         }
     }
 
+    private fun parseDownloadedPrimaryPath(line: String): String? {
+        val downloadDestinationPrefix = "[download] Destination: "
+        if (line.contains(downloadDestinationPrefix)) {
+            return line.substringAfter(downloadDestinationPrefix).trim().removeSurrounding("\"")
+                .also { logger.i("DownloadWorker", "Detected downloaded primary path: $it") }
+        }
+
+        val alreadyDownloadedSuffix = " has already been downloaded"
+        if (line.contains(alreadyDownloadedSuffix, ignoreCase = true)) {
+            val candidate = line.substringBefore(alreadyDownloadedSuffix).substringAfter("[download]").trim()
+            if (candidate.startsWith("/")) {
+                return candidate.removeSurrounding("\"")
+                    .also { logger.i("DownloadWorker", "Detected existing downloaded primary path: $it") }
+            }
+        }
+
+        return null
+    }
+
     private fun parseOutputPath(line: String): String? {
-        val destinationPrefix = "Destination: "
-        if (line.contains(destinationPrefix)) {
-            return line.substringAfter(destinationPrefix).trim().removeSurrounding("\"")
-                .also { logger.i("DownloadWorker", "Detected destination output path: $it") }
+        val extractAudioPrefix = "[ExtractAudio] Destination: "
+        if (line.contains(extractAudioPrefix)) {
+            return line.substringAfter(extractAudioPrefix).trim().removeSurrounding("\"")
+                .also { logger.i("DownloadWorker", "Detected extracted-audio output path: $it") }
         }
 
         val mergePrefix = "Merging formats into \""
@@ -1160,15 +1212,6 @@ class DownloadWorker @AssistedInject constructor(
         if (line.contains(fixupPrefix)) {
             return line.substringAfter(fixupPrefix).substringBeforeLast("\"")
                 .also { logger.i("DownloadWorker", "Detected fixup output path: $it") }
-        }
-
-        val alreadyDownloadedSuffix = " has already been downloaded"
-        if (line.contains(alreadyDownloadedSuffix, ignoreCase = true)) {
-            val candidate = line.substringBefore(alreadyDownloadedSuffix).substringAfter("[download]").trim()
-            if (candidate.startsWith("/")) {
-                return candidate.removeSurrounding("\"")
-                    .also { logger.i("DownloadWorker", "Detected existing download output path: $it") }
-            }
         }
 
         return null
@@ -1280,6 +1323,7 @@ class DownloadWorker @AssistedInject constructor(
         taskId: String,
         stderr: String,
         currentOutputPath: String?,
+        downloadedPrimaryPath: String?,
         outputTemplate: String,
         preferredExtension: String?,
         expectedDurationSeconds: Long?,
@@ -1290,6 +1334,7 @@ class DownloadWorker @AssistedInject constructor(
             taskId = taskId,
             stderr = stderr,
             currentOutputPath = currentOutputPath,
+            downloadedPrimaryPath = downloadedPrimaryPath,
             expectedDurationSeconds = expectedDurationSeconds,
         )?.let { return it }
 
@@ -1352,11 +1397,15 @@ class DownloadWorker @AssistedInject constructor(
         taskId: String,
         stderr: String,
         currentOutputPath: String?,
+        downloadedPrimaryPath: String?,
         expectedDurationSeconds: Long?,
     ): String? {
-        val currentFile = currentOutputPath
-            ?.let(::File)
-            ?.takeIf {
+        val currentFile = listOfNotNull(
+            currentOutputPath,
+            downloadedPrimaryPath?.takeIf { it != currentOutputPath },
+        ).asSequence()
+            .map(::File)
+            .firstOrNull {
                 it.exists() &&
                     isLikelyPrimaryMediaFile(it) &&
                     !isTemporarySplitArtifact(it) &&
