@@ -95,6 +95,7 @@ import com.localdownloader.domain.models.StreamType
 import com.localdownloader.domain.models.VideoQuality
 import com.localdownloader.domain.models.VideoInfo
 import com.localdownloader.domain.models.AnalyzedLinkRecord
+import com.localdownloader.domain.models.choicesForStreamType
 import com.localdownloader.ui.components.InlineFeedbackCard
 import com.localdownloader.ui.model.toReadableSize
 import com.localdownloader.viewmodel.FormatMessageScope
@@ -534,6 +535,9 @@ fun BrowserScreen(
                                 SelectionOptionsCard(
                                     streamType = uiState.selectedStreamType,
                                     onStreamTypeChanged = onStreamTypeChanged,
+                                    hasVideoAudioChoices = uiState.availableVideoAudioChoices.isNotEmpty(),
+                                    hasVideoOnlyChoices = uiState.availableVideoOnlyChoices.isNotEmpty(),
+                                    hasAudioOnlyChoices = uiState.availableAudioOnlyChoices.isNotEmpty(),
                                     choices = choicesForStreamType(
                                         streamType = uiState.selectedStreamType,
                                         videoAudioChoices = uiState.availableVideoAudioChoices,
@@ -640,6 +644,9 @@ fun BrowserScreen(
                                 SelectionOptionsCard(
                                     streamType = uiState.selectedStreamType,
                                     onStreamTypeChanged = onStreamTypeChanged,
+                                    hasVideoAudioChoices = uiState.availableVideoAudioChoices.isNotEmpty(),
+                                    hasVideoOnlyChoices = uiState.availableVideoOnlyChoices.isNotEmpty(),
+                                    hasAudioOnlyChoices = uiState.availableAudioOnlyChoices.isNotEmpty(),
                                     choices = choicesForStreamType(
                                         streamType = uiState.selectedStreamType,
                                         videoAudioChoices = uiState.availableVideoAudioChoices,
@@ -1225,19 +1232,6 @@ private fun buildReadyHistoryChips(item: AnalyzedLinkRecord): List<String> {
     }
 }
 
-private fun choicesForStreamType(
-    streamType: StreamType,
-    videoAudioChoices: List<FormatChoice>,
-    videoOnlyChoices: List<FormatChoice>,
-    audioOnlyChoices: List<FormatChoice>,
-): List<FormatChoice> {
-    return when (streamType) {
-        StreamType.VIDEO_AUDIO -> videoAudioChoices.ifEmpty { videoOnlyChoices }
-        StreamType.VIDEO_ONLY -> videoOnlyChoices
-        StreamType.AUDIO_ONLY -> audioOnlyChoices
-    }
-}
-
 private fun compatibleChoicesForStreamType(
     streamType: StreamType,
     container: String,
@@ -1266,6 +1260,9 @@ private fun compatibleChoicesForStreamType(
 private fun SelectionOptionsCard(
     streamType: StreamType,
     onStreamTypeChanged: (StreamType) -> Unit,
+    hasVideoAudioChoices: Boolean,
+    hasVideoOnlyChoices: Boolean,
+    hasAudioOnlyChoices: Boolean,
     choices: List<FormatChoice>,
     selectedFormatSelector: String?,
     onFormatSelectorChanged: (String) -> Unit,
@@ -1299,9 +1296,15 @@ private fun SelectionOptionsCard(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             StreamType.entries.forEach { item ->
+                val isEnabled = when (item) {
+                    StreamType.VIDEO_AUDIO -> hasVideoAudioChoices
+                    StreamType.VIDEO_ONLY -> hasVideoOnlyChoices
+                    StreamType.AUDIO_ONLY -> hasAudioOnlyChoices
+                }
                 FilterChip(
                     selected = item == streamType,
-                    onClick = { onStreamTypeChanged(item) },
+                    onClick = { if (isEnabled) onStreamTypeChanged(item) },
+                    enabled = isEnabled,
                     label = { Text(localizedStreamTypeLabel(item)) },
                 )
             }
@@ -1611,6 +1614,9 @@ private fun PlaylistItemCard(
                         SelectionOptionsCard(
                             streamType = item.selectedStreamType,
                             onStreamTypeChanged = onStreamTypeChanged,
+                            hasVideoAudioChoices = item.availableVideoAudioChoices.isNotEmpty(),
+                            hasVideoOnlyChoices = item.availableVideoOnlyChoices.isNotEmpty(),
+                            hasAudioOnlyChoices = item.availableAudioOnlyChoices.isNotEmpty(),
                             choices = choicesForStreamType(
                                 streamType = item.selectedStreamType,
                                 videoAudioChoices = item.availableVideoAudioChoices,

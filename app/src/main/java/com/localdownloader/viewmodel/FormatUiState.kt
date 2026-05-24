@@ -13,6 +13,8 @@ import com.localdownloader.domain.models.ThemeMode
 import com.localdownloader.domain.models.VideoInfo
 import com.localdownloader.domain.models.VideoQuality
 import com.localdownloader.domain.models.YoutubeAuthConfig
+import com.localdownloader.domain.models.choicesForStreamType
+import com.localdownloader.domain.models.hasChoicesForStreamType
 
 enum class FormatMessageScope {
     BROWSER,
@@ -37,11 +39,21 @@ data class PlaylistItemUiState(
     val availableAudioOnlyChoices: List<FormatChoice> = emptyList(),
 ) {
     fun choicesFor(streamType: StreamType): List<FormatChoice> {
-        return when (streamType) {
-            StreamType.VIDEO_AUDIO -> availableVideoAudioChoices.ifEmpty { availableVideoOnlyChoices }
-            StreamType.VIDEO_ONLY -> availableVideoOnlyChoices
-            StreamType.AUDIO_ONLY -> availableAudioOnlyChoices
-        }
+        return choicesForStreamType(
+            streamType = streamType,
+            videoAudioChoices = availableVideoAudioChoices,
+            videoOnlyChoices = availableVideoOnlyChoices,
+            audioOnlyChoices = availableAudioOnlyChoices,
+        )
+    }
+
+    fun hasChoicesFor(streamType: StreamType): Boolean {
+        return hasChoicesForStreamType(
+            streamType = streamType,
+            videoAudioChoices = availableVideoAudioChoices,
+            videoOnlyChoices = availableVideoOnlyChoices,
+            audioOnlyChoices = availableAudioOnlyChoices,
+        )
     }
 
     val hasCustomChoices: Boolean
