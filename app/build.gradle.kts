@@ -72,6 +72,19 @@ android {
         }
     }
 
+    flavorDimensions += "distribution"
+
+    productFlavors {
+        create("standard") {
+            dimension = "distribution"
+            buildConfigField("boolean", "YTDLP_AUTO_UPDATE_DEFAULT", "true")
+        }
+        create("repoSafe") {
+            dimension = "distribution"
+            buildConfigField("boolean", "YTDLP_AUTO_UPDATE_DEFAULT", "false")
+        }
+    }
+
     signingConfigs {
         create("internalDebugStable") {
             if (hasInternalDebugSigning) {

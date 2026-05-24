@@ -93,14 +93,20 @@ jobs:
       - name: Rename nightly debug APK
         run: |
           VERSION="${{ steps.version.outputs.version_name }}"
-          mv app/build/outputs/apk/debug/app-debug.apk \
-             app/build/outputs/apk/debug/video-downloader-v${VERSION}-nightly-debug.apk
+          APK_DIR="app/build/outputs/apk/standard/debug"
+          APK_SOURCE=$(find "$APK_DIR" -maxdepth 1 -name 'app-standard-debug*.apk' | head -n 1)
+          if [ -z "$APK_SOURCE" ]; then
+            echo "::error::Could not find the standard debug APK in $APK_DIR"
+            find "$APK_DIR" -maxdepth 1 -type f || true
+            exit 1
+          fi
+          mv "$APK_SOURCE" "$APK_DIR/video-downloader-v${VERSION}-nightly-debug.apk"
 
       - name: Upload nightly debug APK artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: video-downloader-v${{ steps.version.outputs.version_name }}-nightly-debug
-          path: app/build/outputs/apk/debug/video-downloader-*.apk
+          path: app/build/outputs/apk/standard/debug/video-downloader-*.apk
 
   release-nightly:
     if: github.event_name == 'workflow_dispatch' && inputs.publish_nightly_release == true
@@ -197,10 +203,14 @@ jobs:
         if: steps.release_tag.outputs.should_release == 'true'
         run: |
           VERSION="${{ steps.release_tag.outputs.version_name }}"
-          mv app/build/outputs/apk/release/app-release-unsigned.apk \
-             app/build/outputs/apk/release/video-downloader-v${VERSION}.apk 2>/dev/null || \
-          mv app/build/outputs/apk/release/app-release.apk \
-             app/build/outputs/apk/release/video-downloader-v${VERSION}.apk 2>/dev/null || true
+          APK_DIR="app/build/outputs/apk/standard/release"
+          APK_SOURCE=$(find "$APK_DIR" -maxdepth 1 -name 'app-standard-release*.apk' | head -n 1)
+          if [ -z "$APK_SOURCE" ]; then
+            echo "::error::Could not find the standard release APK in $APK_DIR"
+            find "$APK_DIR" -maxdepth 1 -type f || true
+            exit 1
+          fi
+          mv "$APK_SOURCE" "$APK_DIR/video-downloader-v${VERSION}.apk"
 
       - name: Create GitHub release
         if: steps.release_tag.outputs.should_release == 'true'
@@ -210,7 +220,7 @@ jobs:
           target_commitish: ${{ github.sha }}
           name: "Video Downloader v${{ steps.release_tag.outputs.version_name }}"
           generate_release_notes: true
-          files: app/build/outputs/apk/release/video-downloader-*.apk
+          files: app/build/outputs/apk/standard/release/video-downloader-*.apk
 
   release-tag:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -268,14 +278,18 @@ jobs:
       - name: Rename release APK
         run: |
           VERSION="${{ steps.version.outputs.version_name }}"
-          mv app/build/outputs/apk/release/app-release-unsigned.apk \
-             app/build/outputs/apk/release/video-downloader-v${VERSION}.apk 2>/dev/null || \
-          mv app/build/outputs/apk/release/app-release.apk \
-             app/build/outputs/apk/release/video-downloader-v${VERSION}.apk 2>/dev/null || true
+          APK_DIR="app/build/outputs/apk/standard/release"
+          APK_SOURCE=$(find "$APK_DIR" -maxdepth 1 -name 'app-standard-release*.apk' | head -n 1)
+          if [ -z "$APK_SOURCE" ]; then
+            echo "::error::Could not find the standard release APK in $APK_DIR"
+            find "$APK_DIR" -maxdepth 1 -type f || true
+            exit 1
+          fi
+          mv "$APK_SOURCE" "$APK_DIR/video-downloader-v${VERSION}.apk"
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
         with:
           name: "Video Downloader v${{ steps.version.outputs.version_name }}"
           generate_release_notes: true
-          files: app/build/outputs/apk/release/video-downloader-*.apk
+          files: app/build/outputs/apk/standard/release/video-downloader-*.apk
