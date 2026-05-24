@@ -115,7 +115,10 @@ class PlayerViewModel @Inject constructor(
             logger.e("PlayerViewModel", "Playback error", error)
             _uiState.update { state ->
                 state.copy(
-                    errorMessage = error.message ?: "Unable to play this media file.",
+                    errorMessage = friendlyPlaybackErrorMessage(
+                        rawMessage = error.message,
+                        playablePath = currentPlayablePath,
+                    ),
                     isBuffering = false,
                 )
             }

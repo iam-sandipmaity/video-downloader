@@ -28,6 +28,7 @@ import com.localdownloader.domain.models.YoutubeAuthConfig
 import com.localdownloader.domain.models.audioFormatSupportsBitrateControl
 import com.localdownloader.domain.models.choicesForStreamType
 import com.localdownloader.domain.models.effectiveOutputStreamType
+import com.localdownloader.domain.models.preferredDefaultChoiceForStreamType
 import com.localdownloader.domain.models.resolveAvailableStreamType
 import com.localdownloader.domain.models.resolveAvailableOutputTransform
 import com.localdownloader.domain.models.shouldTreatAsAudioOnlyChoice
@@ -415,7 +416,11 @@ class FormatViewModel @Inject constructor(
                 selectedOutputTransform = outputTransform,
                 selectedFormatSelector = state.selectedFormatSelector
                     ?.takeIf { selector -> compatibleChoices.any { it.selector == selector } }
-                    ?: compatibleChoices.firstOrNull()?.selector,
+                    ?: preferredDefaultChoiceForStreamType(
+                        streamType = state.selectedStreamType,
+                        requestedContainer = normalizedContainer,
+                        choices = compatibleChoices,
+                    )?.selector,
                 isDownloadButtonDisabled = if (shouldReenable) false else state.isDownloadButtonDisabled,
                 downloadButtonDisabledAt = if (shouldReenable) 0L else state.downloadButtonDisabledAt,
             )
@@ -615,7 +620,11 @@ class FormatViewModel @Inject constructor(
                 ),
                 selectedFormatSelector = item.selectedFormatSelector
                     ?.takeIf { selector -> compatibleChoices.any { it.selector == selector } }
-                    ?: compatibleChoices.firstOrNull()?.selector,
+                    ?: preferredDefaultChoiceForStreamType(
+                        streamType = item.selectedStreamType,
+                        requestedContainer = normalizedContainer,
+                        choices = compatibleChoices,
+                    )?.selector,
             )
         }
     }
@@ -1460,6 +1469,7 @@ class FormatViewModel @Inject constructor(
                 streamType = resolvedSourceStreamType,
                 selectedSelector = selectedSelector,
                 choiceBundle = choiceBundle,
+                container = container,
             )
             val formatSelector = when {
                 selectedChoice != null -> selectedChoice.selector
@@ -1908,15 +1918,21 @@ class FormatViewModel @Inject constructor(
         streamType: StreamType,
         selectedSelector: String?,
         choiceBundle: ChoiceBundle,
+        container: String?,
     ): FormatChoice? {
         val explicitChoice = findChoice(streamType, choiceBundle, selectedSelector)
         if (explicitChoice != null) return explicitChoice
 
-        return when (streamType) {
-            StreamType.VIDEO_AUDIO -> choiceBundle.videoAudioChoices.firstOrNull()
-            StreamType.VIDEO_ONLY -> choiceBundle.videoOnlyChoices.firstOrNull()
-            StreamType.AUDIO_ONLY -> choiceBundle.audioOnlyChoices.firstOrNull()
+        val choices = when (streamType) {
+            StreamType.VIDEO_AUDIO -> choiceBundle.videoAudioChoices
+            StreamType.VIDEO_ONLY -> choiceBundle.videoOnlyChoices
+            StreamType.AUDIO_ONLY -> choiceBundle.audioOnlyChoices
         }
+        return preferredDefaultChoiceForStreamType(
+            streamType = streamType,
+            requestedContainer = container,
+            choices = choices,
+        )
     }
 
     private fun firstSelectorForStreamType(
@@ -1926,13 +1942,18 @@ class FormatViewModel @Inject constructor(
         videoOnlyChoices: List<FormatChoice>,
         audioOnlyChoices: List<FormatChoice>,
     ): String? {
-        return compatibleChoicesForStreamType(
+        val compatibleChoices = compatibleChoicesForStreamType(
             streamType = streamType,
             container = container,
             videoAudioChoices = videoAudioChoices,
             videoOnlyChoices = videoOnlyChoices,
             audioOnlyChoices = audioOnlyChoices,
-        ).firstOrNull()?.selector
+        )
+        return preferredDefaultChoiceForStreamType(
+            streamType = streamType,
+            requestedContainer = container,
+            choices = compatibleChoices,
+        )?.selector
             ?: when (streamType) {
                 StreamType.VIDEO_AUDIO -> videoAudioChoices.firstOrNull()?.selector
                 StreamType.VIDEO_ONLY -> videoOnlyChoices.firstOrNull()?.selector
