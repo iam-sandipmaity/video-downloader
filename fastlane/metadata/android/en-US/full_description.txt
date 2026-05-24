@@ -1,0 +1,15 @@
+Video Downloader is a local-first Android app for downloading and managing media directly on your device.
+
+It uses yt-dlp for extraction and FFmpeg for post-processing, with no required backend, no cloud conversion service, and no forced account system.
+
+Core features:
+- single video, audio-only, and playlist downloads
+- per-item format, naming, and container choices
+- queue controls with pause, resume, retry, and diagnostics
+- local downloads library with built-in audio and video playback
+- cookies and YouTube access helpers for tougher sites
+- on-device conversion and compression tools
+
+The app is built for real-world recovery instead of one-tap magic. You can inspect history, retry failed tasks, manage saved files, and handle post-processing without leaving the app.
+
+Everything runs on-device, so link handling, downloads, merging, and follow-up media processing stay local to your Android device.

@@ -1,0 +1,1 @@
+Added clearer output transforms for muxed-only sources, kept format tabs aligned with the real streams reported by yt-dlp, and fixed the release build by bundling the missing XZ runtime needed by the commons-compress path.
