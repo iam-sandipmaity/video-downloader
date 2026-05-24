@@ -530,6 +530,7 @@ class DownloadWorker @AssistedInject constructor(
                 taskId = taskId,
                 stderr = result.stderr,
                 currentOutputPath = outputPath,
+                downloadedPrimaryPath = downloadedPrimaryPath,
                 outputTemplate = outputTemplate,
                 preferredExtension = options.mergeOutputFormat,
                 expectedDurationSeconds = options.expectedDurationSeconds,
