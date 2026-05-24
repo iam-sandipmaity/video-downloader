@@ -17,6 +17,7 @@ import com.localdownloader.domain.models.CookieProfile
 import com.localdownloader.domain.models.DownloadOptions
 import com.localdownloader.domain.models.FormatChoice
 import com.localdownloader.domain.models.MediaFormat
+import com.localdownloader.domain.models.OutputTransform
 import com.localdownloader.domain.models.PlaylistDownloadRequest
 import com.localdownloader.domain.models.SYSTEM_LANGUAGE_TAG
 import com.localdownloader.domain.models.StreamType
@@ -25,7 +26,9 @@ import com.localdownloader.domain.models.VideoInfo
 import com.localdownloader.domain.models.VideoQuality
 import com.localdownloader.domain.models.YoutubeAuthConfig
 import com.localdownloader.domain.models.choicesForStreamType
+import com.localdownloader.domain.models.effectiveOutputStreamType
 import com.localdownloader.domain.models.resolveAvailableStreamType
+import com.localdownloader.domain.models.resolveAvailableOutputTransform
 import com.localdownloader.domain.models.shouldTreatAsAudioOnlyChoice
 import com.localdownloader.domain.repositories.DownloaderRepository
 import com.localdownloader.utils.CookieTextCodec
@@ -234,6 +237,13 @@ class FormatViewModel @Inject constructor(
                         videoOnlyChoices = choiceBundle.videoOnlyChoices,
                         audioOnlyChoices = choiceBundle.audioOnlyChoices,
                     )
+                    val resolvedOutputTransform = resolveAvailableOutputTransform(
+                        preferredTransform = OutputTransform.NONE,
+                        sourceStreamType = resolvedStreamType,
+                        videoAudioChoices = choiceBundle.videoAudioChoices,
+                        videoOnlyChoices = choiceBundle.videoOnlyChoices,
+                        audioOnlyChoices = choiceBundle.audioOnlyChoices,
+                    )
                     val selectedSelector = firstSelectorForStreamType(
                         streamType = resolvedStreamType,
                         container = uiState.value.selectedContainer,
@@ -258,6 +268,7 @@ class FormatViewModel @Inject constructor(
                             availableAudioOnlyChoices = choiceBundle.audioOnlyChoices,
                             playlistItems = playlistItems,
                             selectedStreamType = resolvedStreamType,
+                            selectedOutputTransform = resolvedOutputTransform,
                             selectedFormatSelector = selectedSelector,
                             customFileName = info.title,
                             enablePlaylist = state.enablePlaylist || info.isPlaylist,
@@ -321,6 +332,7 @@ class FormatViewModel @Inject constructor(
              currentState.lastQueuedContainer != currentState.selectedContainer ||
              currentState.lastQueuedAudioFormat != currentState.selectedAudioFormat ||
              currentState.lastQueuedAudioBitrate != currentState.audioBitrateKbps ||
+             currentState.lastQueuedOutputTransform != currentState.selectedOutputTransform ||
              currentState.lastQueuedQuality != currentState.selectedQuality)
         
         _uiState.update { state ->
@@ -337,11 +349,39 @@ class FormatViewModel @Inject constructor(
                 videoOnlyChoices = state.availableVideoOnlyChoices,
                 audioOnlyChoices = state.availableAudioOnlyChoices,
             )
+            val outputTransform = resolveAvailableOutputTransform(
+                preferredTransform = state.selectedOutputTransform,
+                sourceStreamType = resolvedStreamType,
+                videoAudioChoices = state.availableVideoAudioChoices,
+                videoOnlyChoices = state.availableVideoOnlyChoices,
+                audioOnlyChoices = state.availableAudioOnlyChoices,
+            )
             state.copy(
                 selectedStreamType = resolvedStreamType, 
+                selectedOutputTransform = outputTransform,
                 selectedFormatSelector = selector,
                 isDownloadButtonDisabled = if (shouldReenable) false else state.isDownloadButtonDisabled,
                 downloadButtonDisabledAt = if (shouldReenable) 0L else state.downloadButtonDisabledAt
+            )
+        }
+    }
+
+    fun onOutputTransformChanged(outputTransform: OutputTransform) {
+        val currentState = uiState.value
+        val resolvedTransform = resolveAvailableOutputTransform(
+            preferredTransform = outputTransform,
+            sourceStreamType = currentState.selectedStreamType,
+            videoAudioChoices = currentState.availableVideoAudioChoices,
+            videoOnlyChoices = currentState.availableVideoOnlyChoices,
+            audioOnlyChoices = currentState.availableAudioOnlyChoices,
+        )
+        val shouldReenable = currentState.isDownloadButtonDisabled &&
+            currentState.lastQueuedOutputTransform != resolvedTransform
+        _uiState.update { state ->
+            state.copy(
+                selectedOutputTransform = resolvedTransform,
+                isDownloadButtonDisabled = if (shouldReenable) false else state.isDownloadButtonDisabled,
+                downloadButtonDisabledAt = if (shouldReenable) 0L else state.downloadButtonDisabledAt,
             )
         }
     }
@@ -362,8 +402,16 @@ class FormatViewModel @Inject constructor(
                 videoOnlyChoices = state.availableVideoOnlyChoices,
                 audioOnlyChoices = state.availableAudioOnlyChoices,
             )
+            val outputTransform = resolveAvailableOutputTransform(
+                preferredTransform = state.selectedOutputTransform,
+                sourceStreamType = state.selectedStreamType,
+                videoAudioChoices = state.availableVideoAudioChoices,
+                videoOnlyChoices = state.availableVideoOnlyChoices,
+                audioOnlyChoices = state.availableAudioOnlyChoices,
+            )
             state.copy(
                 selectedContainer = normalizedContainer,
+                selectedOutputTransform = outputTransform,
                 selectedFormatSelector = state.selectedFormatSelector
                     ?.takeIf { selector -> compatibleChoices.any { it.selector == selector } }
                     ?: compatibleChoices.firstOrNull()?.selector,
@@ -502,9 +550,31 @@ class FormatViewModel @Inject constructor(
             item.copy(
                 useGlobalSettings = false,
                 selectedStreamType = resolvedStreamType,
+                selectedOutputTransform = resolveAvailableOutputTransform(
+                    preferredTransform = item.selectedOutputTransform,
+                    sourceStreamType = resolvedStreamType,
+                    videoAudioChoices = item.availableVideoAudioChoices,
+                    videoOnlyChoices = item.availableVideoOnlyChoices,
+                    audioOnlyChoices = item.availableAudioOnlyChoices,
+                ),
                 selectedFormatSelector = firstSelectorForStreamType(
                     streamType = resolvedStreamType,
                     container = item.selectedContainer,
+                    videoAudioChoices = item.availableVideoAudioChoices,
+                    videoOnlyChoices = item.availableVideoOnlyChoices,
+                    audioOnlyChoices = item.availableAudioOnlyChoices,
+                ),
+            )
+        }
+    }
+
+    fun onPlaylistItemOutputTransformChanged(index: Int, outputTransform: OutputTransform) {
+        updatePlaylistItem(index) { item ->
+            item.copy(
+                useGlobalSettings = false,
+                selectedOutputTransform = resolveAvailableOutputTransform(
+                    preferredTransform = outputTransform,
+                    sourceStreamType = item.selectedStreamType,
                     videoAudioChoices = item.availableVideoAudioChoices,
                     videoOnlyChoices = item.availableVideoOnlyChoices,
                     audioOnlyChoices = item.availableAudioOnlyChoices,
@@ -535,6 +605,13 @@ class FormatViewModel @Inject constructor(
             item.copy(
                 useGlobalSettings = false,
                 selectedContainer = normalizedContainer,
+                selectedOutputTransform = resolveAvailableOutputTransform(
+                    preferredTransform = item.selectedOutputTransform,
+                    sourceStreamType = item.selectedStreamType,
+                    videoAudioChoices = item.availableVideoAudioChoices,
+                    videoOnlyChoices = item.availableVideoOnlyChoices,
+                    audioOnlyChoices = item.availableAudioOnlyChoices,
+                ),
                 selectedFormatSelector = item.selectedFormatSelector
                     ?.takeIf { selector -> compatibleChoices.any { it.selector == selector } }
                     ?: compatibleChoices.firstOrNull()?.selector,
@@ -1352,6 +1429,7 @@ class FormatViewModel @Inject constructor(
             sourceThumbnailUrl: String?,
             sourceDurationSeconds: Long?,
             streamType: StreamType,
+            outputTransform: OutputTransform,
             selectedSelector: String?,
             container: String,
             audioFormat: String,
@@ -1360,14 +1438,25 @@ class FormatViewModel @Inject constructor(
             choiceBundle: ChoiceBundle,
             targetCategory: FileUtils.MediaFolderCategory,
         ): BuiltSelectionOptions {
-            val resolvedStreamType = resolveAvailableStreamType(
+            val resolvedSourceStreamType = resolveAvailableStreamType(
                 preferredStreamType = streamType,
                 videoAudioChoices = choiceBundle.videoAudioChoices,
                 videoOnlyChoices = choiceBundle.videoOnlyChoices,
                 audioOnlyChoices = choiceBundle.audioOnlyChoices,
             )
+            val resolvedOutputTransform = resolveAvailableOutputTransform(
+                preferredTransform = outputTransform,
+                sourceStreamType = resolvedSourceStreamType,
+                videoAudioChoices = choiceBundle.videoAudioChoices,
+                videoOnlyChoices = choiceBundle.videoOnlyChoices,
+                audioOnlyChoices = choiceBundle.audioOnlyChoices,
+            )
+            val resolvedOutputStreamType = effectiveOutputStreamType(
+                sourceStreamType = resolvedSourceStreamType,
+                outputTransform = resolvedOutputTransform,
+            )
             val selectedChoice = resolveSelectedChoice(
-                streamType = resolvedStreamType,
+                streamType = resolvedSourceStreamType,
                 selectedSelector = selectedSelector,
                 choiceBundle = choiceBundle,
             )
@@ -1375,7 +1464,7 @@ class FormatViewModel @Inject constructor(
                 selectedChoice != null -> selectedChoice.selector
                 isYoutubeUrl(sourceUrl) -> {
                     val boundedHeight = state.selectedQuality.maxHeight?.let { "[height<=$it]" }.orEmpty()
-                    when (resolvedStreamType) {
+                    when (resolvedSourceStreamType) {
                         StreamType.AUDIO_ONLY -> "bestaudio/best"
                         StreamType.VIDEO_ONLY -> "bestvideo$boundedHeight/bestvideo"
                         StreamType.VIDEO_AUDIO -> "bestvideo$boundedHeight+bestaudio/best$boundedHeight/best"
@@ -1383,19 +1472,19 @@ class FormatViewModel @Inject constructor(
                 }
                 else -> buildFormatSelector(
                     quality = state.selectedQuality,
-                    streamType = resolvedStreamType,
+                    streamType = resolvedSourceStreamType,
                     container = container,
                 )
             }
             val youtubeRouting = resolveYoutubeFormatRouting(
                 sourceUrl = sourceUrl,
-                streamType = resolvedStreamType,
+                streamType = resolvedSourceStreamType,
                 selectedChoice = selectedChoice,
                 requestedContainer = container,
                 fallbackSelector = formatSelector,
                 hasMergedVideoAudioChoice = choiceBundle.videoAudioChoices.any { it.isMerged },
             )
-            val isAudioOnly = resolvedStreamType == StreamType.AUDIO_ONLY
+            val isAudioOnly = resolvedOutputStreamType == StreamType.AUDIO_ONLY
             val shouldBypassMediaPostProcessing = !info.isPlaylist && selectedChoice?.isImageLike == true
             val runtimeCookiesPath = resolveRuntimeCookiesPathForUrl(sourceUrl)
             val normalizedRequestedContainer = container.trim().lowercase().ifBlank { null }
@@ -1404,7 +1493,7 @@ class FormatViewModel @Inject constructor(
                 ?.lowercase()
                 ?.ifBlank { null }
             val mergeContainer = when {
-                isAudioOnly -> null
+                isAudioOnly || resolvedOutputTransform == OutputTransform.REMOVE_AUDIO -> null
                 isAutomaticContainerSelection(normalizedRequestedContainer) -> selectedChoiceContainer
                 selectedChoice == null -> normalizedRequestedContainer
                 selectedChoice.streamType == StreamType.VIDEO_AUDIO && selectedChoice.selector.contains("+") ->
@@ -1416,7 +1505,7 @@ class FormatViewModel @Inject constructor(
                 requestedContainer = mergeContainer,
                 selectedChoice = selectedChoice,
             )
-            val activeOutputTemplate = if (isAudioOnly) {
+            val activeOutputTemplate = if (resolvedOutputStreamType == StreamType.AUDIO_ONLY) {
                 state.audioOutputTemplate
             } else {
                 state.outputTemplate
@@ -1455,14 +1544,15 @@ class FormatViewModel @Inject constructor(
                     mergeOutputFormat = mergeCompatibility.resolvedContainer,
                     preferredVideoHeight = selectedChoice?.height ?: state.selectedQuality.maxHeight,
                     expectedDurationSeconds = sourceDurationSeconds,
-                    downloadVideoOnly = resolvedStreamType == StreamType.VIDEO_ONLY,
+                    downloadVideoOnly = resolvedSourceStreamType == StreamType.VIDEO_ONLY,
                     isPlaylistEnabled = info.isPlaylist || state.enablePlaylist,
-                    shouldDownloadSubtitles = state.downloadSubtitles || state.embedSubtitles,
+                    shouldDownloadSubtitles = !isAudioOnly && (state.downloadSubtitles || state.embedSubtitles),
                     shouldEmbedSubtitles = state.embedSubtitles && !isAudioOnly && !shouldBypassMediaPostProcessing,
                     shouldEmbedMetadata = state.embedMetadata && !shouldBypassMediaPostProcessing,
                     shouldEmbedThumbnail = state.embedThumbnail && !shouldBypassMediaPostProcessing,
                     shouldWriteThumbnail = state.writeThumbnail,
                     extractAudio = isAudioOnly,
+                    removeAudioFromVideo = resolvedOutputTransform == OutputTransform.REMOVE_AUDIO,
                     audioFormat = if (isAudioOnly) audioFormat.ifBlank { null } else null,
                     audioBitrateKbps = if (isAudioOnly) audioBitrateKbps else null,
                 ),
@@ -1492,6 +1582,7 @@ class FormatViewModel @Inject constructor(
                         sourceThumbnailUrl = item.entry.thumbnailUrl ?: info.thumbnailUrl,
                         sourceDurationSeconds = item.entry.durationSeconds ?: info.durationSeconds,
                         streamType = itemStreamType,
+                        outputTransform = if (item.useGlobalSettings) state.selectedOutputTransform else item.selectedOutputTransform,
                         selectedSelector = itemSelector,
                         container = itemContainer,
                         audioFormat = itemAudioFormat,
@@ -1548,6 +1639,7 @@ class FormatViewModel @Inject constructor(
                             lastQueuedContainer = current.selectedContainer,
                             lastQueuedAudioFormat = current.selectedAudioFormat,
                             lastQueuedAudioBitrate = current.audioBitrateKbps,
+                            lastQueuedOutputTransform = current.selectedOutputTransform,
                             lastQueuedQuality = current.selectedQuality,
                             isDownloadButtonDisabled = true,
                             downloadButtonDisabledAt = System.currentTimeMillis(),
@@ -1573,6 +1665,7 @@ class FormatViewModel @Inject constructor(
             sourceThumbnailUrl = info.thumbnailUrl,
             sourceDurationSeconds = info.durationSeconds,
             streamType = state.selectedStreamType,
+            outputTransform = state.selectedOutputTransform,
             selectedSelector = state.selectedFormatSelector,
             container = state.selectedContainer,
             audioFormat = state.selectedAudioFormat,
@@ -1583,11 +1676,9 @@ class FormatViewModel @Inject constructor(
                 videoOnlyChoices = state.availableVideoOnlyChoices,
                 audioOnlyChoices = state.availableAudioOnlyChoices,
             ),
-            targetCategory = when {
-                state.selectedStreamType == StreamType.AUDIO_ONLY -> FileUtils.MediaFolderCategory.AUDIO
-                state.selectedStreamType == StreamType.VIDEO_ONLY || state.selectedStreamType == StreamType.VIDEO_AUDIO ->
-                    FileUtils.MediaFolderCategory.VIDEO
-                else -> FileUtils.MediaFolderCategory.OTHER
+            targetCategory = when (effectiveOutputStreamType(state.selectedStreamType, state.selectedOutputTransform)) {
+                StreamType.AUDIO_ONLY -> FileUtils.MediaFolderCategory.AUDIO
+                StreamType.VIDEO_ONLY, StreamType.VIDEO_AUDIO -> FileUtils.MediaFolderCategory.VIDEO
             },
         )
         val options = builtSelection.options
@@ -1629,6 +1720,7 @@ class FormatViewModel @Inject constructor(
                         lastQueuedContainer = current.selectedContainer,
                         lastQueuedAudioFormat = current.selectedAudioFormat,
                         lastQueuedAudioBitrate = current.audioBitrateKbps,
+                        lastQueuedOutputTransform = current.selectedOutputTransform,
                         lastQueuedQuality = current.selectedQuality,
                         isDownloadButtonDisabled = true,
                         downloadButtonDisabledAt = System.currentTimeMillis(),
@@ -1748,12 +1840,25 @@ class FormatViewModel @Inject constructor(
         item: PlaylistItemUiState,
         state: FormatUiState,
     ): PlaylistItemUiState {
+        val resolvedStreamType = resolveAvailableStreamType(
+            preferredStreamType = state.selectedStreamType,
+            videoAudioChoices = item.availableVideoAudioChoices,
+            videoOnlyChoices = item.availableVideoOnlyChoices,
+            audioOnlyChoices = item.availableAudioOnlyChoices,
+        )
         return item.copy(
             useGlobalSettings = false,
             isExpanded = true,
-            selectedStreamType = state.selectedStreamType,
+            selectedStreamType = resolvedStreamType,
+            selectedOutputTransform = resolveAvailableOutputTransform(
+                preferredTransform = state.selectedOutputTransform,
+                sourceStreamType = resolvedStreamType,
+                videoAudioChoices = item.availableVideoAudioChoices,
+                videoOnlyChoices = item.availableVideoOnlyChoices,
+                audioOnlyChoices = item.availableAudioOnlyChoices,
+            ),
             selectedFormatSelector = firstSelectorForStreamType(
-                streamType = state.selectedStreamType,
+                streamType = resolvedStreamType,
                 container = state.selectedContainer,
                 videoAudioChoices = item.availableVideoAudioChoices,
                 videoOnlyChoices = item.availableVideoOnlyChoices,
@@ -1886,10 +1991,18 @@ class FormatViewModel @Inject constructor(
                 videoOnlyChoices = itemChoiceBundle.videoOnlyChoices,
                 audioOnlyChoices = itemChoiceBundle.audioOnlyChoices,
             )
+            val resolvedOutputTransform = resolveAvailableOutputTransform(
+                preferredTransform = OutputTransform.NONE,
+                sourceStreamType = resolvedStreamType,
+                videoAudioChoices = itemChoiceBundle.videoAudioChoices,
+                videoOnlyChoices = itemChoiceBundle.videoOnlyChoices,
+                audioOnlyChoices = itemChoiceBundle.audioOnlyChoices,
+            )
             PlaylistItemUiState(
                 entry = entry,
                 customFileName = entry.title,
                 selectedStreamType = resolvedStreamType,
+                selectedOutputTransform = resolvedOutputTransform,
                 selectedFormatSelector = firstSelectorForStreamType(
                     streamType = resolvedStreamType,
                     container = container,

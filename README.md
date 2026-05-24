@@ -237,6 +237,7 @@ app/build/outputs/apk/debug/app-debug.apk
 - [CHANGELOG.md](CHANGELOG.md)
 - [COMPATIBILITY.md](COMPATIBILITY.md)
 - [PRIVACY.md](PRIVACY.md)
+- [KEYSTORE_SETUP.md](KEYSTORE_SETUP.md)
 - [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)
 - [SECURITY.md](SECURITY.md)
 - [CONTRIBUTING.md](CONTRIBUTING.md)
@@ -263,11 +264,7 @@ The in-app About section also lists upstream credits and linked sources.
 ## Star History
 
 <a href="https://www.star-history.com/?repos=iam-sandipmaity%2Fvideo-downloader&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=iam-sandipmaity/video-downloader&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=iam-sandipmaity/video-downloader&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=iam-sandipmaity/video-downloader&type=date&legend=top-left" />
- </picture>
+ <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=iam-sandipmaity/video-downloader&type=date&legend=top-left" />
 </a>
 
 ## Contributors
