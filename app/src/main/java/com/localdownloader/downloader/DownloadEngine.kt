@@ -68,8 +68,8 @@ class DownloadEngine @Inject constructor(
             args += listOf("--playlist-items", index.toString())
         }
 
-        options.mergeOutputFormat?.let {
-            args += listOf("--merge-output-format", it)
+        if (shouldPassMergeOutputFormat(options)) {
+            args += listOf("--merge-output-format", requireNotNull(options.mergeOutputFormat))
         }
 
         if ((options.shouldDownloadSubtitles || options.shouldEmbedSubtitles) && !options.extractAudio) {
@@ -268,4 +268,8 @@ class DownloadEngine @Inject constructor(
     }
 
     // Keep URL helpers local to FormatExtractor; download should honor analysis selection.
+}
+
+internal fun shouldPassMergeOutputFormat(options: DownloadOptions): Boolean {
+    return !options.extractAudio && !options.mergeOutputFormat.isNullOrBlank()
 }
