@@ -8,6 +8,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 - No unreleased changes yet.
 
+## [1.7.2.3] - 2026-05-24
+
+### Added
+- **Library search** - Downloads and History now include inline search so saved media and past tasks are easier to filter by title, source, file name, saved path, and related diagnostics
+
+### Changed
+- **Recovery guidance classification** - failed queue items now classify likely problems into clearer buckets such as access restrictions, session issues, network or rate-limit trouble, FFmpeg post-processing failures, runtime or device problems, and extractor or format compatibility issues
+
+### Fixed
+- **Targeted failure help** - recovery panels now surface more useful next steps and actions for common failure patterns instead of falling back to one generic troubleshooting block
+
+### Technical
+- **App version bump** - release metadata updated to `1.7.2.3`
+
 ## [1.7.2.2] - 2026-05-24
 
 ### Added
