@@ -956,30 +956,11 @@ private fun BoxScope.PlayerChrome(
                 }
             }
 
-            Surface(
+            CenterPlaybackButton(
                 modifier = Modifier.align(Alignment.Center),
-                color = Color.Black.copy(alpha = 0.34f),
-                shape = CircleShape,
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.16f)),
-                shadowElevation = 12.dp,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(84.dp)
-                        .clip(CircleShape)
-                        .clickable(onClick = onPlayPause),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = if (uiState.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                        contentDescription = if (uiState.isPlaying) "Pause" else "Play",
-                        modifier = Modifier
-                            .offset(x = if (uiState.isPlaying) 0.dp else 2.dp)
-                            .size(if (uiState.isPlaying) 32.dp else 38.dp),
-                        tint = Color.White,
-                    )
-                }
-            }
+                isPlaying = uiState.isPlaying,
+                onPlayPause = onPlayPause,
+            )
 
             Surface(
                 modifier = Modifier
@@ -1036,6 +1017,49 @@ private fun BoxScope.PlayerChrome(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CenterPlaybackButton(
+    modifier: Modifier = Modifier,
+    isPlaying: Boolean,
+    onPlayPause: () -> Unit,
+) {
+    Box(
+        modifier = modifier.size(100.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Surface(
+            modifier = Modifier.size(100.dp),
+            color = Color.Black.copy(alpha = 0.16f),
+            shape = CircleShape,
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.06f)),
+        ) {}
+
+        Surface(
+            modifier = Modifier.size(78.dp),
+            color = Color.Black.copy(alpha = 0.42f),
+            shape = CircleShape,
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(CircleShape)
+                    .clickable(onClick = onPlayPause),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                    contentDescription = if (isPlaying) "Pause" else "Play",
+                    modifier = Modifier
+                        .offset(x = if (isPlaying) 0.dp else 1.dp)
+                        .size(if (isPlaying) 30.dp else 36.dp),
+                    tint = Color.White,
+                )
             }
         }
     }

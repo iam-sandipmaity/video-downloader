@@ -3,6 +3,7 @@ package com.localdownloader.viewmodel
 import android.content.Context
 import android.media.audiofx.LoudnessEnhancer
 import android.net.Uri
+import androidx.media3.common.AudioAttributes
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -17,7 +18,7 @@ import androidx.media3.common.Tracks
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
-import com.localdownloader.audio.AudioPlaybackManager
+import com.localdownloader.audio.PlaybackConflictManager
 import com.localdownloader.data.PlaybackSession
 import com.localdownloader.data.PlaybackSessionStore
 import com.localdownloader.domain.models.DownloadTask
@@ -41,7 +42,7 @@ class PlayerViewModel @Inject constructor(
     private val playbackSessionStore: PlaybackSessionStore,
     private val savedStateHandle: SavedStateHandle,
     private val logger: Logger,
-    private val audioPlaybackManager: AudioPlaybackManager,
+    private val playbackConflictManager: PlaybackConflictManager,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(PlayerUiState())
     val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
@@ -58,6 +59,16 @@ class PlayerViewModel @Inject constructor(
                 .build(),
         )
         .build()
+        .apply {
+            setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(C.USAGE_MEDIA)
+                    .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+                    .build(),
+                true,
+            )
+            setHandleAudioBecomingNoisy(true)
+        }
 
     private var currentSessionKey: String? = savedStateHandle[STATE_SESSION_KEY]
     private var currentPlayablePath: String? = savedStateHandle[STATE_PLAYABLE_PATH]
@@ -120,6 +131,7 @@ class PlayerViewModel @Inject constructor(
     }
 
     init {
+        playbackConflictManager.registerVideoPauseHandler(this, ::pausePlaybackForConflict)
         player.addListener(playerListener)
         player.setPlaybackSpeed(currentPlaybackSpeed)
         _uiState.value = _uiState.value.copy(
@@ -177,7 +189,7 @@ class PlayerViewModel @Inject constructor(
             return
         }
 
-        audioPlaybackManager.pausePlayback()
+        playbackConflictManager.onVideoPlaybackStarting()
 
         if (currentSessionKey == sessionKey && currentPlayablePath == playablePath && player.mediaItemCount > 0) {
             _uiState.update { state ->
@@ -265,6 +277,7 @@ class PlayerViewModel @Inject constructor(
         if (player.isPlaying) {
             player.pause()
         } else {
+            playbackConflictManager.onVideoPlaybackStarting()
             if (player.playbackState == Player.STATE_ENDED) {
                 player.seekTo(0L)
             }
@@ -389,6 +402,7 @@ class PlayerViewModel @Inject constructor(
 
     fun onAppForegrounded() {
         if (shouldResumeOnForeground && uiState.value.isAvailable) {
+            playbackConflictManager.onVideoPlaybackStarting()
             player.playWhenReady = true
             player.play()
         }
@@ -437,6 +451,15 @@ class PlayerViewModel @Inject constructor(
                 bufferedPositionMs = player.bufferedPosition.coerceAtLeast(player.currentPosition),
             )
         }
+    }
+
+    private fun pausePlaybackForConflict() {
+        if (!uiState.value.isAvailable && player.mediaItemCount == 0) return
+        shouldResumeOnForeground = false
+        player.playWhenReady = false
+        player.pause()
+        snapshotPlaybackState()
+        persistPlaybackState(forcePlayWhenReady = false)
     }
 
     private fun attachLoudnessEnhancer(audioSessionId: Int) {
@@ -635,6 +658,7 @@ class PlayerViewModel @Inject constructor(
     override fun onCleared() {
         persistPlaybackState()
         progressJob?.cancel()
+        playbackConflictManager.unregisterVideoPauseHandler(this)
         player.removeListener(playerListener)
         loudnessEnhancer?.release()
         player.release()

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/logo.svg" alt="Video Downloader logo" width="72" height="72" />
+  <img src="public/logo.svg" alt="Video Downloader logo" width="80" height="80" />
 </p>
 
 <h1 align="center">Video Downloader</h1>
@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  Everything runs on-device: no backend, no cloud conversion, no forced account system, no server-side link handling.
+  Everything runs on-device: no backend, no cloud conversion, no forced account system, and no server-side link handling.
 </p>
 
 <p align="center">
@@ -27,90 +27,139 @@
   </a>
 </p>
 
-## Project Status
+## Why This App
 
-The current `1.7.2` line is the app's stable UI baseline.
+| Local-first | Real downloader stack | Built for recovery | Useful beyond downloads |
+| --- | --- | --- | --- |
+| Analyze links, download media, merge streams, and convert files directly on the device. | Uses embedded `yt-dlp` plus managed `FFmpeg` paths instead of a remote relay service. | Queueing, retries, diagnostics, cookies, YouTube access help, and runtime updates are part of the product flow. | Includes saved-library browsing, audio/video playback, compression, conversion, and history tools. |
 
-That means:
+## Download
 
-- the current navigation and main screen structure are expected to stay stable
-- near-term updates are more likely to focus on bug fixes, download/runtime compatibility, translation quality, and internal logic hardening
-- major UI overhauls are not the default short-term direction anymore
+### Stable Release
+
+| Obtainium | GitHub | IzzyOnDroid |
+| --- | --- | --- |
+| <a href="https://github.com/iam-sandipmaity/video-downloader"><img src="https://github.com/ImranR98/Obtainium/blob/main/assets/graphics/badge_obtainium.png?raw=true" alt="Get it on Obtainium" width="250" /></a> | <a href="https://github.com/iam-sandipmaity/video-downloader/releases"><img src="https://raw.githubusercontent.com/rubenpgrady/get-it-on-github/refs/heads/main/get-it-on-github.png" alt="Get it on GitHub" width="250" /></a> | <a href="#"><img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png" alt="Get it on IzzyOnDroid" width="250" /></a> |
+
+### Nightly / Debug Build
+
+> Nightly builds are unstable and may contain bugs. Use at your own risk.
+
+<p align="center">
+  <a href="https://nightly.link/iam-sandipmaity/video-downloader/workflows/android-build.yml/main">
+    <img src="https://raw.githubusercontent.com/rubenpgrady/get-it-on-github/refs/heads/main/get-it-on-github.png" alt="Get nightly build on GitHub" width="250" />
+  </a>
+</p>
+
+<p align="center">
+  <strong>No GitHub account required</strong> - powered by <a href="https://nightly.link">nightly.link</a>
+</p>
+
+### Requirements
+
+- Minimum requirement: Android 8.0+
+
+## What You Can Do
+
+- Paste a supported link, analyze it locally, and choose from the formats `yt-dlp` exposes for that source.
+- Download single videos, audio-only files, or playlists with global defaults plus per-item overrides.
+- Rename outputs before download, keep source thumbnails, and let the app handle post-processing when audio/video streams need merging.
+- Pause, resume, retry, inspect, and recover queue items without needing a desktop companion app.
+- Open completed downloads in the built-in audio or video players, or manage them from the local library with share and delete actions.
+- Use cookies and YouTube access helpers when a site needs session data for better compatibility.
+- Run conversion and compression workflows directly on the device after a download finishes.
+
+## How The App Feels In Practice
+
+| Before download | While downloading | After download |
+| --- | --- | --- |
+| Link analysis, format selection, naming control, cookies, and access recovery are built into the main flow. | Queue diagnostics, pause/resume behavior, and worker-backed retries help tougher downloads stay manageable. | Saved media stays available in the local library with playback, sharing, cleanup, and follow-up media tools. |
+
+## Practical Focus
+
+- Stability-first download behavior instead of backend-heavy automation.
+- Local processing with minimal trust in external services.
+- Recovery paths for difficult sites, network hiccups, and post-processing failures.
+- UI surfaces that stay useful for regular downloading instead of exposing raw runtime complexity everywhere.
+
+For release-specific changes, see [CHANGELOG.md](CHANGELOG.md).
 
 ## App Preview
 
-The screenshots below reflect the current app flow, and can be refreshed over
-time as the UI evolves.
+### Home And Link Analysis
 
-<p align="center">
-  <img src="public/demo/home-page.png" alt="Home screen with URL input" width="220" />
-  <img src="public/demo/home-link-analyzing.png" alt="Home screen while analyzing a link" width="220" />
-  <img src="public/demo/single-file-download-option-view.png" alt="Single file download options overlay" width="220" />
-</p>
+| Home | Link Analyzing | Single Download Sheet |
+| --- | --- | --- |
+| <img src="public/demo/home-page.png" alt="Home screen with URL input" width="200" /> | <img src="public/demo/home-link-analyzing.png" alt="Home screen while analyzing a link" width="200" /> | <img src="public/demo/single-file-download-option-view.png" alt="Single file download options overlay" width="200" /> |
+| URL entry, ready-history cards, and the main download starting point. | Active metadata extraction before formats are shown. | Format, naming, and final output controls for a single media item. |
 
-<p align="center">
-  <img src="public/demo/playlist-download.png" alt="Playlist download selection" width="200" />
-  <img src="public/demo/playlist-download-time-any-randowm-file-formate-and-name-editing.png" alt="Playlist per-file format and rename controls" width="200" />
-  <img src="public/demo/downloading-screen.png" alt="Queue screen while a task is active" width="200" />
-  <img src="public/demo/downloading-tab.png" alt="Download queue tab" width="200" />
-</p>
+### Playlist And Queue
 
-<p align="center">
-  <img src="public/demo/download-tab.png" alt="Downloads library" width="200" />
-  <img src="public/demo/downloaded-file-viewer-tab.png" alt="Saved file viewer tab" width="200" />
-  <img src="public/demo/downloaded-audio-inapp-player.png" alt="In-app audio player" width="200" />
-  <img src="public/demo/in-app-video-player.png" alt="In-app video player" width="200" />
-</p>
+| Playlist Picker | Per-File Playlist Controls |
+| --- | --- |
+| <img src="public/demo/playlist-download.png" alt="Playlist download selection" width="200" /> | <img src="public/demo/playlist-download-time-any-randowm-file-formate-and-name-editing.png" alt="Playlist per-file format and rename controls" width="200" /> |
+| Global playlist selection before queuing. | Item-level overrides for format and file naming. |
 
-<p align="center">
-  <img src="public/demo/more-page.png" alt="More page" width="200" />
-  <img src="public/demo/settings-page.png" alt="Settings page" width="200" />
-  <img src="public/demo/appearence-page.png" alt="Appearance page" width="200" />
-  <img src="public/demo/about-page-credit-section.png" alt="About page with credits section" width="200" />
-</p>
+| Active Queue Screen | Queue Tab |
+| --- | --- |
+| <img src="public/demo/downloading-screen.png" alt="Queue screen while a task is active" width="200" /> | <img src="public/demo/downloading-tab.png" alt="Download queue tab" width="200" /> |
+| Live task progress with worker-driven updates. | Broader queue view for running, queued, and failed items. |
 
-<p align="center">
-  <img src="public/demo/cookies-page.png" alt="Cookies page" width="200" />
-  <img src="public/demo/youtube-po-generation-page.png" alt="YouTube access and PO generation page" width="200" />
-  <img src="public/demo/converter.png" alt="Converter tool page" width="200" />
-  <img src="public/demo/compressor.png" alt="Compressor tool page" width="200" />
-</p>
+### Library And Playback
 
-<p align="center">
-  <img src="public/demo/appearence-page-in-bengali.png" alt="Appearance page in Bengali" width="200" />
-  <img src="public/demo/notification-page-in-bengali.png" alt="Notification settings in Bengali" width="200" />
-</p>
+| Downloads Library | Saved File Viewer |
+| --- | --- |
+| <img src="public/demo/download-tab.png" alt="Downloads library" width="200" /> | <img src="public/demo/downloaded-file-viewer-tab.png" alt="Saved file viewer tab" width="200" /> |
+| Local media library with file actions and browsing. | File-centric view of saved downloads. |
 
-## Key Features
+| In-App Audio Player | In-App Video Player |
+| --- | --- |
+| <img src="public/demo/downloaded-audio-inapp-player.png" alt="In-app audio player" width="200" /> | <img src="public/demo/in-app-video-player.png" alt="In-app video player" width="200" /> |
+| Music-style playback for downloaded audio. | Full-screen player flow for downloaded video. |
 
-- Video downloads with format, container, and quality selection
-- Audio-only downloads including common music-friendly output formats
-- Playlist downloads with global defaults and per-file overrides
-- Download queue with pause, resume, retry, and diagnostics
-- Saved downloads library with share, delete, and batch actions
-- History with per-task logs
-- Cookies and YouTube access recovery tools
-- Built-in converter and compressor tools
-- Updates center for app, `yt-dlp`, and `FFmpeg`
-- Multi-language app UI with growing locale coverage
+### Settings And Support Surfaces
 
-## Current Focus
+| More Page | Settings Hub |
+| --- | --- |
+| <img src="public/demo/more-page.png" alt="More page" width="200" /> | <img src="public/demo/settings-page.png" alt="Settings page" width="200" /> |
+| Utility shortcuts, tools, updates, and help entry points. | Main settings navigation with grouped categories. |
 
-The repository is currently optimized around:
+| Appearance Page | About And Credits |
+| --- | --- |
+| <img src="public/demo/appearence-page.png" alt="Appearance page" width="200" /> | <img src="public/demo/about-page-credit-section.png" alt="About page with credits section" width="200" /> |
+| Theme, accent, contrast, and language-adjacent presentation controls. | Credits and upstream acknowledgements inside the app. |
 
-- stable download behavior
-- local runtime maintenance
-- queue and history reliability
-- translation coverage
-- practical documentation
+### Access And Media Tools
 
-If a future update lands soon, it is more likely to be because of:
+| Cookies Page | YouTube Access |
+| --- | --- |
+| <img src="public/demo/cookies-page.png" alt="Cookies page" width="200" /> | <img src="public/demo/youtube-po-generation-page.png" alt="YouTube access and PO generation page" width="200" /> |
+| Saved cookie/session management for harder sites. | Dedicated YouTube session and access recovery flow. |
 
-- site compatibility changes
-- runtime update safety
-- queue or download bugs
-- translation cleanup
-- internal logic/test improvements
+| Converter | Compressor |
+| --- | --- |
+| <img src="public/demo/converter.png" alt="Converter tool page" width="200" /> | <img src="public/demo/compressor.png" alt="Compressor tool page" width="200" /> |
+| Format conversion utility built into the app. | Compression workflow for media size reduction. |
+
+### Localization Examples
+
+| Appearance In Bengali | Notification Settings In Bengali |
+| --- | --- |
+| <img src="public/demo/appearence-page-in-bengali.png" alt="Appearance page in Bengali" width="200" /> | <img src="public/demo/notification-page-in-bengali.png" alt="Notification settings in Bengali" width="200" /> |
+| One of the localized settings surfaces. | Another example of translated in-app settings UI. |
+
+## Feature Set
+
+- Video downloads with format, quality, and container selection.
+- Audio-only downloads with music-friendly outputs.
+- Playlist downloads with global defaults and per-item overrides.
+- Download queue with pause, resume, retry, and diagnostics.
+- Saved downloads library with share, delete, and batch actions.
+- Download history with per-task logs and traces.
+- Cookies and YouTube access recovery tools.
+- Built-in converter and compressor flows.
+- Updates center for the app, `yt-dlp`, and `FFmpeg`.
+- Multi-language UI with expanding coverage.
 
 ## Supported Languages
 
@@ -133,8 +182,7 @@ Current in-app language support includes:
 - Primary shipped ABI: `arm64-v8a`
 - Public downloads root: `Download/LocalDownloader/`
 
-For custom ABI builds or deeper runtime details, see
-[COMPATIBILITY.md](COMPATIBILITY.md).
+For custom ABI builds or deeper runtime details, see [COMPATIBILITY.md](COMPATIBILITY.md).
 
 ## Architecture Summary
 

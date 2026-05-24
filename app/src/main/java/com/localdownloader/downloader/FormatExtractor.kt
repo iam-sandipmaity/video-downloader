@@ -196,6 +196,7 @@ class FormatExtractor @Inject constructor(
             cookiesPath = cookiesPath,
             userAgent = userAgent,
             capturedInfoJsonFile = capturedInfoJsonFile,
+            socketTimeoutSeconds = DEFAULT_ANALYZE_SOCKET_TIMEOUT_SECONDS,
             useLineJsonMode = false,
         )
         if (primaryAttempt.candidate != null) {
@@ -203,13 +204,59 @@ class FormatExtractor @Inject constructor(
         }
 
         if (!isYoutubeUrl(url)) {
-            return executeAnalyzeAttempt(
+            val lineJsonAttempt = executeAnalyzeAttempt(
                 url = url,
                 extractorArgs = extractorArgs,
                 cookiesPath = cookiesPath,
                 userAgent = userAgent,
                 capturedInfoJsonFile = capturedInfoJsonFile,
+                socketTimeoutSeconds = DEFAULT_ANALYZE_SOCKET_TIMEOUT_SECONDS,
                 useLineJsonMode = true,
+            )
+            if (lineJsonAttempt.candidate != null) {
+                return lineJsonAttempt
+            }
+
+            if (!shouldRetryAnalyzeWithExtendedTimeout(primaryAttempt.errorMessage, lineJsonAttempt.errorMessage)) {
+                return resolveFailedAnalyzeAttempt(primaryAttempt, lineJsonAttempt)
+            }
+
+            logger.i(
+                "FormatExtractor",
+                "Retrying non-YouTube analyze with a longer socket timeout after transient failure",
+            )
+
+            val extendedPrimaryAttempt = executeAnalyzeAttempt(
+                url = url,
+                extractorArgs = extractorArgs,
+                cookiesPath = cookiesPath,
+                userAgent = userAgent,
+                capturedInfoJsonFile = capturedInfoJsonFile,
+                socketTimeoutSeconds = EXTENDED_ANALYZE_SOCKET_TIMEOUT_SECONDS,
+                useLineJsonMode = false,
+            )
+            if (extendedPrimaryAttempt.candidate != null) {
+                return extendedPrimaryAttempt
+            }
+
+            val extendedLineJsonAttempt = executeAnalyzeAttempt(
+                url = url,
+                extractorArgs = extractorArgs,
+                cookiesPath = cookiesPath,
+                userAgent = userAgent,
+                capturedInfoJsonFile = capturedInfoJsonFile,
+                socketTimeoutSeconds = EXTENDED_ANALYZE_SOCKET_TIMEOUT_SECONDS,
+                useLineJsonMode = true,
+            )
+            if (extendedLineJsonAttempt.candidate != null) {
+                return extendedLineJsonAttempt
+            }
+
+            return resolveFailedAnalyzeAttempt(
+                primaryAttempt,
+                lineJsonAttempt,
+                extendedPrimaryAttempt,
+                extendedLineJsonAttempt,
             )
         }
 
@@ -222,6 +269,7 @@ class FormatExtractor @Inject constructor(
         cookiesPath: String?,
         userAgent: String?,
         capturedInfoJsonFile: File,
+        socketTimeoutSeconds: Int,
         useLineJsonMode: Boolean,
     ): AnalyzeAttempt {
         val args = buildAnalyzeArgs(
@@ -230,6 +278,7 @@ class FormatExtractor @Inject constructor(
             cookiesPath = cookiesPath,
             userAgent = userAgent,
             capturedInfoJsonFile = capturedInfoJsonFile,
+            socketTimeoutSeconds = socketTimeoutSeconds,
             useLineJsonMode = useLineJsonMode,
         )
 
@@ -240,12 +289,12 @@ class FormatExtractor @Inject constructor(
         if (result != null) {
             logger.i(
                 "FormatExtractor",
-                "Analyze command finished exitCode=${result.exitCode}, stdoutLen=${result.stdout.length}, stderrLen=${result.stderr.length}, lineJson=$useLineJsonMode",
+                "Analyze command finished exitCode=${result.exitCode}, stdoutLen=${result.stdout.length}, stderrLen=${result.stderr.length}, socketTimeout=${socketTimeoutSeconds}s, lineJson=$useLineJsonMode",
             )
         } else {
             logger.w(
                 "FormatExtractor",
-                "Analyze command threw before returning a result, lineJson=$useLineJsonMode",
+                "Analyze command threw before returning a result, socketTimeout=${socketTimeoutSeconds}s, lineJson=$useLineJsonMode",
                 commandError,
             )
         }
@@ -282,7 +331,7 @@ class FormatExtractor @Inject constructor(
                 val retryResult = executeAnalyzeCommand(args)
                 logger.i(
                     "FormatExtractor",
-                    "Analyze retry finished exitCode=${retryResult.exitCode}, stdoutLen=${retryResult.stdout.length}, stderrLen=${retryResult.stderr.length}, lineJson=$useLineJsonMode",
+                    "Analyze retry finished exitCode=${retryResult.exitCode}, stdoutLen=${retryResult.stdout.length}, stderrLen=${retryResult.stderr.length}, socketTimeout=${socketTimeoutSeconds}s, lineJson=$useLineJsonMode",
                 )
                 val parsedRetry = parseAnalyzeSuccess(
                     url = url,
@@ -317,6 +366,7 @@ class FormatExtractor @Inject constructor(
         cookiesPath: String?,
         userAgent: String?,
         capturedInfoJsonFile: File,
+        socketTimeoutSeconds: Int,
         useLineJsonMode: Boolean,
     ): List<String> {
         val tempDir = File(context.cacheDir, "tmp").apply { mkdirs() }
@@ -327,6 +377,7 @@ class FormatExtractor @Inject constructor(
             userAgent = userAgent,
             capturedInfoJsonPath = capturedInfoJsonFile.absolutePath,
             tempDirPath = tempDir.absolutePath,
+            socketTimeoutSeconds = socketTimeoutSeconds,
             useLineJsonMode = useLineJsonMode,
         )
     }
@@ -586,6 +637,37 @@ class FormatExtractor @Inject constructor(
         if (stats.total >= 20) return false
         return true
     }
+
+    private fun resolveFailedAnalyzeAttempt(vararg attempts: AnalyzeAttempt): AnalyzeAttempt {
+        return attempts
+            .lastOrNull { !it.errorMessage.isNullOrBlank() }
+            ?: attempts.last()
+    }
+}
+
+internal const val DEFAULT_ANALYZE_SOCKET_TIMEOUT_SECONDS = 5
+internal const val EXTENDED_ANALYZE_SOCKET_TIMEOUT_SECONDS = 15
+
+internal fun shouldRetryAnalyzeWithExtendedTimeout(vararg failureMessages: String?): Boolean {
+    return failureMessages
+        .mapNotNull { it?.takeIf(String::isNotBlank) }
+        .any(::isTransientAnalyzeFailure)
+}
+
+internal fun isTransientAnalyzeFailure(message: String): Boolean {
+    val lower = message.lowercase()
+    return lower.contains("read operation timed out") ||
+        lower.contains("read timed out") ||
+        lower.contains("timed out") ||
+        lower.contains("i/o timeout") ||
+        lower.contains("connection timed out") ||
+        lower.contains("temporary failure in name resolution") ||
+        lower.contains("no address associated with hostname") ||
+        lower.contains("failed to resolve") ||
+        lower.contains("network is unreachable") ||
+        lower.contains("connection reset") ||
+        lower.contains("connection aborted") ||
+        lower.contains("transport endpoint is not connected")
 }
 
 internal fun buildAnalyzeArgsForRequest(
@@ -595,6 +677,7 @@ internal fun buildAnalyzeArgsForRequest(
     userAgent: String?,
     capturedInfoJsonPath: String,
     tempDirPath: String,
+    socketTimeoutSeconds: Int = DEFAULT_ANALYZE_SOCKET_TIMEOUT_SECONDS,
     useLineJsonMode: Boolean,
 ): List<String> {
     return buildList {
@@ -612,7 +695,7 @@ internal fun buildAnalyzeArgsForRequest(
         add("--compat-options")
         add("manifest-filesize-approx")
         add("--socket-timeout")
-        add("5")
+        add(socketTimeoutSeconds.toString())
         add("-P")
         add(tempDirPath)
         if (!cookiesPath.isNullOrBlank() && File(cookiesPath).exists()) {

@@ -3,8 +3,15 @@ name: Android Build
 on:
   push:
     branches: ["**"]
+    tags: ["v*"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      publish_nightly_release:
+        description: "Create a nightly prerelease from this run"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   build:
@@ -96,7 +103,7 @@ jobs:
           path: app/build/outputs/apk/debug/video-downloader-*.apk
 
   release-nightly:
-    if: github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/')
+    if: github.event_name == 'workflow_dispatch' && inputs.publish_nightly_release == true
     needs: build
     runs-on: ubuntu-latest
     permissions:
