@@ -20,13 +20,9 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -55,7 +51,6 @@ import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -74,6 +69,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -98,7 +94,6 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DownloadsScreen(
     uiState: DownloadUiState,
@@ -323,7 +318,7 @@ fun DownloadsScreen(
                 ),
             )
             .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -334,8 +329,32 @@ fun DownloadsScreen(
                 modifier = Modifier
                     .weight(1f)
                     .padding(end = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
+                val headerSupportingText = when {
+                    selectionMode -> null
+                    searchActive -> {
+                        pluralStringResource(
+                            R.plurals.downloads_search_results,
+                            filteredItems.size,
+                            filteredItems.size,
+                            normalizedSearchQuery,
+                        )
+                    }
+                    items.isNotEmpty() -> {
+                        pluralStringResource(R.plurals.downloads_saved_ready, items.size, items.size)
+                    }
+                    hasActiveDownloads -> {
+                        pluralStringResource(
+                            R.plurals.downloads_active_in_progress,
+                            activeDownloadsCount,
+                            activeDownloadsCount,
+                        )
+                    }
+                    else -> {
+                        stringResource(R.string.downloads_empty_help)
+                    }
+                }
                 Text(
                     text = if (selectionMode) {
                         selectedTitle
@@ -346,36 +365,13 @@ fun DownloadsScreen(
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onBackground,
                 )
-                Text(
-                    text = when {
-                        selectionMode -> {
-                            stringResource(R.string.downloads_selection_help)
-                        }
-                        searchActive -> {
-                            pluralStringResource(
-                                R.plurals.downloads_search_results,
-                                filteredItems.size,
-                                filteredItems.size,
-                                normalizedSearchQuery,
-                            )
-                        }
-                        items.isNotEmpty() -> {
-                            pluralStringResource(R.plurals.downloads_saved_ready, items.size, items.size)
-                        }
-                        hasActiveDownloads -> {
-                            pluralStringResource(
-                                R.plurals.downloads_active_in_progress,
-                                activeDownloadsCount,
-                                activeDownloadsCount,
-                            )
-                        }
-                        else -> {
-                            stringResource(R.string.downloads_empty_help)
-                        }
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.78f),
-                )
+                if (headerSupportingText != null) {
+                    Text(
+                        text = headerSupportingText,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.78f),
+                    )
+                }
             }
             Row(
                 modifier = Modifier.padding(start = 8.dp),
@@ -462,36 +458,34 @@ fun DownloadsScreen(
         }
 
         if (items.isNotEmpty()) {
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                FilterChip(
-                    selected = sortNewestFirst,
+                CompactDownloadsToggle(
+                    modifier = Modifier.weight(1f),
+                    selected = true,
                     onClick = { sortNewestFirst = !sortNewestFirst },
-                    label = {
-                        Text(
-                            stringResource(
-                                if (sortNewestFirst) {
-                                    R.string.downloads_newest_first
-                                } else {
-                                    R.string.downloads_oldest_first
-                                },
-                            ),
-                        )
-                    },
+                    label = stringResource(
+                        if (sortNewestFirst) {
+                            R.string.downloads_newest_short
+                        } else {
+                            R.string.downloads_oldest_short
+                        },
+                    ),
                 )
-                DownloadsFilter.entries.filter { it != DownloadsFilter.All }.forEach { filter ->
-                    FilterChip(
+                DownloadsFilter.entries.forEach { filter ->
+                    CompactDownloadsToggle(
+                        modifier = Modifier.weight(1f),
                         selected = currentFilter == filter,
                         onClick = {
-                            selectedFilter = if (currentFilter == filter) {
-                                DownloadsFilter.All.name
-                            } else {
+                            selectedFilter = if (filter == DownloadsFilter.All || currentFilter != filter) {
                                 filter.name
+                            } else {
+                                DownloadsFilter.All.name
                             }
                         },
-                        label = { Text(stringResource(filter.labelRes)) },
+                        label = stringResource(filter.labelRes),
                     )
                 }
             }
@@ -533,34 +527,25 @@ fun DownloadsScreen(
         ) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
+                shape = RoundedCornerShape(20.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        .padding(horizontal = 10.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        text = if (selectedTaskIds.isEmpty()) {
-                            stringResource(R.string.downloads_select_files_to_unlock)
+                    SelectionToolbarAction(
+                        modifier = Modifier.weight(1f),
+                        icon = if (allVisibleSelected) {
+                            Icons.Outlined.CheckCircle
                         } else {
-                            pluralStringResource(
-                                R.plurals.downloads_selected_files_count,
-                                selectedTaskIds.size,
-                                selectedTaskIds.size,
-                            )
+                            Icons.Outlined.RadioButtonUnchecked
                         },
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    FilterChip(
-                        selected = allVisibleSelected,
+                        label = stringResource(R.string.downloads_filter_all),
+                        highlighted = allVisibleSelected,
                         onClick = {
                             selectedTaskIds = if (allVisibleSelected) {
                                 selectedTaskIds.filterNot(visibleItemIds::contains)
@@ -568,48 +553,35 @@ fun DownloadsScreen(
                                 (selectedTaskIds + visibleItemIds).distinct()
                             }
                         },
-                        label = {
-                            Text(
-                                stringResource(
-                                    if (allVisibleSelected) {
-                                        R.string.downloads_clear_visible
-                                    } else {
-                                        R.string.downloads_select_visible
-                                    },
-                                ),
-                            )
-                        },
                     )
-                    TextButton(
+                    SelectionToolbarAction(
+                        modifier = Modifier.weight(1f),
+                        icon = Icons.Outlined.Clear,
+                        label = stringResource(R.string.common_clear),
                         onClick = { selectedTaskIds = emptyList() },
                         enabled = selectedTaskIds.isNotEmpty(),
-                    ) {
-                        Text(stringResource(R.string.common_clear))
-                    }
-                    FilledTonalButton(
+                    )
+                    SelectionToolbarAction(
+                        modifier = Modifier.weight(1f),
+                        icon = Icons.Outlined.Share,
+                        label = stringResource(R.string.common_share),
                         onClick = { shareDownloadedFiles(context, selectedShareableItems) },
                         enabled = selectedShareableItems.isNotEmpty(),
-                    ) {
-                        Icon(Icons.Outlined.Share, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.common_share))
-                    }
-                    FilledTonalButton(
+                    )
+                    SelectionToolbarAction(
+                        modifier = Modifier.weight(1f),
+                        icon = Icons.Outlined.DeleteOutline,
+                        label = stringResource(R.string.common_remove),
                         onClick = { selectionAction = SelectedDownloadsAction.REMOVE_FROM_APP },
                         enabled = selectedTaskIds.isNotEmpty(),
-                    ) {
-                        Icon(Icons.Outlined.DeleteOutline, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.downloads_remove_from_app))
-                    }
-                    FilledTonalButton(
+                    )
+                    SelectionToolbarAction(
+                        modifier = Modifier.weight(1f),
+                        icon = Icons.Outlined.DeleteForever,
+                        label = stringResource(R.string.common_delete),
                         onClick = { selectionAction = SelectedDownloadsAction.PERMANENT_DELETE },
                         enabled = selectedTaskIds.isNotEmpty(),
-                    ) {
-                        Icon(Icons.Outlined.DeleteForever, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.downloads_delete_forever))
-                    }
+                    )
                 }
             }
         }
@@ -755,6 +727,101 @@ fun DownloadsScreen(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun CompactDownloadsToggle(
+    selected: Boolean,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val backgroundColor = if (selected) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surfaceContainerLow
+    }
+    val contentColor = if (selected) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    Surface(
+        modifier = modifier.clickable(onClick = onClick),
+        shape = RoundedCornerShape(14.dp),
+        color = backgroundColor,
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 9.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = contentColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SelectionToolbarAction(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    highlighted: Boolean = false,
+) {
+    val backgroundColor = when {
+        highlighted -> MaterialTheme.colorScheme.primaryContainer
+        enabled -> MaterialTheme.colorScheme.surface
+        else -> MaterialTheme.colorScheme.surfaceContainerLow
+    }
+    val contentColor = when {
+        highlighted -> MaterialTheme.colorScheme.onPrimaryContainer
+        enabled -> MaterialTheme.colorScheme.onSurface
+        else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.42f)
+    }
+
+    Surface(
+        modifier = modifier.then(
+            if (enabled) {
+                Modifier.clickable(onClick = onClick)
+            } else {
+                Modifier
+            },
+        ),
+        shape = RoundedCornerShape(16.dp),
+        color = backgroundColor,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 2.dp, vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = contentColor,
+                modifier = Modifier.size(18.dp),
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = contentColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }

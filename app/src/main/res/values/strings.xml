@@ -8,6 +8,7 @@
     <string name="common_help">Help</string>
     <string name="common_clear">Clear</string>
     <string name="common_select">Select</string>
+    <string name="common_remove">Remove</string>
     <string name="common_close">Close</string>
     <string name="common_cancel">Cancel</string>
     <string name="common_save">Save</string>
@@ -132,6 +133,8 @@
     <string name="downloads_permanent_delete">Permanent delete</string>
     <string name="downloads_newest_first">Newest first</string>
     <string name="downloads_oldest_first">Oldest first</string>
+    <string name="downloads_newest_short">Newest</string>
+    <string name="downloads_oldest_short">Oldest</string>
     <string name="downloads_search_label">Search saved downloads</string>
     <string name="downloads_search_placeholder">Title, source, or file name</string>
     <string name="downloads_clear_search">Clear download search</string>
