@@ -29,6 +29,7 @@ import javax.inject.Singleton
 class AudioPlaybackManager @Inject constructor(
     @ApplicationContext private val appContext: Context,
     private val logger: Logger,
+    private val playbackConflictManager: PlaybackConflictManager,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -66,6 +67,7 @@ class AudioPlaybackManager @Inject constructor(
     }
 
     init {
+        playbackConflictManager.registerAudioPauseHandler(this, ::pausePlaybackForConflict)
         player.addListener(playerListener)
         startProgressUpdates()
         updateState()
@@ -98,6 +100,7 @@ class AudioPlaybackManager @Inject constructor(
 
             currentQueue = sanitizedItems
             lastErrorMessage = null
+            playbackConflictManager.onAudioPlaybackStarting()
             player.repeatMode = state.value.repeatMode.asPlayerRepeatMode()
             player.shuffleModeEnabled = shuffleRequested
             player.setMediaItems(
@@ -120,6 +123,7 @@ class AudioPlaybackManager @Inject constructor(
             if (player.isPlaying) {
                 player.pause()
             } else {
+                playbackConflictManager.onAudioPlaybackStarting()
                 if (player.playbackState == Player.STATE_ENDED) {
                     val currentIndex = player.currentMediaItemIndex.takeIf { it >= 0 } ?: 0
                     player.seekTo(currentIndex, 0L)
@@ -134,10 +138,7 @@ class AudioPlaybackManager @Inject constructor(
 
     fun pausePlayback() {
         scope.launch {
-            if (currentQueue.isEmpty()) return@launch
-            player.pause()
-            AudioPlaybackService.start(appContext)
-            updateState()
+            pausePlaybackInternal()
         }
     }
 
@@ -311,8 +312,20 @@ class AudioPlaybackManager @Inject constructor(
     fun release() {
         progressJob?.cancel()
         sleepTimerJob?.cancel()
+        playbackConflictManager.unregisterAudioPauseHandler(this)
         player.removeListener(playerListener)
         player.release()
+    }
+
+    private fun pausePlaybackForConflict() {
+        pausePlaybackInternal()
+    }
+
+    private fun pausePlaybackInternal() {
+        if (currentQueue.isEmpty()) return
+        player.pause()
+        AudioPlaybackService.start(appContext)
+        updateState()
     }
 
     private fun AudioQueueItem.toMediaItem(): MediaItem {
