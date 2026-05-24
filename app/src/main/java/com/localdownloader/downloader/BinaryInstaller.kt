@@ -52,6 +52,8 @@ class BinaryInstaller @Inject constructor(
         val supportDir = ensureBundledFfmpegSupportDir()
         val overlayCandidate = resolveDownloadedOverlayFfmpegCandidate()
         val bundledLinkedRuntimeHasExplicitSupport = hasExplicitLinkedFfmpegRuntimeSupport(supportDir)
+        val bundledLinkedNativeBinary = resolveNativeLibraryBinary(listOf("libffmpeg.so"))
+        val bundledFallbackNativeBinary = resolveNativeLibraryBinary(listOf("libffmpeg_exec.so"))
         val candidates = buildList {
             if (overlayCandidate != null) {
                 if (!hasExplicitLinkedFfmpegRuntimeSupport(overlayCandidate.supportDir)) {
@@ -62,7 +64,7 @@ class BinaryInstaller @Inject constructor(
                 }
                 add(overlayCandidate)
             }
-            resolveNativeLibraryBinary(listOf("libffmpeg.so"))?.let { nativeBinary ->
+            bundledLinkedNativeBinary?.let { nativeBinary ->
                 if (!bundledLinkedRuntimeHasExplicitSupport) {
                     logger.i(
                         "BinaryInstaller",
@@ -76,13 +78,14 @@ class BinaryInstaller @Inject constructor(
                         label = nativeBinary.name,
                     ),
                 )
-            } ?: if (!bundledLinkedRuntimeHasExplicitSupport) {
+            }
+            if (bundledLinkedNativeBinary == null && !bundledLinkedRuntimeHasExplicitSupport) {
                 logger.i(
                     "BinaryInstaller",
                     "No bundled linked libffmpeg.so candidate was found; fallback libffmpeg_exec.so remains required",
                 )
             }
-            resolveNativeLibraryBinary(listOf("libffmpeg_exec.so"))?.let { nativeBinary ->
+            bundledFallbackNativeBinary?.let { nativeBinary ->
                 add(
                     FfmpegCandidate(
                         sourceBinary = nativeBinary,
