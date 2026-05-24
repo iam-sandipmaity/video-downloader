@@ -165,6 +165,10 @@
     <string name="downloads_play_in_music_player">Play in music player</string>
     <string name="downloads_remove_entry">Remove entry</string>
     <string name="downloads_open_media">Open media</string>
+    <string name="player_open_external">Open externally</string>
+    <string name="player_open_external_description">Open in another player</string>
+    <string name="player_open_external_unavailable">No external player found</string>
+    <string name="player_compatibility_notice">%1$s playback depends on device codec support. If the built-in player struggles, open it in another player.</string>
     <string name="downloads_rename_file">Rename file</string>
     <string name="downloads_new_name">New name</string>
     <string name="downloads_delete_file">Delete file</string>

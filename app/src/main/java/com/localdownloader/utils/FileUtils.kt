@@ -10,6 +10,7 @@ import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
 import com.localdownloader.data.SettingsStore
 import com.localdownloader.domain.models.AppSettings
+import com.localdownloader.media.resolvePreferredMediaMimeTypeForExtension
 import com.localdownloader.ui.model.ExternalOpenRequest
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
@@ -427,13 +428,7 @@ class FileUtils @Inject constructor(
 
     private fun guessMimeType(fileName: String): String {
         val ext = fileName.substringAfterLast('.', "").lowercase()
-        return when (ext) {
-            "mp4", "mkv", "webm", "mov" -> "video/$ext"
-            "mp3" -> "audio/mpeg"
-            "aac", "m4a" -> "audio/$ext"
-            "opus", "ogg" -> "audio/ogg"
-            "wav" -> "audio/wav"
-            "flac" -> "audio/flac"
+        return resolvePreferredMediaMimeTypeForExtension(ext) ?: when (ext) {
             "jpg", "jpeg" -> "image/jpeg"
             "png" -> "image/png"
             "srt" -> "application/x-subrip"

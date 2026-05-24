@@ -47,6 +47,7 @@ import com.localdownloader.domain.models.AccentPreset
 import com.localdownloader.domain.models.DownloadStatus
 import com.localdownloader.domain.models.ContrastMode
 import com.localdownloader.domain.models.ThemeMode
+import com.localdownloader.media.isLikelyPlayableMediaPath
 import com.localdownloader.ui.screens.CookieCaptureScreen
 import com.localdownloader.ui.screens.CookiesScreen
 import com.localdownloader.ui.screens.BrowserScreen
@@ -945,8 +946,7 @@ private enum class FolderBrowseTarget {
 private fun isPlayableMediaRequest(request: ExternalOpenRequest): Boolean {
     val mime = request.mimeType?.lowercase().orEmpty()
     if (mime.startsWith("video/") || mime.startsWith("audio/")) return true
-    val extension = request.path.substringAfterLast('.', "").lowercase()
-    return extension in PLAYABLE_MEDIA_EXTENSIONS
+    return isLikelyPlayableMediaPath(request.path)
 }
 
 private fun isWebPreviewRequest(request: ExternalOpenRequest): Boolean {
@@ -954,11 +954,6 @@ private fun isWebPreviewRequest(request: ExternalOpenRequest): Boolean {
     val extension = request.path.substringAfterLast('.', "").lowercase()
     return mime.contains("html") || mime.contains("multipart/related") || extension in setOf("html", "htm", "mhtml", "mht")
 }
-
-private val PLAYABLE_MEDIA_EXTENSIONS = setOf(
-    "mp4", "mkv", "webm", "mov", "avi", "m4v", "3gp", "ts", "m2ts", "mpeg", "mpg",
-    "mp3", "m4a", "aac", "opus", "ogg", "wav", "flac", "amr",
-)
 
 private val primaryRouteOrder = listOf(
     Routes.Browser,
