@@ -555,6 +555,29 @@ class DownloadWorker @AssistedInject constructor(
             if (outputPath == null) {
                 outputPath = inferDownloadedPath(outputTemplate)
             }
+            if (options.removeAudioFromVideo) {
+                val sourcePath = outputPath
+                result = if (sourcePath == null) {
+                    CommandResult(
+                        exitCode = 1,
+                        stdout = "",
+                        stderr = "Downloaded video path could not be resolved for audio removal",
+                    )
+                } else {
+                    appendDebugTrace(taskId, "Removing audio track from completed muxed video")
+                    val stripResult = stripAudioTrackFromVideo(
+                        taskId = taskId,
+                        sourcePath = sourcePath,
+                    )
+                    if (stripResult.isSuccess) {
+                        appendDebugTrace(taskId, "Audio track removed from completed muxed video")
+                    }
+                    stripResult
+                }
+            }
+        }
+
+        if (result.isSuccess) {
             if (outputPath != null && shouldGenerateThumbnailFallback) {
                 generateVideoFrameThumbnail(
                     primaryPath = outputPath!!,
@@ -1663,6 +1686,79 @@ class DownloadWorker @AssistedInject constructor(
             },
             onStderrLine = { line ->
                 appendDebugTrace(taskId, "ffmpeg: ${line.take(MAX_OUTPUT_TRACE_LINE_LENGTH)}")
+            },
+        )
+    }
+
+    private suspend fun stripAudioTrackFromVideo(
+        taskId: String,
+        sourcePath: String,
+    ): CommandResult {
+        val sourceFile = File(sourcePath)
+        if (!sourceFile.exists()) {
+            return CommandResult(
+                exitCode = 1,
+                stdout = "",
+                stderr = "Missing downloaded video file for audio removal",
+            )
+        }
+
+        val extensionSuffix = sourceFile.extension.takeIf { it.isNotBlank() }?.let { ".$it" }.orEmpty()
+        val tempTarget = File(
+            sourceFile.parentFile,
+            "${sourceFile.nameWithoutExtension}.video-only-temp$extensionSuffix",
+        )
+        runCatching { tempTarget.delete() }
+
+        val stripResult = ffmpegExecutor.execute(
+            args = buildList {
+                add("-y")
+                add("-i")
+                add(sourceFile.absolutePath)
+                add("-map")
+                add("0:v:0")
+                add("-c:v")
+                add("copy")
+                add("-an")
+                if (sourceFile.extension.equals("mp4", ignoreCase = true) ||
+                    sourceFile.extension.equals("mov", ignoreCase = true)
+                ) {
+                    add("-movflags")
+                    add("+faststart")
+                }
+                add(tempTarget.absolutePath)
+            },
+            onStderrLine = { line ->
+                appendDebugTrace(taskId, "ffmpeg: ${line.take(MAX_OUTPUT_TRACE_LINE_LENGTH)}")
+            },
+        )
+        if (!stripResult.isSuccess) {
+            runCatching { tempTarget.delete() }
+            return stripResult
+        }
+        if (!tempTarget.exists()) {
+            return CommandResult(
+                exitCode = 1,
+                stdout = "",
+                stderr = "ffmpeg completed without producing a video-only file",
+            )
+        }
+
+        val replaceResult = runCatching {
+            tempTarget.copyTo(sourceFile, overwrite = true)
+            tempTarget.delete()
+        }
+        return replaceResult.fold(
+            onSuccess = {
+                CommandResult(exitCode = 0, stdout = "", stderr = "")
+            },
+            onFailure = { error ->
+                runCatching { tempTarget.delete() }
+                CommandResult(
+                    exitCode = 1,
+                    stdout = "",
+                    stderr = error.message ?: "Unable to replace source video after audio removal",
+                )
             },
         )
     }

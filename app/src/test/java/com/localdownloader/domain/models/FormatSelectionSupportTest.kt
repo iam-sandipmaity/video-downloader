@@ -90,4 +90,86 @@ class FormatSelectionSupportTest {
             ).isEmpty(),
         )
     }
+
+    @Test
+    fun availableOutputTransforms_offersDerivedChoicesForMuxedOnlySources() {
+        val muxedChoices = listOf(
+            FormatChoice(
+                selector = "best[ext=mp4]",
+                label = "720p mp4 muxed",
+                streamType = StreamType.VIDEO_AUDIO,
+                container = "mp4",
+                height = 720,
+                isMerged = false,
+                isImageLike = false,
+            ),
+        )
+
+        assertEquals(
+            listOf(
+                OutputTransform.NONE,
+                OutputTransform.EXTRACT_AUDIO,
+                OutputTransform.REMOVE_AUDIO,
+            ),
+            availableOutputTransforms(
+                sourceStreamType = StreamType.VIDEO_AUDIO,
+                videoAudioChoices = muxedChoices,
+                videoOnlyChoices = emptyList(),
+                audioOnlyChoices = emptyList(),
+            ),
+        )
+    }
+
+    @Test
+    fun resolveAvailableOutputTransform_resetsUnsupportedDerivedChoice() {
+        val muxedChoices = listOf(
+            FormatChoice(
+                selector = "best[ext=mp4]",
+                label = "720p mp4 muxed",
+                streamType = StreamType.VIDEO_AUDIO,
+                container = "mp4",
+                height = 720,
+                isMerged = false,
+                isImageLike = false,
+            ),
+        )
+        val nativeAudioChoices = listOf(
+            FormatChoice(
+                selector = "ba[ext=m4a]",
+                label = "audio m4a 320kbps",
+                streamType = StreamType.AUDIO_ONLY,
+                container = "m4a",
+                height = null,
+                isMerged = false,
+                isImageLike = false,
+            ),
+        )
+
+        assertEquals(
+            OutputTransform.NONE,
+            resolveAvailableOutputTransform(
+                preferredTransform = OutputTransform.EXTRACT_AUDIO,
+                sourceStreamType = StreamType.VIDEO_AUDIO,
+                videoAudioChoices = muxedChoices,
+                videoOnlyChoices = emptyList(),
+                audioOnlyChoices = nativeAudioChoices,
+            ),
+        )
+    }
+
+    @Test
+    fun effectiveOutputStreamType_mapsDerivedOutputsToTheirRealResultType() {
+        assertEquals(
+            StreamType.AUDIO_ONLY,
+            effectiveOutputStreamType(StreamType.VIDEO_AUDIO, OutputTransform.EXTRACT_AUDIO),
+        )
+        assertEquals(
+            StreamType.VIDEO_ONLY,
+            effectiveOutputStreamType(StreamType.VIDEO_AUDIO, OutputTransform.REMOVE_AUDIO),
+        )
+        assertEquals(
+            StreamType.VIDEO_AUDIO,
+            effectiveOutputStreamType(StreamType.VIDEO_AUDIO, OutputTransform.NONE),
+        )
+    }
 }

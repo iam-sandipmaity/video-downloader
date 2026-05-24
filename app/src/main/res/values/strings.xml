@@ -99,8 +99,12 @@
     <string name="browser_picker_label_audio_format">Audio format</string>
     <string name="browser_picker_label_bitrate">Bitrate</string>
     <string name="browser_picker_label_container">Container</string>
+    <string name="browser_picker_label_output_transform">Output transform</string>
     <string name="browser_picker_close">Close</string>
     <string name="browser_picker_change">Change</string>
+    <string name="browser_output_transform_none">Keep source as-is</string>
+    <string name="browser_output_transform_extract_audio">Extract audio</string>
+    <string name="browser_output_transform_remove_audio">Remove audio</string>
     <string name="browser_playlist_item_fallback">Playlist item %1$d</string>
     <string name="browser_playlist_edit">Edit</string>
     <string name="browser_playlist_hide">Hide</string>

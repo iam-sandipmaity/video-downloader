@@ -8,6 +8,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 - No unreleased changes yet.
 
+## [1.7.2.2] - 2026-05-24
+
+### Added
+- **Derived output transforms for muxed-only sources** - muxed-only links can now expose optional `Extract audio` and `Remove audio` actions without pretending those stream types exist natively on the source site
+
+### Changed
+- **Truthful format tabs** - source tabs now stay aligned to the real streams returned by yt-dlp, so audio-only sites remain audio-only, mixed sites like X keep their real combinations, and muxed-only sources no longer light up unavailable native tabs
+- **Output-aware format sheet behavior** - filename templates, subtitle toggles, and related extras now follow the effective output type when a derived transform is chosen instead of assuming the original source tab tells the whole story
+
+### Fixed
+- **Muxed-source postprocessing** - selecting `Remove audio` now performs a real ffmpeg strip-audio pass after download instead of leaving the completed file muxed
+- **Release shrinker dependency gap** - release builds now include the missing `org.tukaani:xz` runtime required by the bundled `commons-compress` path, fixing the `release-main` R8 failure on `org.tukaani.xz.*` classes
+
+### Technical
+- **App version bump** - release metadata updated to `1.7.2.2`
+
 ## [1.7.2.1] - 2026-05-24
 
 ### Added

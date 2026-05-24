@@ -31,6 +31,7 @@ data class DownloadOptions(
     val shouldEmbedThumbnail: Boolean = false,
     val shouldWriteThumbnail: Boolean = false,
     val extractAudio: Boolean = false,
+    val removeAudioFromVideo: Boolean = false,
     val audioFormat: String? = null,
     val audioBitrateKbps: Int? = null,
     val playlistItemIndex: Int? = null,

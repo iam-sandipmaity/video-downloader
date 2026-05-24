@@ -6,6 +6,7 @@ import com.localdownloader.domain.models.AppSettings
 import com.localdownloader.domain.models.ContrastMode
 import com.localdownloader.domain.models.CookieProfile
 import com.localdownloader.domain.models.FormatChoice
+import com.localdownloader.domain.models.OutputTransform
 import com.localdownloader.domain.models.PlaylistEntry
 import com.localdownloader.domain.models.SYSTEM_LANGUAGE_TAG
 import com.localdownloader.domain.models.StreamType
@@ -30,6 +31,7 @@ data class PlaylistItemUiState(
     val isExpanded: Boolean = false,
     val customFileName: String = "",
     val selectedStreamType: StreamType = StreamType.VIDEO_AUDIO,
+    val selectedOutputTransform: OutputTransform = OutputTransform.NONE,
     val selectedFormatSelector: String? = null,
     val selectedContainer: String = "auto",
     val selectedAudioFormat: String = "mp3",
@@ -74,6 +76,7 @@ data class FormatUiState(
     // Quality and type selectors (replaces raw format-ID picker)
     val selectedQuality: VideoQuality = VideoQuality.BEST,
     val selectedStreamType: StreamType = StreamType.VIDEO_AUDIO,
+    val selectedOutputTransform: OutputTransform = OutputTransform.NONE,
     val selectedContainer: String = "auto",
     val selectedAudioFormat: String = "mp3",
     val audioBitrateKbps: Int = 192,
@@ -126,6 +129,7 @@ data class FormatUiState(
     val lastQueuedContainer: String? = null,
     val lastQueuedAudioFormat: String? = null,
     val lastQueuedAudioBitrate: Int? = null,
+    val lastQueuedOutputTransform: OutputTransform? = null,
     val lastQueuedQuality: VideoQuality? = null,
 ) {
     val shouldShowDownloadSetupNotice: Boolean

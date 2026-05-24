@@ -4,6 +4,54 @@ internal fun MediaFormat.shouldTreatAsAudioOnlyChoice(): Boolean {
     return isAudioOnly || normalizedExtension in AUDIO_ONLY_CONTAINERS || normalizedContainer in AUDIO_ONLY_CONTAINERS
 }
 
+internal fun availableOutputTransforms(
+    sourceStreamType: StreamType,
+    videoAudioChoices: List<FormatChoice>,
+    videoOnlyChoices: List<FormatChoice>,
+    audioOnlyChoices: List<FormatChoice>,
+): List<OutputTransform> {
+    if (sourceStreamType != StreamType.VIDEO_AUDIO || videoAudioChoices.isEmpty()) {
+        return listOf(OutputTransform.NONE)
+    }
+
+    return buildList {
+        add(OutputTransform.NONE)
+        if (audioOnlyChoices.isEmpty()) {
+            add(OutputTransform.EXTRACT_AUDIO)
+        }
+        if (videoOnlyChoices.isEmpty()) {
+            add(OutputTransform.REMOVE_AUDIO)
+        }
+    }
+}
+
+internal fun resolveAvailableOutputTransform(
+    preferredTransform: OutputTransform,
+    sourceStreamType: StreamType,
+    videoAudioChoices: List<FormatChoice>,
+    videoOnlyChoices: List<FormatChoice>,
+    audioOnlyChoices: List<FormatChoice>,
+): OutputTransform {
+    val available = availableOutputTransforms(
+        sourceStreamType = sourceStreamType,
+        videoAudioChoices = videoAudioChoices,
+        videoOnlyChoices = videoOnlyChoices,
+        audioOnlyChoices = audioOnlyChoices,
+    )
+    return preferredTransform.takeIf { it in available } ?: OutputTransform.NONE
+}
+
+internal fun effectiveOutputStreamType(
+    sourceStreamType: StreamType,
+    outputTransform: OutputTransform,
+): StreamType {
+    return when (outputTransform) {
+        OutputTransform.NONE -> sourceStreamType
+        OutputTransform.EXTRACT_AUDIO -> StreamType.AUDIO_ONLY
+        OutputTransform.REMOVE_AUDIO -> StreamType.VIDEO_ONLY
+    }
+}
+
 internal fun choicesForStreamType(
     streamType: StreamType,
     videoAudioChoices: List<FormatChoice>,

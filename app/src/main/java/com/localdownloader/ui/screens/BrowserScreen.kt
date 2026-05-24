@@ -91,11 +91,13 @@ import com.localdownloader.downloader.isAutomaticContainerSelection
 import com.localdownloader.downloader.isChoiceCompatibleWithRequestedContainer
 import com.localdownloader.downloader.resolveMergeContainerCompatibility
 import com.localdownloader.domain.models.FormatChoice
+import com.localdownloader.domain.models.OutputTransform
 import com.localdownloader.domain.models.StreamType
 import com.localdownloader.domain.models.VideoQuality
 import com.localdownloader.domain.models.VideoInfo
 import com.localdownloader.domain.models.AnalyzedLinkRecord
 import com.localdownloader.domain.models.choicesForStreamType
+import com.localdownloader.domain.models.effectiveOutputStreamType
 import com.localdownloader.ui.components.InlineFeedbackCard
 import com.localdownloader.ui.model.toReadableSize
 import com.localdownloader.viewmodel.FormatMessageScope
@@ -116,6 +118,7 @@ fun BrowserScreen(
     onAnalyzeClicked: () -> Unit,
     onQualityChanged: (VideoQuality) -> Unit,
     onStreamTypeChanged: (StreamType) -> Unit,
+    onOutputTransformChanged: (OutputTransform) -> Unit,
     onFormatSelectorChanged: (String) -> Unit,
     onContainerChanged: (String) -> Unit,
     onAudioFormatChanged: (String) -> Unit,
@@ -131,6 +134,7 @@ fun BrowserScreen(
     onPlaylistItemExpandedChanged: (Int, Boolean) -> Unit,
     onPlaylistItemUseGlobalChanged: (Int, Boolean) -> Unit,
     onPlaylistItemStreamTypeChanged: (Int, StreamType) -> Unit,
+    onPlaylistItemOutputTransformChanged: (Int, OutputTransform) -> Unit,
     onPlaylistItemFormatSelectorChanged: (Int, String) -> Unit,
     onPlaylistItemContainerChanged: (Int, String) -> Unit,
     onPlaylistItemAudioFormatChanged: (Int, String) -> Unit,
@@ -535,6 +539,8 @@ fun BrowserScreen(
                                 SelectionOptionsCard(
                                     streamType = uiState.selectedStreamType,
                                     onStreamTypeChanged = onStreamTypeChanged,
+                                    outputTransform = uiState.selectedOutputTransform,
+                                    onOutputTransformChanged = onOutputTransformChanged,
                                     hasVideoAudioChoices = uiState.availableVideoAudioChoices.isNotEmpty(),
                                     hasVideoOnlyChoices = uiState.availableVideoOnlyChoices.isNotEmpty(),
                                     hasAudioOnlyChoices = uiState.availableAudioOnlyChoices.isNotEmpty(),
@@ -562,7 +568,11 @@ fun BrowserScreen(
                             }
                         }
                         item {
-                            val currentTemplate = if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
+                            val effectiveStreamType = effectiveOutputStreamType(
+                                uiState.selectedStreamType,
+                                uiState.selectedOutputTransform,
+                            )
+                            val currentTemplate = if (effectiveStreamType == StreamType.AUDIO_ONLY) {
                                 uiState.audioOutputTemplate
                             } else {
                                 uiState.outputTemplate
@@ -571,7 +581,7 @@ fun BrowserScreen(
                                 OutlinedTextField(
                                     value = currentTemplate,
                                     onValueChange = { newValue ->
-                                        if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
+                                        if (effectiveStreamType == StreamType.AUDIO_ONLY) {
                                             onAudioOutputTemplateChanged(newValue)
                                         } else {
                                             onOutputTemplateChanged(newValue)
@@ -580,7 +590,7 @@ fun BrowserScreen(
                                     label = {
                                         Text(
                                             stringResource(
-                                                if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
+                                                if (effectiveStreamType == StreamType.AUDIO_ONLY) {
                                                     R.string.browser_playlist_audio_template
                                                 } else {
                                                     R.string.browser_playlist_template
@@ -593,7 +603,7 @@ fun BrowserScreen(
                                 )
                                 ToggleChipRow(
                                     items = buildList {
-                                        if (uiState.selectedStreamType != StreamType.AUDIO_ONLY) {
+                                        if (effectiveStreamType != StreamType.AUDIO_ONLY) {
                                             add(ToggleConfig(stringResource(R.string.browser_toggle_subtitles), uiState.downloadSubtitles, onDownloadSubtitlesChanged))
                                             add(ToggleConfig(stringResource(R.string.browser_toggle_embed_subs), uiState.embedSubtitles, onEmbedSubtitlesChanged))
                                         }
@@ -619,6 +629,7 @@ fun BrowserScreen(
                                 PlaylistItemCard(
                                     item = playlistItem,
                                     globalStreamType = uiState.selectedStreamType,
+                                    globalOutputTransform = uiState.selectedOutputTransform,
                                     globalFormatSelector = uiState.selectedFormatSelector,
                                     globalContainer = uiState.selectedContainer,
                                     globalAudioFormat = uiState.selectedAudioFormat,
@@ -630,6 +641,7 @@ fun BrowserScreen(
                                     onExpandedChanged = { onPlaylistItemExpandedChanged(index, it) },
                                     onUseGlobalChanged = { onPlaylistItemUseGlobalChanged(index, it) },
                                     onStreamTypeChanged = { onPlaylistItemStreamTypeChanged(index, it) },
+                                    onOutputTransformChanged = { onPlaylistItemOutputTransformChanged(index, it) },
                                     onFormatSelectorChanged = { onPlaylistItemFormatSelectorChanged(index, it) },
                                     onContainerChanged = { onPlaylistItemContainerChanged(index, it) },
                                     onAudioFormatChanged = { onPlaylistItemAudioFormatChanged(index, it) },
@@ -644,6 +656,8 @@ fun BrowserScreen(
                                 SelectionOptionsCard(
                                     streamType = uiState.selectedStreamType,
                                     onStreamTypeChanged = onStreamTypeChanged,
+                                    outputTransform = uiState.selectedOutputTransform,
+                                    onOutputTransformChanged = onOutputTransformChanged,
                                     hasVideoAudioChoices = uiState.availableVideoAudioChoices.isNotEmpty(),
                                     hasVideoOnlyChoices = uiState.availableVideoOnlyChoices.isNotEmpty(),
                                     hasAudioOnlyChoices = uiState.availableAudioOnlyChoices.isNotEmpty(),
@@ -671,7 +685,11 @@ fun BrowserScreen(
                             }
                         }
                         item {
-                            val currentTemplate = if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
+                            val effectiveStreamType = effectiveOutputStreamType(
+                                uiState.selectedStreamType,
+                                uiState.selectedOutputTransform,
+                            )
+                            val currentTemplate = if (effectiveStreamType == StreamType.AUDIO_ONLY) {
                                 uiState.audioOutputTemplate
                             } else {
                                 uiState.outputTemplate
@@ -687,7 +705,7 @@ fun BrowserScreen(
                                 OutlinedTextField(
                                     value = currentTemplate,
                                     onValueChange = { newValue ->
-                                        if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
+                                        if (effectiveStreamType == StreamType.AUDIO_ONLY) {
                                             onAudioOutputTemplateChanged(newValue)
                                         } else {
                                             onOutputTemplateChanged(newValue)
@@ -696,7 +714,7 @@ fun BrowserScreen(
                                     label = {
                                         Text(
                                             stringResource(
-                                                if (uiState.selectedStreamType == StreamType.AUDIO_ONLY) {
+                                                if (effectiveStreamType == StreamType.AUDIO_ONLY) {
                                                     R.string.browser_audio_template
                                                 } else {
                                                     R.string.browser_video_template
@@ -710,10 +728,14 @@ fun BrowserScreen(
                             }
                         }
                         item {
+                            val effectiveStreamType = effectiveOutputStreamType(
+                                uiState.selectedStreamType,
+                                uiState.selectedOutputTransform,
+                            )
                             OptionSectionCard(title = stringResource(R.string.browser_section_extras)) {
                                 ToggleChipRow(
                                     items = buildList {
-                                        if (uiState.selectedStreamType != StreamType.AUDIO_ONLY) {
+                                        if (effectiveStreamType != StreamType.AUDIO_ONLY) {
                                             add(ToggleConfig(stringResource(R.string.browser_toggle_subtitles), uiState.downloadSubtitles, onDownloadSubtitlesChanged))
                                             add(ToggleConfig(stringResource(R.string.browser_toggle_embed_subs), uiState.embedSubtitles, onEmbedSubtitlesChanged))
                                         }
@@ -1260,6 +1282,8 @@ private fun compatibleChoicesForStreamType(
 private fun SelectionOptionsCard(
     streamType: StreamType,
     onStreamTypeChanged: (StreamType) -> Unit,
+    outputTransform: OutputTransform,
+    onOutputTransformChanged: (OutputTransform) -> Unit,
     hasVideoAudioChoices: Boolean,
     hasVideoOnlyChoices: Boolean,
     hasAudioOnlyChoices: Boolean,
@@ -1279,6 +1303,18 @@ private fun SelectionOptionsCard(
     bitrates: List<Int>,
     emptyChoicesMessage: String?,
 ) {
+    val availableTransforms = remember(streamType, hasVideoAudioChoices, hasVideoOnlyChoices, hasAudioOnlyChoices) {
+        if (streamType != StreamType.VIDEO_AUDIO || !hasVideoAudioChoices) {
+            listOf(OutputTransform.NONE)
+        } else {
+            buildList {
+                add(OutputTransform.NONE)
+                if (!hasAudioOnlyChoices) add(OutputTransform.EXTRACT_AUDIO)
+                if (!hasVideoOnlyChoices) add(OutputTransform.REMOVE_AUDIO)
+            }
+        }
+    }
+    val effectiveStreamType = effectiveOutputStreamType(streamType, outputTransform)
     val visibleChoices = remember(choices, streamType, container) {
         if (streamType == StreamType.VIDEO_AUDIO) {
             choices.filter { choice -> isChoiceCompatibleWithRequestedContainer(container, choice) }
@@ -1367,7 +1403,16 @@ private fun SelectionOptionsCard(
             }
         }
 
-        if (streamType == StreamType.AUDIO_ONLY) {
+        if (availableTransforms.size > 1) {
+            BrowserDropdownRow(
+                label = stringResource(R.string.browser_picker_label_output_transform),
+                options = availableTransforms.map { localizedOutputTransformLabel(it) },
+                selectedIndex = availableTransforms.indexOf(outputTransform).coerceAtLeast(0),
+                onSelected = { onOutputTransformChanged(availableTransforms[it]) },
+            )
+        }
+
+        if (effectiveStreamType == StreamType.AUDIO_ONLY) {
             BrowserDropdownRow(
                 label = stringResource(R.string.browser_picker_label_audio_format),
                 options = audioFormats,
@@ -1399,6 +1444,17 @@ private fun localizedStreamTypeLabel(streamType: StreamType): String {
             StreamType.VIDEO_AUDIO -> R.string.browser_video_audio_chip
             StreamType.VIDEO_ONLY -> R.string.browser_video_only_chip
             StreamType.AUDIO_ONLY -> R.string.browser_audio_only_chip
+        },
+    )
+}
+
+@Composable
+private fun localizedOutputTransformLabel(outputTransform: OutputTransform): String {
+    return stringResource(
+        when (outputTransform) {
+            OutputTransform.NONE -> R.string.browser_output_transform_none
+            OutputTransform.EXTRACT_AUDIO -> R.string.browser_output_transform_extract_audio
+            OutputTransform.REMOVE_AUDIO -> R.string.browser_output_transform_remove_audio
         },
     )
 }
@@ -1468,6 +1524,7 @@ private fun PlaylistSelectionSummaryCard(
 private fun PlaylistItemCard(
     item: PlaylistItemUiState,
     globalStreamType: StreamType,
+    globalOutputTransform: OutputTransform,
     globalFormatSelector: String?,
     globalContainer: String,
     globalAudioFormat: String,
@@ -1479,6 +1536,7 @@ private fun PlaylistItemCard(
     onExpandedChanged: (Boolean) -> Unit,
     onUseGlobalChanged: (Boolean) -> Unit,
     onStreamTypeChanged: (StreamType) -> Unit,
+    onOutputTransformChanged: (OutputTransform) -> Unit,
     onFormatSelectorChanged: (String) -> Unit,
     onContainerChanged: (String) -> Unit,
     onAudioFormatChanged: (String) -> Unit,
@@ -1486,6 +1544,8 @@ private fun PlaylistItemCard(
     onFileNameChanged: (String) -> Unit,
 ) {
     val activeStreamType = if (item.useGlobalSettings) globalStreamType else item.selectedStreamType
+    val activeOutputTransform = if (item.useGlobalSettings) globalOutputTransform else item.selectedOutputTransform
+    val effectiveActiveStreamType = effectiveOutputStreamType(activeStreamType, activeOutputTransform)
     val activeFormatSelector = if (item.useGlobalSettings) globalFormatSelector else item.selectedFormatSelector
     val activeContainer = if (item.useGlobalSettings) globalContainer else item.selectedContainer
     val activeAudioFormat = if (item.useGlobalSettings) globalAudioFormat else item.selectedAudioFormat
@@ -1570,7 +1630,8 @@ private fun PlaylistItemCard(
                     ) {
                         buildPlaylistItemSummaryChips(
                             useGlobalSettings = item.useGlobalSettings,
-                            streamType = activeStreamType,
+                            streamType = effectiveActiveStreamType,
+                            outputTransform = activeOutputTransform,
                             choice = activeChoice,
                             container = activeContainer,
                             audioFormat = activeAudioFormat,
@@ -1614,6 +1675,8 @@ private fun PlaylistItemCard(
                         SelectionOptionsCard(
                             streamType = item.selectedStreamType,
                             onStreamTypeChanged = onStreamTypeChanged,
+                            outputTransform = item.selectedOutputTransform,
+                            onOutputTransformChanged = onOutputTransformChanged,
                             hasVideoAudioChoices = item.availableVideoAudioChoices.isNotEmpty(),
                             hasVideoOnlyChoices = item.availableVideoOnlyChoices.isNotEmpty(),
                             hasAudioOnlyChoices = item.availableAudioOnlyChoices.isNotEmpty(),
@@ -1649,6 +1712,7 @@ private fun PlaylistItemCard(
 private fun buildPlaylistItemSummaryChips(
     useGlobalSettings: Boolean,
     streamType: StreamType,
+    outputTransform: OutputTransform,
     choice: FormatChoice?,
     container: String,
     audioFormat: String,
@@ -1664,6 +1728,9 @@ private fun buildPlaylistItemSummaryChips(
                 },
             ),
         )
+        if (outputTransform != OutputTransform.NONE) {
+            add(localizedOutputTransformLabel(outputTransform))
+        }
         when (streamType) {
             StreamType.AUDIO_ONLY -> {
                 add(audioFormat.uppercase())
