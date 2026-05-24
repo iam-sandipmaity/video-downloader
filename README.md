@@ -90,42 +90,62 @@ For release-specific changes, see [CHANGELOG.md](CHANGELOG.md).
 
 | Home | Link Analyzing | Single Download Sheet |
 | --- | --- | --- |
-| <img src="public/demo/home-page.png" alt="Home screen with URL input" width="220" /> | <img src="public/demo/home-link-analyzing.png" alt="Home screen while analyzing a link" width="220" /> | <img src="public/demo/single-file-download-option-view.png" alt="Single file download options overlay" width="220" /> |
+| <img src="public/demo/home-page.png" alt="Home screen with URL input" width="200" /> | <img src="public/demo/home-link-analyzing.png" alt="Home screen while analyzing a link" width="200" /> | <img src="public/demo/single-file-download-option-view.png" alt="Single file download options overlay" width="200" /> |
 | URL entry, ready-history cards, and the main download starting point. | Active metadata extraction before formats are shown. | Format, naming, and final output controls for a single media item. |
 
 ### Playlist And Queue
 
-| Playlist Picker | Per-File Playlist Controls | Active Queue Screen | Queue Tab |
-| --- | --- | --- | --- |
-| <img src="public/demo/playlist-download.png" alt="Playlist download selection" width="180" /> | <img src="public/demo/playlist-download-time-any-randowm-file-formate-and-name-editing.png" alt="Playlist per-file format and rename controls" width="180" /> | <img src="public/demo/downloading-screen.png" alt="Queue screen while a task is active" width="180" /> | <img src="public/demo/downloading-tab.png" alt="Download queue tab" width="180" /> |
-| Global playlist selection before queuing. | Item-level overrides for format and file naming. | Live task progress with worker-driven updates. | Broader queue view for running, queued, and failed items. |
+| Playlist Picker | Per-File Playlist Controls |
+| --- | --- |
+| <img src="public/demo/playlist-download.png" alt="Playlist download selection" width="200" /> | <img src="public/demo/playlist-download-time-any-randowm-file-formate-and-name-editing.png" alt="Playlist per-file format and rename controls" width="200" /> |
+| Global playlist selection before queuing. | Item-level overrides for format and file naming. |
+
+| Active Queue Screen | Queue Tab |
+| --- | --- |
+| <img src="public/demo/downloading-screen.png" alt="Queue screen while a task is active" width="200" /> | <img src="public/demo/downloading-tab.png" alt="Download queue tab" width="200" /> |
+| Live task progress with worker-driven updates. | Broader queue view for running, queued, and failed items. |
 
 ### Library And Playback
 
-| Downloads Library | Saved File Viewer | In-App Audio Player | In-App Video Player |
-| --- | --- | --- | --- |
-| <img src="public/demo/download-tab.png" alt="Downloads library" width="180" /> | <img src="public/demo/downloaded-file-viewer-tab.png" alt="Saved file viewer tab" width="180" /> | <img src="public/demo/downloaded-audio-inapp-player.png" alt="In-app audio player" width="180" /> | <img src="public/demo/in-app-video-player.png" alt="In-app video player" width="180" /> |
-| Local media library with file actions and browsing. | File-centric view of saved downloads. | Music-style playback for downloaded audio. | Full-screen player flow for downloaded video. |
+| Downloads Library | Saved File Viewer |
+| --- | --- |
+| <img src="public/demo/download-tab.png" alt="Downloads library" width="200" /> | <img src="public/demo/downloaded-file-viewer-tab.png" alt="Saved file viewer tab" width="200" /> |
+| Local media library with file actions and browsing. | File-centric view of saved downloads. |
+
+| In-App Audio Player | In-App Video Player |
+| --- | --- |
+| <img src="public/demo/downloaded-audio-inapp-player.png" alt="In-app audio player" width="200" /> | <img src="public/demo/in-app-video-player.png" alt="In-app video player" width="200" /> |
+| Music-style playback for downloaded audio. | Full-screen player flow for downloaded video. |
 
 ### Settings And Support Surfaces
 
-| More Page | Settings Hub | Appearance Page | About And Credits |
-| --- | --- | --- | --- |
-| <img src="public/demo/more-page.png" alt="More page" width="180" /> | <img src="public/demo/settings-page.png" alt="Settings page" width="180" /> | <img src="public/demo/appearence-page.png" alt="Appearance page" width="180" /> | <img src="public/demo/about-page-credit-section.png" alt="About page with credits section" width="180" /> |
-| Utility shortcuts, tools, updates, and help entry points. | Main settings navigation with grouped categories. | Theme, accent, contrast, and language-adjacent presentation controls. | Credits and upstream acknowledgements inside the app. |
+| More Page | Settings Hub |
+| --- | --- |
+| <img src="public/demo/more-page.png" alt="More page" width="200" /> | <img src="public/demo/settings-page.png" alt="Settings page" width="200" /> |
+| Utility shortcuts, tools, updates, and help entry points. | Main settings navigation with grouped categories. |
+
+| Appearance Page | About And Credits |
+| --- | --- |
+| <img src="public/demo/appearence-page.png" alt="Appearance page" width="200" /> | <img src="public/demo/about-page-credit-section.png" alt="About page with credits section" width="200" /> |
+| Theme, accent, contrast, and language-adjacent presentation controls. | Credits and upstream acknowledgements inside the app. |
 
 ### Access And Media Tools
 
-| Cookies Page | YouTube Access | Converter | Compressor |
-| --- | --- | --- | --- |
-| <img src="public/demo/cookies-page.png" alt="Cookies page" width="180" /> | <img src="public/demo/youtube-po-generation-page.png" alt="YouTube access and PO generation page" width="180" /> | <img src="public/demo/converter.png" alt="Converter tool page" width="180" /> | <img src="public/demo/compressor.png" alt="Compressor tool page" width="180" /> |
-| Saved cookie/session management for harder sites. | Dedicated YouTube session and access recovery flow. | Format conversion utility built into the app. | Compression workflow for media size reduction. |
+| Cookies Page | YouTube Access |
+| --- | --- |
+| <img src="public/demo/cookies-page.png" alt="Cookies page" width="200" /> | <img src="public/demo/youtube-po-generation-page.png" alt="YouTube access and PO generation page" width="200" /> |
+| Saved cookie/session management for harder sites. | Dedicated YouTube session and access recovery flow. |
+
+| Converter | Compressor |
+| --- | --- |
+| <img src="public/demo/converter.png" alt="Converter tool page" width="200" /> | <img src="public/demo/compressor.png" alt="Compressor tool page" width="200" /> |
+| Format conversion utility built into the app. | Compression workflow for media size reduction. |
 
 ### Localization Examples
 
 | Appearance In Bengali | Notification Settings In Bengali |
 | --- | --- |
-| <img src="public/demo/appearence-page-in-bengali.png" alt="Appearance page in Bengali" width="220" /> | <img src="public/demo/notification-page-in-bengali.png" alt="Notification settings in Bengali" width="220" /> |
+| <img src="public/demo/appearence-page-in-bengali.png" alt="Appearance page in Bengali" width="200" /> | <img src="public/demo/notification-page-in-bengali.png" alt="Notification settings in Bengali" width="200" /> |
 | One of the localized settings surfaces. | Another example of translated in-app settings UI. |
 
 ## Feature Set

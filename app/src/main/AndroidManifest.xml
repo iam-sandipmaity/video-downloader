@@ -79,35 +79,16 @@
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="content" />
                 <data android:scheme="file" />
                 <data android:mimeType="video/*" />
                 <data android:mimeType="audio/*" />
-                <data android:mimeType="image/*" />
-                <data android:mimeType="text/html" />
-                <data android:mimeType="application/xhtml+xml" />
-                <data android:mimeType="multipart/related" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="content" android:mimeType="*/*" android:pathPattern=".*\\.mhtml" />
-                <data android:scheme="content" android:mimeType="*/*" android:pathPattern=".*\\.mht" />
-                <data android:scheme="file" android:mimeType="*/*" android:pathPattern=".*\\.mhtml" />
-                <data android:scheme="file" android:mimeType="*/*" android:pathPattern=".*\\.mht" />
+                <data android:mimeType="text/uri-list" />
             </intent-filter>
         </activity>
 
