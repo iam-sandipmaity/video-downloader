@@ -55,4 +55,59 @@ class ProgressScreenLogicTest {
 
         assertEquals(listOf("third", "fourth"), messages)
     }
+
+    @Test
+    fun classifyRecoveryCategory_detectsYoutubeAccessFailures() {
+        val task = DownloadTask(
+            id = "task-youtube-access",
+            url = "https://www.youtube.com/watch?v=abc123",
+            title = "Restricted video",
+            status = DownloadStatus.FAILED,
+            errorMessage = "Sign in to confirm you're not a bot",
+        )
+
+        val category = classifyRecoveryCategory(
+            task = task,
+            currentTimeMs = task.updatedAtEpochMs,
+        )
+
+        assertEquals(RecoveryCategory.YOUTUBE_ACCESS, category)
+    }
+
+    @Test
+    fun classifyRecoveryCategory_detectsPostprocessingFailures() {
+        val task = DownloadTask(
+            id = "task-postprocess",
+            url = "https://example.com/video",
+            title = "Sample",
+            status = DownloadStatus.FAILED,
+            errorMessage = "ffmpeg exited with code 1 during merge",
+            debugTrace = "12:00:05: Manual remux recovery failed",
+        )
+
+        val category = classifyRecoveryCategory(
+            task = task,
+            currentTimeMs = task.updatedAtEpochMs,
+        )
+
+        assertEquals(RecoveryCategory.POSTPROCESSING, category)
+    }
+
+    @Test
+    fun classifyRecoveryCategory_detectsRuntimeFailures() {
+        val task = DownloadTask(
+            id = "task-runtime",
+            url = "https://example.com/video",
+            title = "Sample",
+            status = DownloadStatus.FAILED,
+            errorMessage = "Missing runtime binary for this ABI",
+        )
+
+        val category = classifyRecoveryCategory(
+            task = task,
+            currentTimeMs = task.updatedAtEpochMs,
+        )
+
+        assertEquals(RecoveryCategory.RUNTIME_OR_DEVICE, category)
+    }
 }
