@@ -51,32 +51,35 @@ class BinaryInstaller @Inject constructor(
     suspend fun ensureFfmpegRuntime(preferNative: Boolean = true): FfmpegRuntime = withContext(Dispatchers.IO) {
         val supportDir = ensureBundledFfmpegSupportDir()
         val overlayCandidate = resolveDownloadedOverlayFfmpegCandidate()
-        val canUseBundledLinkedRuntime = canUseLinkedFfmpegRuntime(supportDir)
+        val bundledLinkedRuntimeHasExplicitSupport = hasExplicitLinkedFfmpegRuntimeSupport(supportDir)
         val candidates = buildList {
             if (overlayCandidate != null) {
-                if (canUseLinkedFfmpegRuntime(overlayCandidate.supportDir)) {
-                    add(overlayCandidate)
-                } else {
+                if (!hasExplicitLinkedFfmpegRuntimeSupport(overlayCandidate.supportDir)) {
                     logger.i(
                         "BinaryInstaller",
-                        "Skipping downloaded overlay libffmpeg.so because libc++_shared.so is unavailable for its support libraries",
+                        "Downloaded overlay libffmpeg.so has no explicit libc++_shared.so marker; attempting runtime verification before falling back",
                     )
                 }
+                add(overlayCandidate)
             }
-            if (canUseBundledLinkedRuntime) {
-                resolveNativeLibraryBinary(listOf("libffmpeg.so"))?.let { nativeBinary ->
-                    add(
-                        FfmpegCandidate(
-                            sourceBinary = nativeBinary,
-                            supportDir = supportDir,
-                            label = nativeBinary.name,
-                        ),
+            resolveNativeLibraryBinary(listOf("libffmpeg.so"))?.let { nativeBinary ->
+                if (!bundledLinkedRuntimeHasExplicitSupport) {
+                    logger.i(
+                        "BinaryInstaller",
+                        "Bundled linked libffmpeg.so has no explicit libc++_shared.so marker; attempting runtime verification before falling back",
                     )
                 }
-            } else {
+                add(
+                    FfmpegCandidate(
+                        sourceBinary = nativeBinary,
+                        supportDir = supportDir,
+                        label = nativeBinary.name,
+                    ),
+                )
+            } ?: if (!bundledLinkedRuntimeHasExplicitSupport) {
                 logger.i(
                     "BinaryInstaller",
-                    "Skipping linked libffmpeg.so candidates because libc++_shared.so is not packaged in this build",
+                    "No bundled linked libffmpeg.so candidate was found; fallback libffmpeg_exec.so remains required",
                 )
             }
             resolveNativeLibraryBinary(listOf("libffmpeg_exec.so"))?.let { nativeBinary ->
@@ -215,7 +218,7 @@ class BinaryInstaller @Inject constructor(
         )
     }
 
-    private fun canUseLinkedFfmpegRuntime(supportDir: File?): Boolean {
+    private fun hasExplicitLinkedFfmpegRuntimeSupport(supportDir: File?): Boolean {
         val appNativeDir = context.applicationInfo.nativeLibraryDir?.let(::File)
         val appHasSharedCpp = appNativeDir?.let { File(it, "libc++_shared.so").exists() } == true
         val supportHasSharedCpp = supportDir?.let { dir ->
