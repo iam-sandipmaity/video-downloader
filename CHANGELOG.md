@@ -6,17 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
+- No unreleased changes yet.
+
+## [1.7.2.1] - 2026-05-24
+
 ### Changed
 - **Auto container defaults** - single-file video downloads now default to `Auto` container resolution, and the picker surfaces the safer final output container more honestly instead of always implying `mp4`
 - **Explicit MP4 safety filtering** - choosing `mp4` now prefers MP4-safe video-plus-audio combinations and keeps codec intent clearer for AVC1, AV1, and VP9-family picks
 - **Container-routing polish** - YouTube merge routing now chooses cleaner final targets for AVC1, AV1, and VP9/Opus selections before worker recovery needs to step in
+- **README presentation refresh** - reorganized the repository landing page into a more visual release overview with categorized screenshot tables so every current demo image stays visible but easier to scan
 
 ### Fixed
+- **Non-YouTube analysis timeout recovery** - slower sites now get safe extended-timeout retries during link analysis without restoring the old insecure certificate-bypass fallback
+- **yt-dlp runtime updater flow** - the app now routes yt-dlp updates through the downloader's own self-update path instead of manually replacing the embedded runtime file, improving real extractor compatibility recovery
+- **Site compatibility regressions after 1.7.2.0** - restored newer extractor/runtime recovery behavior for pages that had started failing or exposing fewer formats after the security release, including tougher generic-site and article-video cases
 - **Postprocessing recovery loops** - optional yt-dlp postprocessing failures now salvage already-finished media more reliably instead of cascading into unnecessary redownload attempts
 - **VP9/WebM merge behavior** - VP9 plus Opus downloads now resolve straight to `webm` when appropriate instead of first attempting a known-fragile `mp4` merge path
 - **History trace visibility** - restored sanitized per-task debug traces in Download History so completed and failed tasks remain inspectable again
 - **Recovered thumbnail sidecars** - recovery paths no longer export stray thumbnail `.webp` files into public Downloads when thumbnail embedding extras cannot be completed
 - **In-app video playback handoff** - opening a video now pauses background audio playback from the app, and the center play/pause overlay is visually centered again
+
+### Technical
+- **App version bump** - release metadata updated to `1.7.2.1`
 
 ## [1.7.2.0] - 2026-05-23
 
