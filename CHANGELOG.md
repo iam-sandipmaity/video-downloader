@@ -12,12 +12,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ### Added
 - **Library search** - Downloads and History now include inline search so saved media and past tasks are easier to filter by title, source, file name, saved path, and related diagnostics
+- **External player fallback** - the built-in player can now hand off saved or imported media to another player more easily, and broader media container types are recognized across library and open-with flows
+- **Repo-safe update flavor** - added a `repoSafe` distribution flavor that keeps yt-dlp auto-update off by default for repository-friendly builds while preserving the standard flavor behavior
 
 ### Changed
 - **Recovery guidance classification** - failed queue items now classify likely problems into clearer buckets such as access restrictions, session issues, network or rate-limit trouble, FFmpeg post-processing failures, runtime or device problems, and extractor or format compatibility issues
+- **Downloads header density** - compacted selection actions plus top filter and sort controls so batch actions fit more cleanly in one row with less wasted vertical space
+- **Playback-safe video defaults** - when no exact format is chosen manually, video downloads now prefer more device-friendly defaults instead of automatically drifting to the tallest risky stream
+- **Brief compatibility heads-up** - variable-support formats like `WEBM` and `MKV` now show only a short 2-second playback notice when the player opens instead of a persistent warning
 
 ### Fixed
 - **Targeted failure help** - recovery panels now surface more useful next steps and actions for common failure patterns instead of falling back to one generic troubleshooting block
+- **Audio extraction recovery** - `WAV` and `FLAC` conversions no longer receive invalid bitrate arguments, and post-processing failures now recover already-downloaded source audio more reliably
+- **FFmpeg runtime preference** - runtime setup now tries the newer linked or overlay FFmpeg before falling back to the legacy bundled binary, improving compatibility with updated runtimes
+- **Player format support plumbing** - more audio and video containers now get correct MIME hints, library classification, and in-app or external-open handling instead of being treated inconsistently
 
 ### Technical
 - **App version bump** - release metadata updated to `1.7.2.3`
