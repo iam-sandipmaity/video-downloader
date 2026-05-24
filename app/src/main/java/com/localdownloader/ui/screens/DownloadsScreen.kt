@@ -41,6 +41,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.DeleteForever
@@ -49,6 +50,7 @@ import androidx.compose.material.icons.outlined.DriveFileRenameOutline
 import androidx.compose.material.icons.outlined.PauseCircle
 import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
@@ -115,6 +117,7 @@ fun DownloadsScreen(
 ) {
     var selectedFilter by rememberSaveable { mutableStateOf(DownloadsFilter.All.name) }
     var sortNewestFirst by rememberSaveable { mutableStateOf(true) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
     var renameTarget by remember { mutableStateOf<VideoLibraryItem?>(null) }
     var renameValue by rememberSaveable { mutableStateOf("") }
     var deleteTarget by remember { mutableStateOf<VideoLibraryItem?>(null) }
@@ -129,8 +132,11 @@ fun DownloadsScreen(
     val audioItems = remember(items) { items.filter { it.exists && it.mediaKind == MediaKind.AUDIO } }
     val currentFilter = runCatching { DownloadsFilter.valueOf(selectedFilter) }
         .getOrDefault(DownloadsFilter.All)
+    val normalizedSearchQuery = searchQuery.trim()
+    val searchActive = normalizedSearchQuery.isNotBlank()
     val filteredItems = items
         .filter { currentFilter.matches(it.mediaKind) }
+        .filter { it.matchesDownloadsSearch(normalizedSearchQuery) }
         .let { candidates ->
             if (sortNewestFirst) {
                 candidates.sortedByDescending { it.task.updatedAtEpochMs }
@@ -343,6 +349,14 @@ fun DownloadsScreen(
                         selectionMode -> {
                             stringResource(R.string.downloads_selection_help)
                         }
+                        searchActive -> {
+                            pluralStringResource(
+                                R.plurals.downloads_search_results,
+                                filteredItems.size,
+                                filteredItems.size,
+                                normalizedSearchQuery,
+                            )
+                        }
                         items.isNotEmpty() -> {
                             pluralStringResource(R.plurals.downloads_saved_ready, items.size, items.size)
                         }
@@ -479,6 +493,33 @@ fun DownloadsScreen(
                     )
                 }
             }
+        }
+
+        if (items.isNotEmpty() || searchActive) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text(stringResource(R.string.downloads_search_label)) },
+                placeholder = { Text(stringResource(R.string.downloads_search_placeholder)) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Outlined.Search,
+                        contentDescription = null,
+                    )
+                },
+                trailingIcon = {
+                    if (searchQuery.isNotBlank()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(
+                                imageVector = Icons.Outlined.Clear,
+                                contentDescription = stringResource(R.string.downloads_clear_search),
+                            )
+                        }
+                    }
+                },
+            )
         }
 
         AnimatedVisibility(
@@ -634,8 +675,12 @@ fun DownloadsScreen(
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
             ) {
                 Text(
-                    text = when (currentFilter) {
-                        DownloadsFilter.All -> {
+                    text = when {
+                        searchActive -> stringResource(
+                            R.string.downloads_no_search_results,
+                            normalizedSearchQuery,
+                        )
+                        currentFilter == DownloadsFilter.All -> {
                             if (hasActiveDownloads) {
                                 stringResource(R.string.downloads_running_empty_all)
                             } else {
@@ -1140,6 +1185,27 @@ private fun compactDownloadQualityLabel(value: String?): String? {
     val raw = value?.trim().orEmpty()
     if (raw.isBlank()) return null
     return raw.substringBefore(" ").substringBefore("(").trim().ifBlank { null }
+}
+
+private fun VideoLibraryItem.matchesDownloadsSearch(query: String): Boolean {
+    if (query.isBlank()) return true
+    val sourceHost = runCatching {
+        Uri.parse(task.url).host?.removePrefix("www.")
+    }.getOrNull()
+    val outputName = task.outputPath
+        ?.replace('\\', '/')
+        ?.substringAfterLast('/')
+        ?.takeIf { it.isNotBlank() }
+    return listOfNotNull(
+        displayTitle,
+        task.title,
+        file?.name,
+        outputName,
+        task.outputPath,
+        sourceHost,
+    ).any { value ->
+        value.contains(query, ignoreCase = true)
+    }
 }
 
 @Composable

@@ -132,12 +132,16 @@
     <string name="downloads_permanent_delete">Permanent delete</string>
     <string name="downloads_newest_first">Newest first</string>
     <string name="downloads_oldest_first">Oldest first</string>
+    <string name="downloads_search_label">Search saved downloads</string>
+    <string name="downloads_search_placeholder">Title, source, or file name</string>
+    <string name="downloads_clear_search">Clear download search</string>
     <string name="downloads_select_files_to_unlock">Select files to unlock batch actions.</string>
     <string name="downloads_clear_visible">Clear visible</string>
     <string name="downloads_select_visible">Select visible</string>
     <string name="downloads_delete_forever">Delete forever</string>
     <string name="downloads_no_finished_for_filter">No %1$s files are finished yet. Your active downloads are still moving through the queue.</string>
     <string name="downloads_no_saved_for_filter">No %1$s downloads yet. Finish one from Home and it will show up here automatically.</string>
+    <string name="downloads_no_search_results">No saved downloads match &quot;%1$s&quot; yet. Try a broader title, source, or file-name search.</string>
     <string name="downloads_running_empty_all">Downloads are still running. Completed files will show up here automatically.</string>
     <string name="downloads_empty_all">No downloads yet. Finish one from Home and it will show up here automatically.</string>
     <string name="downloads_open_music_player">Open music player</string>
@@ -182,6 +186,10 @@
     <plurals name="downloads_saved_ready">
         <item quantity="one">%1$d saved item ready to open</item>
         <item quantity="other">%1$d saved items ready to open</item>
+    </plurals>
+    <plurals name="downloads_search_results">
+        <item quantity="one">%1$d match for &quot;%2$s&quot;</item>
+        <item quantity="other">%1$d matches for &quot;%2$s&quot;</item>
     </plurals>
     <plurals name="downloads_active_in_progress">
         <item quantity="one">%1$d download is in progress. Finished items will appear here automatically.</item>
@@ -366,6 +374,11 @@
     <string name="history_task_summary">Task summary</string>
     <string name="history_empty_title">No matching history yet</string>
     <string name="history_empty_body">Change the filter or finish a few downloads from Home and the full task history will build up here.</string>
+    <string name="history_search_label">Search history</string>
+    <string name="history_search_placeholder">Title, source, path, or error text</string>
+    <string name="history_clear_search">Clear history search</string>
+    <string name="history_search_empty_title">No history matches that search</string>
+    <string name="history_search_empty_body">No finished tasks match &quot;%1$s&quot; in the current filter. Try a broader source, title, or error search.</string>
     <string name="history_feedback_label">History update</string>
     <string name="history_retention_action">Auto-clean failed history</string>
     <string name="history_retention_title">Failed history retention</string>
@@ -403,6 +416,7 @@
         <item quantity="other">%1$d subtitle files</item>
     </plurals>
     <string name="history_summary_showing">Showing %1$d of %2$d finished tasks in %3$s.</string>
+    <string name="history_summary_showing_search">Showing %1$d of %2$d finished tasks matching &quot;%3$s&quot; in %4$s.</string>
 
     <string name="updates_title">Updates</string>
     <string name="updates_refresh_all">Refresh all</string>
