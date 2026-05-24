@@ -263,11 +263,7 @@ The in-app About section also lists upstream credits and linked sources.
 ## Star History
 
 <a href="https://www.star-history.com/?repos=iam-sandipmaity%2Fvideo-downloader&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=iam-sandipmaity/video-downloader&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=iam-sandipmaity/video-downloader&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=iam-sandipmaity/video-downloader&type=date&legend=top-left" />
- </picture>
+ <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=iam-sandipmaity/video-downloader&type=date&legend=top-left" />
 </a>
 
 ## Contributors
