@@ -98,6 +98,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.localdownloader.MainActivity
 import com.localdownloader.R
@@ -319,7 +320,7 @@ fun PlayerScreen(
                         player = playerViewModel.player
                         useController = false
                         keepScreenOn = true
-                        resizeMode = uiState.resizeMode
+                        resizeMode = media3ResizeMode(uiState.resizeMode)
                     }
                 },
                 modifier = Modifier
@@ -352,7 +353,7 @@ fun PlayerScreen(
                     },
                 update = { playerView ->
                     playerView.player = playerViewModel.player
-                    playerView.resizeMode = uiState.resizeMode
+                    playerView.resizeMode = media3ResizeMode(uiState.resizeMode)
                 },
             )
 
@@ -1704,6 +1705,19 @@ private data class ResizeOption(
     val label: String,
     val subtitle: String,
 )
+
+@androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
+@AspectRatioFrameLayout.ResizeMode
+private fun media3ResizeMode(resizeMode: Int): Int {
+    return when (resizeMode) {
+        PlayerResizeModes.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+        PlayerResizeModes.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+        PlayerResizeModes.FILL -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+        PlayerResizeModes.FIXED_WIDTH -> AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH
+        PlayerResizeModes.FIXED_HEIGHT -> AspectRatioFrameLayout.RESIZE_MODE_FIXED_HEIGHT
+        else -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+    }
+}
 
 private data class VolumeBoostOption(
     val targetGainMb: Int,
