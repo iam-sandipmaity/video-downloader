@@ -21,7 +21,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -63,10 +62,29 @@ fun StorageSettingsScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val context = LocalContext.current
     val settingsInfoMessage = uiState.infoMessageFor(FormatMessageScope.SETTINGS)
     val settingsErrorMessage = uiState.errorMessageFor(FormatMessageScope.SETTINGS)
     val defaults = remember { com.localdownloader.domain.models.AppSettings() }
+    val commonSaveLabel = stringResource(R.string.common_save)
+    val storageRootTitle = stringResource(R.string.storage_root_title)
+    val storageFolderLabelRoot = stringResource(R.string.storage_folder_label_root)
+    val storageRootSupporting = stringResource(R.string.storage_root_supporting)
+    val storageVideoTitle = stringResource(R.string.storage_video_title)
+    val storageFolderLabelInsideRoot = stringResource(R.string.storage_folder_label_inside_root)
+    val storageVideoSupporting = stringResource(R.string.storage_video_supporting)
+    val storageAudioTitle = stringResource(R.string.storage_audio_title)
+    val storageAudioSupporting = stringResource(R.string.storage_audio_supporting)
+    val storageOtherTitle = stringResource(R.string.storage_other_title)
+    val storageOtherSupporting = stringResource(R.string.storage_other_supporting)
+    val storageClearAppListDialogTitle = stringResource(R.string.storage_clear_app_list_dialog_title)
+    val storageClearAppListDialogBody = stringResource(R.string.storage_clear_app_list_dialog_body)
+    val commonRemoveEntriesLabel = stringResource(R.string.common_remove_entries)
+    val storageDeleteAllDialogTitle = stringResource(R.string.storage_delete_all_dialog_title)
+    val storageDeleteAllDialogBody = stringResource(R.string.storage_delete_all_dialog_body)
+    val commonDeleteAllLabel = stringResource(R.string.common_delete_all)
+    val storageResetDialogTitle = stringResource(R.string.storage_reset_dialog_title)
+    val storageResetDialogBody = stringResource(R.string.storage_reset_dialog_body)
+    val commonResetNowLabel = stringResource(R.string.common_reset_now)
 
     var textDialog by remember { mutableStateOf<SettingTextDialogState?>(null) }
     var confirmDialog by remember { mutableStateOf<SettingConfirmDialogState?>(null) }
@@ -137,11 +155,11 @@ fun StorageSettingsScreen(
                     ),
                     onEditClick = {
                         textDialog = SettingTextDialogState(
-                            title = context.getString(R.string.storage_root_title),
+                            title = storageRootTitle,
                             value = uiState.downloadsRootFolderName,
-                            label = context.getString(R.string.storage_folder_label_root),
-                            supporting = context.getString(R.string.storage_root_supporting),
-                            confirmLabel = context.getString(R.string.common_save),
+                            label = storageFolderLabelRoot,
+                            supporting = storageRootSupporting,
+                            confirmLabel = commonSaveLabel,
                             onConfirm = onDownloadsRootFolderNameChanged,
                         )
                     },
@@ -156,11 +174,11 @@ fun StorageSettingsScreen(
                     ),
                     onEditClick = {
                         textDialog = SettingTextDialogState(
-                            title = context.getString(R.string.storage_video_title),
+                            title = storageVideoTitle,
                             value = uiState.videoSubfolderName,
-                            label = context.getString(R.string.storage_folder_label_inside_root),
-                            supporting = context.getString(R.string.storage_video_supporting),
-                            confirmLabel = context.getString(R.string.common_save),
+                            label = storageFolderLabelInsideRoot,
+                            supporting = storageVideoSupporting,
+                            confirmLabel = commonSaveLabel,
                             onConfirm = onVideoSubfolderNameChanged,
                         )
                     },
@@ -175,11 +193,11 @@ fun StorageSettingsScreen(
                     ),
                     onEditClick = {
                         textDialog = SettingTextDialogState(
-                            title = context.getString(R.string.storage_audio_title),
+                            title = storageAudioTitle,
                             value = uiState.audioSubfolderName,
-                            label = context.getString(R.string.storage_folder_label_inside_root),
-                            supporting = context.getString(R.string.storage_audio_supporting),
-                            confirmLabel = context.getString(R.string.common_save),
+                            label = storageFolderLabelInsideRoot,
+                            supporting = storageAudioSupporting,
+                            confirmLabel = commonSaveLabel,
                             onConfirm = onAudioSubfolderNameChanged,
                         )
                     },
@@ -194,11 +212,11 @@ fun StorageSettingsScreen(
                     ),
                     onEditClick = {
                         textDialog = SettingTextDialogState(
-                            title = context.getString(R.string.storage_other_title),
+                            title = storageOtherTitle,
                             value = uiState.otherSubfolderName,
-                            label = context.getString(R.string.storage_folder_label_inside_root),
-                            supporting = context.getString(R.string.storage_other_supporting),
-                            confirmLabel = context.getString(R.string.common_save),
+                            label = storageFolderLabelInsideRoot,
+                            supporting = storageOtherSupporting,
+                            confirmLabel = commonSaveLabel,
                             onConfirm = onOtherSubfolderNameChanged,
                         )
                     },
@@ -268,9 +286,9 @@ fun StorageSettingsScreen(
                     subtitle = stringResource(R.string.storage_clear_app_list_subtitle),
                     onClick = {
                         confirmDialog = SettingConfirmDialogState(
-                            title = context.getString(R.string.storage_clear_app_list_dialog_title),
-                            body = context.getString(R.string.storage_clear_app_list_dialog_body),
-                            confirmLabel = context.getString(R.string.common_remove_entries),
+                            title = storageClearAppListDialogTitle,
+                            body = storageClearAppListDialogBody,
+                            confirmLabel = commonRemoveEntriesLabel,
                             onConfirm = {
                                 onClearVideoTabEntries()
                                 confirmDialog = null
@@ -286,9 +304,9 @@ fun StorageSettingsScreen(
                     subtitle = stringResource(R.string.storage_delete_all_subtitle),
                     onClick = {
                         confirmDialog = SettingConfirmDialogState(
-                            title = context.getString(R.string.storage_delete_all_dialog_title),
-                            body = context.getString(R.string.storage_delete_all_dialog_body),
-                            confirmLabel = context.getString(R.string.common_delete_all),
+                            title = storageDeleteAllDialogTitle,
+                            body = storageDeleteAllDialogBody,
+                            confirmLabel = commonDeleteAllLabel,
                             destructive = true,
                             onConfirm = {
                                 onDeleteAllSavedMedia()
@@ -305,9 +323,9 @@ fun StorageSettingsScreen(
                     subtitle = stringResource(R.string.storage_reset_subtitle),
                     onClick = {
                         confirmDialog = SettingConfirmDialogState(
-                            title = context.getString(R.string.storage_reset_dialog_title),
-                            body = context.getString(R.string.storage_reset_dialog_body),
-                            confirmLabel = context.getString(R.string.common_reset_now),
+                            title = storageResetDialogTitle,
+                            body = storageResetDialogBody,
+                            confirmLabel = commonResetNowLabel,
                             onConfirm = {
                                 onResetSettings()
                                 confirmDialog = null

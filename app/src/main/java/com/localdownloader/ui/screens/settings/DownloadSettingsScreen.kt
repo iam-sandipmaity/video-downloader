@@ -44,6 +44,36 @@ fun DownloadSettingsScreen(
     val context = LocalContext.current
     var choiceDialog by remember { mutableStateOf<SettingChoiceDialogState?>(null) }
     var filenameTemplateDialog by remember { mutableStateOf<FilenameTemplateDialogState?>(null) }
+    val videoFilenameTitle = stringResource(R.string.download_defaults_filename_video_title)
+    val audioFilenameTitle = stringResource(R.string.download_defaults_filename_audio_title)
+    val filenameSupporting = stringResource(R.string.download_defaults_filename_supporting)
+    val videoContainerTitle = stringResource(R.string.download_defaults_video_container_title)
+    val audioContainerTitle = stringResource(R.string.download_defaults_audio_container_title)
+    val concurrentTitle = stringResource(R.string.download_defaults_concurrent_title)
+    val slotSubtitles = mapOf(
+        1 to stringResource(R.string.download_defaults_slot_1),
+        2 to stringResource(R.string.download_defaults_slot_2),
+        3 to stringResource(R.string.download_defaults_slot_3),
+        4 to stringResource(R.string.download_defaults_slot_4),
+    )
+    val retentionTitle = stringResource(R.string.download_defaults_retention_title)
+    val retentionChoices = listOf(1, 3, 7, 15, 30, 90)
+    val retentionLabels = retentionChoices.associateWith { days ->
+        pluralStringResource(R.plurals.common_days, days, days)
+    }
+    val retentionSubtitles = mapOf(
+        1 to stringResource(R.string.download_defaults_retention_1),
+        3 to stringResource(R.string.download_defaults_retention_3),
+        7 to stringResource(R.string.download_defaults_retention_7),
+        15 to stringResource(R.string.download_defaults_retention_15),
+        30 to stringResource(R.string.download_defaults_retention_30),
+        90 to stringResource(R.string.download_defaults_retention_90),
+    )
+    val selectedRetentionLabel = pluralStringResource(
+        R.plurals.common_days,
+        uiState.appSettings.analyzedLinkHistoryRetentionDays,
+        uiState.appSettings.analyzedLinkHistoryRetentionDays,
+    )
 
     choiceDialog?.let { state ->
         SettingChoiceDialog(
@@ -71,11 +101,10 @@ fun DownloadSettingsScreen(
                     subtitle = stringResource(R.string.download_defaults_filename_video_subtitle),
                     value = uiState.outputTemplate,
                     onClick = {
-                        val title = context.getString(R.string.download_defaults_filename_video_title)
                         filenameTemplateDialog = FilenameTemplateDialogState(
-                            title = title,
+                            title = videoFilenameTitle,
                             value = uiState.outputTemplate,
-                            supporting = context.getString(R.string.download_defaults_filename_supporting),
+                            supporting = filenameSupporting,
                             presets = videoFilenameTemplatePresets(context),
                             tokens = suggestedFilenameTokens(),
                             onConfirm = onDefaultVideoOutputTemplateChanged,
@@ -89,11 +118,10 @@ fun DownloadSettingsScreen(
                     subtitle = stringResource(R.string.download_defaults_filename_audio_subtitle),
                     value = uiState.audioOutputTemplate,
                     onClick = {
-                        val title = context.getString(R.string.download_defaults_filename_audio_title)
                         filenameTemplateDialog = FilenameTemplateDialogState(
-                            title = title,
+                            title = audioFilenameTitle,
                             value = uiState.audioOutputTemplate,
-                            supporting = context.getString(R.string.download_defaults_filename_supporting),
+                            supporting = filenameSupporting,
                             presets = audioFilenameTemplatePresets(context),
                             tokens = suggestedFilenameTokens(),
                             onConfirm = onDefaultAudioOutputTemplateChanged,
@@ -109,7 +137,7 @@ fun DownloadSettingsScreen(
                     onClick = {
                         val containers = listOf("auto", "mp4", "webm", "mkv", "mov")
                         choiceDialog = SettingChoiceDialogState(
-                            title = context.getString(R.string.download_defaults_video_container_title),
+                            title = videoContainerTitle,
                             selected = containerDisplayLabel(context, uiState.selectedContainer),
                             options = containers.map { container ->
                                 SettingChoiceOption(
@@ -130,7 +158,7 @@ fun DownloadSettingsScreen(
                     onClick = {
                         val audioFormats = listOf("mp3", "m4a", "aac", "opus", "flac", "wav")
                         choiceDialog = SettingChoiceDialogState(
-                            title = context.getString(R.string.download_defaults_audio_container_title),
+                            title = audioContainerTitle,
                             selected = uiState.selectedAudioFormat.uppercase(),
                             options = audioFormats.map { format ->
                                 SettingChoiceOption(
@@ -187,21 +215,15 @@ fun DownloadSettingsScreen(
                     subtitle = stringResource(R.string.download_defaults_concurrent_subtitle),
                     value = uiState.maxConcurrentDownloads.toString(),
                     onClick = {
-                        val resources = context.resources
                         val slotChoices = (1..4).map { slotCount ->
                             SettingChoiceOption(
                                 title = slotCount.toString(),
-                                subtitle = when (slotCount) {
-                                    1 -> resources.getString(R.string.download_defaults_slot_1)
-                                    2 -> resources.getString(R.string.download_defaults_slot_2)
-                                    3 -> resources.getString(R.string.download_defaults_slot_3)
-                                    else -> resources.getString(R.string.download_defaults_slot_4)
-                                },
+                                subtitle = slotSubtitles.getValue(slotCount),
                                 onSelect = { onMaxConcurrentDownloadsChanged(slotCount) },
                             )
                         }
                         choiceDialog = SettingChoiceDialogState(
-                            title = context.getString(R.string.download_defaults_concurrent_title),
+                            title = concurrentTitle,
                             selected = uiState.maxConcurrentDownloads.toString(),
                             options = slotChoices,
                         )
@@ -230,26 +252,13 @@ fun DownloadSettingsScreen(
                             uiState.appSettings.analyzedLinkHistoryRetentionDays,
                         ),
                         onClick = {
-                            val dayChoices = listOf(1, 3, 7, 15, 30, 90)
-                            val selectedDays = context.resources.getQuantityString(
-                                R.plurals.common_days,
-                                uiState.appSettings.analyzedLinkHistoryRetentionDays,
-                                uiState.appSettings.analyzedLinkHistoryRetentionDays,
-                            )
                             choiceDialog = SettingChoiceDialogState(
-                                title = context.getString(R.string.download_defaults_retention_title),
-                                selected = selectedDays,
-                                options = dayChoices.map { days ->
+                                title = retentionTitle,
+                                selected = selectedRetentionLabel,
+                                options = retentionChoices.map { days ->
                                     SettingChoiceOption(
-                                        title = context.resources.getQuantityString(R.plurals.common_days, days, days),
-                                        subtitle = when (days) {
-                                            1 -> context.getString(R.string.download_defaults_retention_1)
-                                            3 -> context.getString(R.string.download_defaults_retention_3)
-                                            7 -> context.getString(R.string.download_defaults_retention_7)
-                                            15 -> context.getString(R.string.download_defaults_retention_15)
-                                            30 -> context.getString(R.string.download_defaults_retention_30)
-                                            else -> context.getString(R.string.download_defaults_retention_90)
-                                        },
+                                        title = retentionLabels.getValue(days),
+                                        subtitle = retentionSubtitles.getValue(days),
                                         onSelect = { onAnalyzedLinkHistoryRetentionDaysChanged(days) },
                                     )
                                 },
