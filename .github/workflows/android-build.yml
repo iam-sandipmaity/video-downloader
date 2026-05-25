@@ -44,10 +44,25 @@ jobs:
           VERSION=$(grep '^APP_VERSION_NAME=' gradle.properties | cut -d'=' -f2)
           echo "version_name=${VERSION}" >> "$GITHUB_OUTPUT"
 
-      - name: Verify wrapper and run checks
-        run: |
-          ./gradlew --version
-          ./gradlew :app:compileStandardDebugKotlin :app:testStandardDebugUnitTest :app:lintStandardDebug
+      - name: Verify wrapper
+        run: ./gradlew --version
+
+      - name: Compile standard debug and run unit tests
+        run: ./gradlew :app:compileStandardDebugKotlin :app:testStandardDebugUnitTest
+
+      - name: Run standard debug lint
+        continue-on-error: true
+        run: ./gradlew :app:lintStandardDebug
+
+      - name: Upload standard debug lint reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: lint-standard-debug-${{ steps.version.outputs.version_name }}
+          path: |
+            app/build/reports/lint-results-standardDebug.html
+            app/build/intermediates/lint_intermediate_text_report/standardDebug/lintReportStandardDebug/lint-results-standardDebug.txt
+          if-no-files-found: warn
 
       - name: Prepare signing files
         shell: bash

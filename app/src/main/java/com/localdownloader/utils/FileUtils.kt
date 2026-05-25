@@ -522,6 +522,8 @@ class FileUtils @Inject constructor(
     }
 
     private fun deleteFromMediaStore(file: File): Boolean? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+
         val downloadsRoot = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
             .absoluteFile
             .normalize()
