@@ -316,7 +316,7 @@
     <string name="queue_diagnostic_error">错误</string>
     <string name="queue_diagnostic_recent_logs">最近日志</string>
     <string name="queue_resume_window_expired">恢复窗口已过期</string>
-    <string name="queue_resume_within">可在 %1$d 小时内恢复</string>
+    <string name="queue_resume_within">可在 %1$02d:%2$02d 内恢复</string>
     <string name="queue_waiting">等待中</string>
     <string name="queue_waiting_in_queue">正在队列中等待</string>
     <string name="queue_needs_attention">需要处理</string>
@@ -344,8 +344,8 @@
     <string name="queue_queue_empty_done">还没有已完成的任务</string>
     <string name="queue_queue_empty_all">还没有下载任务</string>
     <string name="queue_subtitle_empty">这里还没有任务。</string>
-    <string name="queue_subtitle_all">查看所有准备中、下载中、暂停中、已完成和失败的任务。</string>
-    <string name="queue_subtitle_filtered">查看准备中、下载中、暂停中、已完成和失败的任务。</string>
+    <string name="queue_subtitle_all">正在跟踪全部状态下的 %1$d 个下载任务</string>
+    <string name="queue_subtitle_filtered">%2$s 中当前有 %1$d 个项目</string>
     <string name="queue_eta_prefix">预计剩余</string>
     <string name="queue_complete_percent">已完成 %1$d%%</string>
     <string name="queue_stuck_message">这个任务似乎卡住了。你可以重试、报告问题，或者检查 Cookie 和 YouTube 访问。</string>
