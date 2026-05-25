@@ -60,6 +60,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.core.os.ConfigurationCompat
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -100,7 +101,7 @@ fun DownloadHistoryScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val currentLocale = LocalConfiguration.current.locales[0] ?: Locale.getDefault()
+    val currentLocale = ConfigurationCompat.getLocales(LocalConfiguration.current).get(0) ?: Locale.ROOT
     val historyItems = remember(tasks) {
         tasks.filter {
             it.status == DownloadStatus.COMPLETED ||
