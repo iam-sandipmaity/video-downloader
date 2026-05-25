@@ -17,6 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - **JVM-safe URL parsing** - URL validation and source-host detection now use Java URI parsing so standard unit tests no longer depend on Android framework URL helpers
 - **MediaStore API guard** - the legacy delete path now returns early below Android 10 before touching API 29-only `MediaStore.Downloads` fields
 - **Lint compatibility cleanup** - the stderr ring buffer now uses `removeAt(0)` instead of the API 35-sensitive `List.removeFirst()` call in shared downloader code
+- **Compose locale observability** - download history summary text now derives lowercase formatting from `LocalConfiguration` instead of reading `Locale.getDefault()` directly inside composition
 - **Tagged release validation** - version tags now fail fast when `github.ref_name` does not match `APP_VERSION_NAME`
 - **Artifact cleanup pagination** - scheduled cleanup now paginates through the full artifact list instead of only deleting from the first page
 - **Cookie export feedback** - exporting cookies to a file now surfaces success and real write failures instead of failing silently when the destination stream cannot be opened

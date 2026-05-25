@@ -61,6 +61,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -99,6 +100,7 @@ fun DownloadHistoryScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val currentLocale = LocalConfiguration.current.locales[0] ?: Locale.getDefault()
     val historyItems = remember(tasks) {
         tasks.filter {
             it.status == DownloadStatus.COMPLETED ||
@@ -251,14 +253,14 @@ fun DownloadHistoryScreen(
                                         filteredItems.size,
                                         historyItems.size,
                                         normalizedSearchQuery,
-                                        historyFilterLabel(currentFilter, context).lowercase(Locale.getDefault()),
+                                        historyFilterLabel(currentFilter, context).lowercase(currentLocale),
                                     )
                                 } else {
                                     stringResource(
                                         R.string.history_summary_showing,
                                         filteredItems.size,
                                         historyItems.size,
-                                        historyFilterLabel(currentFilter, context).lowercase(Locale.getDefault()),
+                                        historyFilterLabel(currentFilter, context).lowercase(currentLocale),
                                     )
                                 },
                                 style = MaterialTheme.typography.bodyMedium,
