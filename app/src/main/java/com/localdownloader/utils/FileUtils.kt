@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.os.storage.StorageManager
 import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.provider.OpenableColumns
@@ -840,7 +841,7 @@ private fun normalizeRelativeDownloadsPath(
         ) {
             val targetDir = targetFile.parentFile ?: throw IllegalStateException("Unable to resolve target directory.")
             targetDir.mkdirs()
-            val availableSpace = targetDir.usableSpace
+            val availableSpace = allocatableSpaceBytes(context, targetDir)
             val contentLength = getContentLength(context, uri)
 
             if (contentLength > maxBytes) {
@@ -864,6 +865,15 @@ private fun normalizeRelativeDownloadsPath(
             } catch (error: Throwable) {
                 runCatching { targetFile.delete() }
                 throw error
+            }
+        }
+
+        private fun allocatableSpaceBytes(context: Context, directory: File): Long {
+            val storageManager = context.getSystemService(StorageManager::class.java)
+            return runCatching {
+                storageManager.getAllocatableBytes(storageManager.getUuidForPath(directory))
+            }.getOrElse {
+                directory.usableSpace
             }
         }
 

@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Video Downloader</string>
     <string name="nav_home">Home</string>
     <string name="nav_downloads">Downloads</string>
@@ -122,7 +122,7 @@
         <item quantity="one">%1$d file selected</item>
         <item quantity="other">%1$d files selected</item>
     </plurals>
-    <string name="browser_selected_count_of_total">%1$d / %2$d selected</string>
+    <string name="browser_selected_count_of_total" tools:ignore="PluralsCandidate">%1$d / %2$d selected</string>
 
     <string name="downloads_title">Downloads</string>
     <string name="downloads_selection_help">Pick saved files to share them, remove them from the app, or permanently delete them.</string>
@@ -275,7 +275,7 @@
     <string name="settings_app_log_subtitle">Read app.log inside the app, filter lines by failures, successes, or day, then copy, export, back up, or manage retention.</string>
     <string name="settings_feedback_label">Settings</string>
     <string name="settings_library_label">Library</string>
-    <string name="settings_saved_count">%1$d saved</string>
+    <string name="settings_saved_count" tools:ignore="PluralsCandidate">%1$d saved</string>
     <string name="settings_access_summary_cellular">Cellular downloads are allowed.</string>
     <string name="common_back">Back</string>
     <string name="common_copied">Copied</string>
@@ -362,8 +362,8 @@
     <string name="queue_queue_empty_done">Finished downloads can still be checked from the queue menu.</string>
     <string name="queue_queue_empty_all">New downloads from Home will appear here automatically.</string>
     <string name="queue_subtitle_empty">No downloads yet. As tasks start, their states will appear here.</string>
-    <string name="queue_subtitle_all">%1$d downloads tracked across every status</string>
-    <string name="queue_subtitle_filtered">%1$d items in %2$s right now</string>
+    <string name="queue_subtitle_all" tools:ignore="PluralsCandidate">%1$d downloads tracked across every status</string>
+    <string name="queue_subtitle_filtered" tools:ignore="PluralsCandidate">%1$d items in %2$s right now</string>
     <string name="queue_eta_prefix">ETA %1$s</string>
     <string name="queue_complete_percent">%1$d%% complete</string>
     <string name="queue_stuck_message">No progress update for %1$s. This item may be stuck.</string>
@@ -445,8 +445,8 @@
         <item quantity="one">%1$d subtitle file</item>
         <item quantity="other">%1$d subtitle files</item>
     </plurals>
-    <string name="history_summary_showing">Showing %1$d of %2$d finished tasks in %3$s.</string>
-    <string name="history_summary_showing_search">Showing %1$d of %2$d finished tasks matching &quot;%3$s&quot; in %4$s.</string>
+    <string name="history_summary_showing" tools:ignore="PluralsCandidate">Showing %1$d of %2$d finished tasks in %3$s.</string>
+    <string name="history_summary_showing_search" tools:ignore="PluralsCandidate">Showing %1$d of %2$d finished tasks matching &quot;%3$s&quot; in %4$s.</string>
 
     <string name="updates_title">Updates</string>
     <string name="updates_refresh_all">Refresh all</string>

@@ -304,13 +304,12 @@ class MainActivity : Hilt_MainActivity() {
     private fun buildPictureInPictureParams(): PictureInPictureParams {
         val builder = PictureInPictureParams.Builder()
             .setAspectRatio(Rational(16, 9))
-        currentPictureInPictureSourceRect()?.let(builder::setSourceRectHint)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (pictureInPictureAllowed) {
-                builder.setAutoEnterEnabled(true)
-            } else {
-                builder.setAutoEnterEnabled(false)
-            }
+        val sourceRectHint = currentPictureInPictureSourceRect()
+        if (sourceRectHint != null) {
+            builder.setSourceRectHint(sourceRectHint)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && pictureInPictureAllowed) {
+            builder.setAutoEnterEnabled(true)
         }
         return builder.build()
     }

@@ -1,7 +1,6 @@
 package com.localdownloader.ui.screens
 
 import android.content.Intent
-import android.os.Build
 import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -619,9 +618,7 @@ private fun launchApkInstaller(
         setDataAndType(uri, "application/vnd.android.package-archive")
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
-        }
+        addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
     }
     context.startActivity(intent)
 }

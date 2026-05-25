@@ -1,7 +1,6 @@
 package com.localdownloader.updates
 
 import android.content.Context
-import android.os.Build
 import com.localdownloader.BuildConfig
 import com.localdownloader.utils.Logger
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -83,11 +82,7 @@ class AppUpdateManager @Inject constructor(
     }
 
     fun canRequestPackageInstalls(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.packageManager.canRequestPackageInstalls()
-        } else {
-            true
-        }
+        return context.packageManager.canRequestPackageInstalls()
     }
 
     private fun selectApkAsset(release: GitHubReleaseDto): GitHubAssetDto? {

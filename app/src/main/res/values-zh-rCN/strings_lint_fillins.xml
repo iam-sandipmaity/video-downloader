@@ -41,7 +41,6 @@
     <string name="history_summary_showing_search">Showing %1$d of %2$d finished tasks matching &quot;%3$s&quot; in %4$s.</string>
     <string name="updates_ytdlp_auto_subtitle_repo_safe">This build starts in manual mode. Turn this on only if you want background yt-dlp checks from the selected source.</string>
     <plurals name="downloads_search_results">
-        <item quantity="one">%1$d match for &quot;%2$s&quot;</item>
         <item quantity="other">%1$d matches for &quot;%2$s&quot;</item>
     </plurals>
 </resources>
