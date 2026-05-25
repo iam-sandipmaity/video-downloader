@@ -9,6 +9,7 @@
     <string name="common_help">ヘルプ</string>
     <string name="common_clear">クリア</string>
     <string name="common_select">選択</string>
+    <string name="common_remove">削除</string>
     <string name="common_close">閉じる</string>
     <string name="common_cancel">キャンセル</string>
     <string name="common_save">保存</string>

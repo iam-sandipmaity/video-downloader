@@ -9,6 +9,7 @@
     <string name="common_help">帮助</string>
     <string name="common_clear">清除</string>
     <string name="common_select">选择</string>
+    <string name="common_remove">移除</string>
     <string name="common_close">关闭</string>
     <string name="common_cancel">取消</string>
     <string name="common_save">保存</string>

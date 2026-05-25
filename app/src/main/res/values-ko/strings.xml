@@ -9,6 +9,7 @@
     <string name="common_help">도움말</string>
     <string name="common_clear">지우기</string>
     <string name="common_select">선택</string>
+    <string name="common_remove">제거</string>
     <string name="common_close">닫기</string>
     <string name="common_cancel">취소</string>
     <string name="common_save">저장</string>

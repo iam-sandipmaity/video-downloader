@@ -20,6 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - **Compose locale observability** - download history summary text now derives lowercase formatting from `LocalConfiguration` instead of reading `Locale.getDefault()` directly inside composition
 - **Compose resource lookup cleanup** - settings, history, player, queue, update changelog, and YouTube auth screens now capture `stringResource(...)` and `pluralStringResource(...)` values in composition instead of reading UI strings directly from `LocalContext.current`
 - **Localized queue format strings** - the Simplified Chinese queue subtitle and resume-window strings now match the placeholder arguments used by the progress screen, avoiding `String.format` lint failures
+- **Localized common remove label** - the shared `common_remove` string is now translated in the Hindi, Telugu, Kannada, Korean, Japanese, Bangla, Tamil, Chinese, and Malayalam resource sets so lint no longer flags it as missing
 - **Media3 opt-in cleanup** - player screen and player viewmodel setup now explicitly opt into the unstable Media3 APIs used for resize mode wiring and player construction
 - **Media3 resize mode decoupling** - player state and resize option labels now use app-owned resize mode constants instead of direct unstable Media3 `AspectRatioFrameLayout` constants
 - **Tagged release validation** - version tags now fail fast when `github.ref_name` does not match `APP_VERSION_NAME`
