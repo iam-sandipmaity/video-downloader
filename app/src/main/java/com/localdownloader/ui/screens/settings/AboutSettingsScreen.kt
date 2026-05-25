@@ -52,6 +52,9 @@ fun AboutSettingsScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val resetDialogTitle = stringResource(R.string.storage_reset_dialog_title)
+    val resetDialogBody = stringResource(R.string.storage_reset_dialog_body)
+    val resetNowLabel = stringResource(R.string.common_reset_now)
     val svgImageLoader = remember(context) {
         ImageLoader.Builder(context)
             .components { add(SvgDecoder.Factory()) }
@@ -243,9 +246,9 @@ fun AboutSettingsScreen(
                     subtitle = stringResource(R.string.about_reset_subtitle),
                     onClick = {
                         confirmDialog = SettingConfirmDialogState(
-                            title = context.getString(R.string.storage_reset_dialog_title),
-                            body = context.getString(R.string.storage_reset_dialog_body),
-                            confirmLabel = context.getString(R.string.common_reset_now),
+                            title = resetDialogTitle,
+                            body = resetDialogBody,
+                            confirmLabel = resetNowLabel,
                             onConfirm = {
                                 onResetSettings()
                                 confirmDialog = null
