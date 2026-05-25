@@ -1,7 +1,8 @@
 package com.localdownloader.ui.support
 
-import android.net.Uri
 import androidx.compose.ui.graphics.Color
+import java.net.URI
+import java.util.Locale
 
 data class SourceSiteVisual(
     val label: String,
@@ -84,10 +85,10 @@ fun sourceHostLabel(url: String): String? {
 }
 
 private fun normalizedHost(url: String): String? {
-    val host = runCatching { Uri.parse(url).host }.getOrNull()
+    val host = runCatching { URI(url.trim()).host }.getOrNull()
         ?.removePrefix("www.")
         ?.trim()
-        ?.lowercase()
+        ?.lowercase(Locale.ROOT)
         .orEmpty()
     return host.ifBlank { null }
 }
