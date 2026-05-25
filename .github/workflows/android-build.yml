@@ -54,7 +54,7 @@ jobs:
         id: lint
         run: |
           set +e
-          ./gradlew :app:lintStandardDebug
+          ./gradlew :app:lintAnalyzeStandardDebug :app:lintReportStandardDebug
           lint_exit=$?
           echo "exit_code=${lint_exit}" >> "$GITHUB_OUTPUT"
           exit 0

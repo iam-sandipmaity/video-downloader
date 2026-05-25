@@ -2,6 +2,7 @@ package com.localdownloader.utils
 
 import android.content.ContentValues
 import android.content.Context
+import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.BaseColumns
@@ -380,7 +381,7 @@ class Logger @Inject constructor(
             put(MediaStore.MediaColumns.IS_PENDING, 1)
         }
         val uri = context.contentResolver.insert(
-            MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+            externalDownloadsCollectionUri(),
             values,
         ) ?: throw IllegalStateException("Device log backup folder is unavailable on this device.")
         runCatching {
@@ -447,7 +448,7 @@ class Logger @Inject constructor(
         val selection = "${MediaStore.MediaColumns.RELATIVE_PATH}=?"
         val selectionArgs = arrayOf(relativePath)
         return context.contentResolver.query(
-            MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+            externalDownloadsCollectionUri(),
             projection,
             selection,
             selectionArgs,
@@ -463,7 +464,7 @@ class Logger @Inject constructor(
                     add(
                         PublicLogBackupItem(
                             uri = android.content.ContentUris.withAppendedId(
-                                MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                                externalDownloadsCollectionUri(),
                                 cursor.getLong(idIndex),
                             ),
                             displayName = displayName,
@@ -480,6 +481,8 @@ class Logger @Inject constructor(
             (fileName.startsWith("app-") && fileName.endsWith(".log")) ||
             (fileName.startsWith("crash-") && fileName.endsWith(".log"))
     }
+
+    private fun externalDownloadsCollectionUri(): Uri = Uri.parse(EXTERNAL_DOWNLOADS_CONTENT_URI)
 
     private fun crashLogFamilyFiles(): List<File> {
         val logsDir = File(context.filesDir, LOG_DIR_NAME)
@@ -534,6 +537,7 @@ class Logger @Inject constructor(
     }
 
     private companion object {
+        private const val EXTERNAL_DOWNLOADS_CONTENT_URI = "content://media/external/downloads"
         private const val LOG_DIR_NAME = "logs"
         private const val LOG_FILE_NAME = "app.log"
         private const val CRASH_LOG_FILE_NAME = "crash.log"
