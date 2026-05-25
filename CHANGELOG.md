@@ -18,7 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - **MediaStore API guard** - the legacy delete path now returns early below Android 10 before touching API 29-only `MediaStore.Downloads` fields
 - **Lint compatibility cleanup** - the stderr ring buffer now uses `removeAt(0)` instead of the API 35-sensitive `List.removeFirst()` call in shared downloader code
 - **Compose locale observability** - download history summary text now derives lowercase formatting from `LocalConfiguration` instead of reading `Locale.getDefault()` directly inside composition
-- **Media3 opt-in cleanup** - player screen now explicitly opts into the unstable Media3 `PlayerView` API used for resize mode wiring
+- **Media3 opt-in cleanup** - player screen and player viewmodel setup now explicitly opt into the unstable Media3 APIs used for resize mode wiring and player construction
 - **Media3 resize mode decoupling** - player state and resize option labels now use app-owned resize mode constants instead of direct unstable Media3 `AspectRatioFrameLayout` constants
 - **Tagged release validation** - version tags now fail fast when `github.ref_name` does not match `APP_VERSION_NAME`
 - **Artifact cleanup pagination** - scheduled cleanup now paginates through the full artifact list instead of only deleting from the first page

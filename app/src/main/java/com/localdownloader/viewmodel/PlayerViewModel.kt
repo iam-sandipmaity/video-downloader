@@ -38,6 +38,7 @@ import java.io.File
 import javax.inject.Inject
 
 @HiltViewModel
+@androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 class PlayerViewModel @Inject constructor(
     @ApplicationContext context: Context,
     private val playbackSessionStore: PlaybackSessionStore,
