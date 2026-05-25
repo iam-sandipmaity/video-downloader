@@ -89,6 +89,7 @@ fun CookiesScreen(
     onDeleteAllCookies: () -> Unit,
     onImportCookieText: (String) -> Unit,
     onOpenCookieCapture: (String, String?) -> Unit,
+    onCookieExportResult: (Boolean, String?) -> Unit,
     onDismissMessage: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -103,12 +104,15 @@ fun CookiesScreen(
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/plain"),
     ) { uri ->
-        if (uri != null) {
-            runCatching {
-                context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
-                    writer.write(CookieTextCodec.buildCombinedExport(uiState.cookieProfiles))
-                }
-            }
+        if (uri == null) return@rememberLauncherForActivityResult
+        runCatching {
+            context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
+                writer.write(CookieTextCodec.buildCombinedExport(uiState.cookieProfiles))
+            } ?: error("Unable to open the selected export file.")
+        }.onSuccess {
+            onCookieExportResult(true, null)
+        }.onFailure { error ->
+            onCookieExportResult(false, error.message)
         }
     }
 

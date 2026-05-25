@@ -556,6 +556,7 @@ fun DownloaderApp(
                         pendingCookieCaptureProfileId = profileId
                         navController.navigate(Routes.CookieCapture)
                     },
+                    onCookieExportResult = formatViewModel::onCookieExportFinished,
                     onDismissMessage = formatViewModel::dismissMessage,
                 )
             }

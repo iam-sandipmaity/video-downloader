@@ -218,13 +218,15 @@ Requirements:
 
 - JDK 17
 - Android SDK
-- Gradle available in `PATH`
+- use the bundled Gradle wrapper from the repository root
 
 ```bash
 git clone https://github.com/iam-sandipmaity/video-downloader
 cd video-downloader
-gradle :app:assembleStandardDebug
+./gradlew :app:assembleStandardDebug
 ```
+
+Use `gradlew.bat` instead of `./gradlew` when running from PowerShell or Command Prompt on Windows.
 
 Debug APK output:
 
@@ -235,7 +237,7 @@ app/build/outputs/apk/standard/debug/app-standard-debug.apk
 Repo-safe build for IzzyOnDroid or F-Droid style distribution:
 
 ```bash
-gradle :app:assembleRepoSafeDebug
+./gradlew :app:assembleRepoSafeDebug
 ```
 
 Repo-safe APK output:

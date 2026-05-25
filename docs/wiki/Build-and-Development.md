@@ -6,20 +6,22 @@ This page is for contributors and maintainers working from source.
 
 - JDK 17
 - Android SDK and platform tools
-- Gradle available in `PATH`
+- use the bundled Gradle wrapper from the repository root
 
 ## Basic Setup
 
 ```bash
 git clone https://github.com/iam-sandipmaity/video-downloader
 cd video-downloader
-gradle :app:assembleDebug
+./gradlew :app:assembleStandardDebug
 ```
+
+Use `gradlew.bat` instead of `./gradlew` when running from PowerShell or Command Prompt on Windows.
 
 Useful test command:
 
 ```bash
-gradle :app:testDebugUnitTest
+./gradlew :app:testStandardDebugUnitTest
 ```
 
 ## Current Development Posture
@@ -45,9 +47,10 @@ That means the best work usually falls into these groups:
 ## Useful Commands
 
 ```bash
-gradle :app:assembleDebug
-gradle :app:compileDebugKotlin
-gradle :app:testDebugUnitTest
+./gradlew :app:assembleStandardDebug
+./gradlew :app:compileStandardDebugKotlin
+./gradlew :app:testStandardDebugUnitTest
+./gradlew :app:lintStandardDebug
 ```
 
 ## Repository Structure At A Glance

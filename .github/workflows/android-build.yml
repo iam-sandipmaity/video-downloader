@@ -37,14 +37,17 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6.1.0
-        with:
-          gradle-version: "9.4.1"
 
       - name: Read version from gradle.properties
         id: version
         run: |
           VERSION=$(grep '^APP_VERSION_NAME=' gradle.properties | cut -d'=' -f2)
           echo "version_name=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify wrapper and run checks
+        run: |
+          ./gradlew --version
+          ./gradlew :app:compileStandardDebugKotlin :app:testStandardDebugUnitTest :app:lintStandardDebug
 
       - name: Prepare signing files
         shell: bash
@@ -88,7 +91,7 @@ jobs:
           fi
 
       - name: Build nightly debug APK
-        run: gradle :app:assembleDebug
+        run: ./gradlew :app:assembleStandardDebug
 
       - name: Rename nightly debug APK
         run: |
@@ -157,8 +160,6 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6.1.0
-        with:
-          gradle-version: "9.4.1"
 
       - name: Determine release tag
         id: release_tag
@@ -197,7 +198,7 @@ jobs:
 
       - name: Build release APK
         if: steps.release_tag.outputs.should_release == 'true'
-        run: gradle :app:assembleRelease
+        run: ./gradlew :app:assembleStandardRelease
 
       - name: Rename release APK
         if: steps.release_tag.outputs.should_release == 'true'
@@ -244,14 +245,21 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6.1.0
-        with:
-          gradle-version: "9.4.1"
 
       - name: Read version from gradle.properties
         id: version
         run: |
           VERSION=$(grep '^APP_VERSION_NAME=' gradle.properties | cut -d'=' -f2)
           echo "version_name=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify tag matches gradle.properties
+        run: |
+          VERSION="${{ steps.version.outputs.version_name }}"
+          EXPECTED_TAG="v${VERSION}"
+          if [ "${GITHUB_REF_NAME}" != "${EXPECTED_TAG}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match APP_VERSION_NAME ${VERSION}"
+            exit 1
+          fi
 
       - name: Prepare release signing files
         shell: bash
@@ -273,7 +281,7 @@ jobs:
           echo "RELEASE_KEY_PASSWORD=$RELEASE_KEY_PASSWORD" >> "$GITHUB_ENV"
 
       - name: Build release APK
-        run: gradle :app:assembleRelease
+        run: ./gradlew :app:assembleStandardRelease
 
       - name: Rename release APK
         run: |

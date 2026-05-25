@@ -6,7 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
-- No unreleased changes yet.
+### Changed
+- **Wrapper-first builds** - local docs and GitHub Actions now use the checked-in Gradle wrapper instead of assuming a globally installed `gradle` binary
+
+### Fixed
+- **CI verification coverage** - the Android workflow now runs explicit Kotlin compile, unit test, and lint checks for the standard debug variant before publishing artifacts
+- **Tagged release validation** - version tags now fail fast when `github.ref_name` does not match `APP_VERSION_NAME`
+- **Artifact cleanup pagination** - scheduled cleanup now paginates through the full artifact list instead of only deleting from the first page
+- **Cookie export feedback** - exporting cookies to a file now surfaces success and real write failures instead of failing silently when the destination stream cannot be opened
 
 ## [1.7.2.4] - 2026-05-25
 

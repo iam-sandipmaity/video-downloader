@@ -63,7 +63,7 @@ class MainActivity : Hilt_MainActivity() {
         logger.i("MainActivity", "Notification permission result granted=$granted")
     }
 
-    // WRITE_EXTERNAL_STORAGE is only required on Android 8 and 9 (API 26–28).
+    // WRITE_EXTERNAL_STORAGE is only required on Android 8 and 9 (API 26-28).
     private val storagePermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->

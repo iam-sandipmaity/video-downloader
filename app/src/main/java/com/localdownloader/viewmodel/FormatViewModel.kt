@@ -1046,6 +1046,20 @@ class FormatViewModel @Inject constructor(
         )
     }
 
+    fun onCookieExportFinished(
+        success: Boolean,
+        errorMessage: String?,
+    ) {
+        _uiState.update { state ->
+            scopedMessageState(
+                state = state,
+                scope = FormatMessageScope.COOKIES,
+                infoMessage = if (success) "Cookies exported." else null,
+                errorMessage = if (success) null else errorMessage ?: "Unable to export cookies.",
+            )
+        }
+    }
+
     fun saveYoutubeAuthSession(
         cookieText: String,
         authConfig: YoutubeAuthConfig,
