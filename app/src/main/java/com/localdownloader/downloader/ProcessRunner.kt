@@ -84,7 +84,7 @@ class ProcessRunner @Inject constructor() {
                         stderrLines.add(line)
                         // Evict oldest lines when buffer gets too large.
                         while (stderrTotalSize > maxStderrBytes && stderrLines.isNotEmpty()) {
-                            stderrTotalSize -= stderrLines.removeFirst().length.toLong() * 2
+                            stderrTotalSize -= stderrLines.removeAt(0).length.toLong() * 2
                         }
                         onStderrLine?.invoke(line)
                     }
