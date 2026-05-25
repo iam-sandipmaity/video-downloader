@@ -273,6 +273,9 @@ fun PlayerScreen(
         when (currentOrientation) {
             Configuration.ORIENTATION_LANDSCAPE -> isFullscreen = true
             Configuration.ORIENTATION_PORTRAIT -> isFullscreen = false
+            Configuration.ORIENTATION_SQUARE,
+            Configuration.ORIENTATION_UNDEFINED,
+            -> Unit
         }
     }
 

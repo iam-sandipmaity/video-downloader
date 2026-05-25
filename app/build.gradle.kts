@@ -58,7 +58,7 @@ android {
     defaultConfig {
         applicationId = "com.localdownloader"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = (project.findProperty("APP_VERSION_CODE") as String? ?: "1").toInt()
         versionName = project.findProperty("APP_VERSION_NAME") as String? ?: "0.1.0"
 
@@ -132,6 +132,12 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    bundle {
+        language {
+            enableSplit = false
+        }
     }
 
     packaging {
