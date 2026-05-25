@@ -8,9 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ### Changed
 - **Wrapper-first builds** - local docs and GitHub Actions now use the checked-in Gradle wrapper instead of assuming a globally installed `gradle` binary
+- **Split Android workflows** - CI build, nightly publishing, main release, and tag release now live in separate GitHub Actions files so release behavior is easier to reason about and adjust independently
+- **PR-visible nightly artifacts** - nightly now runs for pull requests targeting `main`, uploads a debug APK artifact for review builds, and only refreshes the public `nightly` prerelease when running from `main`
 
 ### Fixed
 - **CI verification coverage** - the Android workflow now blocks on explicit Kotlin compile and unit test checks for the standard debug variant before publishing artifacts
+- **Stable release auto-trigger scope** - the main release workflow no longer auto-runs on every push to `main`; stable publishing is now manual unless a version tag is pushed
 - **Lint report visibility** - standard debug lint now runs as an advisory CI step and uploads reports while the existing lint backlog is being worked down
 - **Unit test Kotlin assertions** - the app module now includes the Kotlin JUnit test bridge required by the existing `kotlin.test.*` unit tests
 - **Unit test temp directory API** - split artifact tests now use `kotlin.io.path.createTempDirectory` so Kotlin 2.3 no longer fails compilation on the deprecated `createTempDir` helper
