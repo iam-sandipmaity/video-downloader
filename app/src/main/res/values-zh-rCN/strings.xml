@@ -17,9 +17,7 @@
     <string name="common_share">分享</string>
     <string name="common_rename">重命名</string>
     <string name="common_edit">编辑</string>
-    <string name="common_hide">隐藏</string>
-    <string name="common_change">更改</string>
-    <string name="common_loading">加载中...</string>
+    <string name="common_loading">加载中…</string>
     <string name="common_unknown_uploader">未知上传者</string>
     <string name="common_estimated_size">预计 %1$s</string>
 
@@ -36,7 +34,7 @@
     <string name="browser_url_label">粘贴或输入 URL</string>
     <string name="browser_clear_state">清除浏览状态</string>
     <string name="browser_paste">粘贴</string>
-    <string name="browser_analyzing">分析中...</string>
+    <string name="browser_analyzing">分析中…</string>
     <string name="browser_analyze_link">分析链接</string>
     <string name="browser_feedback_label">首页</string>
     <string name="browser_download_setup_intro_title">首次下载前</string>
@@ -73,8 +71,8 @@
     <string name="browser_using_global_format">正在使用全局格式</string>
     <string name="browser_closest_available_format">将使用最接近的可用格式。</string>
     <string name="browser_wait_for_current_job">请等待当前任务稳定下来。</string>
-    <string name="browser_queueing">正在加入队列...</string>
-    <string name="browser_please_wait">请稍候...</string>
+    <string name="browser_queueing">正在加入队列…</string>
+    <string name="browser_please_wait">请稍候…</string>
     <string name="browser_download_button">下载</string>
     <string name="browser_queue_now">立即排队</string>
     <string name="browser_ready">就绪</string>
@@ -119,17 +117,11 @@
     <string name="browser_selected_count_of_total">已选 %1$d / %2$d</string>
 
     <string name="downloads_title">下载</string>
-    <string name="downloads_selection_help">选择已保存文件以分享、从应用中移除，或永久删除它们。</string>
     <string name="downloads_empty_help">完成的下载在保存后会显示在这里。</string>
     <string name="downloads_open_bulk_actions">打开批量操作</string>
     <string name="downloads_done_selecting">完成选择</string>
     <string name="downloads_remove_from_app">从应用中移除</string>
     <string name="downloads_permanent_delete">永久删除</string>
-    <string name="downloads_newest_first">最新优先</string>
-    <string name="downloads_oldest_first">最旧优先</string>
-    <string name="downloads_select_files_to_unlock">选择文件以启用批量操作。</string>
-    <string name="downloads_clear_visible">清除当前可见项</string>
-    <string name="downloads_select_visible">选择当前可见项</string>
     <string name="downloads_delete_forever">彻底删除</string>
     <string name="downloads_no_finished_for_filter">还没有完成的 %1$s 文件。你的活动下载仍在队列中推进。</string>
     <string name="downloads_no_saved_for_filter">还没有 %1$s 下载。只要在首页完成一个，它就会自动出现在这里。</string>
@@ -179,9 +171,6 @@
     <plurals name="downloads_active_in_progress">
         <item quantity="other">%1$d 个下载正在进行中。完成的项目会自动显示在这里。</item>
     </plurals>
-    <plurals name="downloads_selected_files_count">
-        <item quantity="other">已选择 %1$d 个文件</item>
-    </plurals>
     <plurals name="downloads_play_music_count">
         <item quantity="other">播放音乐 (%1$d)</item>
     </plurals>
@@ -200,7 +189,6 @@
     <string name="common_set_up">设置</string>
     <string name="common_browse">浏览</string>
     <string name="common_keep_current">保留当前值</string>
-    <string name="common_default">默认</string>
     <string name="common_unknown">未知</string>
     <string name="common_remove_entries">移除条目</string>
     <string name="common_delete_all">全部删除</string>
@@ -251,19 +239,14 @@
     <string name="settings_access_summary_cellular">移动网络</string>
     <string name="common_back">返回</string>
     <string name="common_copied">已复制</string>
-    <string name="common_copy">复制</string>
-    <string name="common_unknown_source">未知来源</string>
     <string name="common_yes">是</string>
     <string name="common_no">否</string>
-    <string name="common_not_set">未设置</string>
     <string name="common_auto">自动</string>
     <string name="common_working">处理中</string>
     <string name="common_done">完成</string>
     <string name="common_stopped">已停止</string>
     <string name="common_advanced">高级</string>
     <string name="common_hide_advanced">隐藏高级选项</string>
-    <string name="common_choose_file">选择文件</string>
-    <string name="common_choose_video">选择视频</string>
 
     <string name="queue_title">下载队列</string>
     <string name="queue_progress_title">下载队列</string>
@@ -275,20 +258,10 @@
     <string name="queue_filter_done">已完成</string>
     <string name="queue_filter_error">错误</string>
     <string name="queue_filter_canceled">已取消</string>
-    <string name="queue_tab_running">运行中</string>
-    <string name="queue_tab_in_queue">队列中</string>
-    <string name="queue_tab_scheduled">已安排</string>
-    <string name="queue_tab_errored">出错</string>
-    <string name="queue_tab_cancelled">已取消</string>
-    <string name="queue_tab_done">已完成</string>
     <string name="queue_options">选项</string>
     <string name="queue_show_all_statuses">显示全部状态</string>
     <string name="queue_show_finished">显示已完成</string>
     <string name="queue_show_running">显示运行中</string>
-    <string name="queue_action_pause_all">全部暂停</string>
-    <string name="queue_action_cancel_all">全部取消</string>
-    <string name="queue_action_resume_all">全部恢复</string>
-    <string name="queue_action_retry_all">全部重试</string>
     <string name="queue_action_pause">暂停</string>
     <string name="queue_action_cancel">取消</string>
     <string name="queue_action_resume">恢复</string>
@@ -297,56 +270,15 @@
     <string name="queue_po_generation">PO 生成</string>
     <string name="queue_export_log">导出日志</string>
     <string name="queue_report_issue">报告问题</string>
-    <string name="queue_diagnostics">诊断</string>
-    <string name="queue_diagnostic_task_id">任务 ID</string>
-    <string name="queue_diagnostic_source">来源</string>
-    <string name="queue_diagnostic_status">状态</string>
-    <string name="queue_diagnostic_last_updated">最后更新</string>
-    <string name="queue_diagnostic_output_path">输出路径</string>
-    <string name="queue_diagnostic_error">错误</string>
-    <string name="queue_diagnostic_recent_logs">最近日志</string>
     <string name="queue_resume_window_expired">恢复窗口已过期</string>
     <string name="queue_resume_within">可在 %1$02d:%2$02d 内恢复</string>
-    <string name="queue_waiting">等待中</string>
-    <string name="queue_waiting_in_queue">正在队列中等待</string>
-    <string name="queue_needs_attention">需要处理</string>
-    <string name="queue_saved_to_library">已保存到资料库</string>
-    <string name="queue_queued_ready">已入队，准备开始。</string>
-    <string name="queue_needs_another_try">需要再试一次</string>
-    <string name="queue_canceled_by_user">已被你取消</string>
-    <string name="queue_finished">已完成</string>
-    <string name="queue_no_downloads_yet">还没有下载任务</string>
-    <string name="queue_nothing_downloading">当前没有正在下载的任务</string>
-    <string name="queue_empty">空</string>
-    <string name="queue_nothing_paused">当前没有暂停的任务</string>
-    <string name="queue_no_finished_yet">还没有已完成的任务</string>
-    <string name="queue_no_failed_downloads">还没有失败的任务</string>
-    <string name="queue_no_canceled_downloads">还没有取消的任务</string>
-    <string name="queue_empty_body_active">从主页开始新的下载后，状态会在这里显示。</string>
-    <string name="queue_empty_body_done">完成后的视频和音频会出现在这里。</string>
-    <string name="queue_empty_body_error">需要重试或修复访问问题的任务会显示在这里。</string>
-    <string name="queue_empty_body_canceled">你停止的任务会显示在这里，方便你稍后查看。</string>
-    <string name="queue_queue_empty_running">当前没有正在下载的任务</string>
-    <string name="queue_queue_empty_queue">队列里没有待处理任务</string>
-    <string name="queue_queue_empty_paused">当前没有暂停的任务</string>
-    <string name="queue_queue_empty_error">还没有失败的任务</string>
-    <string name="queue_queue_empty_canceled">还没有取消的任务</string>
-    <string name="queue_queue_empty_done">还没有已完成的任务</string>
-    <string name="queue_queue_empty_all">还没有下载任务</string>
     <string name="queue_subtitle_empty">这里还没有任务。</string>
     <string name="queue_subtitle_all">正在跟踪全部状态下的 %1$d 个下载任务</string>
     <string name="queue_subtitle_filtered">%2$s 中当前有 %1$d 个项目</string>
-    <string name="queue_eta_prefix">预计剩余 %1$s</string>
-    <string name="queue_complete_percent">已完成 %1$d%%</string>
-    <string name="queue_stuck_message">已有 %1$s 没有进度更新。这个任务可能卡住了。</string>
     <string name="queue_recovery_stuck_youtube">这个 YouTube 任务已有 %1$s 没有更新。当播放访问检查打断下载时，Cookie 或重新刷新 YouTube 访问通常会有帮助。</string>
     <string name="queue_recovery_stuck">这个任务已有 %1$s 没有更新。如果站点需要已登录或区域匹配的会话，Cookie 可能会有帮助。</string>
     <string name="queue_recovery_youtube">YouTube 任务通常需要更新的 Cookie 或 YouTube 访问凭证。</string>
     <string name="queue_recovery_default">重试该任务，或者检查登录状态与网站限制。</string>
-    <string name="queue_logo_content">%1$s 徽标</string>
-    <string name="queue_elapsed_minutes_seconds">已用时 %1$d 分 %2$d 秒</string>
-    <string name="queue_elapsed_seconds">已用时 %1$d 秒</string>
-    <string name="queue_ago_suffix">%1$s 前</string>
 
     <string name="history_title">历史记录</string>
     <string name="history_task_summary">任务概览</string>
@@ -366,7 +298,6 @@
     <string name="history_filter_completed">已完成</string>
     <string name="history_filter_failed">失败</string>
     <string name="history_filter_canceled">已取消</string>
-    <string name="history_status_unknown">未知状态</string>
     <plurals name="history_subtitle_files">
         <item quantity="other">%1$d 个文件</item>
     </plurals>
@@ -422,7 +353,6 @@
     <string name="compressor_section_goal">目标</string>
     <string name="compressor_section_output">输出</string>
     <string name="compressor_choose_video">选择视频</string>
-    <string name="compressor_no_video">还没有选择视频</string>
     <string name="compressor_will_save_as">将另存为</string>
     <string name="compressor_height">高度</string>
     <string name="compressor_max_height">最大高度</string>
@@ -463,18 +393,14 @@
     <string name="cookies_empty_title">还没有保存任何 Cookie</string>
     <string name="cookies_empty_body">点按“新建 Cookie”粘贴 Netscape Cookie 文件，或使用“获取 Cookie”捕获已登录浏览器会话。</string>
     <string name="cookies_youtube_tip">对于 YouTube，使用无痕/隐私窗口中的会话 Cookie，通常最适合已登录或受限视频。</string>
-    <string name="cookies_capture_title">获取 Cookie</string>
     <string name="cookies_capture_confirm">将当前浏览器会话保存为此网站的 Cookie 吗？</string>
     <string name="cookies_copy_cookies">复制 Cookie</string>
     <string name="cookies_editor_url">站点地址</string>
     <string name="cookies_editor_text">Cookie 文本</string>
     <string name="cookies_editor_paste">粘贴</string>
     <string name="cookies_editor_get">获取 Cookie</string>
-    <string name="cookies_editor_delete">删除</string>
     <string name="cookies_editor_url_hint">例如 https://youtube.com</string>
-    <string name="cookies_editor_text_hint">在这里粘贴 Netscape Cookie 内容</string>
     <string name="cookies_editor_keep_one">仅保留一个</string>
-    <string name="cookies_capture_done">Cookie 已保存</string>
 
     <string name="youtube_access_title">YouTube 访问</string>
     <string name="youtube_access_use_saved">使用已保存访问凭证</string>
@@ -757,8 +683,6 @@
     <string name="about_ffmpeg_subtitle">媒体处理与转换运行时。</string>
     <string name="about_developer_github_title">开发者 GitHub</string>
     <string name="about_developer_x_title">开发者 X</string>
-    <string name="about_developer_instagram_title">开发者 Instagram</string>
-    <string name="about_developer_linkedin_title">开发者 LinkedIn</string>
     <string name="about_credits_title">鸣谢</string>
     <string name="about_credits_subtitle">查看应用使用的开源工具与版本。</string>
     <string name="about_reset_title">重置应用</string>
