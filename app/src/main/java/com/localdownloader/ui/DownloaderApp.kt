@@ -24,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -88,6 +89,7 @@ import com.localdownloader.viewmodel.UpdatesViewModel
 
 @Composable
 fun DownloaderApp(
+    modifier: Modifier = Modifier,
     externalOpenRequest: ExternalOpenRequest? = null,
     onExternalOpenHandled: (() -> Unit)? = null,
     sharedUrlRequest: String? = null,
@@ -96,7 +98,6 @@ fun DownloaderApp(
     onNotificationOpenHandled: (() -> Unit)? = null,
     onAppearanceUpdated: ((ThemeMode, AccentPreset, ContrastMode) -> Unit)? = null,
     onLanguageUpdated: ((String) -> Unit)? = null,
-    modifier: Modifier = Modifier,
 ) {
     val navController = rememberNavController()
     val formatViewModel: FormatViewModel = hiltViewModel()
@@ -107,7 +108,7 @@ fun DownloaderApp(
     val context = LocalContext.current
     // Use the DI-provided FileUtils from mediaToolsViewModel instead of creating a new instance.
     val fileUtils = mediaToolsViewModel.fileUtils
-    var cacheSize by remember { mutableStateOf(0L) }
+    var cacheSize by remember { mutableLongStateOf(0L) }
     var activeExternalOpenRequest by remember { mutableStateOf<ExternalOpenRequest?>(externalOpenRequest) }
     var pendingCookieCaptureUrl by remember { mutableStateOf<String?>(null) }
     var pendingCookieCaptureProfileId by remember { mutableStateOf<String?>(null) }
@@ -556,6 +557,7 @@ fun DownloaderApp(
                         pendingCookieCaptureProfileId = profileId
                         navController.navigate(Routes.CookieCapture)
                     },
+                    onCookieExportResult = formatViewModel::onCookieExportFinished,
                     onDismissMessage = formatViewModel::dismissMessage,
                 )
             }

@@ -111,8 +111,8 @@ fun CompressScreen(
     onCompressClicked: () -> Unit,
     onBrowseFile: () -> Unit,
     onCompressQuickPresetSelected: (String, String, String) -> Unit,
-    onBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
+    onBack: (() -> Unit)? = null,
 ) {
     var showFineTuning by rememberSaveable { mutableStateOf(false) }
     val canCompress = uiState.compressInputFileInfo != null && !uiState.isCompressing

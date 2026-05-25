@@ -46,13 +46,13 @@
 > Nightly builds are unstable and may contain bugs. Use at your own risk.
 
 <p align="center">
-  <a href="https://nightly.link/iam-sandipmaity/video-downloader/workflows/android-build.yml/main">
-    <img src="https://raw.githubusercontent.com/rubenpgrady/get-it-on-github/refs/heads/main/get-it-on-github.png" alt="Get nightly build on GitHub" width="250" />
+  <a href="https://github.com/iam-sandipmaity/video-downloader/releases/tag/nightly">
+    <img src="https://raw.githubusercontent.com/rubenpgrady/get-it-on-github/refs/heads/main/get-it-on-github.png" alt="Get nightly prerelease on GitHub" width="250" />
   </a>
 </p>
 
 <p align="center">
-  <strong>No GitHub account required</strong> - powered by <a href="https://nightly.link">nightly.link</a>
+  <strong>Latest nightly prerelease</strong> - published from the dedicated nightly release workflow
 </p>
 
 ### Requirements
@@ -218,13 +218,15 @@ Requirements:
 
 - JDK 17
 - Android SDK
-- Gradle available in `PATH`
+- use the bundled Gradle wrapper from the repository root
 
 ```bash
 git clone https://github.com/iam-sandipmaity/video-downloader
 cd video-downloader
-gradle :app:assembleStandardDebug
+./gradlew :app:assembleStandardDebug
 ```
+
+Use `gradlew.bat` instead of `./gradlew` when running from PowerShell or Command Prompt on Windows.
 
 Debug APK output:
 
@@ -235,7 +237,7 @@ app/build/outputs/apk/standard/debug/app-standard-debug.apk
 Repo-safe build for IzzyOnDroid or F-Droid style distribution:
 
 ```bash
-gradle :app:assembleRepoSafeDebug
+./gradlew :app:assembleRepoSafeDebug
 ```
 
 Repo-safe APK output:

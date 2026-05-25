@@ -1,6 +1,7 @@
 package com.localdownloader.utils
 
-import android.util.Patterns
+import java.net.URI
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -18,17 +19,31 @@ class UrlValidator @Inject constructor() {
         val withScheme = when {
             trimmed.startsWith("https://", ignoreCase = true) ||
                 trimmed.startsWith("http://", ignoreCase = true) -> trimmed
+            SCHEME_REGEX.containsMatchIn(trimmed) -> return null
             else -> "https://$trimmed"
         }
-        if (!Patterns.WEB_URL.matcher(withScheme).matches()) return null
+        val parsed = runCatching { URI(withScheme) }.getOrNull() ?: return null
+        val scheme = parsed.scheme?.lowercase(Locale.ROOT) ?: return null
+        if (scheme != "http" && scheme != "https") return null
+        val host = parsed.host?.trim()?.takeIf { it.isNotBlank() } ?: return null
+        val normalizedScheme = if (scheme == "http") "https" else scheme
+        val normalizedUri = URI(
+            normalizedScheme,
+            parsed.userInfo,
+            host.lowercase(Locale.ROOT),
+            parsed.port,
+            parsed.rawPath,
+            parsed.rawQuery,
+            parsed.rawFragment,
+        ).toASCIIString()
 
         return when {
-            withScheme.startsWith("https://", ignoreCase = true) -> SecureUrlNormalization(
-                normalizedUrl = withScheme,
+            scheme == "https" -> SecureUrlNormalization(
+                normalizedUrl = normalizedUri,
                 upgradedToHttps = false,
             )
-            withScheme.startsWith("http://", ignoreCase = true) -> SecureUrlNormalization(
-                normalizedUrl = HTTP_SCHEME_REGEX.replace(withScheme, "https://"),
+            scheme == "http" -> SecureUrlNormalization(
+                normalizedUrl = normalizedUri,
                 upgradedToHttps = true,
             )
             else -> null
@@ -36,6 +51,6 @@ class UrlValidator @Inject constructor() {
     }
 
     private companion object {
-        private val HTTP_SCHEME_REGEX = Regex("^http://", RegexOption.IGNORE_CASE)
+        private val SCHEME_REGEX = Regex("^[a-zA-Z][a-zA-Z0-9+.-]*:")
     }
 }

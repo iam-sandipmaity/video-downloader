@@ -32,8 +32,6 @@ object AppNotifications {
     private const val NOTIFICATION_GROUP_CANCELED = "notifications.downloads.canceled"
 
     fun ensureChannels(context: Context) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         manager.createNotificationChannelGroup(
@@ -313,11 +311,7 @@ object AppNotifications {
     }
 
     private fun pendingIntentImmutableFlag(): Int {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            PendingIntent.FLAG_IMMUTABLE
-        } else {
-            0
-        }
+        return PendingIntent.FLAG_IMMUTABLE
     }
 
     private fun requestCodeFor(taskId: String, route: String): Int {

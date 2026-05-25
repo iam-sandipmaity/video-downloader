@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.core.content.FileProvider
+import androidx.core.net.toUri
 import com.localdownloader.domain.models.DownloadTask
 import com.localdownloader.utils.SensitiveDataSanitizer
 import java.io.File
@@ -23,7 +24,7 @@ fun openSupportIssue(
 ) {
     val title = buildIssueTitle(task, flaggedAsStuck)
     val body = buildIssueBody(task, flaggedAsStuck)
-    val issueUri = Uri.parse(ISSUE_TRACKER_URL).buildUpon()
+    val issueUri = ISSUE_TRACKER_URL.toUri().buildUpon()
         .appendQueryParameter("title", title)
         .appendQueryParameter("body", body)
         .build()

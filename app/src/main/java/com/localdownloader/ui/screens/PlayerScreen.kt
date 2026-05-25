@@ -69,6 +69,8 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -103,6 +105,7 @@ import androidx.media3.ui.PlayerView
 import com.localdownloader.MainActivity
 import com.localdownloader.R
 import com.localdownloader.domain.models.DownloadTask
+import com.localdownloader.media.PlayerResizeModes
 import com.localdownloader.media.builtInPlaybackCompatibilityLabel
 import com.localdownloader.media.isLikelyAudioPath
 import com.localdownloader.media.isLikelyVideoPath
@@ -116,6 +119,7 @@ import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.math.roundToInt
 
+@androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 @Composable
 fun PlayerScreen(
     task: DownloadTask?,
@@ -139,6 +143,7 @@ fun PlayerScreen(
     val selectedAudioTrack = uiState.audioTracks.firstOrNull { it.isSelected }
     val selectedSubtitleTrack = uiState.subtitleTracks.firstOrNull { it.isSelected }
     val currentOrientation = configuration.orientation
+    val openExternalUnavailableLabel = stringResource(R.string.player_open_external_unavailable)
 
     var isFullscreen by rememberSaveable { mutableStateOf(false) }
     var controlsVisible by rememberSaveable { mutableStateOf(true) }
@@ -149,15 +154,15 @@ fun PlayerScreen(
     }
     var swipeAdjustmentOverlay by remember { mutableStateOf<SwipeAdjustmentOverlay?>(null) }
     var swipeSeekOverlay by remember { mutableStateOf<SwipeSeekOverlay?>(null) }
-    var playerWidthPx by rememberSaveable { mutableStateOf(0) }
-    var playerHeightPx by rememberSaveable { mutableStateOf(0) }
+    var playerWidthPx by rememberSaveable { mutableIntStateOf(0) }
+    var playerHeightPx by rememberSaveable { mutableIntStateOf(0) }
     var isScrubbing by rememberSaveable { mutableStateOf(false) }
-    var scrubPositionMs by rememberSaveable { mutableStateOf(0f) }
+    var scrubPositionMs by rememberSaveable { mutableFloatStateOf(0f) }
     var activePanelName by rememberSaveable { mutableStateOf(PlayerPanel.NONE.name) }
     var zoomScale by rememberSaveable { mutableFloatStateOf(1f) }
     var panOffsetX by rememberSaveable { mutableFloatStateOf(0f) }
     var panOffsetY by rememberSaveable { mutableFloatStateOf(0f) }
-    var swipeSeekStartPositionMs by rememberSaveable { mutableStateOf(0L) }
+    var swipeSeekStartPositionMs by rememberSaveable { mutableLongStateOf(0L) }
     val swipeAdjustmentController = remember(activity, context) {
         PlayerSwipeAdjustmentController(
             context = context,
@@ -270,6 +275,9 @@ fun PlayerScreen(
         when (currentOrientation) {
             Configuration.ORIENTATION_LANDSCAPE -> isFullscreen = true
             Configuration.ORIENTATION_PORTRAIT -> isFullscreen = false
+            Configuration.ORIENTATION_SQUARE,
+            Configuration.ORIENTATION_UNDEFINED,
+            -> Unit
         }
     }
 
@@ -318,7 +326,7 @@ fun PlayerScreen(
                         player = playerViewModel.player
                         useController = false
                         keepScreenOn = true
-                        resizeMode = uiState.resizeMode
+                        resizeMode = media3ResizeMode(uiState.resizeMode)
                     }
                 },
                 modifier = Modifier
@@ -351,7 +359,7 @@ fun PlayerScreen(
                     },
                 update = { playerView ->
                     playerView.player = playerViewModel.player
-                    playerView.resizeMode = uiState.resizeMode
+                    playerView.resizeMode = media3ResizeMode(uiState.resizeMode)
                 },
             )
 
@@ -541,7 +549,7 @@ fun PlayerScreen(
                 },
                 onOpenExternally = {
                     if (!openMediaExternally(context, playablePath)) {
-                        gestureFeedback = context.getString(R.string.player_open_external_unavailable)
+                        gestureFeedback = openExternalUnavailableLabel
                     }
                 },
                 onPlayPause = {
@@ -681,7 +689,7 @@ fun PlayerScreen(
                             TextButton(
                                 onClick = {
                                     if (!openMediaExternally(context, playablePath)) {
-                                        gestureFeedback = context.getString(R.string.player_open_external_unavailable)
+                                        gestureFeedback = openExternalUnavailableLabel
                                     }
                                 },
                             ) {
@@ -1704,6 +1712,18 @@ private data class ResizeOption(
     val subtitle: String,
 )
 
+@androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
+private fun media3ResizeMode(resizeMode: Int): @AspectRatioFrameLayout.ResizeMode Int {
+    return when (resizeMode) {
+        PlayerResizeModes.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+        PlayerResizeModes.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+        PlayerResizeModes.FILL -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+        PlayerResizeModes.FIXED_WIDTH -> AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH
+        PlayerResizeModes.FIXED_HEIGHT -> AspectRatioFrameLayout.RESIZE_MODE_FIXED_HEIGHT
+        else -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+    }
+}
+
 private data class VolumeBoostOption(
     val targetGainMb: Int,
     val label: String,
@@ -1822,27 +1842,27 @@ private val SPEED_OPTIONS = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
 
 private val RESIZE_OPTIONS = listOf(
     ResizeOption(
-        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT,
+        resizeMode = PlayerResizeModes.FIT,
         label = "Fit",
         subtitle = "Natural view with the whole frame visible",
     ),
     ResizeOption(
-        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM,
+        resizeMode = PlayerResizeModes.ZOOM,
         label = "Crop",
         subtitle = "Cinema fill that crops the edges",
     ),
     ResizeOption(
-        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FILL,
+        resizeMode = PlayerResizeModes.FILL,
         label = "Fill",
         subtitle = "Stretch to fill the whole player area",
     ),
     ResizeOption(
-        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH,
+        resizeMode = PlayerResizeModes.FIXED_WIDTH,
         label = "Full width",
         subtitle = "Keep width locked and allow taller framing",
     ),
     ResizeOption(
-        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIXED_HEIGHT,
+        resizeMode = PlayerResizeModes.FIXED_HEIGHT,
         label = "Full height",
         subtitle = "Keep height locked and allow wider framing",
     ),

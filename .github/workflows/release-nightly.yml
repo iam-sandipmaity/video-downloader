@@ -1,0 +1,114 @@
+name: Release Nightly
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  release-nightly:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: release-nightly-${{ github.ref }}
+      cancel-in-progress: true
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6.1.0
+
+      - name: Read version from gradle.properties
+        id: version
+        run: |
+          VERSION=$(grep '^APP_VERSION_NAME=' gradle.properties | cut -d'=' -f2)
+          echo "version_name=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify wrapper
+        run: ./gradlew --version
+
+      - name: Compile standard debug and run unit tests
+        run: ./gradlew :app:compileStandardDebugKotlin :app:testStandardDebugUnitTest
+
+      - name: Prepare signing files
+        shell: bash
+        env:
+          INTERNAL_DEBUG_KEYSTORE_BASE64: ${{ secrets.INTERNAL_DEBUG_KEYSTORE_BASE64 }}
+          INTERNAL_DEBUG_STORE_PASSWORD: ${{ secrets.INTERNAL_DEBUG_STORE_PASSWORD }}
+          INTERNAL_DEBUG_KEY_ALIAS: ${{ secrets.INTERNAL_DEBUG_KEY_ALIAS }}
+          INTERNAL_DEBUG_KEY_PASSWORD: ${{ secrets.INTERNAL_DEBUG_KEY_PASSWORD }}
+        run: |
+          if [ -n "$INTERNAL_DEBUG_KEYSTORE_BASE64" ]; then
+            echo "$INTERNAL_DEBUG_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/internal-debug.jks"
+            echo "INTERNAL_DEBUG_STORE_FILE=$RUNNER_TEMP/internal-debug.jks" >> "$GITHUB_ENV"
+            echo "INTERNAL_DEBUG_STORE_PASSWORD=$INTERNAL_DEBUG_STORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "INTERNAL_DEBUG_KEY_ALIAS=$INTERNAL_DEBUG_KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "INTERNAL_DEBUG_KEY_PASSWORD=$INTERNAL_DEBUG_KEY_PASSWORD" >> "$GITHUB_ENV"
+          fi
+
+      - name: Verify packaged ffmpeg binary exists (blocking)
+        run: |
+          required_ffmpeg="app/src/main/jniLibs/arm64-v8a/libffmpeg_exec.so"
+
+          if [ ! -f "$required_ffmpeg" ]; then
+            echo "::error::Missing required packaged ffmpeg binary."
+            echo "Required files:"
+            echo "  $required_ffmpeg"
+            echo "Detected files under app/src/main/jniLibs:"
+            find app/src/main/jniLibs -type f 2>/dev/null || true
+            exit 1
+          fi
+
+      - name: Build nightly debug APK
+        run: ./gradlew :app:assembleStandardDebug
+
+      - name: Rename nightly debug APK
+        run: |
+          VERSION="${{ steps.version.outputs.version_name }}"
+          APK_DIR="app/build/outputs/apk/standard/debug"
+          APK_SOURCE=$(find "$APK_DIR" -maxdepth 1 -name 'app-standard-debug*.apk' | head -n 1)
+          if [ -z "$APK_SOURCE" ]; then
+            echo "::error::Could not find the standard debug APK in $APK_DIR"
+            find "$APK_DIR" -maxdepth 1 -type f || true
+            exit 1
+          fi
+          mv "$APK_SOURCE" "$APK_DIR/video-downloader-v${VERSION}-nightly-debug.apk"
+
+      - name: Upload nightly debug APK artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: video-downloader-v${{ steps.version.outputs.version_name }}-nightly-debug
+          path: app/build/outputs/apk/standard/debug/video-downloader-*.apk
+
+      - name: Refresh nightly tag
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f nightly "$GITHUB_SHA"
+          git push origin refs/tags/nightly --force
+
+      - name: Create nightly GitHub prerelease
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
+        with:
+          tag_name: nightly
+          name: "Nightly Build (v${{ steps.version.outputs.version_name }})"
+          target_commitish: ${{ github.sha }}
+          prerelease: true
+          generate_release_notes: true
+          files: app/build/outputs/apk/standard/debug/video-downloader-*.apk

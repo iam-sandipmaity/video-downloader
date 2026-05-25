@@ -4,10 +4,13 @@ import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.os.storage.StorageManager
 import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
+import androidx.annotation.RequiresApi
+import androidx.core.net.toUri
 import com.localdownloader.data.SettingsStore
 import com.localdownloader.domain.models.AppSettings
 import com.localdownloader.media.resolvePreferredMediaMimeTypeForExtension
@@ -172,13 +175,12 @@ class FileUtils @Inject constructor(
         if (!parentDir.exists()) return 0
 
         val templateName = templateFile.name
-        val stem = templateName.substringBefore(".%(ext)s", templateName)
         val deletedFiles = parentDir.listFiles()
             ?.filter { candidate ->
-                candidate.isFile && (
-                    candidate.name.startsWith(stem) ||
-                        candidate.name.startsWith("$stem.")
-                    )
+                candidate.isFile && matchesManagedArtifactForTemplate(
+                    templateName = templateName,
+                    candidateName = candidate.name,
+                )
             }
             .orEmpty()
             .count { candidate -> deleteManagedFile(candidate.absolutePath) }
@@ -237,7 +239,19 @@ class FileUtils @Inject constructor(
         targetFileName: String? = null,
     ): String? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+        return copyToPublicDownloadsApi29(
+            sourceFile = sourceFile,
+            playlistFolderName = playlistFolderName,
+            targetFileName = targetFileName,
+        )
+    }
 
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private fun copyToPublicDownloadsApi29(
+        sourceFile: File,
+        playlistFolderName: String?,
+        targetFileName: String?,
+    ): String? {
         val publicDownloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
         val rootFolderName = configuredRootFolderName()
         val relativeParent = playlistFolderName
@@ -259,6 +273,7 @@ class FileUtils @Inject constructor(
             ?: sourceFile.name
         val displayName = resolveUniqueFileName(publicDir, requestedFileName)
         val destFile = File(publicDir, displayName)
+        var insertedUri: Uri? = null
 
         return try {
             val values = android.content.ContentValues().apply {
@@ -278,20 +293,24 @@ class FileUtils @Inject constructor(
                 )
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
             }
-            val uri = context.contentResolver.insert(
-                MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+            val targetUri = context.contentResolver.insert(
+                externalDownloadsCollectionUri(),
                 values,
             ) ?: return null
-            context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+            insertedUri = targetUri
+            context.contentResolver.openOutputStream(targetUri)?.use { outputStream ->
                 sourceFile.inputStream().use { inputStream ->
                     inputStream.copyTo(outputStream)
                 }
-            }
+            } ?: throw IllegalStateException("Unable to open public Downloads output stream.")
             values.clear()
             values.put(MediaStore.MediaColumns.IS_PENDING, 0)
-            context.contentResolver.update(uri, values, null, null)
+            context.contentResolver.update(targetUri, values, null, null)
             destFile.absolutePath
         } catch (e: Exception) {
+            insertedUri?.let { uri ->
+                runCatching { context.contentResolver.delete(uri, null, null) }
+            }
             try {
                 sourceFile.copyTo(destFile, overwrite = false)
                 triggerMediaScan(Uri.fromFile(destFile))
@@ -518,6 +537,12 @@ class FileUtils @Inject constructor(
     }
 
     private fun deleteFromMediaStore(file: File): Boolean? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+        return deleteFromMediaStoreApi29(file)
+    }
+
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private fun deleteFromMediaStoreApi29(file: File): Boolean? {
         val downloadsRoot = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
             .absoluteFile
             .normalize()
@@ -545,7 +570,7 @@ class FileUtils @Inject constructor(
         val projection = arrayOf(android.provider.BaseColumns._ID)
         val selection = "${MediaStore.MediaColumns.DISPLAY_NAME}=? AND ${MediaStore.MediaColumns.RELATIVE_PATH}=?"
         val selectionArgs = arrayOf(file.name, mediaStoreRelativePath)
-        val contentUri = MediaStore.Downloads.EXTERNAL_CONTENT_URI
+        val contentUri = externalDownloadsCollectionUri()
         val itemId = context.contentResolver.query(
             contentUri,
             projection,
@@ -559,6 +584,9 @@ class FileUtils @Inject constructor(
         val itemUri = android.content.ContentUris.withAppendedId(contentUri, itemId)
         return context.contentResolver.delete(itemUri, null, null) > 0
     }
+
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private fun externalDownloadsCollectionUri(): Uri = EXTERNAL_DOWNLOADS_CONTENT_URI.toUri()
 
     private fun configuredRootFolderName(): String {
         return normalizeDownloadsRootSetting(latestSettings.downloadsRootFolderName)
@@ -684,6 +712,7 @@ class FileUtils @Inject constructor(
     companion object {
         /** Maximum size for files copied to cache (500MB). */
         private const val MAX_CACHE_FILE_SIZE = 500L * 1024 * 1024
+        private const val EXTERNAL_DOWNLOADS_CONTENT_URI = "content://media/external/downloads"
 
         private fun sanitizeFileNameStatic(value: String): String {
             return value
@@ -692,11 +721,11 @@ class FileUtils @Inject constructor(
                 .ifBlank { "media_${System.currentTimeMillis()}" }
         }
 
-        private fun normalizeRelativeDownloadsPath(
-            raw: String,
-            fallback: String?,
-            allowBlank: Boolean,
-        ): String {
+private fun normalizeRelativeDownloadsPath(
+    raw: String,
+    fallback: String?,
+    allowBlank: Boolean,
+): String {
             val normalized = raw
                 .replace('\\', '/')
                 .split('/')
@@ -812,7 +841,7 @@ class FileUtils @Inject constructor(
         ) {
             val targetDir = targetFile.parentFile ?: throw IllegalStateException("Unable to resolve target directory.")
             targetDir.mkdirs()
-            val availableSpace = targetDir.usableSpace
+            val availableSpace = allocatableSpaceBytes(context, targetDir)
             val contentLength = getContentLength(context, uri)
 
             if (contentLength > maxBytes) {
@@ -836,6 +865,15 @@ class FileUtils @Inject constructor(
             } catch (error: Throwable) {
                 runCatching { targetFile.delete() }
                 throw error
+            }
+        }
+
+        private fun allocatableSpaceBytes(context: Context, directory: File): Long {
+            val storageManager = context.getSystemService(StorageManager::class.java)
+            return runCatching {
+                storageManager.getAllocatableBytes(storageManager.getUuidForPath(directory))
+            }.getOrElse {
+                directory.usableSpace
             }
         }
 
@@ -886,4 +924,17 @@ class FileUtils @Inject constructor(
             }
         }
     }
+}
+
+internal fun managedArtifactStem(templateName: String): String {
+    return templateName.substringBefore(".%(ext)s", templateName)
+}
+
+internal fun matchesManagedArtifactForTemplate(
+    templateName: String,
+    candidateName: String,
+): Boolean {
+    val stem = managedArtifactStem(templateName).trim()
+    if (stem.isBlank()) return false
+    return candidateName == stem || candidateName.startsWith("$stem.")
 }

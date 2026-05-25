@@ -9,7 +9,6 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
-import android.os.Build
 import android.os.IBinder
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
@@ -144,12 +143,7 @@ class AudioPlaybackService : Hilt_AudioPlaybackService() {
     private fun stopForegroundAndSelf() {
         mediaSession.isActive = false
         if (startedInForeground) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                stopForeground(STOP_FOREGROUND_REMOVE)
-            } else {
-                @Suppress("DEPRECATION")
-                stopForeground(true)
-            }
+            stopForeground(STOP_FOREGROUND_REMOVE)
             startedInForeground = false
         }
         stopSelf()
@@ -255,11 +249,7 @@ class AudioPlaybackService : Hilt_AudioPlaybackService() {
         } else {
             0
         }
-        return base or if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            android.app.PendingIntent.FLAG_IMMUTABLE
-        } else {
-            0
-        }
+        return base or android.app.PendingIntent.FLAG_IMMUTABLE
     }
 
     private fun buildNotificationLine(state: AudioPlaybackState): String {
@@ -419,11 +409,7 @@ class AudioPlaybackService : Hilt_AudioPlaybackService() {
 
         fun start(context: Context) {
             val intent = Intent(context, AudioPlaybackService::class.java).setAction(ACTION_START)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
-            }
+            context.startForegroundService(intent)
         }
 
         fun stop(context: Context) {

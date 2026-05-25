@@ -1,7 +1,6 @@
 package com.localdownloader.utils
 
 import android.content.Context
-import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.webkit.ConsoleMessage
@@ -71,11 +70,8 @@ object YoutubePoTokenGenerator {
         private var botguardInitializationStarted = false
 
         init {
+            webView.configureRestrictedJavascriptSession()
             webView.settings.apply {
-                javaScriptEnabled = true
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-                    safeBrowsingEnabled = true
-                }
                 userAgentString = USER_AGENT
                 blockNetworkLoads = true
             }

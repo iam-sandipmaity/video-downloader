@@ -30,6 +30,7 @@ import com.localdownloader.utils.SensitiveDataSanitizer
 import com.localdownloader.worker.WorkerKeys
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -60,7 +61,7 @@ class DownloadRepositoryImpl @Inject constructor(
     private val logger: Logger,
 ) : DownloaderRepository {
     private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val workObserverJobs = ConcurrentHashMap.newKeySet<String>()
+    private val workObserverJobs = ConcurrentHashMap<String, Job>()
     private val pauseExpiryJobs = ConcurrentHashMap<String, Job>()
     private val pauseExpiryDeadlines = ConcurrentHashMap<String, Long>()
     private val schedulingMutex = Mutex()
@@ -746,15 +747,31 @@ class DownloadRepositoryImpl @Inject constructor(
     }
 
     private fun observeWorkState(taskId: String, workId: UUID) {
-        repositoryScope.launch {
-            workManager.getWorkInfoByIdFlow(workId).collect { info ->
-                if (info == null) {
-                    appendTaskDebug(taskId, "WorkManager state unavailable")
-                    return@collect
+        workObserverJobs.remove(taskId)?.cancel()
+        val workIdValue = workId.toString()
+        lateinit var observerJob: Job
+        observerJob = repositoryScope.launch {
+            try {
+                workManager.getWorkInfoByIdFlow(workId).collect { info ->
+                    val trackedTask = downloadTaskStore.getTask(taskId)
+                    if (trackedTask?.activeWorkId != workIdValue) {
+                        cancel("Task no longer tracks work $workIdValue")
+                        return@collect
+                    }
+                    if (info == null) {
+                        appendTaskDebug(taskId, "WorkManager state unavailable")
+                        return@collect
+                    }
+                    syncTaskFromWorkState(taskId, workIdValue, info)
+                    if (info.state.isFinished) {
+                        cancel("Observed WorkManager terminal state for $workIdValue")
+                    }
                 }
-                syncTaskFromWorkState(taskId, workId.toString(), info)
+            } finally {
+                workObserverJobs.remove(taskId, observerJob)
             }
-        }.also { /* no need to store reference, WorkManager handles persistence */ }
+        }
+        workObserverJobs[taskId] = observerJob
     }
 
     private fun syncTaskFromWorkState(taskId: String, workId: String, info: WorkInfo) {

@@ -83,11 +83,7 @@ class AppUpdateManager @Inject constructor(
     }
 
     fun canRequestPackageInstalls(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.packageManager.canRequestPackageInstalls()
-        } else {
-            true
-        }
+        return context.packageManager.canRequestPackageInstalls()
     }
 
     private fun selectApkAsset(release: GitHubReleaseDto): GitHubAssetDto? {

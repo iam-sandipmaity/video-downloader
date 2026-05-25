@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Video Downloader</string>
     <string name="nav_home">Home</string>
     <string name="nav_downloads">Downloads</string>
@@ -16,9 +16,7 @@
     <string name="common_share">Share</string>
     <string name="common_rename">Rename</string>
     <string name="common_edit">Edit</string>
-    <string name="common_hide">Hide</string>
-    <string name="common_change">Change</string>
-    <string name="common_loading">Loading...</string>
+    <string name="common_loading">Loading…</string>
     <string name="common_unknown_uploader">Unknown uploader</string>
     <string name="common_estimated_size">Est. %1$s</string>
 
@@ -35,7 +33,7 @@
     <string name="browser_url_label">Paste or type a URL</string>
     <string name="browser_clear_state">Clear browser state</string>
     <string name="browser_paste">Paste</string>
-    <string name="browser_analyzing">Analyzing...</string>
+    <string name="browser_analyzing">Analyzing…</string>
     <string name="browser_analyze_link">Analyze link</string>
     <string name="browser_feedback_label">Home</string>
     <string name="browser_download_setup_intro_title">Before your first download</string>
@@ -72,8 +70,8 @@
     <string name="browser_using_global_format">Using global format</string>
     <string name="browser_closest_available_format">Closest available format will be used.</string>
     <string name="browser_wait_for_current_job">Wait for the current job to settle.</string>
-    <string name="browser_queueing">Queueing...</string>
-    <string name="browser_please_wait">Please wait...</string>
+    <string name="browser_queueing">Queueing…</string>
+    <string name="browser_please_wait">Please wait…</string>
     <string name="browser_download_button">Download</string>
     <string name="browser_queue_now">Queue now</string>
     <string name="browser_ready">Ready</string>
@@ -122,25 +120,19 @@
         <item quantity="one">%1$d file selected</item>
         <item quantity="other">%1$d files selected</item>
     </plurals>
-    <string name="browser_selected_count_of_total">%1$d / %2$d selected</string>
+    <string name="browser_selected_count_of_total" tools:ignore="PluralsCandidate">%1$d / %2$d selected</string>
 
     <string name="downloads_title">Downloads</string>
-    <string name="downloads_selection_help">Pick saved files to share them, remove them from the app, or permanently delete them.</string>
     <string name="downloads_empty_help">Completed downloads show up here once they are saved.</string>
     <string name="downloads_open_bulk_actions">Open bulk actions</string>
     <string name="downloads_done_selecting">Done selecting</string>
     <string name="downloads_remove_from_app">Remove from app</string>
     <string name="downloads_permanent_delete">Permanent delete</string>
-    <string name="downloads_newest_first">Newest first</string>
-    <string name="downloads_oldest_first">Oldest first</string>
     <string name="downloads_newest_short">Newest</string>
     <string name="downloads_oldest_short">Oldest</string>
     <string name="downloads_search_label">Search saved downloads</string>
     <string name="downloads_search_placeholder">Title, source, or file name</string>
     <string name="downloads_clear_search">Clear download search</string>
-    <string name="downloads_select_files_to_unlock">Select files to unlock batch actions.</string>
-    <string name="downloads_clear_visible">Clear visible</string>
-    <string name="downloads_select_visible">Select visible</string>
     <string name="downloads_delete_forever">Delete forever</string>
     <string name="downloads_no_finished_for_filter">No %1$s files are finished yet. Your active downloads are still moving through the queue.</string>
     <string name="downloads_no_saved_for_filter">No %1$s downloads yet. Finish one from Home and it will show up here automatically.</string>
@@ -202,10 +194,6 @@
         <item quantity="one">%1$d download is in progress. Finished items will appear here automatically.</item>
         <item quantity="other">%1$d downloads are in progress. Finished items will appear here automatically.</item>
     </plurals>
-    <plurals name="downloads_selected_files_count">
-        <item quantity="one">%1$d file selected</item>
-        <item quantity="other">%1$d files selected</item>
-    </plurals>
     <plurals name="downloads_play_music_count">
         <item quantity="one">Play music (%1$d)</item>
         <item quantity="other">Play music (%1$d)</item>
@@ -227,7 +215,6 @@
     <string name="common_set_up">Set up</string>
     <string name="common_browse">Browse</string>
     <string name="common_keep_current">Keep current</string>
-    <string name="common_default">Default</string>
     <string name="common_unknown">Unknown</string>
     <string name="common_remove_entries">Remove entries</string>
     <string name="common_delete_all">Delete all</string>
@@ -275,23 +262,18 @@
     <string name="settings_app_log_subtitle">Read app.log inside the app, filter lines by failures, successes, or day, then copy, export, back up, or manage retention.</string>
     <string name="settings_feedback_label">Settings</string>
     <string name="settings_library_label">Library</string>
-    <string name="settings_saved_count">%1$d saved</string>
+    <string name="settings_saved_count" tools:ignore="PluralsCandidate">%1$d saved</string>
     <string name="settings_access_summary_cellular">Cellular downloads are allowed.</string>
     <string name="common_back">Back</string>
     <string name="common_copied">Copied</string>
-    <string name="common_copy">Copy</string>
-    <string name="common_unknown_source">Unknown source</string>
     <string name="common_yes">Yes</string>
     <string name="common_no">No</string>
-    <string name="common_not_set">Not set</string>
     <string name="common_auto">Auto</string>
-    <string name="common_working">Working...</string>
+    <string name="common_working">Working…</string>
     <string name="common_done">Done</string>
     <string name="common_stopped">Stopped</string>
     <string name="common_advanced">Advanced</string>
     <string name="common_hide_advanced">Hide advanced</string>
-    <string name="common_choose_file">Choose file</string>
-    <string name="common_choose_video">Choose video</string>
 
     <string name="queue_title">Download Queue</string>
     <string name="queue_progress_title">Progress</string>
@@ -303,20 +285,10 @@
     <string name="queue_filter_done">Done</string>
     <string name="queue_filter_error">Error</string>
     <string name="queue_filter_canceled">Canceled</string>
-    <string name="queue_tab_running">Running</string>
-    <string name="queue_tab_in_queue">In Queue</string>
-    <string name="queue_tab_scheduled">Scheduled</string>
-    <string name="queue_tab_errored">Errored</string>
-    <string name="queue_tab_cancelled">Cancelled</string>
-    <string name="queue_tab_done">Done</string>
     <string name="queue_options">Queue options</string>
     <string name="queue_show_all_statuses">Show all statuses</string>
     <string name="queue_show_finished">Show finished</string>
     <string name="queue_show_running">Show running</string>
-    <string name="queue_action_pause_all">Pause All In Queue</string>
-    <string name="queue_action_cancel_all">Cancel All In Queue</string>
-    <string name="queue_action_resume_all">Resume All Scheduled</string>
-    <string name="queue_action_retry_all">Retry All Failed</string>
     <string name="queue_action_pause">Pause</string>
     <string name="queue_action_cancel">Cancel</string>
     <string name="queue_action_resume">Resume</string>
@@ -325,48 +297,11 @@
     <string name="queue_po_generation">YouTube access</string>
     <string name="queue_export_log">Export log.txt</string>
     <string name="queue_report_issue">Report issue</string>
-    <string name="queue_diagnostics">Diagnostics</string>
-    <string name="queue_diagnostic_task_id">Task ID</string>
-    <string name="queue_diagnostic_source">Source</string>
-    <string name="queue_diagnostic_status">Status</string>
-    <string name="queue_diagnostic_last_updated">Last updated</string>
-    <string name="queue_diagnostic_output_path">Output path</string>
-    <string name="queue_diagnostic_error">Error</string>
-    <string name="queue_diagnostic_recent_logs">Recent log lines</string>
     <string name="queue_resume_window_expired">Resume window expired</string>
     <string name="queue_resume_within">Resume within %1$02d:%2$02d</string>
-    <string name="queue_waiting">Waiting</string>
-    <string name="queue_waiting_in_queue">Waiting in queue</string>
-    <string name="queue_needs_attention">Needs attention</string>
-    <string name="queue_saved_to_library">Saved to your downloads library.</string>
-    <string name="queue_queued_ready">Queued and ready for the worker to start.</string>
-    <string name="queue_needs_another_try">This item needs another try.</string>
-    <string name="queue_canceled_by_user">Canceled by user.</string>
-    <string name="queue_finished">Finished</string>
-    <string name="queue_no_downloads_yet">No downloads yet</string>
-    <string name="queue_nothing_downloading">Nothing is downloading right now</string>
-    <string name="queue_empty">Queue is empty</string>
-    <string name="queue_nothing_paused">Nothing is paused</string>
-    <string name="queue_no_finished_yet">No finished downloads yet</string>
-    <string name="queue_no_failed_downloads">No failed downloads</string>
-    <string name="queue_no_canceled_downloads">No canceled downloads</string>
-    <string name="queue_empty_body_active">Analyze a link from Browser to start a new task. Downloads will move through these states automatically.</string>
-    <string name="queue_empty_body_done">Completed items will stay visible here so you can quickly check what finished.</string>
-    <string name="queue_empty_body_error">If a download fails, the task and its message will appear here for easier troubleshooting.</string>
-    <string name="queue_empty_body_canceled">Canceled tasks stay grouped here so the history feels easier to scan.</string>
-    <string name="queue_queue_empty_running">Nothing is downloading right now.</string>
-    <string name="queue_queue_empty_queue">The queue is clear for now.</string>
-    <string name="queue_queue_empty_paused">No scheduled or paused downloads right now.</string>
-    <string name="queue_queue_empty_error">No errored items need attention.</string>
-    <string name="queue_queue_empty_canceled">No canceled items in the queue.</string>
-    <string name="queue_queue_empty_done">Finished downloads can still be checked from the queue menu.</string>
-    <string name="queue_queue_empty_all">New downloads from Home will appear here automatically.</string>
     <string name="queue_subtitle_empty">No downloads yet. As tasks start, their states will appear here.</string>
-    <string name="queue_subtitle_all">%1$d downloads tracked across every status</string>
-    <string name="queue_subtitle_filtered">%1$d items in %2$s right now</string>
-    <string name="queue_eta_prefix">ETA %1$s</string>
-    <string name="queue_complete_percent">%1$d%% complete</string>
-    <string name="queue_stuck_message">No progress update for %1$s. This item may be stuck.</string>
+    <string name="queue_subtitle_all" tools:ignore="PluralsCandidate">%1$d downloads tracked across every status</string>
+    <string name="queue_subtitle_filtered" tools:ignore="PluralsCandidate">%1$d items in %2$s right now</string>
     <string name="queue_recovery_title_stuck">Download may be stuck</string>
     <string name="queue_recovery_title_access">Access may be blocking this download</string>
     <string name="queue_recovery_title_network">Network or rate limits may be interrupting this</string>
@@ -394,10 +329,6 @@
     <string name="queue_recovery_compatibility">The source site or exposed format likely changed. Retry once, then export logs and report it if the same extractor or format error repeats.</string>
     <string name="queue_recovery_youtube">YouTube failures often improve after adding cookies and refreshing YouTube access from Settings or More.</string>
     <string name="queue_recovery_default">If this download failed after redirects, rate limits, or protected access, try cookies first. If it still fails, export the logs and report the issue.</string>
-    <string name="queue_logo_content">%1$s logo</string>
-    <string name="queue_elapsed_minutes_seconds">%1$dm %2$ds</string>
-    <string name="queue_elapsed_seconds">%1$ds</string>
-    <string name="queue_ago_suffix">%1$s ago</string>
 
     <string name="history_title">History</string>
     <string name="history_actions">History actions</string>
@@ -440,13 +371,12 @@
     <string name="history_filter_completed">Completed</string>
     <string name="history_filter_failed">Failed</string>
     <string name="history_filter_canceled">Canceled</string>
-    <string name="history_status_unknown">Unknown</string>
     <plurals name="history_subtitle_files">
         <item quantity="one">%1$d subtitle file</item>
         <item quantity="other">%1$d subtitle files</item>
     </plurals>
-    <string name="history_summary_showing">Showing %1$d of %2$d finished tasks in %3$s.</string>
-    <string name="history_summary_showing_search">Showing %1$d of %2$d finished tasks matching &quot;%3$s&quot; in %4$s.</string>
+    <string name="history_summary_showing" tools:ignore="PluralsCandidate">Showing %1$d of %2$d finished tasks in %3$s.</string>
+    <string name="history_summary_showing_search" tools:ignore="PluralsCandidate">Showing %1$d of %2$d finished tasks matching &quot;%3$s&quot; in %4$s.</string>
 
     <string name="updates_title">Updates</string>
     <string name="updates_refresh_all">Refresh all</string>
@@ -499,7 +429,6 @@
     <string name="compressor_section_goal">Goal</string>
     <string name="compressor_section_output">Output</string>
     <string name="compressor_choose_video">Choose video</string>
-    <string name="compressor_no_video">No video yet</string>
     <string name="compressor_will_save_as">Will save as</string>
     <string name="compressor_height">Height</string>
     <string name="compressor_max_height">Max height</string>
@@ -541,18 +470,14 @@
     <string name="cookies_empty_title">No cookies saved yet</string>
     <string name="cookies_empty_body">Tap New Cookie to paste a Netscape cookie file or use Get Cookies to capture a signed-in browser session for a specific site.</string>
     <string name="cookies_youtube_tip">For YouTube, a private/incognito session cookie usually works best for signed-in or restricted videos.</string>
-    <string name="cookies_capture_title">Get Cookies</string>
     <string name="cookies_capture_confirm">Save Cookies</string>
     <string name="cookies_copy_cookies">Copy cookies</string>
     <string name="cookies_editor_url">Site URL</string>
     <string name="cookies_editor_text">Cookie text</string>
     <string name="cookies_editor_paste">Paste</string>
     <string name="cookies_editor_get">Get Cookies</string>
-    <string name="cookies_editor_delete">Delete Cookie</string>
     <string name="cookies_editor_url_hint">Paste the site URL that these cookies belong to.</string>
-    <string name="cookies_editor_text_hint">Paste Netscape cookie text or raw browser cookie export here.</string>
     <string name="cookies_editor_keep_one">Keep one cookie profile per website so Video Downloader can reuse it automatically.</string>
-    <string name="cookies_capture_done">Done</string>
 
     <string name="youtube_access_title">YouTube Access</string>
     <string name="youtube_access_use_saved">Use saved YouTube access</string>
@@ -579,7 +504,7 @@
     <string name="youtube_access_clear_tokens">Clear access</string>
     <string name="youtube_access_login_title">YouTube Login</string>
     <string name="youtube_access_login_save">Save Access</string>
-    <string name="youtube_access_login_saving">Saving...</string>
+    <string name="youtube_access_login_saving">Saving…</string>
     <string name="youtube_access_login_intro">Sign in if needed, let the sample YouTube page load, choose whether to generate advanced tokens, then tap Save Access.</string>
     <string name="youtube_access_login_body">This screen refreshes its own WebView session so the saved cookie and session hints belong to the same YouTube login flow. Advanced token capture is optional and only runs when you turn it on here.</string>
     <string name="youtube_access_login_advanced_title">Generate advanced PO tokens</string>
@@ -851,8 +776,6 @@
     <string name="about_ffmpeg_subtitle">Open the upstream media processing project.</string>
     <string name="about_developer_github_title">Developer GitHub</string>
     <string name="about_developer_x_title">Developer X</string>
-    <string name="about_developer_instagram_title">Developer Instagram</string>
-    <string name="about_developer_linkedin_title">Developer LinkedIn</string>
     <string name="about_credits_title">Credits</string>
     <string name="about_credits_subtitle">Tap any project to open its official website or upstream source.</string>
     <string name="about_reset_title">Reset all settings</string>

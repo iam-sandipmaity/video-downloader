@@ -38,6 +38,14 @@ fun AppearanceSettingsScreen(
     var choiceDialog by remember { mutableStateOf<SettingChoiceDialogState?>(null) }
     val systemDefaultLabel = stringResource(R.string.common_system_default)
     val interfaceLanguageLabel = stringResource(R.string.common_interface_language)
+    val appearanceThemeTitle = stringResource(R.string.appearance_theme_title)
+    val appearanceThemeSystemSubtitle = stringResource(R.string.appearance_theme_system_subtitle)
+    val appearanceThemeDarkSubtitle = stringResource(R.string.appearance_theme_dark_subtitle)
+    val appearanceThemeLightSubtitle = stringResource(R.string.appearance_theme_light_subtitle)
+    val appearanceAccentTitle = stringResource(R.string.appearance_accent_title)
+    val appearanceContrastTitle = stringResource(R.string.appearance_contrast_title)
+    val appearanceLanguageTitle = stringResource(R.string.appearance_language_title)
+    val appearanceLanguageSystemSubtitle = stringResource(R.string.appearance_language_system_subtitle)
 
     choiceDialog?.let { state ->
         SettingChoiceDialog(
@@ -59,9 +67,8 @@ fun AppearanceSettingsScreen(
                     subtitle = stringResource(R.string.appearance_theme_subtitle),
                     value = themeModeLabel(context, uiState.themeMode),
                     onClick = {
-                        val themeTitle = context.getString(R.string.appearance_theme_title)
                         choiceDialog = SettingChoiceDialogState(
-                            title = themeTitle,
+                            title = appearanceThemeTitle,
                             selected = themeModeLabel(context, uiState.themeMode),
                             options = listOf(
                                 ThemeMode.SYSTEM,
@@ -71,9 +78,9 @@ fun AppearanceSettingsScreen(
                                 SettingChoiceOption(
                                     title = themeModeLabel(context, mode),
                                     subtitle = when (mode) {
-                                        ThemeMode.SYSTEM -> context.getString(R.string.appearance_theme_system_subtitle)
-                                        ThemeMode.DARK -> context.getString(R.string.appearance_theme_dark_subtitle)
-                                        ThemeMode.LIGHT -> context.getString(R.string.appearance_theme_light_subtitle)
+                                        ThemeMode.SYSTEM -> appearanceThemeSystemSubtitle
+                                        ThemeMode.DARK -> appearanceThemeDarkSubtitle
+                                        ThemeMode.LIGHT -> appearanceThemeLightSubtitle
                                     },
                                     onSelect = { onThemeModeChanged(mode) },
                                 )
@@ -88,7 +95,6 @@ fun AppearanceSettingsScreen(
                     subtitle = stringResource(R.string.appearance_accent_subtitle),
                     value = accentLabel(context, uiState.accentPreset),
                     onClick = {
-                        val accentTitle = context.getString(R.string.appearance_accent_title)
                         val accentOrder = listOf(
                             AccentPreset.AMBER,
                             AccentPreset.OCEAN,
@@ -112,7 +118,7 @@ fun AppearanceSettingsScreen(
                             AccentPreset.MONOCHROME,
                         )
                         choiceDialog = SettingChoiceDialogState(
-                            title = accentTitle,
+                            title = appearanceAccentTitle,
                             selected = accentLabel(context, uiState.accentPreset),
                             options = accentOrder.map { preset ->
                                 SettingChoiceOption(
@@ -131,9 +137,8 @@ fun AppearanceSettingsScreen(
                     subtitle = stringResource(R.string.appearance_contrast_subtitle),
                     value = contrastLabel(context, uiState.contrastMode),
                     onClick = {
-                        val contrastTitle = context.getString(R.string.appearance_contrast_title)
                         choiceDialog = SettingChoiceDialogState(
-                            title = contrastTitle,
+                            title = appearanceContrastTitle,
                             selected = contrastLabel(context, uiState.contrastMode),
                             options = ContrastMode.entries.map { mode ->
                                 SettingChoiceOption(
@@ -156,15 +161,14 @@ fun AppearanceSettingsScreen(
                     value = appLanguageLabel(uiState.languageTag, systemDefaultLabel),
                     onClick = {
                         val languageOptions = supportedAppLanguageOptions(interfaceLanguageLabel)
-                        val languageTitle = context.getString(R.string.appearance_language_title)
                         choiceDialog = SettingChoiceDialogState(
-                            title = languageTitle,
+                            title = appearanceLanguageTitle,
                             selected = appLanguageLabel(uiState.languageTag, systemDefaultLabel),
                             options = buildList {
                                 add(
                                     SettingChoiceOption(
                                         title = systemDefaultLabel,
-                                        subtitle = context.getString(R.string.appearance_language_system_subtitle),
+                                        subtitle = appearanceLanguageSystemSubtitle,
                                         onSelect = { onLanguageChanged(SYSTEM_LANGUAGE_TAG) },
                                     ),
                                 )

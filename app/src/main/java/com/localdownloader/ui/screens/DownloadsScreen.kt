@@ -78,6 +78,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
+import androidx.core.net.toUri
 import com.localdownloader.R
 import com.localdownloader.audio.AudioPlaybackState
 import com.localdownloader.domain.models.DownloadStatus
@@ -1260,7 +1261,7 @@ private fun compactDownloadQualityLabel(value: String?): String? {
 private fun VideoLibraryItem.matchesDownloadsSearch(query: String): Boolean {
     if (query.isBlank()) return true
     val sourceHost = runCatching {
-        Uri.parse(task.url).host?.removePrefix("www.")
+        task.url.toUri().host?.removePrefix("www.")
     }.getOrNull()
     val outputName = task.outputPath
         ?.replace('\\', '/')

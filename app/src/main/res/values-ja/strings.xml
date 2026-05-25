@@ -9,6 +9,7 @@
     <string name="common_help">ヘルプ</string>
     <string name="common_clear">クリア</string>
     <string name="common_select">選択</string>
+    <string name="common_remove">削除</string>
     <string name="common_close">閉じる</string>
     <string name="common_cancel">キャンセル</string>
     <string name="common_save">保存</string>
@@ -16,9 +17,7 @@
     <string name="common_share">共有</string>
     <string name="common_rename">名前を変更</string>
     <string name="common_edit">編集</string>
-    <string name="common_hide">非表示</string>
-    <string name="common_change">変更</string>
-    <string name="common_loading">読み込み中...</string>
+    <string name="common_loading">読み込み中…</string>
     <string name="common_unknown_uploader">不明なアップローダー</string>
     <string name="common_estimated_size">推定 %1$s</string>
 
@@ -35,7 +34,7 @@
     <string name="browser_url_label">URLを貼り付けるか入力してください</string>
     <string name="browser_clear_state">ブラウザ状態をクリア</string>
     <string name="browser_paste">貼り付け</string>
-    <string name="browser_analyzing">解析中...</string>
+    <string name="browser_analyzing">解析中…</string>
     <string name="browser_analyze_link">リンクを解析</string>
     <string name="browser_feedback_label">ホーム</string>
     <string name="browser_download_setup_intro_title">最初のダウンロードの前に</string>
@@ -72,8 +71,8 @@
     <string name="browser_using_global_format">全体形式を使用中</string>
     <string name="browser_closest_available_format">利用可能な最も近い形式が使われます。</string>
     <string name="browser_wait_for_current_job">現在のジョブが落ち着くまで待ってください。</string>
-    <string name="browser_queueing">キューに追加中...</string>
-    <string name="browser_please_wait">しばらくお待ちください...</string>
+    <string name="browser_queueing">キューに追加中…</string>
+    <string name="browser_please_wait">しばらくお待ちください…</string>
     <string name="browser_download_button">ダウンロード</string>
     <string name="browser_queue_now">今すぐキューへ</string>
     <string name="browser_ready">準備完了</string>
@@ -107,31 +106,22 @@
     <string name="browser_playlist_hide">非表示</string>
     <string name="browser_playlist_auto_format">このファイルには自動形式が使われます。</string>
     <plurals name="browser_files_count">
-        <item quantity="one">%1$d 個のファイル</item>
         <item quantity="other">%1$d 個のファイル</item>
     </plurals>
     <plurals name="browser_formats_count">
-        <item quantity="one">%1$d 個の形式</item>
         <item quantity="other">%1$d 個の形式</item>
     </plurals>
     <plurals name="browser_selected_files_count">
-        <item quantity="one">%1$d 個のファイルを選択</item>
         <item quantity="other">%1$d 個のファイルを選択</item>
     </plurals>
     <string name="browser_selected_count_of_total">%1$d / %2$d を選択</string>
 
     <string name="downloads_title">ダウンロード</string>
-    <string name="downloads_selection_help">保存済みファイルを選択して共有したり、アプリから削除したり、完全に削除したりできます。</string>
     <string name="downloads_empty_help">完了したダウンロードは保存後ここに表示されます。</string>
     <string name="downloads_open_bulk_actions">一括操作を開く</string>
     <string name="downloads_done_selecting">選択完了</string>
     <string name="downloads_remove_from_app">アプリから削除</string>
     <string name="downloads_permanent_delete">完全削除</string>
-    <string name="downloads_newest_first">新しい順</string>
-    <string name="downloads_oldest_first">古い順</string>
-    <string name="downloads_select_files_to_unlock">一括操作を使うにはファイルを選択してください。</string>
-    <string name="downloads_clear_visible">表示中をクリア</string>
-    <string name="downloads_select_visible">表示中を選択</string>
     <string name="downloads_delete_forever">完全削除</string>
     <string name="downloads_no_finished_for_filter">まだ完了した %1$s ファイルはありません。現在のダウンロードはまだキュー内を進行中です。</string>
     <string name="downloads_no_saved_for_filter">まだ %1$s ダウンロードはありません。ホームで1つ完了すると自動的にここに表示されます。</string>
@@ -173,31 +163,21 @@
     <string name="downloads_filter_video">動画</string>
     <string name="downloads_filter_other">その他</string>
     <plurals name="downloads_selected_count_title">
-        <item quantity="one">%1$d 件を選択</item>
         <item quantity="other">%1$d 件を選択</item>
     </plurals>
     <plurals name="downloads_saved_ready">
-        <item quantity="one">開く準備ができた保存項目 %1$d 件</item>
         <item quantity="other">開く準備ができた保存項目 %1$d 件</item>
     </plurals>
     <plurals name="downloads_active_in_progress">
-        <item quantity="one">%1$d 件のダウンロードが進行中です。完了した項目は自動的にここに表示されます。</item>
         <item quantity="other">%1$d 件のダウンロードが進行中です。完了した項目は自動的にここに表示されます。</item>
     </plurals>
-    <plurals name="downloads_selected_files_count">
-        <item quantity="one">%1$d 個のファイルを選択</item>
-        <item quantity="other">%1$d 個のファイルを選択</item>
-    </plurals>
     <plurals name="downloads_play_music_count">
-        <item quantity="one">音楽を再生 (%1$d)</item>
         <item quantity="other">音楽を再生 (%1$d)</item>
     </plurals>
     <plurals name="downloads_remove_selected_body">
-        <item quantity="one">選択した %1$d 件をアプリのライブラリから削除し、実際の端末ファイルは残しますか？</item>
         <item quantity="other">選択した %1$d 件をアプリのライブラリから削除し、実際の端末ファイルは残しますか？</item>
     </plurals>
     <plurals name="downloads_delete_selected_body">
-        <item quantity="one">選択した %1$d 件をアプリと端末ストレージの両方から完全に削除しますか？</item>
         <item quantity="other">選択した %1$d 件をアプリと端末ストレージの両方から完全に削除しますか？</item>
     </plurals>
 
@@ -209,7 +189,6 @@
     <string name="common_set_up">設定する</string>
     <string name="common_browse">ブラウズ</string>
     <string name="common_keep_current">現在のまま</string>
-    <string name="common_default">既定</string>
     <string name="common_unknown">不明</string>
     <string name="common_remove_entries">項目を削除</string>
     <string name="common_delete_all">すべて削除</string>
@@ -219,7 +198,6 @@
     <string name="common_suggested_fields">おすすめフィールド</string>
     <string name="common_template_ext_hint">ヒント: 保存ファイルの拡張子を正しく保つため、テンプレートのどこかに %(ext)s を入れてください。</string>
     <plurals name="common_days">
-        <item quantity="one">%1$d 日</item>
         <item quantity="other">%1$d 日</item>
     </plurals>
 
@@ -261,19 +239,14 @@
     <string name="settings_access_summary_cellular">モバイルデータでのダウンロードが許可されています。</string>
     <string name="common_back">戻る</string>
     <string name="common_copied">コピーしました</string>
-    <string name="common_copy">コピー</string>
-    <string name="common_unknown_source">不明なソース</string>
     <string name="common_yes">はい</string>
     <string name="common_no">いいえ</string>
-    <string name="common_not_set">未設定</string>
     <string name="common_auto">自動</string>
-    <string name="common_working">処理中...</string>
+    <string name="common_working">処理中…</string>
     <string name="common_done">完了</string>
     <string name="common_stopped">停止しました</string>
     <string name="common_advanced">詳細設定</string>
     <string name="common_hide_advanced">詳細設定を隠す</string>
-    <string name="common_choose_file">ファイルを選択</string>
-    <string name="common_choose_video">動画を選択</string>
 
     <string name="queue_title">ダウンロードキュー</string>
     <string name="queue_progress_title">進行状況</string>
@@ -285,20 +258,10 @@
     <string name="queue_filter_done">完了</string>
     <string name="queue_filter_error">エラー</string>
     <string name="queue_filter_canceled">キャンセル済み</string>
-    <string name="queue_tab_running">実行中</string>
-    <string name="queue_tab_in_queue">キュー内</string>
-    <string name="queue_tab_scheduled">予約済み</string>
-    <string name="queue_tab_errored">エラーあり</string>
-    <string name="queue_tab_cancelled">キャンセル済み</string>
-    <string name="queue_tab_done">完了</string>
     <string name="queue_options">キューのオプション</string>
     <string name="queue_show_all_statuses">すべての状態を表示</string>
     <string name="queue_show_finished">完了した項目を表示</string>
     <string name="queue_show_running">実行中の項目を表示</string>
-    <string name="queue_action_pause_all">キュー内をすべて一時停止</string>
-    <string name="queue_action_cancel_all">キュー内をすべてキャンセル</string>
-    <string name="queue_action_resume_all">予約済みをすべて再開</string>
-    <string name="queue_action_retry_all">失敗した項目をすべて再試行</string>
     <string name="queue_action_pause">一時停止</string>
     <string name="queue_action_cancel">キャンセル</string>
     <string name="queue_action_resume">再開</string>
@@ -307,56 +270,15 @@
     <string name="queue_po_generation">PO 生成</string>
     <string name="queue_export_log">log.txt をエクスポート</string>
     <string name="queue_report_issue">問題を報告</string>
-    <string name="queue_diagnostics">診断</string>
-    <string name="queue_diagnostic_task_id">タスク ID</string>
-    <string name="queue_diagnostic_source">ソース</string>
-    <string name="queue_diagnostic_status">状態</string>
-    <string name="queue_diagnostic_last_updated">最終更新</string>
-    <string name="queue_diagnostic_output_path">出力パス</string>
-    <string name="queue_diagnostic_error">エラー</string>
-    <string name="queue_diagnostic_recent_logs">最近のログ行</string>
     <string name="queue_resume_window_expired">再開可能時間が切れました</string>
     <string name="queue_resume_within">%1$02d:%2$02d 以内に再開</string>
-    <string name="queue_waiting">待機中</string>
-    <string name="queue_waiting_in_queue">キュー内で待機中</string>
-    <string name="queue_needs_attention">確認が必要</string>
-    <string name="queue_saved_to_library">ダウンロードライブラリに保存されました。</string>
-    <string name="queue_queued_ready">キューに入り、ワーカー開始の準備ができています。</string>
-    <string name="queue_needs_another_try">この項目はもう一度試す必要があります。</string>
-    <string name="queue_canceled_by_user">ユーザーによりキャンセルされました。</string>
-    <string name="queue_finished">完了しました</string>
-    <string name="queue_no_downloads_yet">まだダウンロードはありません</string>
-    <string name="queue_nothing_downloading">現在ダウンロード中の項目はありません</string>
-    <string name="queue_empty">キューは空です</string>
-    <string name="queue_nothing_paused">一時停止中の項目はありません</string>
-    <string name="queue_no_finished_yet">まだ完了したダウンロードはありません</string>
-    <string name="queue_no_failed_downloads">失敗したダウンロードはありません</string>
-    <string name="queue_no_canceled_downloads">キャンセルされたダウンロードはありません</string>
-    <string name="queue_empty_body_active">新しいタスクを始めるには、ブラウズでリンクを解析してください。ダウンロードはこれらの状態を自動で移動します。</string>
-    <string name="queue_empty_body_done">完了した項目はここに残るため、何が終わったかをすぐ確認できます。</string>
-    <string name="queue_empty_body_error">ダウンロードが失敗すると、タスクとそのメッセージがここに表示され、トラブルシュートしやすくなります。</string>
-    <string name="queue_empty_body_canceled">キャンセルされたタスクはここにまとまって表示され、履歴を見やすくします。</string>
-    <string name="queue_queue_empty_running">現在ダウンロード中の項目はありません。</string>
-    <string name="queue_queue_empty_queue">現在キューは空です。</string>
-    <string name="queue_queue_empty_paused">現在、予約済みまたは一時停止中のダウンロードはありません。</string>
-    <string name="queue_queue_empty_error">注意が必要なエラー項目はありません。</string>
-    <string name="queue_queue_empty_canceled">キューにキャンセル済み項目はありません。</string>
-    <string name="queue_queue_empty_done">完了したダウンロードはキューメニューから引き続き確認できます。</string>
-    <string name="queue_queue_empty_all">ホームから始めた新しいダウンロードは自動的にここへ表示されます。</string>
     <string name="queue_subtitle_empty">まだダウンロードはありません。タスクが始まると状態がここに表示されます。</string>
     <string name="queue_subtitle_all">すべての状態で %1$d 件のダウンロードを追跡中</string>
     <string name="queue_subtitle_filtered">現在 %2$s に %1$d 件あります</string>
-    <string name="queue_eta_prefix">残り時間 %1$s</string>
-    <string name="queue_complete_percent">%1$d%% 完了</string>
-    <string name="queue_stuck_message">%1$s の間、進捗更新がありません。この項目は停止している可能性があります。</string>
     <string name="queue_recovery_stuck_youtube">この YouTube 項目は %1$s の間更新されていません。再生アクセス確認がダウンロードを妨げる場合、Cookies や PO 生成が役立つことがあります。</string>
     <string name="queue_recovery_stuck">この項目は %1$s の間更新されていません。サイトにログイン済みまたは地域一致のセッションが必要な場合、Cookies が役立つことがあります。</string>
     <string name="queue_recovery_youtube">YouTube の失敗は、Settings または More から Cookies を追加し、PO 生成を更新すると改善することが多いです。</string>
     <string name="queue_recovery_default">リダイレクト、レート制限、保護アクセスの後にこのダウンロードが失敗した場合は、まず Cookies を試してください。それでも失敗するならログをエクスポートして問題を報告してください。</string>
-    <string name="queue_logo_content">%1$s ロゴ</string>
-    <string name="queue_elapsed_minutes_seconds">%1$d分 %2$d秒</string>
-    <string name="queue_elapsed_seconds">%1$d秒</string>
-    <string name="queue_ago_suffix">%1$s前</string>
 
     <string name="history_title">履歴</string>
     <string name="history_task_summary">タスク概要</string>
@@ -376,9 +298,7 @@
     <string name="history_filter_completed">完了</string>
     <string name="history_filter_failed">失敗</string>
     <string name="history_filter_canceled">キャンセル</string>
-    <string name="history_status_unknown">不明</string>
     <plurals name="history_subtitle_files">
-        <item quantity="one">%1$d 個の字幕ファイル</item>
         <item quantity="other">%1$d 個の字幕ファイル</item>
     </plurals>
     <string name="history_summary_showing">%3$s で完了した %2$d 件のタスクのうち %1$d 件を表示しています。</string>
@@ -433,7 +353,6 @@
     <string name="compressor_section_goal">目標</string>
     <string name="compressor_section_output">出力</string>
     <string name="compressor_choose_video">動画を選択</string>
-    <string name="compressor_no_video">まだ動画がありません</string>
     <string name="compressor_will_save_as">次の名前で保存されます</string>
     <string name="compressor_height">高さ</string>
     <string name="compressor_max_height">最大高さ</string>
@@ -467,7 +386,6 @@
     <string name="cookies_saved_title">保存された Cookies</string>
     <string name="cookies_saved_empty_subtitle">サイトの Cookie を一度追加し、そのセッションが変わるたびに更新してください。</string>
     <plurals name="cookies_saved_ready_count">
-        <item quantity="one">使用できる保存済みサイトが %1$d 件あります。</item>
         <item quantity="other">使用できる保存済みサイトが %1$d 件あります。</item>
     </plurals>
     <string name="cookies_new">新しい Cookie</string>
@@ -475,18 +393,14 @@
     <string name="cookies_empty_title">まだ Cookies は保存されていません</string>
     <string name="cookies_empty_body">New Cookie をタップして Netscape Cookie ファイルを貼り付けるか、Get Cookies を使って特定サイトのログイン済みブラウザセッションを取得してください。</string>
     <string name="cookies_youtube_tip">YouTube では、ログインが必要な動画や制限付き動画に対して、プライベート/シークレットセッションの Cookie が最も効果的なことが多いです。</string>
-    <string name="cookies_capture_title">Cookies を取得</string>
     <string name="cookies_capture_confirm">Cookies を保存</string>
     <string name="cookies_copy_cookies">Cookies をコピー</string>
     <string name="cookies_editor_url">サイト URL</string>
     <string name="cookies_editor_text">Cookie テキスト</string>
     <string name="cookies_editor_paste">貼り付け</string>
     <string name="cookies_editor_get">Cookies を取得</string>
-    <string name="cookies_editor_delete">Cookie を削除</string>
     <string name="cookies_editor_url_hint">この Cookie が属するサイト URL を貼り付けてください。</string>
-    <string name="cookies_editor_text_hint">ここに Netscape Cookie テキストまたは生のブラウザ Cookie エクスポートを貼り付けてください。</string>
     <string name="cookies_editor_keep_one">Video Downloader が自動再利用できるよう、サイトごとに 1 つの Cookie プロファイルを保持してください。</string>
-    <string name="cookies_capture_done">完了</string>
 
     <string name="youtube_access_title">YouTube アクセス</string>
     <string name="youtube_access_use_saved">保存済み YouTube access を使う</string>
@@ -511,7 +425,7 @@
     <string name="youtube_access_clear_tokens">トークンをクリア</string>
     <string name="youtube_access_login_title">YouTube ログイン</string>
     <string name="youtube_access_login_save">Access を保存</string>
-    <string name="youtube_access_login_saving">保存中...</string>
+    <string name="youtube_access_login_saving">保存中…</string>
     <string name="youtube_access_login_intro">必要ならログインし、サンプル YouTube ページが読み込まれるまで待ってから Save Access をタップしてください。</string>
     <string name="youtube_access_login_body">保存される Cookie と生成されるトークンが同じ YouTube ログインフローに属するよう、この画面は自分の WebView セッションを更新します。</string>
     <string name="youtube_access_login_not_ready">YouTube の visitor data はまだ準備できていません。サンプル動画ページの読み込みが終わってから、もう一度 Save Access を試してください。</string>
@@ -572,7 +486,6 @@
     <string name="settings_access_summary_wifi">ダウンロードは Wi‑Fi を待機します。</string>
     <string name="settings_access_summary_no_cookies">まだ保存されたサイトセッションはありません。</string>
     <plurals name="settings_access_summary_cookie_count">
-        <item quantity="one">再利用可能な保存済みサイトセッションが %1$d 件あります。</item>
         <item quantity="other">再利用可能な保存済みサイトセッションが %1$d 件あります。</item>
     </plurals>
     <string name="settings_access_summary_youtube_configured">より難しい再試行のために YouTube access が設定されています。</string>
@@ -699,7 +612,6 @@
     <string name="access_saved_cookies_title">保存済み Cookies</string>
     <string name="access_saved_cookies_empty">サイトセッションを一度追加し、そのログインが変わるたびに更新してください。</string>
     <plurals name="access_saved_cookies_count">
-        <item quantity="one">確認・更新・インポート・エクスポートができる保存済みサイトセッションが %1$d 件あります。</item>
         <item quantity="other">確認・更新・インポート・エクスポートができる保存済みサイトセッションが %1$d 件あります。</item>
     </plurals>
     <string name="access_youtube_configured">保存済み PO トークンが準備できているため、再試行がブロックされたときに現在の設定を更新または確認できます。</string>
@@ -771,8 +683,6 @@
     <string name="about_ffmpeg_subtitle">上流のメディア処理プロジェクトを開きます。</string>
     <string name="about_developer_github_title">開発者 GitHub</string>
     <string name="about_developer_x_title">開発者 X</string>
-    <string name="about_developer_instagram_title">開発者 Instagram</string>
-    <string name="about_developer_linkedin_title">開発者 LinkedIn</string>
     <string name="about_credits_title">クレジット</string>
     <string name="about_credits_subtitle">各プロジェクトをタップすると、公式サイトまたは上流ソースを開きます。</string>
     <string name="about_reset_title">すべての設定をリセット</string>

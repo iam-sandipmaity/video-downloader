@@ -4,15 +4,17 @@
 
 - JDK 17
 - Android SDK and platform tools
-- Gradle available in `PATH`
+- use the bundled Gradle wrapper from the repository root
 
 ## Setup
 
 ```bash
 git clone https://github.com/iam-sandipmaity/video-downloader
 cd video-downloader
-gradle :app:assembleDebug
+./gradlew :app:assembleStandardDebug
 ```
+
+Use `gradlew.bat` instead of `./gradlew` when running from PowerShell or Command Prompt on Windows.
 
 If you are working on custom FFmpeg ABI packaging, also review
 [../COMPATIBILITY.md](../COMPATIBILITY.md).
@@ -20,8 +22,8 @@ If you are working on custom FFmpeg ABI packaging, also review
 ## Common Commands
 
 ```bash
-gradle :app:assembleDebug
-gradle :app:testDebugUnitTest
+./gradlew :app:assembleStandardDebug
+./gradlew :app:testStandardDebugUnitTest
 ```
 
 ## Working Style For This Repo

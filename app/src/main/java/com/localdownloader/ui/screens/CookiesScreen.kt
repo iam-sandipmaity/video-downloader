@@ -1,10 +1,7 @@
 package com.localdownloader.ui.screens
 
-import android.os.Build
-import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
-import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -71,6 +68,7 @@ import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.utils.CookieTextCodec
 import com.localdownloader.utils.WebViewCookieExporter
 import com.localdownloader.utils.WebViewSessionSanitizer
+import com.localdownloader.utils.configureRestrictedJavascriptSession
 import com.localdownloader.viewmodel.FormatMessageScope
 import com.localdownloader.viewmodel.FormatUiState
 import kotlinx.coroutines.Dispatchers
@@ -89,6 +87,7 @@ fun CookiesScreen(
     onDeleteAllCookies: () -> Unit,
     onImportCookieText: (String) -> Unit,
     onOpenCookieCapture: (String, String?) -> Unit,
+    onCookieExportResult: (Boolean, String?) -> Unit,
     onDismissMessage: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -103,12 +102,15 @@ fun CookiesScreen(
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/plain"),
     ) { uri ->
-        if (uri != null) {
-            runCatching {
-                context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
-                    writer.write(CookieTextCodec.buildCombinedExport(uiState.cookieProfiles))
-                }
-            }
+        if (uri == null) return@rememberLauncherForActivityResult
+        runCatching {
+            context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
+                writer.write(CookieTextCodec.buildCombinedExport(uiState.cookieProfiles))
+            } ?: error("Unable to open the selected export file.")
+        }.onSuccess {
+            onCookieExportResult(true, null)
+        }.onFailure { error ->
+            onCookieExportResult(false, error.message)
         }
     }
 
@@ -460,22 +462,10 @@ fun CookieCaptureScreen(
                 WebViewSessionSanitizer.resetSession()
                 WebView(context).apply {
                     webView = this
-                    settings.javaScriptEnabled = true
-                    settings.domStorageEnabled = true
-                    settings.allowFileAccess = false
-                    settings.allowContentAccess = false
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-                        settings.safeBrowsingEnabled = true
-                    }
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                        settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-                    }
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
-                        settings.allowFileAccessFromFileURLs = false
-                        settings.allowUniversalAccessFromFileURLs = false
-                    }
-                    CookieManager.getInstance().setAcceptCookie(true)
-                    CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+                    configureRestrictedJavascriptSession(
+                        enableCookies = true,
+                        enableThirdPartyCookies = true,
+                    )
                     webViewClient = object : WebViewClient() {
                         override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                             val scheme = request?.url?.scheme.orEmpty()

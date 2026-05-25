@@ -31,7 +31,7 @@ val syncBundledChangelog by tasks.registering(Copy::class) {
 
 android {
     namespace = "com.localdownloader"
-    compileSdk = 36
+    compileSdk = 37
 
     val internalDebugStoreFile = signingValue("INTERNAL_DEBUG_STORE_FILE")
     val internalDebugStorePassword = signingValue("INTERNAL_DEBUG_STORE_PASSWORD")
@@ -58,7 +58,7 @@ android {
     defaultConfig {
         applicationId = "com.localdownloader"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 37
         versionCode = (project.findProperty("APP_VERSION_CODE") as String? ?: "1").toInt()
         versionName = project.findProperty("APP_VERSION_NAME") as String? ?: "0.1.0"
 
@@ -134,6 +134,12 @@ android {
         buildConfig = true
     }
 
+    bundle {
+        language {
+            enableSplit = false
+        }
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -180,7 +186,7 @@ dependencies {
     implementation("io.coil-kt:coil-svg:2.7.0")
     implementation("io.github.junkfood02.youtubedl-android:library:0.18.1")
     implementation("io.github.junkfood02.youtubedl-android:ffmpeg:0.18.1")
-    implementation("org.tukaani:xz:1.10")
+    implementation("org.tukaani:xz:1.12")
     implementation("androidx.work:work-runtime-ktx:2.11.2")
     implementation("androidx.hilt:hilt-work:1.3.0")
     implementation("androidx.hilt:hilt-navigation-compose:1.3.0")
@@ -196,6 +202,7 @@ dependencies {
     ksp("androidx.room:room-compiler:2.8.4")
 
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:2.3.21")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")

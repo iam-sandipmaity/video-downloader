@@ -14,8 +14,8 @@ import java.io.InputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Maximum number of recent lines to keep for stderr error reporting. */
-private const val MAX_RECENT_LINES = 500
+private const val MAX_CAPTURE_BYTES = 1024L * 1024L
+private const val TRUNCATED_STDOUT_MARKER = "[stdout truncated]"
 
 @Singleton
 class ProcessRunner @Inject constructor() {
@@ -37,11 +37,13 @@ class ProcessRunner @Inject constructor() {
 
         val process = processBuilder.start()
         val stdoutBuilder = StringBuilder()
+        var stdoutTotalSize = 0L
+        var stdoutTruncated = false
         // Use a circular buffer approach: keep only recent stderr lines to avoid OOM.
         val stderrLines = mutableListOf<String>()
         var stderrTotalSize = 0L
         // Cap stderr buffer to ~1MB of text.
-        val maxStderrBytes = 1024L * 1024L
+        val maxStderrBytes = MAX_CAPTURE_BYTES
 
         try {
             coroutineScope {
@@ -50,7 +52,25 @@ class ProcessRunner @Inject constructor() {
                         stream = process.inputStream,
                         process = process,
                     ) { line ->
-                        stdoutBuilder.appendLine(line)
+                        if (!stdoutTruncated) {
+                            val lineWithNewline = "$line\n"
+                            val lineBytes = lineWithNewline.length.toLong() * 2
+                            if (stdoutTotalSize + lineBytes <= MAX_CAPTURE_BYTES) {
+                                stdoutBuilder.append(lineWithNewline)
+                                stdoutTotalSize += lineBytes
+                            } else {
+                                val remainingChars = ((MAX_CAPTURE_BYTES - stdoutTotalSize).coerceAtLeast(0L) / 2L).toInt()
+                                if (remainingChars > 0) {
+                                    stdoutBuilder.append(lineWithNewline.take(remainingChars))
+                                }
+                                if (!stdoutBuilder.endsWith("\n")) {
+                                    stdoutBuilder.appendLine()
+                                }
+                                stdoutBuilder.appendLine(TRUNCATED_STDOUT_MARKER)
+                                stdoutTruncated = true
+                                stdoutTotalSize = MAX_CAPTURE_BYTES
+                            }
+                        }
                         onStdoutLine?.invoke(line)
                     }
                 }
@@ -64,7 +84,7 @@ class ProcessRunner @Inject constructor() {
                         stderrLines.add(line)
                         // Evict oldest lines when buffer gets too large.
                         while (stderrTotalSize > maxStderrBytes && stderrLines.isNotEmpty()) {
-                            stderrTotalSize -= stderrLines.removeFirst().length.toLong() * 2
+                            stderrTotalSize -= stderrLines.removeAt(0).length.toLong() * 2
                         }
                         onStderrLine?.invoke(line)
                     }

@@ -31,6 +31,7 @@ import dagger.assisted.AssistedInject
 import androidx.hilt.work.HiltWorker
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
+import java.util.Locale
 
 @HiltWorker
 class DownloadWorker @AssistedInject constructor(
@@ -574,6 +575,18 @@ class DownloadWorker @AssistedInject constructor(
             reusedExistingDownloadFile = false
             retriedAfterDeletingInvalidExistingFile = true
             result = runDownloadAttempt(lastAttemptOptions.copy(loadInfoJsonPath = null))
+        }
+
+        if (
+            !result.isSuccess &&
+            shouldRetryTransientPostprocessingFailure(result.stderr) &&
+            runAttemptCount < MAX_TRANSIENT_RETRY_ATTEMPTS
+        ) {
+            appendDebugTrace(
+                taskId,
+                "Transient postprocessing interruption detected; scheduling WorkManager retry ${runAttemptCount + 1}/$MAX_TRANSIENT_RETRY_ATTEMPTS",
+            )
+            return Result.retry()
         }
 
         if (!result.isSuccess && shouldRetryTransientFailure(result.stderr) && runAttemptCount < MAX_TRANSIENT_RETRY_ATTEMPTS) {
@@ -2192,6 +2205,17 @@ class DownloadWorker @AssistedInject constructor(
         return isClosedStreamFailure(stderr.lowercase())
     }
 
+    private fun shouldRetryTransientPostprocessingFailure(stderr: String): Boolean {
+        if (!isRecoverablePostprocessingFailure(stderr)) return false
+
+        val lower = stderr.lowercase()
+        return isClosedStreamFailure(lower) ||
+            lower.contains("interrupted system call") ||
+            lower.contains("signal 9") ||
+            lower.contains("was killed") ||
+            lower.contains("terminated")
+    }
+
     private fun preferredFailureLine(detail: String): String? {
         val lines = detail.lineSequence()
             .map { it.trim().removePrefix("ERROR: ") }
@@ -2414,9 +2438,9 @@ class DownloadWorker @AssistedInject constructor(
         val mib = kib * 1024.0
         val gib = mib * 1024.0
         return when {
-            this >= gib -> String.format("%.1f GB", this / gib)
-            this >= mib -> String.format("%.1f MB", this / mib)
-            this >= kib -> String.format("%.1f KB", this / kib)
+            this >= gib -> String.format(Locale.ROOT, "%.1f GB", this / gib)
+            this >= mib -> String.format(Locale.ROOT, "%.1f MB", this / mib)
+            this >= kib -> String.format(Locale.ROOT, "%.1f KB", this / kib)
             else -> "$this B"
         }
     }

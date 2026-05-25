@@ -39,6 +39,7 @@ import com.localdownloader.R
 import com.localdownloader.domain.models.AccentPreset
 import com.localdownloader.domain.models.ContrastMode
 import com.localdownloader.domain.models.ThemeMode
+import java.util.Locale
 
 data class SettingChoiceOption(
     val title: String,
@@ -533,6 +534,6 @@ fun formatFileSize(bytes: Long): String {
         bytes < 1024 -> "$bytes B"
         bytes < 1024 * 1024 -> "${bytes / 1024} KB"
         bytes < 1024 * 1024 * 1024 -> "${bytes / (1024 * 1024)} MB"
-        else -> String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))
+        else -> String.format(Locale.ROOT, "%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))
     }
 }

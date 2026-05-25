@@ -9,6 +9,7 @@
     <string name="common_help">సహాయం</string>
     <string name="common_clear">తొలగించు</string>
     <string name="common_select">ఎంచుకో</string>
+    <string name="common_remove">తీసేయి</string>
     <string name="common_close">మూసివేయి</string>
     <string name="common_cancel">రద్దు</string>
     <string name="common_save">సేవ్ చేయి</string>
@@ -16,9 +17,7 @@
     <string name="common_share">పంచుకో</string>
     <string name="common_rename">పేరు మార్చు</string>
     <string name="common_edit">సవరించు</string>
-    <string name="common_hide">దాచు</string>
-    <string name="common_change">మార్చు</string>
-    <string name="common_loading">లోడ్ అవుతోంది...</string>
+    <string name="common_loading">లోడ్ అవుతోంది…</string>
     <string name="common_unknown_uploader">తెలియని అప్‌లోడర్</string>
     <string name="common_estimated_size">అంచనా %1$s</string>
 
@@ -35,7 +34,7 @@
     <string name="browser_url_label">URL ని పేస్ట్ చేయండి లేదా టైప్ చేయండి</string>
     <string name="browser_clear_state">బ్రౌజర్ స్థితిని క్లియర్ చేయి</string>
     <string name="browser_paste">పేస్ట్</string>
-    <string name="browser_analyzing">విశ్లేషిస్తోంది...</string>
+    <string name="browser_analyzing">విశ్లేషిస్తోంది…</string>
     <string name="browser_analyze_link">లింక్‌ను విశ్లేషించు</string>
     <string name="browser_feedback_label">హోమ్</string>
     <string name="browser_download_setup_intro_title">మొదటి డౌన్‌లోడ్‌కు ముందు</string>
@@ -72,8 +71,8 @@
     <string name="browser_using_global_format">గ్లోబల్ ఫార్మాట్ ఉపయోగంలో ఉంది</string>
     <string name="browser_closest_available_format">అత్యంత సమీపంగా అందుబాటులో ఉన్న ఫార్మాట్ ఉపయోగించబడుతుంది.</string>
     <string name="browser_wait_for_current_job">ప్రస్తుత పని స్థిరపడే వరకు వేచి ఉండండి.</string>
-    <string name="browser_queueing">క్యూలో వేస్తోంది...</string>
-    <string name="browser_please_wait">దయచేసి వేచి ఉండండి...</string>
+    <string name="browser_queueing">క్యూలో వేస్తోంది…</string>
+    <string name="browser_please_wait">దయచేసి వేచి ఉండండి…</string>
     <string name="browser_download_button">డౌన్‌లోడ్</string>
     <string name="browser_queue_now">ఇప్పుడే క్యూలో వేయి</string>
     <string name="browser_ready">సిద్ధం</string>
@@ -121,17 +120,11 @@
     <string name="browser_selected_count_of_total">%1$d / %2$d ఎంపికయ్యాయి</string>
 
     <string name="downloads_title">డౌన్‌లోడ్లు</string>
-    <string name="downloads_selection_help">పంచుకోవడానికి, యాప్ నుంచి తీసేయడానికి లేదా శాశ్వతంగా తొలగించడానికి సేవ్ చేసిన ఫైళ్లను ఎంచుకోండి.</string>
     <string name="downloads_empty_help">పూర్తైన డౌన్‌లోడ్లు సేవ్ అయిన తర్వాత ఇక్కడ కనిపిస్తాయి.</string>
     <string name="downloads_open_bulk_actions">bulk చర్యలను తెరువు</string>
     <string name="downloads_done_selecting">ఎంపిక పూర్తైంది</string>
     <string name="downloads_remove_from_app">యాప్ నుంచి తొలగించు</string>
     <string name="downloads_permanent_delete">శాశ్వత తొలగింపు</string>
-    <string name="downloads_newest_first">కొత్తవి ముందుగా</string>
-    <string name="downloads_oldest_first">పాతవి ముందుగా</string>
-    <string name="downloads_select_files_to_unlock">bulk చర్యలను ప్రారంభించడానికి ఫైళ్లను ఎంచుకోండి.</string>
-    <string name="downloads_clear_visible">కనిపిస్తున్నవాటిని క్లియర్ చేయి</string>
-    <string name="downloads_select_visible">కనిపిస్తున్నవాటిని ఎంచుకోండి</string>
     <string name="downloads_delete_forever">ఎప్పటికీ తొలగించు</string>
     <string name="downloads_no_finished_for_filter">ఇంకా %1$s ఫైళ్లు పూర్తికాలేదు. మీ active downloads ఇప్పటికీ క్యూలో కదులుతున్నాయి.</string>
     <string name="downloads_no_saved_for_filter">ఇంకా %1$s డౌన్‌లోడ్లు లేవు. Home నుంచి ఒకదాన్ని పూర్తి చేస్తే అది ఇక్కడ ఆటోమేటిగ్గా కనిపిస్తుంది.</string>
@@ -184,10 +177,6 @@
         <item quantity="one">%1$d డౌన్‌లోడ్ కొనసాగుతోంది. పూర్తైన అంశాలు ఆటోమేటిగ్గా ఇక్కడ కనిపిస్తాయి.</item>
         <item quantity="other">%1$d డౌన్‌లోడ్లు కొనసాగుతున్నాయి. పూర్తైన అంశాలు ఆటోమేటిగ్గా ఇక్కడ కనిపిస్తాయి.</item>
     </plurals>
-    <plurals name="downloads_selected_files_count">
-        <item quantity="one">%1$d ఫైల్ ఎంపికైంది</item>
-        <item quantity="other">%1$d ఫైళ్లు ఎంపికయ్యాయి</item>
-    </plurals>
     <plurals name="downloads_play_music_count">
         <item quantity="one">సంగీతాన్ని ప్లే చేయి (%1$d)</item>
         <item quantity="other">సంగీతాన్ని ప్లే చేయి (%1$d)</item>
@@ -209,7 +198,6 @@
     <string name="common_set_up">సెట్ చేయి</string>
     <string name="common_browse">బ్రౌజ్</string>
     <string name="common_keep_current">ప్రస్తుతదాన్నే ఉంచు</string>
-    <string name="common_default">డిఫాల్ట్</string>
     <string name="common_unknown">తెలియదు</string>
     <string name="common_remove_entries">entries ను తీసేయి</string>
     <string name="common_delete_all">అన్నీ తొలగించు</string>
@@ -261,19 +249,14 @@
     <string name="settings_access_summary_cellular">సెల్యులర్ డౌన్‌లోడ్లు అనుమతించబడ్డాయి.</string>
     <string name="common_back">వెనక్కి</string>
     <string name="common_copied">కాపీ అయింది</string>
-    <string name="common_copy">కాపీ చేయి</string>
-    <string name="common_unknown_source">తెలియని మూలం</string>
     <string name="common_yes">అవును</string>
     <string name="common_no">కాదు</string>
-    <string name="common_not_set">సెట్ చేయబడలేదు</string>
     <string name="common_auto">ఆటో</string>
-    <string name="common_working">పనిలో ఉంది...</string>
+    <string name="common_working">పనిలో ఉంది…</string>
     <string name="common_done">పూర్తైంది</string>
     <string name="common_stopped">ఆగిపోయింది</string>
     <string name="common_advanced">అధునాతన</string>
     <string name="common_hide_advanced">అధునాతనాన్ని దాచు</string>
-    <string name="common_choose_file">ఫైల్ ఎంచుకో</string>
-    <string name="common_choose_video">వీడియో ఎంచుకో</string>
 
     <string name="queue_title">డౌన్‌లోడ్ క్యూ</string>
     <string name="queue_progress_title">ప్రగతి</string>
@@ -285,20 +268,10 @@
     <string name="queue_filter_done">పూర్తైంది</string>
     <string name="queue_filter_error">లోపం</string>
     <string name="queue_filter_canceled">రద్దు చేయబడింది</string>
-    <string name="queue_tab_running">నడుస్తున్నవి</string>
-    <string name="queue_tab_in_queue">క్యూలో ఉన్నాయి</string>
-    <string name="queue_tab_scheduled">షెడ్యూల్ చేయబడినవి</string>
-    <string name="queue_tab_errored">లోపం వచ్చినవి</string>
-    <string name="queue_tab_cancelled">రద్దయినవి</string>
-    <string name="queue_tab_done">పూర్తైనవి</string>
     <string name="queue_options">క్యూ ఎంపికలు</string>
     <string name="queue_show_all_statuses">అన్ని స్థితులను చూపు</string>
     <string name="queue_show_finished">పూర్తైనవాటిని చూపు</string>
     <string name="queue_show_running">నడుస్తున్నవాటిని చూపు</string>
-    <string name="queue_action_pause_all">క్యూలో ఉన్న అన్నింటినీ పాజ్ చేయి</string>
-    <string name="queue_action_cancel_all">క్యూలో ఉన్న అన్నింటినీ రద్దు చేయి</string>
-    <string name="queue_action_resume_all">షెడ్యూల్ అయిన అన్నింటినీ కొనసాగించు</string>
-    <string name="queue_action_retry_all">విఫలమైన అన్నింటినీ మళ్లీ ప్రయత్నించు</string>
     <string name="queue_action_pause">పాజ్</string>
     <string name="queue_action_cancel">రద్దు చేయి</string>
     <string name="queue_action_resume">కొనసాగించు</string>
@@ -307,56 +280,15 @@
     <string name="queue_po_generation">PO జనరేషన్</string>
     <string name="queue_export_log">log.txt ఎగుమతి చేయి</string>
     <string name="queue_report_issue">సమస్యను నివేదించు</string>
-    <string name="queue_diagnostics">డయాగ్నస్టిక్స్</string>
-    <string name="queue_diagnostic_task_id">టాస్క్ ID</string>
-    <string name="queue_diagnostic_source">మూలం</string>
-    <string name="queue_diagnostic_status">స్థితి</string>
-    <string name="queue_diagnostic_last_updated">చివరిసారి నవీకరించబడింది</string>
-    <string name="queue_diagnostic_output_path">అవుట్‌పుట్ పాథ్</string>
-    <string name="queue_diagnostic_error">లోపం</string>
-    <string name="queue_diagnostic_recent_logs">ఇటీవలి log లైన్లు</string>
     <string name="queue_resume_window_expired">resume window గడువు ముగిసింది</string>
     <string name="queue_resume_within">%1$02d:%2$02d లోపు కొనసాగించు</string>
-    <string name="queue_waiting">వేచి ఉంది</string>
-    <string name="queue_waiting_in_queue">క్యూలో వేచి ఉంది</string>
-    <string name="queue_needs_attention">ధ్యాస అవసరం</string>
-    <string name="queue_saved_to_library">మీ downloads library లో సేవ్ చేయబడింది.</string>
-    <string name="queue_queued_ready">worker ప్రారంభించడానికి క్యూలో వేసి సిద్ధంగా ఉంది.</string>
-    <string name="queue_needs_another_try">ఈ అంశాన్ని మరోసారి ప్రయత్నించాలి.</string>
-    <string name="queue_canceled_by_user">వాడుకరుడు రద్దు చేశాడు.</string>
-    <string name="queue_finished">పూర్తైంది</string>
-    <string name="queue_no_downloads_yet">ఇంకా డౌన్‌లోడ్లు లేవు</string>
-    <string name="queue_nothing_downloading">ఇప్పుడే ఏదీ డౌన్‌లోడ్ కావడం లేదు</string>
-    <string name="queue_empty">క్యూ ఖాళీగా ఉంది</string>
-    <string name="queue_nothing_paused">ఏదీ పాజ్ చేయబడలేదు</string>
-    <string name="queue_no_finished_yet">ఇంకా పూర్తి అయిన డౌన్‌లోడ్లు లేవు</string>
-    <string name="queue_no_failed_downloads">విఫలమైన డౌన్‌లోడ్లు లేవు</string>
-    <string name="queue_no_canceled_downloads">రద్దు చేసిన డౌన్‌లోడ్లు లేవు</string>
-    <string name="queue_empty_body_active">కొత్త task ప్రారంభించడానికి Browser లో ఒక link ను analyze చేయండి. డౌన్‌లోడ్లు ఈ స్థితుల గుండా ఆటోమేటిగ్గా కదులుతాయి.</string>
-    <string name="queue_empty_body_done">ఏవి పూర్తయ్యాయో త్వరగా చూడటానికి complete అయిన అంశాలు ఇక్కడ కనిపిస్తూనే ఉంటాయి.</string>
-    <string name="queue_empty_body_error">డౌన్‌లోడ్ విఫలమైతే, troubleshooting సులభం కావడానికి task మరియు దాని message ఇక్కడ కనిపిస్తాయి.</string>
-    <string name="queue_empty_body_canceled">రద్దు చేసిన tasks ఇక్కడ సమూహంగా ఉంటాయి, అందుకే history చూడడం సులభంగా ఉంటుంది.</string>
-    <string name="queue_queue_empty_running">ఇప్పుడే ఏదీ డౌన్‌లోడ్ కావడం లేదు.</string>
-    <string name="queue_queue_empty_queue">ప్రస్తుతం క్యూ ఖాళీగా ఉంది.</string>
-    <string name="queue_queue_empty_paused">ప్రస్తుతం schedule చేసిన లేదా paused downloads లేవు.</string>
-    <string name="queue_queue_empty_error">ధ్యాస అవసరమైన error items లేవు.</string>
-    <string name="queue_queue_empty_canceled">క్యూలో canceled items లేవు.</string>
-    <string name="queue_queue_empty_done">పూర్తయిన downloads ను queue menu నుంచి ఇప్పటికీ చూడవచ్చు.</string>
-    <string name="queue_queue_empty_all">Home నుంచి కొత్త downloads ఆటోమేటిగ్గా ఇక్కడ కనిపిస్తాయి.</string>
     <string name="queue_subtitle_empty">ఇంకా డౌన్‌లోడ్లు లేవు. tasks ప్రారంభమైతే వాటి స్థితులు ఇక్కడ కనిపిస్తాయి.</string>
     <string name="queue_subtitle_all">అన్ని స్థితులలో %1$d డౌన్‌లోడ్లు ట్రాక్ చేయబడుతున్నాయి</string>
     <string name="queue_subtitle_filtered">ప్రస్తుతం %2$s లో %1$d అంశాలు ఉన్నాయి</string>
-    <string name="queue_eta_prefix">అంచనా సమయం %1$s</string>
-    <string name="queue_complete_percent">%1$d%% పూర్తైంది</string>
-    <string name="queue_stuck_message">%1$s నుంచి progress update లేదు. ఈ item ఇరుక్కుపోయి ఉండవచ్చు.</string>
     <string name="queue_recovery_stuck_youtube">ఈ YouTube item %1$s నుంచి నవీకరించబడలేదు. playback access checks download ను ఆపితే cookies లేదా PO generation సహాయపడతాయి.</string>
     <string name="queue_recovery_stuck">ఈ item %1$s నుంచి నవీకరించబడలేదు. site కి signed-in లేదా region-matched session అవసరమైతే cookies సహాయపడవచ్చు.</string>
     <string name="queue_recovery_youtube">Settings లేదా More నుంచి cookies జోడించి PO generation refresh చేసిన తర్వాత YouTube failures తరచుగా సరిచేస్తాయి.</string>
     <string name="queue_recovery_default">redirects, rate limits, లేదా protected access తర్వాత ఈ download విఫలమైతే ముందుగా cookies ప్రయత్నించండి. ఇంకా fail అయితే logs ఎగుమతి చేసి సమస్యను నివేదించండి.</string>
-    <string name="queue_logo_content">%1$s లోగో</string>
-    <string name="queue_elapsed_minutes_seconds">%1$d ని %2$d సె</string>
-    <string name="queue_elapsed_seconds">%1$d సె</string>
-    <string name="queue_ago_suffix">%1$s క్రితం</string>
 
     <string name="history_title">చరిత్ర</string>
     <string name="history_task_summary">task సారాంశం</string>
@@ -376,7 +308,6 @@
     <string name="history_filter_completed">పూర్తైనవి</string>
     <string name="history_filter_failed">విఫలమైనవి</string>
     <string name="history_filter_canceled">రద్దయినవి</string>
-    <string name="history_status_unknown">తెలియదు</string>
     <plurals name="history_subtitle_files">
         <item quantity="one">%1$d subtitle ఫైల్</item>
         <item quantity="other">%1$d subtitle ఫైళ్లు</item>
@@ -433,7 +364,6 @@
     <string name="compressor_section_goal">లక్ష్యం</string>
     <string name="compressor_section_output">అవుట్‌పుట్</string>
     <string name="compressor_choose_video">వీడియో ఎంచుకో</string>
-    <string name="compressor_no_video">ఇంకా వీడియో లేదు</string>
     <string name="compressor_will_save_as">ఇలా సేవ్ చేయబడుతుంది</string>
     <string name="compressor_height">ఎత్తు</string>
     <string name="compressor_max_height">గరిష్ట ఎత్తు</string>
@@ -475,18 +405,14 @@
     <string name="cookies_empty_title">ఇంకా కుకీలు సేవ్ కాలేదు</string>
     <string name="cookies_empty_body">Netscape cookie file ను పేస్ట్ చేయడానికి New Cookie ను ట్యాప్ చేయండి లేదా నిర్దిష్ట site కోసం signed-in browser session ను capture చేయడానికి Get Cookies ను వాడండి.</string>
     <string name="cookies_youtube_tip">YouTube కోసం signed-in లేదా restricted videos కు private/incognito session cookie సాధారణంగా బాగా పనిచేస్తుంది.</string>
-    <string name="cookies_capture_title">కుకీలు పొందు</string>
     <string name="cookies_capture_confirm">కుకీలను సేవ్ చేయి</string>
     <string name="cookies_copy_cookies">కుకీలను కాపీ చేయి</string>
     <string name="cookies_editor_url">సైట్ URL</string>
     <string name="cookies_editor_text">కుకీ పాఠ్యం</string>
     <string name="cookies_editor_paste">పేస్ట్</string>
     <string name="cookies_editor_get">కుకీలు పొందు</string>
-    <string name="cookies_editor_delete">cookie తొలగించు</string>
     <string name="cookies_editor_url_hint">ఈ cookies చెందిన site URL ను పేస్ట్ చేయండి.</string>
-    <string name="cookies_editor_text_hint">ఇక్కడ Netscape cookie text లేదా raw browser cookie export ను పేస్ట్ చేయండి.</string>
     <string name="cookies_editor_keep_one">Video Downloader దానిని ఆటోమేటిగ్గా మళ్లీ వాడుకోడానికి ప్రతి website కు ఒక cookie profile ను మాత్రమే ఉంచండి.</string>
-    <string name="cookies_capture_done">పూర్తైంది</string>
 
     <string name="youtube_access_title">YouTube యాక్సెస్</string>
     <string name="youtube_access_use_saved">సేవ్ చేసిన YouTube access ను వాడు</string>
@@ -511,7 +437,7 @@
     <string name="youtube_access_clear_tokens">tokens ను క్లియర్ చేయి</string>
     <string name="youtube_access_login_title">YouTube లాగిన్</string>
     <string name="youtube_access_login_save">access సేవ్ చేయి</string>
-    <string name="youtube_access_login_saving">సేవ్ చేస్తోంది...</string>
+    <string name="youtube_access_login_saving">సేవ్ చేస్తోంది…</string>
     <string name="youtube_access_login_intro">అవసరమైతే sign in అవ్వండి, sample YouTube page లోడ్ అవనివ్వండి, తర్వాత Save Access ను ట్యాప్ చేయండి.</string>
     <string name="youtube_access_login_body">ఈ screen తన WebView session ను స్వయంగా refresh చేస్తుంది, అందువల్ల saved cookie మరియు generated tokens రెండూ ఒకే YouTube login flow కు చెందినవిగా ఉంటాయి.</string>
     <string name="youtube_access_login_not_ready">YouTube visitor data ఇంకా సిద్ధంగా లేదు. sample video page పూర్తిగా లోడ్ అయ్యే వరకు వేచి ఉండి, తర్వాత Save Access మళ్లీ ప్రయత్నించండి.</string>
@@ -771,8 +697,6 @@
     <string name="about_ffmpeg_subtitle">merging, conversion, metadata, మరియు media processing కోసం ఉపయోగించే project.</string>
     <string name="about_developer_github_title">డెవలపర్ GitHub</string>
     <string name="about_developer_x_title">డెవలపర్ X</string>
-    <string name="about_developer_instagram_title">డెవలపర్ Instagram</string>
-    <string name="about_developer_linkedin_title">డెవలపర్ LinkedIn</string>
     <string name="about_credits_title">కృతజ్ఞతలు</string>
     <string name="about_credits_subtitle">ఈ app లో ఉపయోగించిన open-source tools మరియు libraries.</string>
     <string name="about_reset_title">preferences ను reset చేయి</string>

@@ -1,10 +1,7 @@
 package com.localdownloader.ui.screens
 
-import android.os.Build
-import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
-import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.background
@@ -59,8 +56,9 @@ import com.localdownloader.ui.components.InlineFeedbackCard
 import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.utils.CookieTextCodec
 import com.localdownloader.utils.WebViewCookieExporter
-import com.localdownloader.utils.YoutubePoTokenGenerator
 import com.localdownloader.utils.WebViewSessionSanitizer
+import com.localdownloader.utils.YoutubePoTokenGenerator
+import com.localdownloader.utils.configureRestrictedJavascriptSession
 import com.localdownloader.viewmodel.FormatMessageScope
 import com.localdownloader.viewmodel.FormatUiState
 import java.text.DateFormat
@@ -248,9 +246,12 @@ fun YoutubeAuthLoginScreen(
     onConfirm: (String, YoutubeAuthConfig) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    var title by rememberSaveable { mutableStateOf(context.getString(R.string.youtube_access_login_title)) }
+    val loginTitleText = stringResource(R.string.youtube_access_login_title)
+    val loginNotReadyText = stringResource(R.string.youtube_access_login_not_ready)
+    val loginErrorText = stringResource(R.string.youtube_access_login_error)
+    val loginAdvancedErrorHint = stringResource(R.string.youtube_access_login_advanced_error_hint)
+    var title by rememberSaveable(loginTitleText) { mutableStateOf(loginTitleText) }
     var isSaving by rememberSaveable { mutableStateOf(false) }
     var captureAdvancedTokens by rememberSaveable { mutableStateOf(false) }
     var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
@@ -310,7 +311,7 @@ fun YoutubeAuthLoginScreen(
                                         """.trimIndent(),
                                     )
                                     check(visitorData.isNotBlank()) {
-                                        context.getString(R.string.youtube_access_login_not_ready)
+                                        loginNotReadyText
                                     }
                                     val dataSyncId = currentWebView.awaitJavascriptString(
                                         """
@@ -341,9 +342,9 @@ fun YoutubeAuthLoginScreen(
                                     onConfirm(cookieText, authConfig)
                                 }.onFailure { error ->
                                     isSaving = false
-                                    val baseMessage = error.message ?: context.getString(R.string.youtube_access_login_error)
+                                    val baseMessage = error.message ?: loginErrorText
                                     errorMessage = if (captureAdvancedTokens) {
-                                        "$baseMessage ${context.getString(R.string.youtube_access_login_advanced_error_hint)}"
+                                        "$baseMessage $loginAdvancedErrorHint"
                                     } else {
                                         baseMessage
                                     }
@@ -441,22 +442,10 @@ fun YoutubeAuthLoginScreen(
                         WebViewSessionSanitizer.resetSession()
                         WebView(context).apply {
                             webView = this
-                            settings.javaScriptEnabled = true
-                            settings.domStorageEnabled = true
-                            settings.allowFileAccess = false
-                            settings.allowContentAccess = false
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-                                settings.safeBrowsingEnabled = true
-                            }
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                                settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-                            }
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
-                                settings.allowFileAccessFromFileURLs = false
-                                settings.allowUniversalAccessFromFileURLs = false
-                            }
-                            CookieManager.getInstance().setAcceptCookie(true)
-                            CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+                            configureRestrictedJavascriptSession(
+                                enableCookies = true,
+                                enableThirdPartyCookies = true,
+                            )
                             webViewClient = object : WebViewClient() {
                                 override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                                     val scheme = request?.url?.scheme.orEmpty()

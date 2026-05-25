@@ -5,6 +5,7 @@ import android.app.PictureInPictureParams
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.graphics.Rect
 import android.os.Build
 import android.os.Bundle
 import android.os.LocaleList
@@ -63,7 +64,7 @@ class MainActivity : Hilt_MainActivity() {
         logger.i("MainActivity", "Notification permission result granted=$granted")
     }
 
-    // WRITE_EXTERNAL_STORAGE is only required on Android 8 and 9 (API 26–28).
+    // WRITE_EXTERNAL_STORAGE is only required on Android 8 and 9 (API 26-28).
     private val storagePermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
@@ -128,6 +129,7 @@ class MainActivity : Hilt_MainActivity() {
 
     override fun onResume() {
         super.onResume()
+        updatePictureInPictureParams()
         logger.i("MainActivity", "onResume")
     }
 
@@ -141,23 +143,15 @@ class MainActivity : Hilt_MainActivity() {
         super.onStop()
     }
 
-    override fun onUserLeaveHint() {
-        super.onUserLeaveHint()
-        enterPictureInPictureIfPossible()
-    }
-
     fun updatePictureInPictureAllowed(enabled: Boolean) {
         pictureInPictureAllowed = enabled
+        updatePictureInPictureParams()
     }
 
     fun enterPictureInPictureIfPossible() {
-        if (!pictureInPictureAllowed || Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        if (!pictureInPictureAllowed) return
         runCatching {
-            enterPictureInPictureMode(
-                PictureInPictureParams.Builder()
-                    .setAspectRatio(Rational(16, 9))
-                    .build(),
-            )
+            enterPictureInPictureMode(buildPictureInPictureParams())
         }.onFailure { error ->
             logger.e("MainActivity", "Unable to enter PiP", error)
         }
@@ -278,12 +272,7 @@ class MainActivity : Hilt_MainActivity() {
     }
 
     private fun currentResourceLanguageTags(): String {
-        val tags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            resources.configuration.locales.toLanguageTags()
-        } else {
-            @Suppress("DEPRECATION")
-            resources.configuration.locale?.toLanguageTag().orEmpty()
-        }
+        val tags = resources.configuration.locales.toLanguageTags()
         return normalizeLocaleTag(tags)
     }
 
@@ -298,21 +287,40 @@ class MainActivity : Hilt_MainActivity() {
     private fun applyResourcesLanguage(targetTags: String) {
         val configuration = Configuration(resources.configuration)
         if (targetTags.isBlank()) return
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            val locales = LocaleList.forLanguageTags(targetTags)
-            LocaleList.setDefault(locales)
-            configuration.setLocales(locales)
-            resources.updateConfiguration(configuration, resources.displayMetrics)
-            applicationContext.resources.updateConfiguration(configuration, applicationContext.resources.displayMetrics)
+        val locales = LocaleList.forLanguageTags(targetTags)
+        LocaleList.setDefault(locales)
+        configuration.setLocales(locales)
+        resources.updateConfiguration(configuration, resources.displayMetrics)
+        applicationContext.resources.updateConfiguration(configuration, applicationContext.resources.displayMetrics)
+    }
+
+    private fun buildPictureInPictureParams(): PictureInPictureParams {
+        val builder = PictureInPictureParams.Builder()
+            .setAspectRatio(Rational(16, 9))
+        val sourceRectHint = currentPictureInPictureSourceRect()
+        if (sourceRectHint != null) {
+            builder.setSourceRectHint(sourceRectHint)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            builder.setAutoEnterEnabled(false)
+        }
+        return builder.build()
+    }
+
+    private fun currentPictureInPictureSourceRect(): Rect? {
+        val rect = Rect()
+        return if (window.decorView.getGlobalVisibleRect(rect) && !rect.isEmpty) {
+            rect
         } else {
-            val locale = Locale.forLanguageTag(targetTags)
-            Locale.setDefault(locale)
-            @Suppress("DEPRECATION")
-            configuration.locale = locale
-            @Suppress("DEPRECATION")
-            resources.updateConfiguration(configuration, resources.displayMetrics)
-            @Suppress("DEPRECATION")
-            applicationContext.resources.updateConfiguration(configuration, applicationContext.resources.displayMetrics)
+            null
+        }
+    }
+
+    private fun updatePictureInPictureParams() {
+        runCatching {
+            setPictureInPictureParams(buildPictureInPictureParams())
+        }.onFailure { error ->
+            logger.w("MainActivity", "Unable to refresh PiP params", error)
         }
     }
 

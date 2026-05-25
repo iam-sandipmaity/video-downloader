@@ -32,3 +32,9 @@ enum class DownloadStatus {
     FAILED,
     CANCELED,
 }
+
+fun DownloadStatus.blocksRuntimeUpdates(): Boolean {
+    return this == DownloadStatus.QUEUED ||
+        this == DownloadStatus.RUNNING ||
+        this == DownloadStatus.PAUSED
+}

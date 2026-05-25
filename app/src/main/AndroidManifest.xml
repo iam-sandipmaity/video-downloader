@@ -16,13 +16,16 @@
     <application
         android:name=".DownloaderApplication"
         android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
         android:localeConfig="@xml/locales_config"
         android:usesCleartextTraffic="false"
         android:supportsRtl="true"
-        android:theme="@style/Theme.LocalDownloader">
+        android:theme="@style/Theme.LocalDownloader"
+        tools:targetApi="tiramisu">
 
         <!-- Required on Android 14+ for WorkManager foreground workers -->
         <service

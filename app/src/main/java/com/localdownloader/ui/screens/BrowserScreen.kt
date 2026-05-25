@@ -105,6 +105,7 @@ import com.localdownloader.viewmodel.FormatMessageScope
 import com.localdownloader.viewmodel.FormatUiState
 import com.localdownloader.viewmodel.PlaylistItemUiState
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 private enum class DownloadSetupSheetStep {
     Intro,
@@ -162,8 +163,8 @@ fun BrowserScreen(
     onQueueWhenWifiAvailable: () -> Unit,
     onAllowCellularDownloadsAndQueue: () -> Unit,
     onDarkThemeChanged: (Boolean) -> Unit,
-    isDownloadButtonEnabled: Boolean = true,
     modifier: Modifier = Modifier,
+    isDownloadButtonEnabled: Boolean = true,
 ) {
     val clipboardManager = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
@@ -1768,9 +1769,9 @@ private fun playlistDurationLabel(durationSeconds: Long?): String? {
     val minutes = (totalSeconds % 3600) / 60
     val seconds = totalSeconds % 60
     return if (hours > 0) {
-        String.format("%d:%02d:%02d", hours, minutes, seconds)
+        String.format(Locale.ROOT, "%d:%02d:%02d", hours, minutes, seconds)
     } else {
-        String.format("%02d:%02d", minutes, seconds)
+        String.format(Locale.ROOT, "%02d:%02d", minutes, seconds)
     }
 }
 

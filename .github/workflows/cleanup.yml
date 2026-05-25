@@ -23,20 +23,24 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
-            const days = parseInt('${{ github.event.inputs.days || 2 }}');
+            const days = Number.parseInt('${{ github.event.inputs.days || 2 }}', 10);
+            if (!Number.isFinite(days) || days < 0) {
+              core.setFailed(`Invalid retention days value: ${days}`);
+              return;
+            }
             const cutoffDate = new Date();
             cutoffDate.setDate(cutoffDate.getDate() - days);
             
-            const { data: artifacts } = await github.rest.actions.listArtifactsForRepo({
+            const artifacts = await github.paginate(github.rest.actions.listArtifactsForRepo, {
               owner: context.repo.owner,
               repo: context.repo.repo,
               per_page: 100
             });
             
-            console.log(`Found ${artifacts.artifacts.length} artifacts`);
+            console.log(`Found ${artifacts.length} artifacts`);
             
             let deleted = 0;
-            for (const artifact of artifacts.artifacts) {
+            for (const artifact of artifacts) {
               const createdDate = new Date(artifact.created_at);
               if (createdDate < cutoffDate) {
                 console.log(`Deleting artifact: ${artifact.name} (created: ${artifact.created_at})`);

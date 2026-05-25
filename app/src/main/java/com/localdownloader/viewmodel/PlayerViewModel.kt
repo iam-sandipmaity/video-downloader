@@ -17,11 +17,11 @@ import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.AspectRatioFrameLayout
 import com.localdownloader.audio.PlaybackConflictManager
 import com.localdownloader.data.PlaybackSession
 import com.localdownloader.data.PlaybackSessionStore
 import com.localdownloader.domain.models.DownloadTask
+import com.localdownloader.media.PlayerResizeModes
 import com.localdownloader.media.resolvePreferredMediaMimeType
 import com.localdownloader.utils.Logger
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -38,6 +38,7 @@ import java.io.File
 import javax.inject.Inject
 
 @HiltViewModel
+@androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 class PlayerViewModel @Inject constructor(
     @ApplicationContext context: Context,
     private val playbackSessionStore: PlaybackSessionStore,
@@ -76,7 +77,7 @@ class PlayerViewModel @Inject constructor(
     private var shouldResumeOnForeground = false
     private var progressJob: Job? = null
     private var currentPlaybackSpeed: Float = savedStateHandle[STATE_PLAYBACK_SPEED] ?: 1.0f
-    private var currentResizeMode: Int = savedStateHandle[STATE_RESIZE_MODE] ?: AspectRatioFrameLayout.RESIZE_MODE_FIT
+    private var currentResizeMode: Int = savedStateHandle[STATE_RESIZE_MODE] ?: PlayerResizeModes.FIT
     private var currentVolumeBoostMb: Int = savedStateHandle[STATE_VOLUME_BOOST_MB] ?: 0
     private var isLocked: Boolean = savedStateHandle[STATE_IS_LOCKED] ?: false
     private var audioDisabled: Boolean = savedStateHandle[STATE_AUDIO_DISABLED] ?: false
@@ -699,7 +700,7 @@ data class PlayerUiState(
     val positionMs: Long = 0L,
     val bufferedPositionMs: Long = 0L,
     val playbackSpeed: Float = 1.0f,
-    val resizeMode: Int = AspectRatioFrameLayout.RESIZE_MODE_FIT,
+    val resizeMode: Int = PlayerResizeModes.FIT,
     val volumeBoostMb: Int = 0,
     val volumeBoostSupported: Boolean = true,
     val audioDisabled: Boolean = false,

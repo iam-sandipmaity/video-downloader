@@ -9,6 +9,7 @@
     <string name="common_help">도움말</string>
     <string name="common_clear">지우기</string>
     <string name="common_select">선택</string>
+    <string name="common_remove">제거</string>
     <string name="common_close">닫기</string>
     <string name="common_cancel">취소</string>
     <string name="common_save">저장</string>
@@ -16,9 +17,7 @@
     <string name="common_share">공유</string>
     <string name="common_rename">이름 변경</string>
     <string name="common_edit">편집</string>
-    <string name="common_hide">숨기기</string>
-    <string name="common_change">변경</string>
-    <string name="common_loading">불러오는 중...</string>
+    <string name="common_loading">불러오는 중…</string>
     <string name="common_unknown_uploader">알 수 없는 업로더</string>
     <string name="common_estimated_size">예상 %1$s</string>
 
@@ -35,7 +34,7 @@
     <string name="browser_url_label">URL을 붙여넣거나 입력하세요</string>
     <string name="browser_clear_state">브라우저 상태 지우기</string>
     <string name="browser_paste">붙여넣기</string>
-    <string name="browser_analyzing">분석 중...</string>
+    <string name="browser_analyzing">분석 중…</string>
     <string name="browser_analyze_link">링크 분석</string>
     <string name="browser_feedback_label">홈</string>
     <string name="browser_download_setup_intro_title">첫 다운로드 전에</string>
@@ -72,8 +71,8 @@
     <string name="browser_using_global_format">전체 형식 사용 중</string>
     <string name="browser_closest_available_format">가장 가까운 사용 가능한 형식이 사용됩니다.</string>
     <string name="browser_wait_for_current_job">현재 작업이 안정될 때까지 기다리세요.</string>
-    <string name="browser_queueing">대기열에 추가 중...</string>
-    <string name="browser_please_wait">잠시만 기다려 주세요...</string>
+    <string name="browser_queueing">대기열에 추가 중…</string>
+    <string name="browser_please_wait">잠시만 기다려 주세요…</string>
     <string name="browser_download_button">다운로드</string>
     <string name="browser_queue_now">지금 대기열에 추가</string>
     <string name="browser_ready">준비됨</string>
@@ -107,31 +106,22 @@
     <string name="browser_playlist_hide">숨기기</string>
     <string name="browser_playlist_auto_format">이 파일에는 자동 형식이 사용됩니다.</string>
     <plurals name="browser_files_count">
-        <item quantity="one">%1$d개 파일</item>
         <item quantity="other">%1$d개 파일</item>
     </plurals>
     <plurals name="browser_formats_count">
-        <item quantity="one">%1$d개 형식</item>
         <item quantity="other">%1$d개 형식</item>
     </plurals>
     <plurals name="browser_selected_files_count">
-        <item quantity="one">%1$d개 파일 선택됨</item>
         <item quantity="other">%1$d개 파일 선택됨</item>
     </plurals>
     <string name="browser_selected_count_of_total">%1$d / %2$d 선택됨</string>
 
     <string name="downloads_title">다운로드</string>
-    <string name="downloads_selection_help">저장된 파일을 선택해 공유하거나, 앱에서 제거하거나, 영구 삭제할 수 있습니다.</string>
     <string name="downloads_empty_help">완료된 다운로드는 저장되면 여기에 표시됩니다.</string>
     <string name="downloads_open_bulk_actions">일괄 작업 열기</string>
     <string name="downloads_done_selecting">선택 완료</string>
     <string name="downloads_remove_from_app">앱에서 제거</string>
     <string name="downloads_permanent_delete">영구 삭제</string>
-    <string name="downloads_newest_first">최신순</string>
-    <string name="downloads_oldest_first">오래된순</string>
-    <string name="downloads_select_files_to_unlock">일괄 작업을 사용하려면 파일을 선택하세요.</string>
-    <string name="downloads_clear_visible">보이는 항목 지우기</string>
-    <string name="downloads_select_visible">보이는 항목 선택</string>
     <string name="downloads_delete_forever">영구 삭제</string>
     <string name="downloads_no_finished_for_filter">아직 완료된 %1$s 파일이 없습니다. 현재 활성 다운로드는 아직 대기열을 진행 중입니다.</string>
     <string name="downloads_no_saved_for_filter">아직 %1$s 다운로드가 없습니다. 홈에서 하나를 완료하면 자동으로 여기에 표시됩니다.</string>
@@ -173,31 +163,21 @@
     <string name="downloads_filter_video">비디오</string>
     <string name="downloads_filter_other">기타</string>
     <plurals name="downloads_selected_count_title">
-        <item quantity="one">%1$d개 선택됨</item>
         <item quantity="other">%1$d개 선택됨</item>
     </plurals>
     <plurals name="downloads_saved_ready">
-        <item quantity="one">열 준비가 된 저장 항목 %1$d개</item>
         <item quantity="other">열 준비가 된 저장 항목 %1$d개</item>
     </plurals>
     <plurals name="downloads_active_in_progress">
-        <item quantity="one">%1$d개의 다운로드가 진행 중입니다. 완료된 항목은 자동으로 여기에 표시됩니다.</item>
         <item quantity="other">%1$d개의 다운로드가 진행 중입니다. 완료된 항목은 자동으로 여기에 표시됩니다.</item>
     </plurals>
-    <plurals name="downloads_selected_files_count">
-        <item quantity="one">%1$d개 파일 선택됨</item>
-        <item quantity="other">%1$d개 파일 선택됨</item>
-    </plurals>
     <plurals name="downloads_play_music_count">
-        <item quantity="one">음악 재생 (%1$d)</item>
         <item quantity="other">음악 재생 (%1$d)</item>
     </plurals>
     <plurals name="downloads_remove_selected_body">
-        <item quantity="one">선택한 %1$d개 항목을 앱 라이브러리에서 제거하고 실제 기기 파일은 그대로 둘까요?</item>
         <item quantity="other">선택한 %1$d개 항목을 앱 라이브러리에서 제거하고 실제 기기 파일은 그대로 둘까요?</item>
     </plurals>
     <plurals name="downloads_delete_selected_body">
-        <item quantity="one">선택한 %1$d개 항목을 앱과 기기 저장소에서 영구 삭제할까요?</item>
         <item quantity="other">선택한 %1$d개 항목을 앱과 기기 저장소에서 영구 삭제할까요?</item>
     </plurals>
 
@@ -209,7 +189,6 @@
     <string name="common_set_up">설정</string>
     <string name="common_browse">브라우즈</string>
     <string name="common_keep_current">현재 상태 유지</string>
-    <string name="common_default">기본값</string>
     <string name="common_unknown">알 수 없음</string>
     <string name="common_remove_entries">항목 제거</string>
     <string name="common_delete_all">모두 삭제</string>
@@ -219,7 +198,6 @@
     <string name="common_suggested_fields">추천 필드</string>
     <string name="common_template_ext_hint">팁: 저장 파일의 확장자가 올바르게 유지되도록 템플릿 어딘가에 %(ext)s를 포함하세요.</string>
     <plurals name="common_days">
-        <item quantity="one">%1$d일</item>
         <item quantity="other">%1$d일</item>
     </plurals>
 
@@ -261,19 +239,14 @@
     <string name="settings_access_summary_cellular">모바일 데이터 다운로드가 허용됩니다.</string>
     <string name="common_back">뒤로</string>
     <string name="common_copied">복사됨</string>
-    <string name="common_copy">복사</string>
-    <string name="common_unknown_source">알 수 없는 출처</string>
     <string name="common_yes">예</string>
     <string name="common_no">아니요</string>
-    <string name="common_not_set">설정되지 않음</string>
     <string name="common_auto">자동</string>
-    <string name="common_working">작업 중...</string>
+    <string name="common_working">작업 중…</string>
     <string name="common_done">완료</string>
     <string name="common_stopped">중지됨</string>
     <string name="common_advanced">고급</string>
     <string name="common_hide_advanced">고급 숨기기</string>
-    <string name="common_choose_file">파일 선택</string>
-    <string name="common_choose_video">비디오 선택</string>
 
     <string name="queue_title">다운로드 대기열</string>
     <string name="queue_progress_title">진행 상황</string>
@@ -285,20 +258,10 @@
     <string name="queue_filter_done">완료</string>
     <string name="queue_filter_error">오류</string>
     <string name="queue_filter_canceled">취소됨</string>
-    <string name="queue_tab_running">실행 중</string>
-    <string name="queue_tab_in_queue">대기열</string>
-    <string name="queue_tab_scheduled">예약됨</string>
-    <string name="queue_tab_errored">오류</string>
-    <string name="queue_tab_cancelled">취소됨</string>
-    <string name="queue_tab_done">완료</string>
     <string name="queue_options">대기열 옵션</string>
     <string name="queue_show_all_statuses">모든 상태 표시</string>
     <string name="queue_show_finished">완료된 항목 표시</string>
     <string name="queue_show_running">실행 중 항목 표시</string>
-    <string name="queue_action_pause_all">대기열의 모든 항목 일시중지</string>
-    <string name="queue_action_cancel_all">대기열의 모든 항목 취소</string>
-    <string name="queue_action_resume_all">예약된 모든 항목 다시 시작</string>
-    <string name="queue_action_retry_all">실패한 모든 항목 다시 시도</string>
     <string name="queue_action_pause">일시중지</string>
     <string name="queue_action_cancel">취소</string>
     <string name="queue_action_resume">다시 시작</string>
@@ -307,56 +270,15 @@
     <string name="queue_po_generation">PO 생성</string>
     <string name="queue_export_log">log.txt 내보내기</string>
     <string name="queue_report_issue">문제 신고</string>
-    <string name="queue_diagnostics">진단</string>
-    <string name="queue_diagnostic_task_id">작업 ID</string>
-    <string name="queue_diagnostic_source">출처</string>
-    <string name="queue_diagnostic_status">상태</string>
-    <string name="queue_diagnostic_last_updated">마지막 업데이트</string>
-    <string name="queue_diagnostic_output_path">출력 경로</string>
-    <string name="queue_diagnostic_error">오류</string>
-    <string name="queue_diagnostic_recent_logs">최근 로그 줄</string>
     <string name="queue_resume_window_expired">재개 가능 시간이 만료되었습니다</string>
     <string name="queue_resume_within">%1$02d:%2$02d 안에 다시 시작</string>
-    <string name="queue_waiting">대기 중</string>
-    <string name="queue_waiting_in_queue">대기열에서 대기 중</string>
-    <string name="queue_needs_attention">확인이 필요함</string>
-    <string name="queue_saved_to_library">다운로드 라이브러리에 저장되었습니다.</string>
-    <string name="queue_queued_ready">대기열에 추가되었으며 작업 시작 준비가 되었습니다.</string>
-    <string name="queue_needs_another_try">이 항목은 다시 시도해야 합니다.</string>
-    <string name="queue_canceled_by_user">사용자가 취소했습니다.</string>
-    <string name="queue_finished">완료됨</string>
-    <string name="queue_no_downloads_yet">아직 다운로드가 없습니다</string>
-    <string name="queue_nothing_downloading">지금 다운로드 중인 항목이 없습니다</string>
-    <string name="queue_empty">대기열이 비어 있습니다</string>
-    <string name="queue_nothing_paused">일시중지된 항목이 없습니다</string>
-    <string name="queue_no_finished_yet">아직 완료된 다운로드가 없습니다</string>
-    <string name="queue_no_failed_downloads">실패한 다운로드가 없습니다</string>
-    <string name="queue_no_canceled_downloads">취소된 다운로드가 없습니다</string>
-    <string name="queue_empty_body_active">새 작업을 시작하려면 브라우즈에서 링크를 분석하세요. 다운로드는 이 상태들 사이를 자동으로 이동합니다.</string>
-    <string name="queue_empty_body_done">완료된 항목은 여기 남아 빠르게 무엇이 끝났는지 확인할 수 있습니다.</string>
-    <string name="queue_empty_body_error">다운로드가 실패하면 작업과 메시지가 여기에 표시되어 문제 해결이 쉬워집니다.</string>
-    <string name="queue_empty_body_canceled">취소된 작업은 이곳에 묶여 표시되어 기록을 더 쉽게 살펴볼 수 있습니다.</string>
-    <string name="queue_queue_empty_running">지금 다운로드 중인 항목이 없습니다.</string>
-    <string name="queue_queue_empty_queue">현재 대기열이 비어 있습니다.</string>
-    <string name="queue_queue_empty_paused">예약되었거나 일시중지된 다운로드가 없습니다.</string>
-    <string name="queue_queue_empty_error">확인이 필요한 오류 항목이 없습니다.</string>
-    <string name="queue_queue_empty_canceled">대기열에 취소된 항목이 없습니다.</string>
-    <string name="queue_queue_empty_done">완료된 다운로드는 대기열 메뉴에서 계속 확인할 수 있습니다.</string>
-    <string name="queue_queue_empty_all">홈에서 시작한 새 다운로드가 자동으로 여기에 표시됩니다.</string>
     <string name="queue_subtitle_empty">아직 다운로드가 없습니다. 작업이 시작되면 상태가 여기에 표시됩니다.</string>
     <string name="queue_subtitle_all">모든 상태에서 %1$d개의 다운로드를 추적 중</string>
     <string name="queue_subtitle_filtered">현재 %2$s에 %1$d개 항목 있음</string>
-    <string name="queue_eta_prefix">예상 시간 %1$s</string>
-    <string name="queue_complete_percent">%1$d%% 완료</string>
-    <string name="queue_stuck_message">%1$s 동안 진행 업데이트가 없습니다. 이 항목이 멈췄을 수 있습니다.</string>
     <string name="queue_recovery_stuck_youtube">이 YouTube 항목은 %1$s 동안 업데이트되지 않았습니다. 재생 접근 확인이 다운로드를 막을 때는 쿠키나 PO 생성이 도움이 되는 경우가 많습니다.</string>
     <string name="queue_recovery_stuck">이 항목은 %1$s 동안 업데이트되지 않았습니다. 사이트에 로그인 세션이나 지역 일치 세션이 필요하면 쿠키가 도움이 될 수 있습니다.</string>
     <string name="queue_recovery_youtube">YouTube 실패는 Settings 또는 More에서 쿠키를 추가하고 PO 생성을 새로 고치면 개선되는 경우가 많습니다.</string>
     <string name="queue_recovery_default">리디렉션, 속도 제한, 보호된 접근 뒤에 이 다운로드가 실패했다면 먼저 쿠키를 시도하세요. 그래도 실패하면 로그를 내보내고 문제를 신고하세요.</string>
-    <string name="queue_logo_content">%1$s 로고</string>
-    <string name="queue_elapsed_minutes_seconds">%1$d분 %2$d초</string>
-    <string name="queue_elapsed_seconds">%1$d초</string>
-    <string name="queue_ago_suffix">%1$s 전</string>
 
     <string name="history_title">기록</string>
     <string name="history_task_summary">작업 요약</string>
@@ -376,9 +298,7 @@
     <string name="history_filter_completed">완료</string>
     <string name="history_filter_failed">실패</string>
     <string name="history_filter_canceled">취소</string>
-    <string name="history_status_unknown">알 수 없음</string>
     <plurals name="history_subtitle_files">
-        <item quantity="one">%1$d개의 자막 파일</item>
         <item quantity="other">%1$d개의 자막 파일</item>
     </plurals>
     <string name="history_summary_showing">%3$s에서 완료된 작업 %2$d개 중 %1$d개를 표시합니다.</string>
@@ -433,7 +353,6 @@
     <string name="compressor_section_goal">목표</string>
     <string name="compressor_section_output">출력</string>
     <string name="compressor_choose_video">비디오 선택</string>
-    <string name="compressor_no_video">아직 비디오 없음</string>
     <string name="compressor_will_save_as">다음 이름으로 저장됨</string>
     <string name="compressor_height">높이</string>
     <string name="compressor_max_height">최대 높이</string>
@@ -467,7 +386,6 @@
     <string name="cookies_saved_title">저장된 쿠키</string>
     <string name="cookies_saved_empty_subtitle">사이트 쿠키를 한 번 추가한 뒤, 세션이 바뀔 때마다 갱신하세요.</string>
     <plurals name="cookies_saved_ready_count">
-        <item quantity="one">사용할 준비가 된 저장 사이트 %1$d개</item>
         <item quantity="other">사용할 준비가 된 저장 사이트 %1$d개</item>
     </plurals>
     <string name="cookies_new">새 쿠키</string>
@@ -475,18 +393,14 @@
     <string name="cookies_empty_title">아직 저장된 쿠키가 없습니다</string>
     <string name="cookies_empty_body">Netscape 쿠키 파일을 붙여넣으려면 New Cookie를 탭하고, 특정 사이트에 대해 로그인된 브라우저 세션을 가져오려면 Get Cookies를 사용하세요.</string>
     <string name="cookies_youtube_tip">YouTube에서는 비공개/시크릿 세션 쿠키가 로그인된 영상이나 제한된 영상에 가장 잘 작동하는 경우가 많습니다.</string>
-    <string name="cookies_capture_title">쿠키 가져오기</string>
     <string name="cookies_capture_confirm">쿠키 저장</string>
     <string name="cookies_copy_cookies">쿠키 복사</string>
     <string name="cookies_editor_url">사이트 URL</string>
     <string name="cookies_editor_text">쿠키 텍스트</string>
     <string name="cookies_editor_paste">붙여넣기</string>
     <string name="cookies_editor_get">쿠키 가져오기</string>
-    <string name="cookies_editor_delete">쿠키 삭제</string>
     <string name="cookies_editor_url_hint">이 쿠키가 속한 사이트 URL을 붙여넣으세요.</string>
-    <string name="cookies_editor_text_hint">여기에 Netscape 쿠키 텍스트 또는 원본 브라우저 쿠키 내보내기를 붙여넣으세요.</string>
     <string name="cookies_editor_keep_one">Video Downloader가 자동으로 다시 사용할 수 있도록 웹사이트마다 하나의 쿠키 프로필만 유지하세요.</string>
-    <string name="cookies_capture_done">완료</string>
 
     <string name="youtube_access_title">YouTube 접근</string>
     <string name="youtube_access_use_saved">저장된 YouTube access 사용</string>
@@ -511,7 +425,7 @@
     <string name="youtube_access_clear_tokens">토큰 지우기</string>
     <string name="youtube_access_login_title">YouTube 로그인</string>
     <string name="youtube_access_login_save">Access 저장</string>
-    <string name="youtube_access_login_saving">저장 중...</string>
+    <string name="youtube_access_login_saving">저장 중…</string>
     <string name="youtube_access_login_intro">필요하면 로그인하고, 샘플 YouTube 페이지가 로드되도록 둔 다음 Save Access를 탭하세요.</string>
     <string name="youtube_access_login_body">저장된 쿠키와 생성된 토큰이 같은 YouTube 로그인 흐름에 속하도록 이 화면은 자체 WebView 세션을 새로 고칩니다.</string>
     <string name="youtube_access_login_not_ready">YouTube 방문자 데이터가 아직 준비되지 않았습니다. 샘플 비디오 페이지가 모두 로드된 후 다시 Save Access를 시도하세요.</string>
@@ -572,7 +486,6 @@
     <string name="settings_access_summary_wifi">다운로드는 Wi‑Fi를 기다립니다.</string>
     <string name="settings_access_summary_no_cookies">아직 저장된 사이트 세션이 없습니다.</string>
     <plurals name="settings_access_summary_cookie_count">
-        <item quantity="one">다시 사용할 준비가 된 저장 사이트 세션 %1$d개</item>
         <item quantity="other">다시 사용할 준비가 된 저장 사이트 세션 %1$d개</item>
     </plurals>
     <string name="settings_access_summary_youtube_configured">더 까다로운 재시도를 위해 YouTube access가 설정되어 있습니다.</string>
@@ -699,7 +612,6 @@
     <string name="access_saved_cookies_title">저장된 쿠키</string>
     <string name="access_saved_cookies_empty">사이트 세션을 한 번 추가한 후 로그인 상태가 바뀔 때마다 갱신하세요.</string>
     <plurals name="access_saved_cookies_count">
-        <item quantity="one">%1$d saved site session ready to inspect, update, import, or export.</item>
         <item quantity="other">%1$d saved site sessions ready to inspect, update, import, or export.</item>
     </plurals>
     <string name="access_youtube_configured">저장된 PO 토큰이 준비되어 있어 재시도가 막힐 때 현재 구성을 새로 고치거나 확인할 수 있습니다.</string>
@@ -771,8 +683,6 @@
     <string name="about_ffmpeg_subtitle">상위 미디어 처리 프로젝트를 엽니다.</string>
     <string name="about_developer_github_title">개발자 GitHub</string>
     <string name="about_developer_x_title">개발자 X</string>
-    <string name="about_developer_instagram_title">개발자 Instagram</string>
-    <string name="about_developer_linkedin_title">개발자 LinkedIn</string>
     <string name="about_credits_title">크레딧</string>
     <string name="about_credits_subtitle">프로젝트를 탭하면 공식 웹사이트 또는 원본 소스를 엽니다.</string>
     <string name="about_reset_title">모든 설정 초기화</string>

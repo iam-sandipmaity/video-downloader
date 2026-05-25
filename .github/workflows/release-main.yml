@@ -1,0 +1,98 @@
+name: Release Main
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release-main:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: release-main-${{ github.ref_name }}
+      cancel-in-progress: false
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6.1.0
+
+      - name: Read version from gradle.properties
+        id: version
+        run: |
+          VERSION=$(grep '^APP_VERSION_NAME=' gradle.properties | cut -d'=' -f2)
+          echo "version_name=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Determine release tag
+        id: release_tag
+        run: |
+          VERSION="${{ steps.version.outputs.version_name }}"
+          TAG="v${VERSION}"
+          echo "version_name=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag_name=${TAG}" >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            echo "Tag ${TAG} already exists on origin. Skipping auto-release."
+          else
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+            echo "Tag ${TAG} does not exist on origin. Auto-release will run."
+          fi
+
+      - name: Prepare release signing files
+        if: steps.release_tag.outputs.should_release == 'true'
+        shell: bash
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          if [ -z "$RELEASE_KEYSTORE_BASE64" ]; then
+            echo "::error::Missing release signing secrets. Main auto-releases must use the stable release keystore."
+            exit 1
+          fi
+
+          echo "$RELEASE_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
+          echo "RELEASE_STORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+          echo "RELEASE_STORE_PASSWORD=$RELEASE_STORE_PASSWORD" >> "$GITHUB_ENV"
+          echo "RELEASE_KEY_ALIAS=$RELEASE_KEY_ALIAS" >> "$GITHUB_ENV"
+          echo "RELEASE_KEY_PASSWORD=$RELEASE_KEY_PASSWORD" >> "$GITHUB_ENV"
+
+      - name: Build release APK
+        if: steps.release_tag.outputs.should_release == 'true'
+        run: ./gradlew :app:assembleStandardRelease
+
+      - name: Rename release APK
+        if: steps.release_tag.outputs.should_release == 'true'
+        run: |
+          VERSION="${{ steps.release_tag.outputs.version_name }}"
+          APK_DIR="app/build/outputs/apk/standard/release"
+          APK_SOURCE=$(find "$APK_DIR" -maxdepth 1 -name 'app-standard-release*.apk' | head -n 1)
+          if [ -z "$APK_SOURCE" ]; then
+            echo "::error::Could not find the standard release APK in $APK_DIR"
+            find "$APK_DIR" -maxdepth 1 -type f || true
+            exit 1
+          fi
+          mv "$APK_SOURCE" "$APK_DIR/video-downloader-v${VERSION}.apk"
+
+      - name: Create GitHub release
+        if: steps.release_tag.outputs.should_release == 'true'
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
+        with:
+          tag_name: ${{ steps.release_tag.outputs.tag_name }}
+          target_commitish: ${{ github.sha }}
+          name: "Video Downloader v${{ steps.release_tag.outputs.version_name }}"
+          generate_release_notes: true
+          files: app/build/outputs/apk/standard/release/video-downloader-*.apk
