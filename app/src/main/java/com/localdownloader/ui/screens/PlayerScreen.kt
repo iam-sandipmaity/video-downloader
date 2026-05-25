@@ -98,11 +98,11 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.localdownloader.MainActivity
 import com.localdownloader.R
 import com.localdownloader.domain.models.DownloadTask
+import com.localdownloader.media.PlayerResizeModes
 import com.localdownloader.media.builtInPlaybackCompatibilityLabel
 import com.localdownloader.media.isLikelyAudioPath
 import com.localdownloader.media.isLikelyVideoPath
@@ -1823,27 +1823,27 @@ private val SPEED_OPTIONS = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
 
 private val RESIZE_OPTIONS = listOf(
     ResizeOption(
-        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT,
+        resizeMode = PlayerResizeModes.FIT,
         label = "Fit",
         subtitle = "Natural view with the whole frame visible",
     ),
     ResizeOption(
-        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM,
+        resizeMode = PlayerResizeModes.ZOOM,
         label = "Crop",
         subtitle = "Cinema fill that crops the edges",
     ),
     ResizeOption(
-        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FILL,
+        resizeMode = PlayerResizeModes.FILL,
         label = "Fill",
         subtitle = "Stretch to fill the whole player area",
     ),
     ResizeOption(
-        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH,
+        resizeMode = PlayerResizeModes.FIXED_WIDTH,
         label = "Full width",
         subtitle = "Keep width locked and allow taller framing",
     ),
     ResizeOption(
-        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIXED_HEIGHT,
+        resizeMode = PlayerResizeModes.FIXED_HEIGHT,
         label = "Full height",
         subtitle = "Keep height locked and allow wider framing",
     ),
