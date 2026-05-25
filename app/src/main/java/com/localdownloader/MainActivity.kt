@@ -143,13 +143,6 @@ class MainActivity : Hilt_MainActivity() {
         super.onStop()
     }
 
-    override fun onUserLeaveHint() {
-        super.onUserLeaveHint()
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-            enterPictureInPictureIfPossible()
-        }
-    }
-
     fun updatePictureInPictureAllowed(enabled: Boolean) {
         pictureInPictureAllowed = enabled
         updatePictureInPictureParams()
@@ -308,8 +301,8 @@ class MainActivity : Hilt_MainActivity() {
         if (sourceRectHint != null) {
             builder.setSourceRectHint(sourceRectHint)
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && pictureInPictureAllowed) {
-            builder.setAutoEnterEnabled(true)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            builder.setAutoEnterEnabled(false)
         }
         return builder.build()
     }

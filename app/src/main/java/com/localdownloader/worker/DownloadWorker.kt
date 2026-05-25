@@ -577,6 +577,18 @@ class DownloadWorker @AssistedInject constructor(
             result = runDownloadAttempt(lastAttemptOptions.copy(loadInfoJsonPath = null))
         }
 
+        if (
+            !result.isSuccess &&
+            shouldRetryTransientPostprocessingFailure(result.stderr) &&
+            runAttemptCount < MAX_TRANSIENT_RETRY_ATTEMPTS
+        ) {
+            appendDebugTrace(
+                taskId,
+                "Transient postprocessing interruption detected; scheduling WorkManager retry ${runAttemptCount + 1}/$MAX_TRANSIENT_RETRY_ATTEMPTS",
+            )
+            return Result.retry()
+        }
+
         if (!result.isSuccess && shouldRetryTransientFailure(result.stderr) && runAttemptCount < MAX_TRANSIENT_RETRY_ATTEMPTS) {
             appendDebugTrace(
                 taskId,
@@ -2191,6 +2203,17 @@ class DownloadWorker @AssistedInject constructor(
 
     private fun shouldRetryClosedStreamFailure(stderr: String): Boolean {
         return isClosedStreamFailure(stderr.lowercase())
+    }
+
+    private fun shouldRetryTransientPostprocessingFailure(stderr: String): Boolean {
+        if (!isRecoverablePostprocessingFailure(stderr)) return false
+
+        val lower = stderr.lowercase()
+        return isClosedStreamFailure(lower) ||
+            lower.contains("interrupted system call") ||
+            lower.contains("signal 9") ||
+            lower.contains("was killed") ||
+            lower.contains("terminated")
     }
 
     private fun preferredFailureLine(detail: String): String? {
