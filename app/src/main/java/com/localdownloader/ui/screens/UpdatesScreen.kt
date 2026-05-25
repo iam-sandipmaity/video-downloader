@@ -1,7 +1,6 @@
 package com.localdownloader.ui.screens
 
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.compose.foundation.background
@@ -50,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
+import androidx.core.net.toUri
 import com.localdownloader.BuildConfig
 import com.localdownloader.R
 import com.localdownloader.ui.components.PreferencePageScaffold
@@ -88,7 +88,7 @@ fun UpdatesScreen(
         val pendingInstall = uiState.pendingAppInstall ?: return@LaunchedEffect
         if (pendingInstall.requiresInstallPermission) {
             val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
-                data = Uri.parse("package:${context.packageName}")
+                data = "package:${context.packageName}".toUri()
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             context.startActivity(intent)

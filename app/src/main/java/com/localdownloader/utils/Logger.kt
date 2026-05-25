@@ -8,6 +8,7 @@ import android.os.Environment
 import android.provider.BaseColumns
 import android.provider.MediaStore
 import android.util.Log
+import androidx.core.net.toUri
 import com.localdownloader.data.SettingsStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -482,7 +483,7 @@ class Logger @Inject constructor(
             (fileName.startsWith("crash-") && fileName.endsWith(".log"))
     }
 
-    private fun externalDownloadsCollectionUri(): Uri = Uri.parse(EXTERNAL_DOWNLOADS_CONTENT_URI)
+    private fun externalDownloadsCollectionUri(): Uri = EXTERNAL_DOWNLOADS_CONTENT_URI.toUri()
 
     private fun crashLogFamilyFiles(): List<File> {
         val logsDir = File(context.filesDir, LOG_DIR_NAME)

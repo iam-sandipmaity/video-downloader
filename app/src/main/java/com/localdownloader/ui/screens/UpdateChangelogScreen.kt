@@ -51,12 +51,12 @@ fun UpdateChangelogScreen(
     latestVersion: String?,
     summary: String,
     releaseNotes: String?,
+    modifier: Modifier = Modifier,
     latestDocumentHeading: String = "",
     bundledDocumentHeading: String? = null,
     overviewText: String = "",
     bundledReleaseNotesAssetName: String? = null,
     onBack: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val bundledDocumentationText = remember(context, bundledReleaseNotesAssetName) {

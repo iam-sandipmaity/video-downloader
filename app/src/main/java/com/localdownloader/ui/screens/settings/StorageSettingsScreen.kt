@@ -41,6 +41,7 @@ import com.localdownloader.viewmodel.FormatUiState
 fun StorageSettingsScreen(
     uiState: FormatUiState,
     savedItemsCount: Int,
+    modifier: Modifier = Modifier,
     mediaInfoMessage: String? = null,
     mediaErrorMessage: String? = null,
     onDismissMediaLibraryMessage: () -> Unit = {},
@@ -60,7 +61,6 @@ fun StorageSettingsScreen(
     onClearCache: () -> Unit,
     cacheSize: Long,
     onBack: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
     val settingsInfoMessage = uiState.infoMessageFor(FormatMessageScope.SETTINGS)
     val settingsErrorMessage = uiState.errorMessageFor(FormatMessageScope.SETTINGS)

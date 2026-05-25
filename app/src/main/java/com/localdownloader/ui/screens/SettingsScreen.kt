@@ -29,6 +29,7 @@ import com.localdownloader.viewmodel.FormatUiState
 fun SettingsScreen(
     uiState: FormatUiState,
     savedItemsCount: Int,
+    modifier: Modifier = Modifier,
     mediaInfoMessage: String? = null,
     mediaErrorMessage: String? = null,
     onDismissMediaLibraryMessage: () -> Unit = {},
@@ -40,7 +41,6 @@ fun SettingsScreen(
     onOpenAbout: () -> Unit,
     onOpenAppLog: () -> Unit,
     onBack: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val settingsInfoMessage = uiState.infoMessageFor(FormatMessageScope.SETTINGS)

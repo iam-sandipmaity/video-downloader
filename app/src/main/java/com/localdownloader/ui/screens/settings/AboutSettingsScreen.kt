@@ -1,7 +1,6 @@
 package com.localdownloader.ui.screens.settings
 
 import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -33,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.decode.SvgDecoder
@@ -130,7 +130,7 @@ fun AboutSettingsScreen(
     var confirmDialog by remember { mutableStateOf<SettingConfirmDialogState?>(null) }
 
     fun openUrl(url: String) {
-        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
     }
 
     confirmDialog?.let { state ->

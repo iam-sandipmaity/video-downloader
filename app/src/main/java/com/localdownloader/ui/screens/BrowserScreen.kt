@@ -163,8 +163,8 @@ fun BrowserScreen(
     onQueueWhenWifiAvailable: () -> Unit,
     onAllowCellularDownloadsAndQueue: () -> Unit,
     onDarkThemeChanged: (Boolean) -> Unit,
-    isDownloadButtonEnabled: Boolean = true,
     modifier: Modifier = Modifier,
+    isDownloadButtonEnabled: Boolean = true,
 ) {
     val clipboardManager = LocalClipboardManager.current
     val scope = rememberCoroutineScope()

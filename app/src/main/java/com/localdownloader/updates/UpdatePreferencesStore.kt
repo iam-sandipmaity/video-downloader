@@ -1,6 +1,7 @@
 package com.localdownloader.updates
 
 import android.content.Context
+import androidx.core.content.edit
 import com.localdownloader.BuildConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -32,19 +33,19 @@ class UpdatePreferencesStore @Inject constructor(
     }
 
     fun setIncludePrereleaseAppReleases(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_INCLUDE_PRERELEASE_APP_RELEASES, enabled).apply()
+        prefs.edit { putBoolean(KEY_INCLUDE_PRERELEASE_APP_RELEASES, enabled) }
     }
 
     fun setAutoUpdateYtDlp(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_AUTO_UPDATE_YTDLP, enabled).apply()
+        prefs.edit { putBoolean(KEY_AUTO_UPDATE_YTDLP, enabled) }
     }
 
     fun setYtDlpChannel(channel: YtDlpReleaseChannel) {
-        prefs.edit().putString(KEY_YTDLP_CHANNEL, channel.id).apply()
+        prefs.edit { putString(KEY_YTDLP_CHANNEL, channel.id) }
     }
 
     fun setFfmpegChannel(channel: FfmpegReleaseChannel) {
-        prefs.edit().putString(KEY_FFMPEG_CHANNEL, channel.id).apply()
+        prefs.edit { putString(KEY_FFMPEG_CHANNEL, channel.id) }
     }
 
     private companion object {

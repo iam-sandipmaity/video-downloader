@@ -1,7 +1,5 @@
 package com.localdownloader.ui.screens
 
-import android.net.Uri
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -60,6 +58,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.core.net.toUri
 import androidx.core.os.ConfigurationCompat
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalConfiguration
@@ -92,13 +91,13 @@ import java.util.Locale
 fun DownloadHistoryScreen(
     tasks: List<DownloadTask>,
     retentionDays: Int,
+    modifier: Modifier = Modifier,
     infoMessage: String? = null,
     errorMessage: String? = null,
     onDismissMessage: (() -> Unit)? = null,
     onRetentionDaysChanged: (Int) -> Unit,
     onClearFailedAndCanceledHistory: () -> Unit,
     onBack: (() -> Unit)? = null,
-    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val currentLocale = ConfigurationCompat.getLocales(LocalConfiguration.current).get(0) ?: Locale.ROOT
@@ -898,7 +897,7 @@ private fun formatDate(epochMs: Long): String {
 }
 
 private fun historySourceLabel(url: String): String {
-    return Uri.parse(url).host
+    return url.toUri().host
         ?.removePrefix("www.")
         ?.takeIf { it.isNotBlank() }
         ?: ""

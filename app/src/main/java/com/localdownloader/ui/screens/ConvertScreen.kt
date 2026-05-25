@@ -72,8 +72,8 @@ fun ConvertScreen(
     onConvertClicked: () -> Unit,
     onBrowseFile: () -> Unit,
     onConversionPresetSelected: (Int) -> Unit,
-    onBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
+    onBack: (() -> Unit)? = null,
 ) {
     var showAdvanced by rememberSaveable { mutableStateOf(false) }
     val selectedPresetIndex = uiState.convertPresetIndex.coerceIn(0, CONVERSION_PRESETS.lastIndex)

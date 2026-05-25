@@ -145,7 +145,9 @@ class MainActivity : Hilt_MainActivity() {
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-        enterPictureInPictureIfPossible()
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            enterPictureInPictureIfPossible()
+        }
     }
 
     fun updatePictureInPictureAllowed(enabled: Boolean) {
@@ -304,7 +306,11 @@ class MainActivity : Hilt_MainActivity() {
             .setAspectRatio(Rational(16, 9))
         currentPictureInPictureSourceRect()?.let(builder::setSourceRectHint)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            builder.setAutoEnterEnabled(pictureInPictureAllowed)
+            if (pictureInPictureAllowed) {
+                builder.setAutoEnterEnabled(true)
+            } else {
+                builder.setAutoEnterEnabled(false)
+            }
         }
         return builder.build()
     }

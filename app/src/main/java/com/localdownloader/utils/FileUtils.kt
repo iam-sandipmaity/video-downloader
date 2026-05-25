@@ -9,6 +9,7 @@ import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
 import androidx.annotation.RequiresApi
+import androidx.core.net.toUri
 import com.localdownloader.data.SettingsStore
 import com.localdownloader.domain.models.AppSettings
 import com.localdownloader.media.resolvePreferredMediaMimeTypeForExtension
@@ -584,7 +585,7 @@ class FileUtils @Inject constructor(
     }
 
     @RequiresApi(Build.VERSION_CODES.Q)
-    private fun externalDownloadsCollectionUri(): Uri = Uri.parse(EXTERNAL_DOWNLOADS_CONTENT_URI)
+    private fun externalDownloadsCollectionUri(): Uri = EXTERNAL_DOWNLOADS_CONTENT_URI.toUri()
 
     private fun configuredRootFolderName(): String {
         return normalizeDownloadsRootSetting(latestSettings.downloadsRootFolderName)

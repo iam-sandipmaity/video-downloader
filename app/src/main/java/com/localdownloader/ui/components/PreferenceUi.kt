@@ -266,8 +266,8 @@ fun PreferenceHeroCard(
 @Composable
 fun PreferenceSectionHeader(
     title: String,
-    subtitle: String? = null,
     modifier: Modifier = Modifier,
+    subtitle: String? = null,
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),

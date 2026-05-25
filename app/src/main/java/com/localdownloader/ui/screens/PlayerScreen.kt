@@ -69,6 +69,8 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -152,15 +154,15 @@ fun PlayerScreen(
     }
     var swipeAdjustmentOverlay by remember { mutableStateOf<SwipeAdjustmentOverlay?>(null) }
     var swipeSeekOverlay by remember { mutableStateOf<SwipeSeekOverlay?>(null) }
-    var playerWidthPx by rememberSaveable { mutableStateOf(0) }
-    var playerHeightPx by rememberSaveable { mutableStateOf(0) }
+    var playerWidthPx by rememberSaveable { mutableIntStateOf(0) }
+    var playerHeightPx by rememberSaveable { mutableIntStateOf(0) }
     var isScrubbing by rememberSaveable { mutableStateOf(false) }
-    var scrubPositionMs by rememberSaveable { mutableStateOf(0f) }
+    var scrubPositionMs by rememberSaveable { mutableFloatStateOf(0f) }
     var activePanelName by rememberSaveable { mutableStateOf(PlayerPanel.NONE.name) }
     var zoomScale by rememberSaveable { mutableFloatStateOf(1f) }
     var panOffsetX by rememberSaveable { mutableFloatStateOf(0f) }
     var panOffsetY by rememberSaveable { mutableFloatStateOf(0f) }
-    var swipeSeekStartPositionMs by rememberSaveable { mutableStateOf(0L) }
+    var swipeSeekStartPositionMs by rememberSaveable { mutableLongStateOf(0L) }
     val swipeAdjustmentController = remember(activity, context) {
         PlayerSwipeAdjustmentController(
             context = context,

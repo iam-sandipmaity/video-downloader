@@ -103,8 +103,8 @@ fun ProgressScreen(
     onOpenCookies: () -> Unit,
     onOpenYoutubeAccess: () -> Unit,
     onToggleDebug: (String) -> Unit,
-    onBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
+    onBack: (() -> Unit)? = null,
 ) {
     val currentTimeMs by produceState(initialValue = System.currentTimeMillis()) {
         while (true) {
@@ -707,8 +707,8 @@ private fun DownloadTaskThumbnail(
     task: DownloadTask,
     accent: Color,
     statusIcon: ImageVector,
-    showStatusBadge: Boolean = true,
     modifier: Modifier = Modifier,
+    showStatusBadge: Boolean = true,
 ) {
     Box(
         modifier = modifier
