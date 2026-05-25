@@ -22,6 +22,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - **Localized queue format strings** - the Simplified Chinese queue subtitle and resume-window strings now match the placeholder arguments used by the progress screen, avoiding `String.format` lint failures
 - **Localized common remove label** - the shared `common_remove` string is now translated in the Hindi, Telugu, Kannada, Korean, Japanese, Bangla, Tamil, Chinese, and Malayalam resource sets so lint no longer flags it as missing
 - **Localized fallback resource coverage** - the Hindi, Telugu, Kannada, Korean, Japanese, Bangla, Tamil, Chinese, and Malayalam resource sets now include the newer downloads, player, queue recovery, history search, and repo-safe update strings and plurals so the current translation backlog clears in one batch
+- **Locale-safe formatting and zh placeholder sync** - duration and file-size formatting now use an explicit locale, and the Simplified Chinese strings once again match the placeholder counts required by the downloads, queue, history, and filename-template UI
 - **Media3 opt-in cleanup** - player screen and player viewmodel setup now explicitly opt into the unstable Media3 APIs used for resize mode wiring and player construction
 - **Media3 resize mode decoupling** - player state and resize option labels now use app-owned resize mode constants instead of direct unstable Media3 `AspectRatioFrameLayout` constants
 - **Tagged release validation** - version tags now fail fast when `github.ref_name` does not match `APP_VERSION_NAME`

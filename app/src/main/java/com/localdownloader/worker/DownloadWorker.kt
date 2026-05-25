@@ -31,6 +31,7 @@ import dagger.assisted.AssistedInject
 import androidx.hilt.work.HiltWorker
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
+import java.util.Locale
 
 @HiltWorker
 class DownloadWorker @AssistedInject constructor(
@@ -2414,9 +2415,9 @@ class DownloadWorker @AssistedInject constructor(
         val mib = kib * 1024.0
         val gib = mib * 1024.0
         return when {
-            this >= gib -> String.format("%.1f GB", this / gib)
-            this >= mib -> String.format("%.1f MB", this / mib)
-            this >= kib -> String.format("%.1f KB", this / kib)
+            this >= gib -> String.format(Locale.ROOT, "%.1f GB", this / gib)
+            this >= mib -> String.format(Locale.ROOT, "%.1f MB", this / mib)
+            this >= kib -> String.format(Locale.ROOT, "%.1f KB", this / kib)
             else -> "$this B"
         }
     }
