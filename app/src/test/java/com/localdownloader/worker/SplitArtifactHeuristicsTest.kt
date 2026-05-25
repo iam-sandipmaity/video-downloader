@@ -6,6 +6,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
+import kotlin.io.path.createTempDirectory
 
 class SplitArtifactHeuristicsTest {
     @Test
@@ -24,7 +25,7 @@ class SplitArtifactHeuristicsTest {
 
     @Test
     fun selectDistinctSplitArtifacts_managedOnly_ignoresLooseFragments() {
-        val dir = createTempDir(prefix = "split-artifacts-")
+        val dir = createTempDirectory(prefix = "split-artifacts-").toFile()
         try {
             val looseVideo = createArtifact(dir, "sample.f248.webm", 1_000L)
             val looseAudio = createArtifact(dir, "sample.f251.webm", 2_000L)
@@ -47,7 +48,7 @@ class SplitArtifactHeuristicsTest {
 
     @Test
     fun selectDistinctSplitArtifacts_keepsVideoAndAudioDistinct() {
-        val dir = createTempDir(prefix = "split-artifacts-")
+        val dir = createTempDirectory(prefix = "split-artifacts-").toFile()
         try {
             val looseVideo = createArtifact(dir, "sample.f248.webm", 1_000L)
             val looseAudio = createArtifact(dir, "sample.f251.webm", 2_000L)
