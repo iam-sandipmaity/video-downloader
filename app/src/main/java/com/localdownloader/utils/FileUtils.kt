@@ -292,7 +292,7 @@ class FileUtils @Inject constructor(
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
             }
             val targetUri = context.contentResolver.insert(
-                MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                externalDownloadsCollectionUri(),
                 values,
             ) ?: return null
             insertedUri = targetUri
@@ -568,7 +568,7 @@ class FileUtils @Inject constructor(
         val projection = arrayOf(android.provider.BaseColumns._ID)
         val selection = "${MediaStore.MediaColumns.DISPLAY_NAME}=? AND ${MediaStore.MediaColumns.RELATIVE_PATH}=?"
         val selectionArgs = arrayOf(file.name, mediaStoreRelativePath)
-        val contentUri = MediaStore.Downloads.EXTERNAL_CONTENT_URI
+        val contentUri = externalDownloadsCollectionUri()
         val itemId = context.contentResolver.query(
             contentUri,
             projection,
@@ -582,6 +582,9 @@ class FileUtils @Inject constructor(
         val itemUri = android.content.ContentUris.withAppendedId(contentUri, itemId)
         return context.contentResolver.delete(itemUri, null, null) > 0
     }
+
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private fun externalDownloadsCollectionUri(): Uri = Uri.parse(EXTERNAL_DOWNLOADS_CONTENT_URI)
 
     private fun configuredRootFolderName(): String {
         return normalizeDownloadsRootSetting(latestSettings.downloadsRootFolderName)
@@ -707,6 +710,7 @@ class FileUtils @Inject constructor(
     companion object {
         /** Maximum size for files copied to cache (500MB). */
         private const val MAX_CACHE_FILE_SIZE = 500L * 1024 * 1024
+        private const val EXTERNAL_DOWNLOADS_CONTENT_URI = "content://media/external/downloads"
 
         private fun sanitizeFileNameStatic(value: String): String {
             return value
