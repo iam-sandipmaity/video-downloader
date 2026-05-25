@@ -407,19 +407,8 @@ class FormatExtractor @Inject constructor(
         stdout: String,
         capturedInfoJsonPath: String?,
     ): AnalyzeAttempt {
-        val sources = buildList {
-            val normalizedStdout = stdout.trim().takeIf { it.isNotBlank() }
-            if (normalizedStdout != null) {
-                add(normalizedStdout)
-            }
-            val capturedJson = readCapturedAnalyzeJson(capturedInfoJsonPath)
-            if (!capturedJson.isNullOrBlank() && capturedJson != normalizedStdout) {
-                add(capturedJson)
-            }
-        }
-
         var lastError: Throwable? = null
-        sources.forEachIndexed { index, rawJson ->
+        fun tryParseSource(rawJson: String, sourceLabel: String): AnalyzeAttempt? {
             val parsed = runCatching {
                 val root = json.parseToJsonElement(rawJson).jsonObject
                 val formats = parseFormats(root["formats"] as? JsonArray ?: JsonArray(emptyList()))
@@ -441,7 +430,18 @@ class FormatExtractor @Inject constructor(
             }
             parsed.getOrNull()?.let { return it }
             lastError = parsed.exceptionOrNull()
-            logger.w("FormatExtractor", "Analyze JSON parse failed for source[$index]", lastError)
+            logger.w("FormatExtractor", "Analyze JSON parse failed for $sourceLabel", lastError)
+            return null
+        }
+
+        val capturedJson = readCapturedAnalyzeJson(capturedInfoJsonPath)
+        if (!capturedJson.isNullOrBlank()) {
+            tryParseSource(capturedJson, "captured info-json")?.let { return it }
+        }
+
+        val normalizedStdout = stdout.trim().takeIf { it.isNotBlank() }
+        if (!normalizedStdout.isNullOrBlank() && normalizedStdout != capturedJson) {
+            tryParseSource(normalizedStdout, "stdout fallback")?.let { return it }
         }
 
         return AnalyzeAttempt(

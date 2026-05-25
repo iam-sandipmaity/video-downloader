@@ -1,0 +1,1 @@
+Hardened paused-download cleanup, made public-download export fail safely on MediaStore write errors, aligned yt-dlp updates with queued or paused downloads too, and reduced memory pressure plus stale observer buildup in large analysis and retry flows.

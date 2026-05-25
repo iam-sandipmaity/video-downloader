@@ -5,7 +5,7 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.localdownloader.data.DownloadTaskStore
-import com.localdownloader.domain.models.DownloadStatus
+import com.localdownloader.domain.models.blocksRuntimeUpdates
 import com.localdownloader.updates.UpdatePreferencesStore
 import com.localdownloader.updates.YtDlpReleaseChannel
 import com.localdownloader.updates.YtDlpUpdateManager
@@ -29,15 +29,18 @@ class YtDlpUpdateWorker @AssistedInject constructor(
         updateStateStore.markAttemptStarted()
         logger.i("YtDlpUpdateWorker", "Starting yt-dlp runtime update attempt=$attemptNumber")
 
-        val runningDownloadCount = downloadTaskStore.getAllTasks().count { it.status == DownloadStatus.RUNNING }
-        if (runningDownloadCount > 0) {
+        downloadTaskStore.awaitInitialLoad()
+        val blockingDownloadCount = downloadTaskStore.getAllTasks().count { task ->
+            task.status.blocksRuntimeUpdates()
+        }
+        if (blockingDownloadCount > 0) {
             updateStateStore.markAttemptDeferred("active_downloads")
             logger.i(
                 "YtDlpUpdateWorker",
-                "Deferring yt-dlp update because $runningDownloadCount download(s) are running",
+                "Deferring yt-dlp update because $blockingDownloadCount download(s) are queued, running, or paused",
             )
             return retryOrFinish(
-                reason = "active downloads are still running",
+                reason = "downloads are still queued, running, or paused",
                 attemptNumber = attemptNumber,
             )
         }

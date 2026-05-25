@@ -3,7 +3,7 @@ package com.localdownloader.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.localdownloader.data.DownloadTaskStore
-import com.localdownloader.domain.models.DownloadStatus
+import com.localdownloader.domain.models.blocksRuntimeUpdates
 import com.localdownloader.updates.AppUpdateManager
 import com.localdownloader.updates.ComponentUpdateCheck
 import com.localdownloader.updates.FfmpegReleaseChannel
@@ -312,9 +312,7 @@ class UpdatesViewModel @Inject constructor(
 
     private fun hasBlockingDownloads(): Boolean {
         return downloadTaskStore.getAllTasks().any { task ->
-            task.status == DownloadStatus.QUEUED ||
-                task.status == DownloadStatus.RUNNING ||
-                task.status == DownloadStatus.PAUSED
+            task.status.blocksRuntimeUpdates()
         }
     }
 }

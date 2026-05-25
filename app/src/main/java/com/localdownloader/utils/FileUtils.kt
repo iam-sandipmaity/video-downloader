@@ -172,13 +172,12 @@ class FileUtils @Inject constructor(
         if (!parentDir.exists()) return 0
 
         val templateName = templateFile.name
-        val stem = templateName.substringBefore(".%(ext)s", templateName)
         val deletedFiles = parentDir.listFiles()
             ?.filter { candidate ->
-                candidate.isFile && (
-                    candidate.name.startsWith(stem) ||
-                        candidate.name.startsWith("$stem.")
-                    )
+                candidate.isFile && matchesManagedArtifactForTemplate(
+                    templateName = templateName,
+                    candidateName = candidate.name,
+                )
             }
             .orEmpty()
             .count { candidate -> deleteManagedFile(candidate.absolutePath) }
@@ -259,6 +258,7 @@ class FileUtils @Inject constructor(
             ?: sourceFile.name
         val displayName = resolveUniqueFileName(publicDir, requestedFileName)
         val destFile = File(publicDir, displayName)
+        var insertedUri: Uri? = null
 
         return try {
             val values = android.content.ContentValues().apply {
@@ -278,20 +278,24 @@ class FileUtils @Inject constructor(
                 )
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
             }
-            val uri = context.contentResolver.insert(
+            val targetUri = context.contentResolver.insert(
                 MediaStore.Downloads.EXTERNAL_CONTENT_URI,
                 values,
             ) ?: return null
-            context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+            insertedUri = targetUri
+            context.contentResolver.openOutputStream(targetUri)?.use { outputStream ->
                 sourceFile.inputStream().use { inputStream ->
                     inputStream.copyTo(outputStream)
                 }
-            }
+            } ?: throw IllegalStateException("Unable to open public Downloads output stream.")
             values.clear()
             values.put(MediaStore.MediaColumns.IS_PENDING, 0)
-            context.contentResolver.update(uri, values, null, null)
+            context.contentResolver.update(targetUri, values, null, null)
             destFile.absolutePath
         } catch (e: Exception) {
+            insertedUri?.let { uri ->
+                runCatching { context.contentResolver.delete(uri, null, null) }
+            }
             try {
                 sourceFile.copyTo(destFile, overwrite = false)
                 triggerMediaScan(Uri.fromFile(destFile))
@@ -692,11 +696,11 @@ class FileUtils @Inject constructor(
                 .ifBlank { "media_${System.currentTimeMillis()}" }
         }
 
-        private fun normalizeRelativeDownloadsPath(
-            raw: String,
-            fallback: String?,
-            allowBlank: Boolean,
-        ): String {
+private fun normalizeRelativeDownloadsPath(
+    raw: String,
+    fallback: String?,
+    allowBlank: Boolean,
+): String {
             val normalized = raw
                 .replace('\\', '/')
                 .split('/')
@@ -886,4 +890,17 @@ class FileUtils @Inject constructor(
             }
         }
     }
+}
+
+internal fun managedArtifactStem(templateName: String): String {
+    return templateName.substringBefore(".%(ext)s", templateName)
+}
+
+internal fun matchesManagedArtifactForTemplate(
+    templateName: String,
+    candidateName: String,
+): Boolean {
+    val stem = managedArtifactStem(templateName).trim()
+    if (stem.isBlank()) return false
+    return candidateName == stem || candidateName.startsWith("$stem.")
 }

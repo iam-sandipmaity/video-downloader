@@ -8,6 +8,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 - No unreleased changes yet.
 
+## [1.7.2.4] - 2026-05-25
+
+### Changed
+- **Safer runtime update blocking** - yt-dlp updates now wait for queued, running, or paused downloads across both manual installs and background auto-update work so runtime replacement does not race active queue state
+
+### Fixed
+- **Paused-download cleanup scope** - expired paused downloads now clean up only the app-managed artifacts for that task instead of overmatching similarly named sibling files in the same folder
+- **Public export write safety** - Android 10+ public-download export now treats MediaStore stream-open failures as real failures, cleans up partial inserts, and keeps the private staging copy unless the public write actually succeeds
+- **Large analyze memory pressure** - link analysis now prefers the captured info-json snapshot and caps retained stdout text so huge playlist or site responses are less likely to inflate memory usage
+- **WorkManager observer cleanup** - per-task work observers are now replaced and canceled cleanly on retries, resumes, and terminal states instead of lingering after the tracked work is no longer active
+
+### Technical
+- **App version bump** - release metadata updated to `1.7.2.4`
+
 ## [1.7.2.3] - 2026-05-24
 
 ### Added
