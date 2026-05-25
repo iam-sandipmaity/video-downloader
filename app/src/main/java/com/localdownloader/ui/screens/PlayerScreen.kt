@@ -1707,8 +1707,7 @@ private data class ResizeOption(
 )
 
 @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
-@AspectRatioFrameLayout.ResizeMode
-private fun media3ResizeMode(resizeMode: Int): Int {
+private fun media3ResizeMode(resizeMode: Int): @AspectRatioFrameLayout.ResizeMode Int {
     return when (resizeMode) {
         PlayerResizeModes.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
         PlayerResizeModes.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
