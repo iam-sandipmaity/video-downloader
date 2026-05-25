@@ -1,19 +1,19 @@
-name: Build
+name: Release Nightly
 
 on:
   push:
-    branches: ["**"]
-  pull_request:
+    branches: ["main"]
   workflow_dispatch:
 
 jobs:
-  build:
+  release-nightly:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    concurrency:
+      group: release-nightly
+      cancel-in-progress: true
     permissions:
-      contents: read
-
-    outputs:
-      version_name: ${{ steps.version.outputs.version_name }}
+      contents: write
 
     steps:
       - name: Checkout
@@ -42,29 +42,6 @@ jobs:
 
       - name: Compile standard debug and run unit tests
         run: ./gradlew :app:compileStandardDebugKotlin :app:testStandardDebugUnitTest
-
-      - name: Run standard debug lint
-        id: lint
-        run: |
-          set +e
-          ./gradlew :app:lintAnalyzeStandardDebug :app:lintReportStandardDebug
-          lint_exit=$?
-          echo "exit_code=${lint_exit}" >> "$GITHUB_OUTPUT"
-          exit 0
-
-      - name: Report standard debug lint status
-        if: always() && steps.lint.outputs.exit_code != '0'
-        run: echo "::warning::Standard debug lint reported issues. See the uploaded lint artifact for details."
-
-      - name: Upload standard debug lint reports
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: lint-standard-debug-${{ steps.version.outputs.version_name }}
-          path: |
-            app/build/reports/lint-results-standardDebug.html
-            app/build/intermediates/lint_intermediate_text_report/standardDebug/lintReportStandardDebug/lint-results-standardDebug.txt
-          if-no-files-found: warn
 
       - name: Prepare signing files
         shell: bash
@@ -100,7 +77,6 @@ jobs:
 
       - name: Rename nightly debug APK
         run: |
-          VERSION="${{ steps.version.outputs.version_name }}"
           APK_DIR="app/build/outputs/apk/standard/debug"
           APK_SOURCE=$(find "$APK_DIR" -maxdepth 1 -name 'app-standard-debug*.apk' | head -n 1)
           if [ -z "$APK_SOURCE" ]; then
@@ -108,10 +84,21 @@ jobs:
             find "$APK_DIR" -maxdepth 1 -type f || true
             exit 1
           fi
-          mv "$APK_SOURCE" "$APK_DIR/video-downloader-v${VERSION}-nightly-debug.apk"
+          mv "$APK_SOURCE" "$APK_DIR/video-downloader-nightly-debug.apk"
 
-      - name: Upload nightly debug APK artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - name: Refresh nightly tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f nightly "$GITHUB_SHA"
+          git push origin refs/tags/nightly --force
+
+      - name: Create nightly GitHub prerelease
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
         with:
-          name: video-downloader-v${{ steps.version.outputs.version_name }}-nightly-debug
-          path: app/build/outputs/apk/standard/debug/video-downloader-*.apk
+          tag_name: nightly
+          name: "Nightly Build (v${{ steps.version.outputs.version_name }})"
+          target_commitish: ${{ github.sha }}
+          prerelease: true
+          generate_release_notes: true
+          files: app/build/outputs/apk/standard/debug/video-downloader-nightly-debug.apk
