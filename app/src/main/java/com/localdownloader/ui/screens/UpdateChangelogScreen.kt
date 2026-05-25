@@ -62,11 +62,13 @@ fun UpdateChangelogScreen(
     val bundledDocumentationText = remember(context, bundledReleaseNotesAssetName) {
         loadBundledReleaseNotes(context = context, assetName = bundledReleaseNotesAssetName)
     }
+    val defaultLatestHeading = stringResource(R.string.updates_release_notes_heading)
+    val defaultOverviewText = stringResource(R.string.updates_overview_default)
     val resolvedLatestHeading = latestDocumentHeading.ifBlank {
-        context.getString(R.string.updates_release_notes_heading)
+        defaultLatestHeading
     }
     val resolvedOverviewText = overviewText.ifBlank {
-        context.getString(R.string.updates_overview_default)
+        defaultOverviewText
     }
     val latestBlocks = remember(releaseNotes) { parseDocumentationBlocks(releaseNotes) }
     val bundledBlocks = remember(bundledDocumentationText) {

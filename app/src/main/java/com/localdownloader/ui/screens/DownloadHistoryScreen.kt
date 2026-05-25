@@ -127,7 +127,22 @@ fun DownloadHistoryScreen(
     val failedCount = historyItems.count { it.status == DownloadStatus.FAILED }
     val canceledCount = historyItems.count { it.status == DownloadStatus.CANCELED }
     val purgeableHistoryCount = historyItems.count(::isPurgeableHistoryTask)
-    val retentionLabel = context.resources.getQuantityString(R.plurals.common_days, retentionDays, retentionDays)
+    val retentionLabel = pluralStringResource(R.plurals.common_days, retentionDays, retentionDays)
+    val historyRetentionTitle = stringResource(R.string.history_retention_title)
+    val historyClearFailedTitle = stringResource(R.string.history_clear_failed_title)
+    val historyClearFailedBody = stringResource(R.string.history_clear_failed_body)
+    val commonClearLabel = stringResource(R.string.common_clear)
+    val retentionChoices = listOf(7, 15, 30, 90, 180)
+    val retentionChoiceTitles = retentionChoices.associateWith { days ->
+        pluralStringResource(R.plurals.common_days, days, days)
+    }
+    val retentionChoiceSubtitles = mapOf(
+        7 to stringResource(R.string.history_retention_7),
+        15 to stringResource(R.string.history_retention_15),
+        30 to stringResource(R.string.history_retention_30),
+        90 to stringResource(R.string.history_retention_90),
+        180 to stringResource(R.string.history_retention_180),
+    )
 
     LaunchedEffect(historyItems, selectedTask?.id) {
         val currentSelected = selectedTask ?: return@LaunchedEffect
@@ -170,12 +185,12 @@ fun DownloadHistoryScreen(
                         onClick = {
                             showActionsMenu = false
                             choiceDialog = SettingChoiceDialogState(
-                                title = context.getString(R.string.history_retention_title),
+                                title = historyRetentionTitle,
                                 selected = retentionLabel,
-                                options = listOf(7, 15, 30, 90, 180).map { days ->
+                                options = retentionChoices.map { days ->
                                     SettingChoiceOption(
-                                        title = context.resources.getQuantityString(R.plurals.common_days, days, days),
-                                        subtitle = historyRetentionDescription(context, days),
+                                        title = retentionChoiceTitles.getValue(days),
+                                        subtitle = retentionChoiceSubtitles.getValue(days),
                                         onSelect = { onRetentionDaysChanged(days) },
                                     )
                                 },
@@ -188,9 +203,9 @@ fun DownloadHistoryScreen(
                         onClick = {
                             showActionsMenu = false
                             confirmDialog = SettingConfirmDialogState(
-                                title = context.getString(R.string.history_clear_failed_title),
-                                body = context.getString(R.string.history_clear_failed_body),
-                                confirmLabel = context.getString(R.string.common_clear),
+                                title = historyClearFailedTitle,
+                                body = historyClearFailedBody,
+                                confirmLabel = commonClearLabel,
                                 destructive = true,
                                 onConfirm = onClearFailedAndCanceledHistory,
                             )
@@ -455,9 +470,10 @@ private fun HistoryCard(
     onOpenLog: () -> Unit,
 ) {
     val context = LocalContext.current
+    val unknownLabel = stringResource(R.string.common_unknown)
     val statusColors = statusPalette(task.status)
     val sourceLabel = remember(task.url) { historySourceLabel(task.url) }
-    val outputName = task.outputPath?.substringAfterLast('/') ?: context.getString(R.string.common_unknown)
+    val outputName = task.outputPath?.substringAfterLast('/') ?: unknownLabel
     val previewLog = task.debugTrace
         ?.lines()
         ?.takeLast(3)
@@ -908,16 +924,6 @@ private fun historyFilterLabel(filter: HistoryFilter, context: android.content.C
 
 private fun isPurgeableHistoryTask(task: DownloadTask): Boolean {
     return task.status == DownloadStatus.FAILED || task.status == DownloadStatus.CANCELED
-}
-
-private fun historyRetentionDescription(context: android.content.Context, days: Int): String {
-    return when (days) {
-        7 -> context.getString(R.string.history_retention_7)
-        15 -> context.getString(R.string.history_retention_15)
-        30 -> context.getString(R.string.history_retention_30)
-        90 -> context.getString(R.string.history_retention_90)
-        else -> context.getString(R.string.history_retention_180)
-    }
 }
 
 private fun DownloadTask.matchesHistorySearch(query: String): Boolean {

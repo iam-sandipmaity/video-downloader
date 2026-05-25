@@ -822,6 +822,10 @@ private fun DownloadTaskHeroCard(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val pauseActionLabel = stringResource(R.string.queue_action_pause)
+    val cancelActionLabel = stringResource(R.string.queue_action_cancel)
+    val resumeActionLabel = stringResource(R.string.queue_action_resume)
+    val retryActionLabel = stringResource(R.string.queue_action_retry)
     val imageLoader = remember(context) {
         ImageLoader.Builder(context)
             .components { add(SvgDecoder.Factory()) }
@@ -856,12 +860,12 @@ private fun DownloadTaskHeroCard(
         DownloadStatus.RUNNING, DownloadStatus.QUEUED -> listOf(
             DownloadTaskAction(
                 icon = Icons.Outlined.PauseCircle,
-                contentDescription = context.getString(R.string.queue_action_pause),
+                contentDescription = pauseActionLabel,
                 onClick = { onPause(task.id) },
             ),
             DownloadTaskAction(
                 icon = Icons.Outlined.Cancel,
-                contentDescription = context.getString(R.string.queue_action_cancel),
+                contentDescription = cancelActionLabel,
                 onClick = { onCancel(task.id) },
             ),
         )
@@ -869,12 +873,12 @@ private fun DownloadTaskHeroCard(
         DownloadStatus.PAUSED -> listOf(
             DownloadTaskAction(
                 icon = Icons.Outlined.PlayCircle,
-                contentDescription = context.getString(R.string.queue_action_resume),
+                contentDescription = resumeActionLabel,
                 onClick = { onResume(task.id) },
             ),
             DownloadTaskAction(
                 icon = Icons.Outlined.Cancel,
-                contentDescription = context.getString(R.string.queue_action_cancel),
+                contentDescription = cancelActionLabel,
                 onClick = { onCancel(task.id) },
             ),
         )
@@ -884,8 +888,8 @@ private fun DownloadTaskHeroCard(
         -> listOf(
             DownloadTaskAction(
                 icon = Icons.Outlined.Refresh,
-                contentDescription = context.getString(R.string.queue_action_retry),
-                label = context.getString(R.string.queue_action_retry),
+                contentDescription = retryActionLabel,
+                label = retryActionLabel,
                 onClick = { onRetry(task.id) },
             ),
         )

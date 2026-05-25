@@ -248,9 +248,12 @@ fun YoutubeAuthLoginScreen(
     onConfirm: (String, YoutubeAuthConfig) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    var title by rememberSaveable { mutableStateOf(context.getString(R.string.youtube_access_login_title)) }
+    val loginTitleText = stringResource(R.string.youtube_access_login_title)
+    val loginNotReadyText = stringResource(R.string.youtube_access_login_not_ready)
+    val loginErrorText = stringResource(R.string.youtube_access_login_error)
+    val loginAdvancedErrorHint = stringResource(R.string.youtube_access_login_advanced_error_hint)
+    var title by rememberSaveable(loginTitleText) { mutableStateOf(loginTitleText) }
     var isSaving by rememberSaveable { mutableStateOf(false) }
     var captureAdvancedTokens by rememberSaveable { mutableStateOf(false) }
     var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
@@ -310,7 +313,7 @@ fun YoutubeAuthLoginScreen(
                                         """.trimIndent(),
                                     )
                                     check(visitorData.isNotBlank()) {
-                                        context.getString(R.string.youtube_access_login_not_ready)
+                                        loginNotReadyText
                                     }
                                     val dataSyncId = currentWebView.awaitJavascriptString(
                                         """
@@ -341,9 +344,9 @@ fun YoutubeAuthLoginScreen(
                                     onConfirm(cookieText, authConfig)
                                 }.onFailure { error ->
                                     isSaving = false
-                                    val baseMessage = error.message ?: context.getString(R.string.youtube_access_login_error)
+                                    val baseMessage = error.message ?: loginErrorText
                                     errorMessage = if (captureAdvancedTokens) {
-                                        "$baseMessage ${context.getString(R.string.youtube_access_login_advanced_error_hint)}"
+                                        "$baseMessage $loginAdvancedErrorHint"
                                     } else {
                                         baseMessage
                                     }

@@ -141,6 +141,7 @@ fun PlayerScreen(
     val selectedAudioTrack = uiState.audioTracks.firstOrNull { it.isSelected }
     val selectedSubtitleTrack = uiState.subtitleTracks.firstOrNull { it.isSelected }
     val currentOrientation = configuration.orientation
+    val openExternalUnavailableLabel = stringResource(R.string.player_open_external_unavailable)
 
     var isFullscreen by rememberSaveable { mutableStateOf(false) }
     var controlsVisible by rememberSaveable { mutableStateOf(true) }
@@ -543,7 +544,7 @@ fun PlayerScreen(
                 },
                 onOpenExternally = {
                     if (!openMediaExternally(context, playablePath)) {
-                        gestureFeedback = context.getString(R.string.player_open_external_unavailable)
+                        gestureFeedback = openExternalUnavailableLabel
                     }
                 },
                 onPlayPause = {
@@ -683,7 +684,7 @@ fun PlayerScreen(
                             TextButton(
                                 onClick = {
                                     if (!openMediaExternally(context, playablePath)) {
-                                        gestureFeedback = context.getString(R.string.player_open_external_unavailable)
+                                        gestureFeedback = openExternalUnavailableLabel
                                     }
                                 },
                             ) {
