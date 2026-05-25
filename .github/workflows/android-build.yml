@@ -51,8 +51,17 @@ jobs:
         run: ./gradlew :app:compileStandardDebugKotlin :app:testStandardDebugUnitTest
 
       - name: Run standard debug lint
-        continue-on-error: true
-        run: ./gradlew :app:lintStandardDebug
+        id: lint
+        run: |
+          set +e
+          ./gradlew :app:lintStandardDebug
+          lint_exit=$?
+          echo "exit_code=${lint_exit}" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Report standard debug lint status
+        if: always() && steps.lint.outputs.exit_code != '0'
+        run: echo "::warning::Standard debug lint reported issues. See the uploaded lint artifact for details."
 
       - name: Upload standard debug lint reports
         if: always()

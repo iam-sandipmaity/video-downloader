@@ -8,6 +8,7 @@ import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
+import androidx.annotation.RequiresApi
 import com.localdownloader.data.SettingsStore
 import com.localdownloader.domain.models.AppSettings
 import com.localdownloader.media.resolvePreferredMediaMimeTypeForExtension
@@ -236,7 +237,19 @@ class FileUtils @Inject constructor(
         targetFileName: String? = null,
     ): String? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+        return copyToPublicDownloadsApi29(
+            sourceFile = sourceFile,
+            playlistFolderName = playlistFolderName,
+            targetFileName = targetFileName,
+        )
+    }
 
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private fun copyToPublicDownloadsApi29(
+        sourceFile: File,
+        playlistFolderName: String?,
+        targetFileName: String?,
+    ): String? {
         val publicDownloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
         val rootFolderName = configuredRootFolderName()
         val relativeParent = playlistFolderName
@@ -523,7 +536,11 @@ class FileUtils @Inject constructor(
 
     private fun deleteFromMediaStore(file: File): Boolean? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+        return deleteFromMediaStoreApi29(file)
+    }
 
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private fun deleteFromMediaStoreApi29(file: File): Boolean? {
         val downloadsRoot = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
             .absoluteFile
             .normalize()
