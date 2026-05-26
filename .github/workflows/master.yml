@@ -24,7 +24,7 @@ env:
   ENABLE_RELEASE_NIGHTLY: "true"
   ENABLE_RELEASE_MAIN: "false"
   ENABLE_RELEASE_TAG: "false"
-  ENABLE_CLEANUP: "true"
+  ENABLE_CLEANUP: "false"
 
 jobs:
   workflow-flags:
@@ -65,6 +65,7 @@ jobs:
     if: |
       needs.workflow-flags.outputs.enable_codeql == 'true' &&
       (
+        github.event_name == 'pull_request' ||
         github.event_name == 'workflow_dispatch' ||
         github.event_name == 'schedule' ||
         (github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/'))
@@ -134,12 +135,7 @@ jobs:
     permissions:
       actions: write
       contents: read
-    if: |
-      needs.workflow-flags.outputs.enable_cleanup == 'true' &&
-      (
-        github.event_name == 'schedule' ||
-        github.event_name == 'workflow_dispatch'
-      )
+    if: needs.workflow-flags.outputs.enable_cleanup == 'true'
     uses: ./.github/workflows/cleanup.yml
     with:
       days: ${{ needs.workflow-flags.outputs.cleanup_days }}
