@@ -44,6 +44,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.CropFree
 import androidx.compose.material.icons.outlined.Fullscreen
@@ -124,6 +126,8 @@ import kotlin.math.roundToInt
 fun PlayerScreen(
     task: DownloadTask?,
     playerViewModel: PlayerViewModel,
+    onOpenPrevious: (() -> Unit)?,
+    onOpenNext: (() -> Unit)?,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -543,6 +547,8 @@ fun PlayerScreen(
                 canEnterPictureInPicture = uiState.isAvailable && isLikelyVideoFile(playablePath),
                 isRotationLocked = uiState.isLocked,
                 canOpenExternally = playablePath != null,
+                onOpenPrevious = onOpenPrevious,
+                onOpenNext = onOpenNext,
                 onBack = {
                     playerViewModel.persistPlaybackState()
                     onBack()
@@ -975,6 +981,8 @@ private fun BoxScope.PlayerChrome(
     canEnterPictureInPicture: Boolean,
     isRotationLocked: Boolean,
     canOpenExternally: Boolean,
+    onOpenPrevious: (() -> Unit)?,
+    onOpenNext: (() -> Unit)?,
     onBack: () -> Unit,
     onOpenExternally: () -> Unit,
     onPlayPause: () -> Unit,
@@ -1045,9 +1053,11 @@ private fun BoxScope.PlayerChrome(
                 }
             }
 
-            CenterPlaybackButton(
+            CenterPlaybackControls(
                 modifier = Modifier.align(Alignment.Center),
                 isPlaying = uiState.isPlaying,
+                onOpenPrevious = onOpenPrevious,
+                onOpenNext = onOpenNext,
                 onPlayPause = onPlayPause,
             )
 
@@ -1112,44 +1122,102 @@ private fun BoxScope.PlayerChrome(
 }
 
 @Composable
-private fun CenterPlaybackButton(
+private fun CenterPlaybackControls(
     modifier: Modifier = Modifier,
     isPlaying: Boolean,
+    onOpenPrevious: (() -> Unit)?,
+    onOpenNext: (() -> Unit)?,
     onPlayPause: () -> Unit,
 ) {
-    Box(
-        modifier = modifier.size(100.dp),
-        contentAlignment = Alignment.Center,
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(18.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Surface(
-            modifier = Modifier.size(100.dp),
-            color = Color.Black.copy(alpha = 0.16f),
-            shape = CircleShape,
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.06f)),
-        ) {}
+        if (onOpenPrevious != null) {
+            TransportEdgeButton(
+                icon = Icons.Filled.SkipPrevious,
+                contentDescription = "Previous video",
+                onClick = onOpenPrevious,
+            )
+        } else {
+            Spacer(modifier = Modifier.size(56.dp))
+        }
 
-        Surface(
-            modifier = Modifier.size(78.dp),
-            color = Color.Black.copy(alpha = 0.42f),
-            shape = CircleShape,
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
+        Box(
+            modifier = Modifier.size(100.dp),
+            contentAlignment = Alignment.Center,
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(CircleShape)
-                    .clickable(onClick = onPlayPause),
-                contentAlignment = Alignment.Center,
+            Surface(
+                modifier = Modifier.size(100.dp),
+                color = Color.Black.copy(alpha = 0.16f),
+                shape = CircleShape,
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.06f)),
+            ) {}
+
+            Surface(
+                modifier = Modifier.size(78.dp),
+                color = Color.Black.copy(alpha = 0.42f),
+                shape = CircleShape,
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
             ) {
-                Icon(
-                    imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    contentDescription = if (isPlaying) "Pause" else "Play",
+                Box(
                     modifier = Modifier
-                        .offset(x = if (isPlaying) 0.dp else 1.dp)
-                        .size(if (isPlaying) 30.dp else 36.dp),
-                    tint = Color.White,
-                )
+                        .fillMaxSize()
+                        .clip(CircleShape)
+                        .clickable(onClick = onPlayPause),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        contentDescription = if (isPlaying) "Pause" else "Play",
+                        modifier = Modifier
+                            .offset(x = if (isPlaying) 0.dp else 1.dp)
+                            .size(if (isPlaying) 30.dp else 36.dp),
+                        tint = Color.White,
+                    )
+                }
             }
+        }
+
+        if (onOpenNext != null) {
+            TransportEdgeButton(
+                icon = Icons.Filled.SkipNext,
+                contentDescription = "Next video",
+                onClick = onOpenNext,
+            )
+        } else {
+            Spacer(modifier = Modifier.size(56.dp))
+        }
+    }
+}
+
+@Composable
+private fun TransportEdgeButton(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.size(56.dp),
+        color = Color.Black.copy(alpha = 0.42f),
+        shape = CircleShape,
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(CircleShape)
+                .clickable(onClick = onClick),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                modifier = Modifier.size(28.dp),
+                tint = Color.White,
+            )
         }
     }
 }

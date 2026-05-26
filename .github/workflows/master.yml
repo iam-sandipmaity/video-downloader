@@ -1,0 +1,126 @@
+name: Master CI
+
+on:
+  push:
+    branches: ["main"]
+    tags: ["v*"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+    inputs:
+      cleanup_days:
+        description: Delete artifacts older than X days when cleanup is enabled
+        required: false
+        default: "2"
+  schedule:
+    - cron: "0 3 * * *"
+
+permissions: {}
+
+env:
+  # Change only these flags when you want to enable or disable workflow groups.
+  ENABLE_ANDROID_BUILD: "true"
+  ENABLE_RELEASE_NIGHTLY: "true"
+  ENABLE_RELEASE_MAIN: "false"
+  ENABLE_RELEASE_TAG: "true"
+  ENABLE_CLEANUP: "false"
+
+jobs:
+  workflow-flags:
+    name: Resolve Workflow Flags
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      enable_android_build: ${{ steps.flags.outputs.enable_android_build }}
+      enable_release_nightly: ${{ steps.flags.outputs.enable_release_nightly }}
+      enable_release_main: ${{ steps.flags.outputs.enable_release_main }}
+      enable_release_tag: ${{ steps.flags.outputs.enable_release_tag }}
+      enable_cleanup: ${{ steps.flags.outputs.enable_cleanup }}
+      cleanup_days: ${{ steps.flags.outputs.cleanup_days }}
+    steps:
+      - name: Expose controller toggles
+        id: flags
+        shell: bash
+        env:
+          CLEANUP_DAYS: ${{ github.event.inputs.cleanup_days || '2' }}
+        run: |
+          echo "enable_android_build=${ENABLE_ANDROID_BUILD}" >> "$GITHUB_OUTPUT"
+          echo "enable_release_nightly=${ENABLE_RELEASE_NIGHTLY}" >> "$GITHUB_OUTPUT"
+          echo "enable_release_main=${ENABLE_RELEASE_MAIN}" >> "$GITHUB_OUTPUT"
+          echo "enable_release_tag=${ENABLE_RELEASE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "enable_cleanup=${ENABLE_CLEANUP}" >> "$GITHUB_OUTPUT"
+          echo "cleanup_days=${CLEANUP_DAYS}" >> "$GITHUB_OUTPUT"
+
+  android-build:
+    name: Android Build
+    needs: workflow-flags
+    permissions:
+      contents: read
+    if: |
+      needs.workflow-flags.outputs.enable_android_build == 'true' &&
+      (
+        github.event_name == 'pull_request' ||
+        github.event_name == 'workflow_dispatch' ||
+        (github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/'))
+      )
+    uses: ./.github/workflows/android-build.yml
+    secrets: inherit
+
+  release-nightly:
+    name: Release Nightly
+    needs: workflow-flags
+    permissions:
+      contents: write
+    if: |
+      needs.workflow-flags.outputs.enable_release_nightly == 'true' &&
+      (
+        (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+        (github.event_name == 'pull_request' && github.base_ref == 'main') ||
+        (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+      )
+    uses: ./.github/workflows/release-nightly.yml
+    secrets: inherit
+
+  release-main:
+    name: Release Main
+    needs: workflow-flags
+    permissions:
+      contents: write
+    if: |
+      needs.workflow-flags.outputs.enable_release_main == 'true' &&
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/release-main.yml
+    secrets: inherit
+
+  release-tag:
+    name: Release Tag
+    needs: workflow-flags
+    permissions:
+      contents: write
+    if: |
+      needs.workflow-flags.outputs.enable_release_tag == 'true' &&
+      (
+        (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
+        (github.event_name == 'workflow_dispatch' && startsWith(github.ref_name, 'v'))
+      )
+    uses: ./.github/workflows/release-tag.yml
+    secrets: inherit
+
+  cleanup:
+    name: Cleanup Artifacts
+    needs: workflow-flags
+    permissions:
+      actions: write
+      contents: read
+    if: |
+      needs.workflow-flags.outputs.enable_cleanup == 'true' &&
+      (
+        github.event_name == 'schedule' ||
+        github.event_name == 'workflow_dispatch'
+      )
+    uses: ./.github/workflows/cleanup.yml
+    with:
+      days: ${{ needs.workflow-flags.outputs.cleanup_days }}
+    secrets: inherit

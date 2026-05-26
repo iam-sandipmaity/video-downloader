@@ -13,8 +13,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/iam-sandipmaity/video-downloader/actions/workflows/android-build.yml">
-    <img alt="Build" src="https://img.shields.io/github/actions/workflow/status/iam-sandipmaity/video-downloader/android-build.yml?label=build&logo=github" />
+  <a href="https://github.com/iam-sandipmaity/video-downloader/actions/workflows/master.yml">
+    <img alt="CI" src="https://img.shields.io/github/actions/workflow/status/iam-sandipmaity/video-downloader/master.yml?label=ci&logo=github" />
   </a>
   <a href="https://github.com/iam-sandipmaity/video-downloader/releases">
     <img alt="Release" src="https://img.shields.io/github/v/release/iam-sandipmaity/video-downloader?include_prereleases&label=release" />
@@ -55,13 +55,13 @@
 > Nightly builds are unstable and may contain bugs. Use at your own risk.
 
 <p align="center">
-  <a href="https://github.com/iam-sandipmaity/video-downloader/releases/tag/nightly">
-    <img src="https://raw.githubusercontent.com/rubenpgrady/get-it-on-github/refs/heads/main/get-it-on-github.png" alt="Get nightly prerelease on GitHub" width="250" />
+  <a href="https://nightly.link/iam-sandipmaity/video-downloader/workflows/master.yml/main/nightly-debug-apk.zip">
+    <img src="https://raw.githubusercontent.com/rubenpgrady/get-it-on-github/refs/heads/main/get-it-on-github.png" alt="Get latest nightly debug build" width="250" />
   </a>
 </p>
 
 <p align="center">
-  <strong>Latest nightly prerelease</strong> - published from the dedicated nightly release workflow
+  <strong>Latest nightly debug build artifact</strong> - always points to the newest successful <code>main</code> build
 </p>
 
 ### Requirements
