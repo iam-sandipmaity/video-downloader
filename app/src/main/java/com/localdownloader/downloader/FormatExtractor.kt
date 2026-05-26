@@ -855,7 +855,7 @@ internal fun buildAnalyzeArgsForRequest(
     cookiesPath: String?,
     userAgent: String?,
     capturedInfoJsonPath: String?,
-    loadInfoJsonPath: String?,
+    loadInfoJsonPath: String? = null,
     tempDirPath: String,
     socketTimeoutSeconds: Int = DEFAULT_ANALYZE_SOCKET_TIMEOUT_SECONDS,
     useLineJsonMode: Boolean,
