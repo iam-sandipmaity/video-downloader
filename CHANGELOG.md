@@ -9,12 +9,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ## [1.7.2.6] - 2026-05-27
 
 ### Fixed
-- **YouTube analysis hang recovery** - pasted YouTube links now time out stalled yt-dlp analyze attempts, fall through to safer extractor candidates, and stop leaving the app stuck on endless `Analyzing`
-- **YouTube playlist discovery** - playlist URLs now use a dedicated flat-playlist analyze path so item lists load faster and avoid the previous full deep-analysis bottleneck before queueing
+- **Cross-site analysis hang recovery** - stalled yt-dlp analyze attempts now time out cleanly, fall through to safer extractor candidates, and stop leaving pasted links stuck on endless `Analyzing`
+- **Playlist loading bottlenecks** - YouTube and other supported playlist-style links now use a lighter discovery path so large collections no longer deep-analyze every item before the list appears
+- **YouTube format noise** - storyboard and `mhtml` pseudo-formats are filtered out so the picker stops surfacing junk low-value entries instead of real download choices
+- **History cache growth** - analyzed link history now rotates automatically once it grows past `5 MB`, keeps timestamped backups, and prunes history backups down to the newest `3`
+- **Log archive sprawl** - archived app, crash, and device log backups are now automatically pruned so only the newest `3` history files are retained
 
 ### Changed
-- **Faster YouTube analysis routing** - normal YouTube links now force single-video analysis, prefer explicit Android-safe extractor clients first, and stop wasting time on playlist-style discovery for plain video URLs
-- **Workflow controller defaults** - the shared `master.yml` flags now keep the Android build job enabled while leaving stable `Release Main` and `Release Tag` automation disabled until you intentionally switch them on
+- **Faster link analysis routing** - normal YouTube links now force single-video analysis, reuse captured `info.json` metadata more aggressively, and avoid wasting time on playlist-style discovery for plain video URLs
+- **Safer playlist entry resolution** - playlist items now resolve relative entry URLs more reliably before later analysis or queueing tries to open them
 
 ### Technical
 - **App version bump** - release metadata updated to `1.7.2.6`
