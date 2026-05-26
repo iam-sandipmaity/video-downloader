@@ -1,9 +1,6 @@
 name: Cleanup Artifacts
 
 on:
-  schedule:
-    # Run every day at 3:00 AM UTC
-    - cron: '0 3 * * *'
   workflow_dispatch:
     inputs:
       days:
@@ -13,6 +10,7 @@ on:
 
 jobs:
   cleanup:
+    if: ${{ false }} # Disabled
     runs-on: ubuntu-latest
     permissions:
       actions: write
