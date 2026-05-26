@@ -1,16 +1,16 @@
 name: Cleanup Artifacts
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       days:
-        description: 'Delete artifacts older than X days (default: 2)'
+        description: Delete artifacts older than X days
         required: false
-        default: '2'
+        type: string
+        default: "2"
 
 jobs:
   cleanup:
-    if: ${{ false }} # Disabled
     runs-on: ubuntu-latest
     permissions:
       actions: write
@@ -21,7 +21,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
-            const days = Number.parseInt('${{ github.event.inputs.days || 2 }}', 10);
+            const days = Number.parseInt('${{ inputs.days }}', 10);
             if (!Number.isFinite(days) || days < 0) {
               core.setFailed(`Invalid retention days value: ${days}`);
               return;

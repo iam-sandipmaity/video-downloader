@@ -13,8 +13,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/iam-sandipmaity/video-downloader/actions/workflows/android-build.yml">
-    <img alt="Build" src="https://img.shields.io/github/actions/workflow/status/iam-sandipmaity/video-downloader/android-build.yml?label=build&logo=github" />
+  <a href="https://github.com/iam-sandipmaity/video-downloader/actions/workflows/master.yml">
+    <img alt="CI" src="https://img.shields.io/github/actions/workflow/status/iam-sandipmaity/video-downloader/master.yml?label=ci&logo=github" />
   </a>
   <a href="https://github.com/iam-sandipmaity/video-downloader/releases">
     <img alt="Release" src="https://img.shields.io/github/v/release/iam-sandipmaity/video-downloader?include_prereleases&label=release" />

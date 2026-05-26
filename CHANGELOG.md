@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
+### Changed
+- **Master workflow controller** - GitHub Actions now route build, nightly, release, and cleanup behavior through one `master.yml` controller workflow so toggles can be changed in one place
+
 ## [1.7.2.5] - 2026-05-26
 
 ### Added

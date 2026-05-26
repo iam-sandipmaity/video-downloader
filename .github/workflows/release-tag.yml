@@ -1,11 +1,10 @@
 name: Release Tag
 
 on:
-  workflow_dispatch:
+  workflow_call:
 
 jobs:
   release-tag:
-    if: ${{ false }} # Disabled
     runs-on: ubuntu-latest
     permissions:
       contents: write

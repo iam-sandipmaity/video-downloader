@@ -1,11 +1,10 @@
 name: Release Main
 
 on:
-  workflow_dispatch:
+  workflow_call:
 
 jobs:
   release-main:
-    if: ${{ false }} # Disabled
     runs-on: ubuntu-latest
     concurrency:
       group: release-main-${{ github.ref_name }}
