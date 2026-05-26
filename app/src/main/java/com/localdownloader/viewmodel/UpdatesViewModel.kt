@@ -13,11 +13,14 @@ import com.localdownloader.updates.UpdatePreferences
 import com.localdownloader.updates.UpdatePreferencesStore
 import com.localdownloader.updates.YtDlpReleaseChannel
 import com.localdownloader.updates.YtDlpUpdateManager
+import com.localdownloader.updates.compareLooseVersions
+import com.localdownloader.updates.normalizeComparableYtDlpVersion
 import com.localdownloader.worker.YtDlpUpdateScheduler
 import com.localdownloader.worker.YtDlpUpdateStateStore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 @HiltViewModel
@@ -34,6 +37,7 @@ class UpdatesViewModel @Inject constructor(
     val uiState = _uiState.asStateFlow()
 
     private var initialized = false
+    private var startupPromptChecked = false
 
     fun initialize() {
         val preferences = updatePreferencesStore.currentPreferences()
@@ -45,6 +49,65 @@ class UpdatesViewModel @Inject constructor(
             initialized = true
         }
         refreshAll()
+    }
+
+    fun checkStartupYtDlpPrompt(force: Boolean = false) {
+        if (startupPromptChecked && !force) return
+        startupPromptChecked = true
+
+        viewModelScope.launch {
+            val preferences = updatePreferencesStore.currentPreferences()
+            _uiState.value = _uiState.value.copy(
+                preferences = preferences,
+                app = _uiState.value.app.copy(currentVersion = appUpdateManager.currentVersionLabel()),
+            )
+
+            if (preferences.autoUpdateYtDlp) {
+                _uiState.value = _uiState.value.copy(startupYtDlpPrompt = null)
+                return@launch
+            }
+
+            val currentVersion = ytDlpUpdateManager.currentVersion()
+            val cache = updatePreferencesStore.ytDlpStartupPromptCache()
+            val nowEpochMs = System.currentTimeMillis()
+            if (cache.checkedAtEpochMs > 0L &&
+                nowEpochMs - cache.checkedAtEpochMs < STARTUP_PROMPT_CHECK_INTERVAL_MS
+            ) {
+                _uiState.value = _uiState.value.copy(
+                    startupYtDlpPrompt = buildStartupPromptIfNeeded(
+                        currentVersion = currentVersion,
+                        latestVersion = cache.latestVersion,
+                        dismissedLatestVersion = cache.dismissedLatestVersion,
+                    ),
+                )
+                return@launch
+            }
+
+            runCatching {
+                ytDlpUpdateManager.check(preferences.ytDlpChannel)
+            }.onSuccess { check ->
+                val latestAvailableVersion = check.latestVersion?.takeIf { check.updateAvailable }
+                updatePreferencesStore.cacheYtDlpStartupPromptCheck(
+                    latestVersion = latestAvailableVersion,
+                    nowEpochMs = nowEpochMs,
+                )
+                _uiState.value = _uiState.value.copy(
+                    startupYtDlpPrompt = buildStartupPromptIfNeeded(
+                        currentVersion = currentVersion,
+                        latestVersion = latestAvailableVersion,
+                        dismissedLatestVersion = cache.dismissedLatestVersion,
+                    ),
+                )
+            }.onFailure {
+                _uiState.value = _uiState.value.copy(
+                    startupYtDlpPrompt = buildStartupPromptIfNeeded(
+                        currentVersion = currentVersion,
+                        latestVersion = cache.latestVersion,
+                        dismissedLatestVersion = cache.dismissedLatestVersion,
+                    ),
+                )
+            }
+        }
     }
 
     fun refreshAll() {
@@ -83,6 +146,7 @@ class UpdatesViewModel @Inject constructor(
         if (enabled) {
             ytDlpUpdateScheduler.cancelScheduled()
             ytDlpUpdateScheduler.scheduleIfDue()
+            _uiState.value = _uiState.value.copy(startupYtDlpPrompt = null)
         } else {
             ytDlpUpdateScheduler.cancelScheduled()
         }
@@ -191,6 +255,7 @@ class UpdatesViewModel @Inject constructor(
                 ytDlpUpdateStateStore.markAttemptSucceeded(result.message)
                 _uiState.value = _uiState.value.copy(
                     ytDlp = _uiState.value.ytDlp.copy(isInstalling = false, progressPercent = null),
+                    startupYtDlpPrompt = null,
                     infoMessage = result.message,
                 )
                 refreshYtDlp()
@@ -246,6 +311,12 @@ class UpdatesViewModel @Inject constructor(
 
     fun dismissMessage() {
         _uiState.value = _uiState.value.copy(infoMessage = null, errorMessage = null)
+    }
+
+    fun dismissStartupYtDlpPrompt() {
+        val prompt = _uiState.value.startupYtDlpPrompt
+        updatePreferencesStore.markYtDlpStartupPromptDismissed(prompt?.latestVersion)
+        _uiState.value = _uiState.value.copy(startupYtDlpPrompt = null)
     }
 
     private suspend fun refreshAppInternal() {
@@ -315,6 +386,27 @@ class UpdatesViewModel @Inject constructor(
             task.status.blocksRuntimeUpdates()
         }
     }
+
+    private fun buildStartupPromptIfNeeded(
+        currentVersion: String?,
+        latestVersion: String?,
+        dismissedLatestVersion: String?,
+    ): YtDlpStartupPromptUiState? {
+        val normalizedLatestVersion = latestVersion?.trim()?.takeIf { it.isNotBlank() } ?: return null
+        if (normalizedLatestVersion.equals(dismissedLatestVersion, ignoreCase = true)) return null
+
+        val comparableCurrentVersion = normalizeComparableYtDlpVersion(currentVersion)
+        if (compareLooseVersions(comparableCurrentVersion, normalizedLatestVersion) >= 0) return null
+
+        return YtDlpStartupPromptUiState(
+            currentVersion = currentVersion,
+            latestVersion = normalizedLatestVersion,
+        )
+    }
+
+    private companion object {
+        val STARTUP_PROMPT_CHECK_INTERVAL_MS = TimeUnit.HOURS.toMillis(12)
+    }
 }
 
 data class UpdatesUiState(
@@ -333,8 +425,14 @@ data class UpdatesUiState(
     ),
     val pendingAppInstall: PreparedAppUpdate? = null,
     val pendingAppInstallRequestId: Long = 0L,
+    val startupYtDlpPrompt: YtDlpStartupPromptUiState? = null,
     val infoMessage: String? = null,
     val errorMessage: String? = null,
+)
+
+data class YtDlpStartupPromptUiState(
+    val currentVersion: String?,
+    val latestVersion: String,
 )
 
 data class UpdateSectionUiState(

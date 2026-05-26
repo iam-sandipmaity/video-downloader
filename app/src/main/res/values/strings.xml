@@ -326,9 +326,10 @@
     <string name="queue_recovery_network">This looks like a network timeout or rate-limit problem. Wait a moment, then retry. If it keeps failing on mobile data, Wi-Fi, or VPN, try a different connection.</string>
     <string name="queue_recovery_postprocessing">The media likely downloaded but failed during merge, remux, thumbnail, or subtitle post-processing. Retry once, and export logs if the same FFmpeg-style failure repeats.</string>
     <string name="queue_recovery_runtime">This looks like a runtime initialization or device compatibility problem rather than a normal site failure. Export logs before reporting it so the runtime details are preserved.</string>
-    <string name="queue_recovery_compatibility">The source site or exposed format likely changed. Retry once, then export logs and report it if the same extractor or format error repeats.</string>
-    <string name="queue_recovery_youtube">YouTube failures often improve after adding cookies and refreshing YouTube access from Settings or More.</string>
+    <string name="queue_recovery_compatibility">The source site or exposed format likely changed. Retry once, then check whether yt-dlp has a newer version in Updates. Export logs and report it if the same extractor or format error repeats.</string>
+    <string name="queue_recovery_youtube">YouTube failures often improve after adding cookies, refreshing YouTube access, and checking yt-dlp updates from Updates.</string>
     <string name="queue_recovery_default">If this download failed after redirects, rate limits, or protected access, try cookies first. If it still fails, export the logs and report the issue.</string>
+    <string name="queue_check_ytdlp_update">Check yt-dlp update</string>
 
     <string name="history_title">History</string>
     <string name="history_actions">History actions</string>
@@ -405,6 +406,11 @@
     <string name="updates_ytdlp_auto_subtitle_repo_safe">This build starts in manual mode. Turn this on only if you want background yt-dlp checks from the selected source.</string>
     <string name="updates_ytdlp_changelog_subtitle_fallback">Open the documentation-style changelog page for yt-dlp.</string>
     <string name="updates_ytdlp_changelog_subtitle_ready">Read what changed in the latest yt-dlp release.</string>
+    <string name="updates_ytdlp_startup_prompt_title">A newer yt-dlp version is available</string>
+    <string name="updates_ytdlp_startup_prompt_message_versions">Your app is using yt-dlp %1$s, and version %2$s is available. Updating can improve analysis and downloads when site extractors change.</string>
+    <string name="updates_ytdlp_startup_prompt_message_latest_only">A newer yt-dlp version (%1$s) is available. Updating can improve analysis and downloads when site extractors change.</string>
+    <string name="updates_ytdlp_startup_prompt_open">Open Updates</string>
+    <string name="updates_ytdlp_startup_prompt_later">Later</string>
     <string name="updates_ffmpeg_current_subtitle">The FFmpeg runtime currently resolving for merges and media processing.</string>
     <string name="updates_ffmpeg_changelog_subtitle_fallback">Open the documentation-style changelog page for FFmpeg.</string>
     <string name="updates_ffmpeg_changelog_subtitle_ready">Read what changed in the latest FFmpeg runtime package.</string>

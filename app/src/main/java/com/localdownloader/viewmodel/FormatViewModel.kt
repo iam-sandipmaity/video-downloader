@@ -305,6 +305,9 @@ class FormatViewModel @Inject constructor(
                                 if (shouldShowRuntimeHint(baseMessage)) {
                                     append(" Ensure yt-dlp runtime is initialized and this device ABI is supported.")
                                 }
+                                if (shouldSuggestYtDlpUpdate(baseMessage)) {
+                                    append(" If this site changed recently, open Updates and check whether yt-dlp has a newer version.")
+                                }
                             },
                             restoringReadyItemUrl = null,
                         )
@@ -2398,6 +2401,21 @@ class FormatViewModel @Inject constructor(
             normalized.contains("exec format") ||
             normalized.contains("libpython") ||
             normalized.contains("not initialized")
+    }
+
+    private fun shouldSuggestYtDlpUpdate(message: String): Boolean {
+        val normalized = message.lowercase()
+        return normalized.contains("unable to extract") ||
+            normalized.contains("unsupported url") ||
+            normalized.contains("requested format is not available") ||
+            normalized.contains("format is not available") ||
+            normalized.contains("extractor") ||
+            normalized.contains("video unavailable") ||
+            normalized.contains("no video formats") ||
+            normalized.contains("sign in") ||
+            normalized.contains("confirm you're not a bot") ||
+            normalized.contains("po token") ||
+            normalized.contains("visitor data")
     }
 
     private fun buildReadyRecord(info: VideoInfo): AnalyzedLinkRecord {

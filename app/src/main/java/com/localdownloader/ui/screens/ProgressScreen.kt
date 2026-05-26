@@ -102,6 +102,7 @@ fun ProgressScreen(
     onCancelTasks: (List<String>) -> Unit,
     onOpenCookies: () -> Unit,
     onOpenYoutubeAccess: () -> Unit,
+    onOpenUpdates: () -> Unit,
     onToggleDebug: (String) -> Unit,
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
@@ -329,6 +330,7 @@ fun ProgressScreen(
                                 onCancel = onCancel,
                                 onOpenCookies = onOpenCookies,
                                 onOpenYoutubeAccess = onOpenYoutubeAccess,
+                                onOpenUpdates = onOpenUpdates,
                                 expandedDebug = task.id in uiState.expandedDebugTaskIds,
                                 onToggleDebug = { onToggleDebug(task.id) },
                             )
@@ -342,6 +344,7 @@ fun ProgressScreen(
                                 onCancel = onCancel,
                                 onOpenCookies = onOpenCookies,
                                 onOpenYoutubeAccess = onOpenYoutubeAccess,
+                                onOpenUpdates = onOpenUpdates,
                                 expandedDebug = task.id in uiState.expandedDebugTaskIds,
                                 onToggleDebug = { onToggleDebug(task.id) },
                             )
@@ -458,6 +461,7 @@ fun ProgressScreen(
                         onCancel = onCancel,
                         onOpenCookies = onOpenCookies,
                         onOpenYoutubeAccess = onOpenYoutubeAccess,
+                        onOpenUpdates = onOpenUpdates,
                         expandedDebug = task.id in uiState.expandedDebugTaskIds,
                         onToggleDebug = { onToggleDebug(task.id) },
                     )
@@ -642,6 +646,7 @@ private fun QueueTaskRow(
     onCancel: (String) -> Unit,
     onOpenCookies: () -> Unit,
     onOpenYoutubeAccess: () -> Unit,
+    onOpenUpdates: () -> Unit,
     expandedDebug: Boolean,
     onToggleDebug: () -> Unit,
     modifier: Modifier = Modifier,
@@ -655,6 +660,7 @@ private fun QueueTaskRow(
         onCancel = onCancel,
         onOpenCookies = onOpenCookies,
         onOpenYoutubeAccess = onOpenYoutubeAccess,
+        onOpenUpdates = onOpenUpdates,
         expandedDebug = expandedDebug,
         onToggleDebug = onToggleDebug,
         modifier = modifier,
@@ -781,6 +787,7 @@ private fun ProgressTaskCard(
     onCancel: (String) -> Unit,
     onOpenCookies: () -> Unit,
     onOpenYoutubeAccess: () -> Unit,
+    onOpenUpdates: () -> Unit,
     expandedDebug: Boolean,
     onToggleDebug: () -> Unit,
     modifier: Modifier = Modifier,
@@ -794,6 +801,7 @@ private fun ProgressTaskCard(
         onCancel = onCancel,
         onOpenCookies = onOpenCookies,
         onOpenYoutubeAccess = onOpenYoutubeAccess,
+        onOpenUpdates = onOpenUpdates,
         expandedDebug = expandedDebug,
         onToggleDebug = onToggleDebug,
         modifier = modifier,
@@ -817,6 +825,7 @@ private fun DownloadTaskHeroCard(
     onCancel: (String) -> Unit,
     onOpenCookies: () -> Unit,
     onOpenYoutubeAccess: () -> Unit,
+    onOpenUpdates: () -> Unit,
     expandedDebug: Boolean,
     onToggleDebug: () -> Unit,
     modifier: Modifier = Modifier,
@@ -1096,6 +1105,7 @@ private fun DownloadTaskHeroCard(
                             },
                             onOpenCookies = onOpenCookies,
                             onOpenYoutubeAccess = onOpenYoutubeAccess,
+                            onOpenUpdates = onOpenUpdates,
                             onExportLogs = { shareAppLogs(context, task, isStuck) },
                             onReportIssue = { openSupportIssue(context, task, isStuck) },
                         )
@@ -1204,6 +1214,7 @@ private fun RecoveryHelperCard(
     onRetry: (() -> Unit)?,
     onOpenCookies: () -> Unit,
     onOpenYoutubeAccess: () -> Unit,
+    onOpenUpdates: () -> Unit,
     onExportLogs: () -> Unit,
     onReportIssue: () -> Unit,
 ) {
@@ -1281,6 +1292,12 @@ private fun RecoveryHelperCard(
         RecoveryCategory.EXTRACTOR_OR_FORMAT,
         RecoveryCategory.UNKNOWN,
     )
+    val showYtDlpUpdateAction = diagnosis in setOf(
+        RecoveryCategory.STUCK_YOUTUBE,
+        RecoveryCategory.YOUTUBE_ACCESS,
+        RecoveryCategory.EXTRACTOR_OR_FORMAT,
+        RecoveryCategory.UNKNOWN,
+    )
 
     Column(
         modifier = Modifier
@@ -1321,7 +1338,7 @@ private fun RecoveryHelperCard(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-        if (onRetry != null || showCookiesAction || showYoutubeAccessAction) {
+        if (onRetry != null || showCookiesAction || showYoutubeAccessAction || showYtDlpUpdateAction) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1344,6 +1361,12 @@ private fun RecoveryHelperCard(
                     RecoveryActionChip(
                         label = stringResource(R.string.queue_po_generation),
                         onClick = onOpenYoutubeAccess,
+                    )
+                }
+                if (showYtDlpUpdateAction) {
+                    RecoveryActionChip(
+                        label = stringResource(R.string.queue_check_ytdlp_update),
+                        onClick = onOpenUpdates,
                     )
                 }
             }

@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.MoreHoriz
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -21,6 +22,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -233,6 +235,10 @@ fun DownloaderApp(
         onLanguageUpdated?.invoke(formatState.languageTag)
     }
 
+    LaunchedEffect(Unit) {
+        updatesViewModel.checkStartupYtDlpPrompt()
+    }
+
     LaunchedEffect(externalOpenRequest) {
         if (externalOpenRequest != null) {
             activeExternalOpenRequest = externalOpenRequest
@@ -333,6 +339,47 @@ fun DownloaderApp(
     }
 
     val showBottomBar = currentRoute in primaryDestinations.map { it.route }
+    val startupYtDlpPrompt = updatesState.startupYtDlpPrompt
+
+    if (startupYtDlpPrompt != null && currentRoute != Routes.Updates) {
+        AlertDialog(
+            onDismissRequest = updatesViewModel::dismissStartupYtDlpPrompt,
+            title = { Text(stringResource(R.string.updates_ytdlp_startup_prompt_title)) },
+            text = {
+                Text(
+                    text = if (!startupYtDlpPrompt.currentVersion.isNullOrBlank()) {
+                        stringResource(
+                            R.string.updates_ytdlp_startup_prompt_message_versions,
+                            startupYtDlpPrompt.currentVersion,
+                            startupYtDlpPrompt.latestVersion,
+                        )
+                    } else {
+                        stringResource(
+                            R.string.updates_ytdlp_startup_prompt_message_latest_only,
+                            startupYtDlpPrompt.latestVersion,
+                        )
+                    },
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        updatesViewModel.dismissStartupYtDlpPrompt()
+                        navController.navigate(Routes.Updates) {
+                            launchSingleTop = true
+                        }
+                    },
+                ) {
+                    Text(stringResource(R.string.updates_ytdlp_startup_prompt_open))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = updatesViewModel::dismissStartupYtDlpPrompt) {
+                    Text(stringResource(R.string.updates_ytdlp_startup_prompt_later))
+                }
+            },
+        )
+    }
 
     Scaffold(
         modifier = modifier,
@@ -504,6 +551,7 @@ fun DownloaderApp(
                     onCancelTasks = downloadViewModel::cancelTasks,
                     onOpenCookies = { navController.navigate(Routes.Cookies) },
                     onOpenYoutubeAccess = { navController.navigate(Routes.YoutubeAuth) },
+                    onOpenUpdates = { navController.navigate(Routes.Updates) },
                     onToggleDebug = downloadViewModel::toggleDebug,
                     onBack = { navController.popBackStack() },
                 )
