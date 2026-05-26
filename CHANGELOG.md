@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
+## [1.7.2.6] - 2026-05-27
+
+### Fixed
+- **YouTube analysis hang recovery** - pasted YouTube links now time out stalled yt-dlp analyze attempts, fall through to safer extractor candidates, and stop leaving the app stuck on endless `Analyzing`
+- **YouTube playlist discovery** - playlist URLs now use a dedicated flat-playlist analyze path so item lists load faster and avoid the previous full deep-analysis bottleneck before queueing
+
+### Changed
+- **Faster YouTube analysis routing** - normal YouTube links now force single-video analysis, prefer explicit Android-safe extractor clients first, and stop wasting time on playlist-style discovery for plain video URLs
+- **Workflow controller defaults** - the shared `master.yml` flags now keep the Android build job enabled while leaving stable `Release Main` and `Release Tag` automation disabled until you intentionally switch them on
+
+### Technical
+- **App version bump** - release metadata updated to `1.7.2.6`
+
 ## [1.7.2.5] - 2026-05-26
 
 ### Added

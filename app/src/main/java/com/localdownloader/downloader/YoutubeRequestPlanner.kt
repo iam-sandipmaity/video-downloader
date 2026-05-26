@@ -9,14 +9,15 @@ object YoutubeRequestPlanner {
 
     fun analyzeCandidates(cookiesAvailable: Boolean): List<String?> {
         val candidates = buildList {
-            add(null)
-            add(buildExtractorArgs(clientSpec = "default,android"))
-            add(buildExtractorArgs(clientSpec = "tv,android"))
+            // Prefer explicit YouTube client routing first; the generic default path can stall.
+            add(buildExtractorArgs(clientSpec = "default,android", includePlayerSkip = true))
+            add(buildExtractorArgs(clientSpec = "tv,android", includePlayerSkip = true))
             if (cookiesAvailable) {
                 add(buildExtractorArgs(clientSpec = "default,mweb,web,android,tv", includePlayerSkip = true))
                 add(buildExtractorArgs(clientSpec = "default,mweb", includePlayerSkip = true))
                 add(buildExtractorArgs(clientSpec = "default,web", includePlayerSkip = true))
             }
+            add(null)
         }
         return candidates.distinct()
     }

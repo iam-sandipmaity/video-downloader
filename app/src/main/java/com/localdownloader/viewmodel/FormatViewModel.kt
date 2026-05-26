@@ -284,7 +284,11 @@ class FormatViewModel @Inject constructor(
                                 when {
                                     info.isPlaylist -> {
                                         val itemCount = info.playlistCount ?: info.playlistEntries.size
-                                        "Playlist ready: $itemCount items will queue one by one."
+                                        if (info.formats.isEmpty()) {
+                                            "Playlist ready: $itemCount items found. Formats will resolve automatically when you queue selected items."
+                                        } else {
+                                            "Playlist ready: $itemCount items will queue one by one."
+                                        }
                                     }
                                     else -> "Found ${info.formats.size} formats."
                                 },

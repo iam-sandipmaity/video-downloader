@@ -26,6 +26,7 @@ class YtDlpExecutor @Inject constructor(
         logOutputLines: Boolean = false,
         onStdoutLine: ((String) -> Unit)? = null,
         onStderrLine: ((String) -> Unit)? = null,
+        timeoutMs: Long? = null,
     ): CommandResult {
         ensureRuntimeInitialized()
 
@@ -47,6 +48,7 @@ class YtDlpExecutor @Inject constructor(
             logOutputLines = logOutputLines,
             onStdoutLine = onStdoutLine,
             onStderrLine = onStderrLine,
+            timeoutMs = timeoutMs,
         )
     }
 
@@ -56,6 +58,7 @@ class YtDlpExecutor @Inject constructor(
         logOutputLines: Boolean,
         onStdoutLine: ((String) -> Unit)?,
         onStderrLine: ((String) -> Unit)?,
+        timeoutMs: Long?,
     ): CommandResult {
         return withContext(Dispatchers.IO) {
             val startMs = System.currentTimeMillis()
@@ -74,6 +77,7 @@ class YtDlpExecutor @Inject constructor(
                     }
                     onStderrLine?.invoke(line)
                 },
+                timeoutMs = timeoutMs,
             )
             logger.i(
                 "YtDlpExecutor",
