@@ -84,12 +84,6 @@ jobs:
           fi
           mv "$APK_SOURCE" "$APK_DIR/video-downloader-v${VERSION}-nightly-debug.apk"
 
-      - name: Upload nightly debug APK artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: video-downloader-v${{ steps.version.outputs.version_name }}-nightly-debug
-          path: app/build/outputs/apk/standard/debug/video-downloader-*.apk
-
       - name: Refresh nightly tag
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         run: |
