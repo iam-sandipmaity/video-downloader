@@ -36,6 +36,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -866,46 +867,47 @@ private fun BoxScope.SwipeAdjustmentHud(
     overlay: SwipeAdjustmentOverlay,
 ) {
     val alignment = if (overlay.type == SwipeAdjustmentType.BRIGHTNESS) {
-        Alignment.CenterStart
-    } else {
         Alignment.CenterEnd
+    } else {
+        Alignment.CenterStart
     }
     Surface(
         modifier = Modifier
             .align(alignment)
-            .padding(horizontal = 20.dp),
-        color = Color.Black.copy(alpha = 0.72f),
-        shape = RoundedCornerShape(28.dp),
+            .padding(horizontal = 22.dp),
+        color = Color.Black.copy(alpha = 0.54f),
+        shape = RoundedCornerShape(24.dp),
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 18.dp),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(
                 text = overlay.type.label,
                 style = MaterialTheme.typography.labelLarge,
-                color = Color.White.copy(alpha = 0.82f),
+                color = Color.White.copy(alpha = 0.68f),
             )
             Box(
                 modifier = Modifier
-                    .size(width = 16.dp, height = 132.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.16f)),
+                    .size(width = 12.dp, height = 118.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(Color.White.copy(alpha = 0.10f)),
             ) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
                         .fillMaxHeight(fraction = overlay.level.coerceIn(0f, 1f))
-                        .background(Color.White),
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(Color.White.copy(alpha = 0.82f)),
                 )
             }
             Text(
                 text = "${overlay.percentText}%",
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold,
-                color = Color.White,
+                color = Color.White.copy(alpha = 0.9f),
             )
         }
     }
@@ -1093,8 +1095,9 @@ private fun BoxScope.PlayerChrome(
                             color = Color.White,
                             modifier = Modifier.padding(end = 8.dp),
                         )
+                        Spacer(modifier = Modifier.weight(1f))
                         DockStrip(
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier,
                             activePanel = activePanel,
                             audioLabel = selectedAudioLabel,
                             subtitleLabel = selectedSubtitleLabel,
@@ -1282,8 +1285,8 @@ private fun DockStrip(
     onPictureInPictureClick: () -> Unit,
 ) {
     Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterHorizontally),
+        modifier = modifier.wrapContentWidth(),
+        horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         DockButton(
