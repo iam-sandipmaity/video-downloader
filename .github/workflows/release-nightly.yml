@@ -1,14 +1,11 @@
 name: Release Nightly
 
 on:
-  push:
-    branches: ["main"]
-  pull_request:
-    branches: ["main"]
   workflow_dispatch:
 
 jobs:
   release-nightly:
+    if: ${{ false }} # Disabled
     runs-on: ubuntu-latest
     concurrency:
       group: release-nightly-${{ github.ref }}

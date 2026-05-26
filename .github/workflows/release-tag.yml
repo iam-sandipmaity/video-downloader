@@ -1,12 +1,11 @@
 name: Release Tag
 
 on:
-  push:
-    tags: ["v*"]
+  workflow_dispatch:
 
 jobs:
   release-tag:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: ${{ false }} # Disabled
     runs-on: ubuntu-latest
     permissions:
       contents: write

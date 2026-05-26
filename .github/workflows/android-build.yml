@@ -1,13 +1,11 @@
 name: Build
 
 on:
-  push:
-    branches: ["**"]
-  pull_request:
   workflow_dispatch:
 
 jobs:
   build:
+    if: ${{ false }} # Disabled
     runs-on: ubuntu-latest
     permissions:
       contents: read

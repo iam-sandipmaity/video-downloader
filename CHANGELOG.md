@@ -6,10 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
+## [1.7.2.4] - 2026-05-26
+
 ### Changed
 - **Wrapper-first builds** - local docs and GitHub Actions now use the checked-in Gradle wrapper instead of assuming a globally installed `gradle` binary
 - **Split Android workflows** - CI build, nightly publishing, main release, and tag release now live in separate GitHub Actions files so release behavior is easier to reason about and adjust independently
 - **PR-visible nightly artifacts** - nightly now runs for pull requests targeting `main`, uploads a debug APK artifact for review builds, and only refreshes the public `nightly` prerelease when running from `main`
+- **Safer runtime update blocking** - yt-dlp updates now wait for queued, running, or paused downloads across both manual installs and background auto-update work so runtime replacement does not race active queue state
 
 ### Fixed
 - **CI verification coverage** - the Android workflow now blocks on explicit Kotlin compile and unit test checks for the standard debug variant before publishing artifacts
@@ -32,13 +35,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - **Tagged release validation** - version tags now fail fast when `github.ref_name` does not match `APP_VERSION_NAME`
 - **Artifact cleanup pagination** - scheduled cleanup now paginates through the full artifact list instead of only deleting from the first page
 - **Cookie export feedback** - exporting cookies to a file now surfaces success and real write failures instead of failing silently when the destination stream cannot be opened
-
-## [1.7.2.4] - 2026-05-25
-
-### Changed
-- **Safer runtime update blocking** - yt-dlp updates now wait for queued, running, or paused downloads across both manual installs and background auto-update work so runtime replacement does not race active queue state
-
-### Fixed
 - **Paused-download cleanup scope** - expired paused downloads now clean up only the app-managed artifacts for that task instead of overmatching similarly named sibling files in the same folder
 - **Public export write safety** - Android 10+ public-download export now treats MediaStore stream-open failures as real failures, cleans up partial inserts, and keeps the private staging copy unless the public write actually succeeds
 - **Large analyze memory pressure** - link analysis now prefers the captured info-json snapshot and caps retained stdout text so huge playlist or site responses are less likely to inflate memory usage

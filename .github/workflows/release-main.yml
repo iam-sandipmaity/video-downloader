@@ -5,7 +5,7 @@ on:
 
 jobs:
   release-main:
-    if: github.ref == 'refs/heads/main'
+    if: ${{ false }} # Disabled
     runs-on: ubuntu-latest
     concurrency:
       group: release-main-${{ github.ref_name }}

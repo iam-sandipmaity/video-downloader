@@ -16,6 +16,15 @@
   <a href="https://github.com/iam-sandipmaity/video-downloader/actions/workflows/android-build.yml">
     <img alt="Build" src="https://img.shields.io/github/actions/workflow/status/iam-sandipmaity/video-downloader/android-build.yml?label=build&logo=github" />
   </a>
+  <a href="https://github.com/iam-sandipmaity/video-downloader/releases">
+    <img alt="Release" src="https://img.shields.io/github/v/release/iam-sandipmaity/video-downloader?include_prereleases&label=release" />
+  </a>
+  <a href="https://github.com/iam-sandipmaity/video-downloader/releases">
+    <img alt="Downloads" src="https://img.shields.io/github/downloads/iam-sandipmaity/video-downloader/total?label=downloads" />
+  </a>
+  <a href="https://video.sandipmaity.me">
+    <img alt="Website" src="https://img.shields.io/badge/website-video.sandipmaity.me-orange" />
+  </a>
   <a href="COMPATIBILITY.md">
     <img alt="Platform" src="https://img.shields.io/badge/platform-Android%208%2B-3DDC84?logo=android&logoColor=white" />
   </a>
@@ -259,6 +268,10 @@ app/build/outputs/apk/repoSafe/debug/app-repoSafe-debug.apk
 - [PROJECT_AUDIT.md](PROJECT_AUDIT.md)
 - [future-plan.md](future-plan.md)
 
+## Donate
+
+If this project helps you, you can support ongoing development on [Razorpay](https://razorpay.me/@maitysandip).
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
@@ -277,8 +290,8 @@ The in-app About section also lists upstream credits and linked sources.
 
 ## Star History
 
-<a href="https://www.star-history.com/?repos=iam-sandipmaity%2Fvideo-downloader&type=date&legend=top-left">
- <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=iam-sandipmaity/video-downloader&type=date&legend=top-left" />
+<a href="https://www.star-history.com/#iam-sandipmaity/video-downloader&Timeline">
+ <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=iam-sandipmaity/video-downloader&type=timeline&legend=top-left" />
 </a>
 
 ## Contributors
