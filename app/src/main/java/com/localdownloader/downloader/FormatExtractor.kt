@@ -612,12 +612,18 @@ class FormatExtractor @Inject constructor(
             val scheme = if (playlistSourceUrl.startsWith("http://")) "http" else "https"
             return "$scheme:$candidate"
         }
-        if (!candidate.startsWith("/") && !candidate.contains('/') && !candidate.contains('?')) {
+        if (looksLikeYoutubeUrl(playlistSourceUrl) &&
+            !candidate.startsWith("/") &&
+            !candidate.contains('/') &&
+            !candidate.contains('?')
+        ) {
             return null
         }
         return runCatching {
             URI(playlistSourceUrl).resolve(candidate).toString()
-        }.getOrNull()
+        }.getOrNull()?.takeIf { resolved ->
+            resolved.startsWith("https://") || resolved.startsWith("http://")
+        }
     }
 
     private fun persistInfoJsonSnapshot(
@@ -937,7 +943,7 @@ internal fun shouldUseFastPlaylistAnalyze(url: String): Boolean {
 }
 
 internal fun shouldForceNoPlaylistAnalyze(url: String): Boolean {
-    return !shouldUseFastPlaylistAnalyze(url)
+    return looksLikeYoutubeUrl(url) && !isLikelyYoutubePlaylistUrl(url)
 }
 
 internal fun extractYoutubePlaylistId(url: String): String? {
