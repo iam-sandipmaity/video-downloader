@@ -9,15 +9,15 @@ object YoutubeRequestPlanner {
 
     fun analyzeCandidates(cookiesAvailable: Boolean): List<String?> {
         val candidates = buildList {
-            // Prefer explicit YouTube client routing first; the generic default path can stall.
+            add(null)
+            // Stay close to stock yt-dlp first, then try web clients that usually expose adaptive formats.
+            add(buildExtractorArgs(clientSpec = "default,mweb"))
+            add(buildExtractorArgs(clientSpec = "default,web"))
             add(buildExtractorArgs(clientSpec = "default,android", includePlayerSkip = true))
             add(buildExtractorArgs(clientSpec = "tv,android", includePlayerSkip = true))
             if (cookiesAvailable) {
                 add(buildExtractorArgs(clientSpec = "default,mweb,web,android,tv", includePlayerSkip = true))
-                add(buildExtractorArgs(clientSpec = "default,mweb", includePlayerSkip = true))
-                add(buildExtractorArgs(clientSpec = "default,web", includePlayerSkip = true))
             }
-            add(null)
         }
         return candidates.distinct()
     }

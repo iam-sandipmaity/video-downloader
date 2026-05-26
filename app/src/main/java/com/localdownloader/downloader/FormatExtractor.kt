@@ -8,6 +8,7 @@ import com.localdownloader.utils.Logger
 import com.localdownloader.utils.SensitiveDataSanitizer
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
+import java.net.URI
 import java.util.zip.CRC32
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -223,6 +224,10 @@ class FormatExtractor @Inject constructor(
         userAgent: String?,
         requestMode: AnalyzeRequestMode,
     ): AnalyzeAttempt {
+        val cachedInfoJsonPath = when (requestMode) {
+            AnalyzeRequestMode.STANDARD -> resolveRecentInfoJsonSnapshotPath(url)
+            AnalyzeRequestMode.YOUTUBE_PLAYLIST_FAST -> null
+        }
         val capturedInfoJsonFile = when (requestMode) {
             AnalyzeRequestMode.STANDARD -> createAnalyzeCaptureFile(url = url, extractorArgs = extractorArgs)
             AnalyzeRequestMode.YOUTUBE_PLAYLIST_FAST -> null
@@ -233,6 +238,7 @@ class FormatExtractor @Inject constructor(
             cookiesPath = cookiesPath,
             userAgent = userAgent,
             capturedInfoJsonFile = capturedInfoJsonFile,
+            loadInfoJsonPath = cachedInfoJsonPath,
             socketTimeoutSeconds = DEFAULT_ANALYZE_SOCKET_TIMEOUT_SECONDS,
             useLineJsonMode = false,
             requestMode = requestMode,
@@ -252,6 +258,7 @@ class FormatExtractor @Inject constructor(
                 cookiesPath = cookiesPath,
                 userAgent = userAgent,
                 capturedInfoJsonFile = capturedInfoJsonFile,
+                loadInfoJsonPath = cachedInfoJsonPath,
                 socketTimeoutSeconds = DEFAULT_ANALYZE_SOCKET_TIMEOUT_SECONDS,
                 useLineJsonMode = true,
                 requestMode = requestMode,
@@ -275,6 +282,7 @@ class FormatExtractor @Inject constructor(
                 cookiesPath = cookiesPath,
                 userAgent = userAgent,
                 capturedInfoJsonFile = capturedInfoJsonFile,
+                loadInfoJsonPath = cachedInfoJsonPath,
                 socketTimeoutSeconds = EXTENDED_ANALYZE_SOCKET_TIMEOUT_SECONDS,
                 useLineJsonMode = false,
                 requestMode = requestMode,
@@ -289,6 +297,7 @@ class FormatExtractor @Inject constructor(
                 cookiesPath = cookiesPath,
                 userAgent = userAgent,
                 capturedInfoJsonFile = capturedInfoJsonFile,
+                loadInfoJsonPath = cachedInfoJsonPath,
                 socketTimeoutSeconds = EXTENDED_ANALYZE_SOCKET_TIMEOUT_SECONDS,
                 useLineJsonMode = true,
                 requestMode = requestMode,
@@ -314,6 +323,7 @@ class FormatExtractor @Inject constructor(
         cookiesPath: String?,
         userAgent: String?,
         capturedInfoJsonFile: File?,
+        loadInfoJsonPath: String?,
         socketTimeoutSeconds: Int,
         useLineJsonMode: Boolean,
         requestMode: AnalyzeRequestMode,
@@ -324,6 +334,7 @@ class FormatExtractor @Inject constructor(
             cookiesPath = cookiesPath,
             userAgent = userAgent,
             capturedInfoJsonFile = capturedInfoJsonFile,
+            loadInfoJsonPath = loadInfoJsonPath,
             socketTimeoutSeconds = socketTimeoutSeconds,
             useLineJsonMode = useLineJsonMode,
             requestMode = requestMode,
@@ -414,6 +425,7 @@ class FormatExtractor @Inject constructor(
         cookiesPath: String?,
         userAgent: String?,
         capturedInfoJsonFile: File?,
+        loadInfoJsonPath: String?,
         socketTimeoutSeconds: Int,
         useLineJsonMode: Boolean,
         requestMode: AnalyzeRequestMode,
@@ -425,6 +437,7 @@ class FormatExtractor @Inject constructor(
             cookiesPath = cookiesPath,
             userAgent = userAgent,
             capturedInfoJsonPath = capturedInfoJsonFile?.absolutePath,
+            loadInfoJsonPath = loadInfoJsonPath,
             tempDirPath = tempDir.absolutePath,
             socketTimeoutSeconds = socketTimeoutSeconds,
             useLineJsonMode = useLineJsonMode,
@@ -547,7 +560,7 @@ class FormatExtractor @Inject constructor(
     }
 
     private fun resolveAnalyzeRequestMode(url: String): AnalyzeRequestMode {
-        return if (isLikelyYoutubePlaylistUrl(url)) {
+        return if (shouldUseFastPlaylistAnalyze(url)) {
             AnalyzeRequestMode.YOUTUBE_PLAYLIST_FAST
         } else {
             AnalyzeRequestMode.STANDARD
@@ -563,6 +576,10 @@ class FormatExtractor @Inject constructor(
         if (candidate.startsWith("https://") || candidate.startsWith("http://")) {
             return candidate
         }
+        resolveRelativePlaylistEntryUrl(
+            playlistSourceUrl = playlistSourceUrl,
+            candidate = candidate,
+        )?.let { return it }
         if (looksLikeYoutubeUrl(playlistSourceUrl)) {
             if (candidate.startsWith("/")) {
                 return "https://www.youtube.com$candidate"
@@ -586,6 +603,23 @@ class FormatExtractor @Inject constructor(
         return candidate.ifBlank { null }
     }
 
+    private fun resolveRelativePlaylistEntryUrl(
+        playlistSourceUrl: String,
+        candidate: String,
+    ): String? {
+        if (candidate.isBlank()) return null
+        if (candidate.startsWith("//")) {
+            val scheme = if (playlistSourceUrl.startsWith("http://")) "http" else "https"
+            return "$scheme:$candidate"
+        }
+        if (!candidate.startsWith("/") && !candidate.contains('/') && !candidate.contains('?')) {
+            return null
+        }
+        return runCatching {
+            URI(playlistSourceUrl).resolve(candidate).toString()
+        }.getOrNull()
+    }
+
     private fun persistInfoJsonSnapshot(
         url: String,
         root: JsonObject,
@@ -594,10 +628,7 @@ class FormatExtractor @Inject constructor(
         val type = root["_type"]?.jsonPrimitive?.contentOrNull
         if (type == "playlist") return null
 
-        val stableId = root["id"]?.jsonPrimitive?.contentOrNull?.ifBlank { null } ?: url
-        val hash = CRC32().apply { update(stableId.toByteArray()) }.value.toString(16)
-        val directory = File(context.cacheDir, "ytdlp-info").apply { mkdirs() }
-        val file = File(directory, "$hash-video.info.json")
+        val file = persistedInfoJsonFile(url)
         return runCatching {
             file.writeText(rawJson)
             file.absolutePath
@@ -605,6 +636,23 @@ class FormatExtractor @Inject constructor(
             logger.w("FormatExtractor", "Unable to persist analyze info-json snapshot", error)
             null
         }
+    }
+
+    private fun resolveRecentInfoJsonSnapshotPath(url: String): String? {
+        val file = persistedInfoJsonFile(url)
+        if (!file.exists()) return null
+        val ageMs = System.currentTimeMillis() - file.lastModified()
+        if (ageMs > PERSISTED_ANALYZE_INFO_JSON_TTL_MILLIS) {
+            runCatching { file.delete() }
+            return null
+        }
+        return file.absolutePath
+    }
+
+    private fun persistedInfoJsonFile(url: String): File {
+        val hash = CRC32().apply { update(url.toByteArray()) }.value.toString(16)
+        val directory = File(context.cacheDir, "ytdlp-info").apply { mkdirs() }
+        return File(directory, "$hash-video.info.json")
     }
 
     private fun preferredAnalyzeFailureLine(output: String): String? {
@@ -651,6 +699,7 @@ class FormatExtractor @Inject constructor(
 
     private fun parseFormatObject(element: JsonElement): MediaFormat? {
         val item = element.jsonObject
+        if (shouldIgnoreFormat(item)) return null
         val formatId = item["format_id"]?.jsonPrimitive?.contentOrNull ?: return null
         val ext = item["ext"]?.jsonPrimitive?.contentOrNull ?: "bin"
         val height = item["height"]?.jsonPrimitive?.intOrNull
@@ -678,6 +727,19 @@ class FormatExtractor @Inject constructor(
             fps = item["fps"]?.jsonPrimitive?.doubleOrNull,
             note = item["format_note"]?.jsonPrimitive?.contentOrNull,
         )
+    }
+
+    private fun shouldIgnoreFormat(item: JsonObject): Boolean {
+        val formatId = item["format_id"]?.jsonPrimitive?.contentOrNull?.trim()?.lowercase().orEmpty()
+        val note = item["format_note"]?.jsonPrimitive?.contentOrNull?.trim()?.lowercase().orEmpty()
+        val extension = item["ext"]?.jsonPrimitive?.contentOrNull?.trim()?.lowercase().orEmpty()
+        val videoCodec = item["vcodec"]?.jsonPrimitive?.contentOrNull?.trim()?.lowercase().orEmpty()
+        val audioCodec = item["acodec"]?.jsonPrimitive?.contentOrNull?.trim()?.lowercase().orEmpty()
+        if (formatId.startsWith("sb")) return true
+        if (note.contains("storyboard")) return true
+        if (extension == "mhtml" || extension == "mht") return true
+        return (videoCodec.isBlank() || videoCodec == "none") &&
+            (audioCodec.isBlank() || audioCodec == "none")
     }
 
     private fun parseHeight(resolution: String?): Int? {
@@ -793,6 +855,7 @@ internal fun buildAnalyzeArgsForRequest(
     cookiesPath: String?,
     userAgent: String?,
     capturedInfoJsonPath: String?,
+    loadInfoJsonPath: String?,
     tempDirPath: String,
     socketTimeoutSeconds: Int = DEFAULT_ANALYZE_SOCKET_TIMEOUT_SECONDS,
     useLineJsonMode: Boolean,
@@ -809,6 +872,10 @@ internal fun buildAnalyzeArgsForRequest(
             add("--print-to-file")
             add("video:%()j")
             add(capturedInfoJsonPath)
+        }
+        if (!loadInfoJsonPath.isNullOrBlank() && File(loadInfoJsonPath).exists()) {
+            add("--load-info-json")
+            add(loadInfoJsonPath)
         }
         add("-R")
         add("1")
@@ -861,8 +928,16 @@ internal fun isLikelyYoutubePlaylistUrl(url: String): Boolean {
     return normalized.contains("list=") || normalized.contains("/playlist")
 }
 
+internal fun shouldUseFastPlaylistAnalyze(url: String): Boolean {
+    val normalized = url.trim().lowercase()
+    if (normalized.isBlank()) return false
+    if (normalized.contains("soundcloud.com")) return false
+    if (looksLikeYoutubeUrl(url)) return isLikelyYoutubePlaylistUrl(url)
+    return PLAYLIST_ANALYZE_HINTS.any { hint -> normalized.contains(hint) }
+}
+
 internal fun shouldForceNoPlaylistAnalyze(url: String): Boolean {
-    return looksLikeYoutubeUrl(url) && !isLikelyYoutubePlaylistUrl(url)
+    return !shouldUseFastPlaylistAnalyze(url)
 }
 
 internal fun extractYoutubePlaylistId(url: String): String? {
@@ -870,4 +945,22 @@ internal fun extractYoutubePlaylistId(url: String): String? {
     if (listSegment.isBlank()) return null
     return listSegment.substringBefore('&').ifBlank { null }
 }
+
+private const val PERSISTED_ANALYZE_INFO_JSON_TTL_MILLIS = 5 * 60 * 60 * 1000L
+
+private val PLAYLIST_ANALYZE_HINTS = listOf(
+    "list=",
+    "playlist=",
+    "album=",
+    "collection=",
+    "/playlist",
+    "/album/",
+    "/albums/",
+    "/mix/",
+    "/set/",
+    "/sets/",
+    "/collection/",
+    "/collections/",
+    "/featured/",
+)
 

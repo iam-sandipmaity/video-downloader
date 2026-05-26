@@ -1556,6 +1556,9 @@ class FormatViewModel @Inject constructor(
                 outputTemplate = resolvedOutputTemplate,
                 requestedFileName = customFileName,
             )
+            val reusableInfoJsonPath = info.infoJsonPath
+                ?.takeIf { !info.isPlaylist && sourceUrl == info.webpageUrl }
+                ?.takeIf { path -> File(path).exists() }
             return BuiltSelectionOptions(
                 options = DownloadOptions(
                     url = sourceUrl,
@@ -1564,7 +1567,7 @@ class FormatViewModel @Inject constructor(
                     thumbnailUrl = sourceThumbnailUrl,
                     extractorArgs = downloadExtractorArgs,
                     fallbackExtractorArgs = fallbackExtractorArgs,
-                    loadInfoJsonPath = null,
+                    loadInfoJsonPath = reusableInfoJsonPath,
                     userAgentHeader = if (state.cookiesEnabled && state.cookieUserAgentEnabled) {
                         CookieTextCodec.COOKIE_USER_AGENT
                     } else {
