@@ -15,6 +15,8 @@ on:
   schedule:
     - cron: "0 3 * * *"
 
+permissions: {}
+
 env:
   # Change only these flags when you want to enable or disable workflow groups.
   ENABLE_ANDROID_BUILD: "true"
@@ -27,6 +29,8 @@ jobs:
   workflow-flags:
     name: Resolve Workflow Flags
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       enable_android_build: ${{ steps.flags.outputs.enable_android_build }}
       enable_release_nightly: ${{ steps.flags.outputs.enable_release_nightly }}
@@ -51,6 +55,8 @@ jobs:
   android-build:
     name: Android Build
     needs: workflow-flags
+    permissions:
+      contents: read
     if: |
       needs.workflow-flags.outputs.enable_android_build == 'true' &&
       (
@@ -64,6 +70,8 @@ jobs:
   release-nightly:
     name: Release Nightly
     needs: workflow-flags
+    permissions:
+      contents: write
     if: |
       needs.workflow-flags.outputs.enable_release_nightly == 'true' &&
       (
@@ -77,6 +85,8 @@ jobs:
   release-main:
     name: Release Main
     needs: workflow-flags
+    permissions:
+      contents: write
     if: |
       needs.workflow-flags.outputs.enable_release_main == 'true' &&
       github.event_name == 'workflow_dispatch' &&
@@ -87,6 +97,8 @@ jobs:
   release-tag:
     name: Release Tag
     needs: workflow-flags
+    permissions:
+      contents: write
     if: |
       needs.workflow-flags.outputs.enable_release_tag == 'true' &&
       (
@@ -99,6 +111,9 @@ jobs:
   cleanup:
     name: Cleanup Artifacts
     needs: workflow-flags
+    permissions:
+      actions: write
+      contents: read
     if: |
       needs.workflow-flags.outputs.enable_cleanup == 'true' &&
       (
