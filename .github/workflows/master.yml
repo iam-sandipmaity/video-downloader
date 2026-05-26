@@ -22,9 +22,9 @@ env:
   ENABLE_CODEQL: "true"
   ENABLE_ANDROID_BUILD: "false"
   ENABLE_RELEASE_NIGHTLY: "false"
-  ENABLE_RELEASE_MAIN: "false"
-  ENABLE_RELEASE_TAG: "false"
-  ENABLE_CLEANUP: "true"
+  ENABLE_RELEASE_MAIN: "true"
+  ENABLE_RELEASE_TAG: "true"
+  ENABLE_CLEANUP: "false"
 
 jobs:
   workflow-flags:
@@ -110,7 +110,7 @@ jobs:
       contents: write
     if: |
       needs.workflow-flags.outputs.enable_release_main == 'true' &&
-      github.event_name == 'workflow_dispatch' &&
+      github.event_name == 'push' &&
       github.ref == 'refs/heads/main'
     uses: ./.github/workflows/release-main.yml
     secrets: inherit
@@ -122,10 +122,8 @@ jobs:
       contents: write
     if: |
       needs.workflow-flags.outputs.enable_release_tag == 'true' &&
-      (
-        (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
-        (github.event_name == 'workflow_dispatch' && startsWith(github.ref_name, 'v'))
-      )
+      github.event_name == 'push' &&
+      startsWith(github.ref, 'refs/tags/v')
     uses: ./.github/workflows/release-tag.yml
     secrets: inherit
 
