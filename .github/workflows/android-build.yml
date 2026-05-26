@@ -111,4 +111,10 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: video-downloader-v${{ steps.version.outputs.version_name }}-nightly-debug
-          path: app/build/outputs/apk/standard/debug/video-downloader-*.apk
+          path: app/build/outputs/apk/standard/debug/video-downloader-v${{ steps.version.outputs.version_name }}-nightly-debug.apk
+
+      - name: Upload latest nightly.link APK artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: nightly-debug-apk
+          path: app/build/outputs/apk/standard/debug/video-downloader-v${{ steps.version.outputs.version_name }}-nightly-debug.apk
