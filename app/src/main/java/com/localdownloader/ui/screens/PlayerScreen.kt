@@ -1066,13 +1066,13 @@ private fun BoxScope.PlayerChrome(
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
                     .navigationBarsPadding()
-                    .padding(bottom = 6.dp),
+                    .padding(bottom = 4.dp),
                 color = Color.Black.copy(alpha = 0.42f),
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
                 ) {
                     PlayerTimeline(
                         currentPositionMs = currentPositionMs,
@@ -1081,17 +1081,17 @@ private fun BoxScope.PlayerChrome(
                         onSeekChanged = onSeekChanged,
                         onSeekFinished = onSeekFinished,
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
                             text = "${formatPlaybackTime(currentPositionMs)} / ${formatPlaybackTime(uiState.durationMs)}",
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.Medium,
                             color = Color.White,
-                            modifier = Modifier.padding(end = 12.dp),
+                            modifier = Modifier.padding(end = 8.dp),
                         )
                         DockStrip(
                             modifier = Modifier.weight(1f),
@@ -1131,7 +1131,7 @@ private fun CenterPlaybackControls(
 ) {
     Row(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(18.dp),
+        horizontalArrangement = Arrangement.spacedBy(28.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (onOpenPrevious != null) {
@@ -1141,7 +1141,7 @@ private fun CenterPlaybackControls(
                 onClick = onOpenPrevious,
             )
         } else {
-            Spacer(modifier = Modifier.size(56.dp))
+            Spacer(modifier = Modifier.size(52.dp))
         }
 
         Box(
@@ -1187,7 +1187,7 @@ private fun CenterPlaybackControls(
                 onClick = onOpenNext,
             )
         } else {
-            Spacer(modifier = Modifier.size(56.dp))
+            Spacer(modifier = Modifier.size(52.dp))
         }
     }
 }
@@ -1200,7 +1200,7 @@ private fun TransportEdgeButton(
     modifier: Modifier = Modifier,
 ) {
     Surface(
-        modifier = modifier.size(56.dp),
+        modifier = modifier.size(52.dp),
         color = Color.Black.copy(alpha = 0.42f),
         shape = CircleShape,
         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
@@ -1215,7 +1215,7 @@ private fun TransportEdgeButton(
             Icon(
                 imageVector = icon,
                 contentDescription = contentDescription,
-                modifier = Modifier.size(28.dp),
+                modifier = Modifier.size(26.dp),
                 tint = Color.White,
             )
         }
@@ -1283,7 +1283,7 @@ private fun DockStrip(
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly,
+        horizontalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         DockButton(
@@ -1342,13 +1342,13 @@ private fun DockButton(
 ) {
     IconButton(
         onClick = onClick,
-        modifier = Modifier.size(42.dp),
+        modifier = Modifier.size(36.dp),
     ) {
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
             tint = if (selected) Color.White else Color.White.copy(alpha = 0.92f),
-            modifier = Modifier.size(28.dp),
+            modifier = Modifier.size(22.dp),
         )
     }
 }
