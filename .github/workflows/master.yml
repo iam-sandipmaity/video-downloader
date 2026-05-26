@@ -19,6 +19,7 @@ permissions: {}
 
 env:
   # Change only these flags when you want to enable or disable workflow groups.
+  ENABLE_CODEQL: "false"
   ENABLE_ANDROID_BUILD: "false"
   ENABLE_RELEASE_NIGHTLY: "false"
   ENABLE_RELEASE_MAIN: "false"
@@ -32,6 +33,7 @@ jobs:
     permissions:
       contents: read
     outputs:
+      enable_codeql: ${{ steps.flags.outputs.enable_codeql }}
       enable_android_build: ${{ steps.flags.outputs.enable_android_build }}
       enable_release_nightly: ${{ steps.flags.outputs.enable_release_nightly }}
       enable_release_main: ${{ steps.flags.outputs.enable_release_main }}
@@ -45,12 +47,31 @@ jobs:
         env:
           CLEANUP_DAYS: ${{ github.event.inputs.cleanup_days || '2' }}
         run: |
+          echo "enable_codeql=${ENABLE_CODEQL}" >> "$GITHUB_OUTPUT"
           echo "enable_android_build=${ENABLE_ANDROID_BUILD}" >> "$GITHUB_OUTPUT"
           echo "enable_release_nightly=${ENABLE_RELEASE_NIGHTLY}" >> "$GITHUB_OUTPUT"
           echo "enable_release_main=${ENABLE_RELEASE_MAIN}" >> "$GITHUB_OUTPUT"
           echo "enable_release_tag=${ENABLE_RELEASE_TAG}" >> "$GITHUB_OUTPUT"
           echo "enable_cleanup=${ENABLE_CLEANUP}" >> "$GITHUB_OUTPUT"
           echo "cleanup_days=${CLEANUP_DAYS}" >> "$GITHUB_OUTPUT"
+
+  codeql:
+    name: CodeQL
+    needs: workflow-flags
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    if: |
+      needs.workflow-flags.outputs.enable_codeql == 'true' &&
+      (
+        github.event_name == 'pull_request' ||
+        github.event_name == 'workflow_dispatch' ||
+        github.event_name == 'schedule' ||
+        (github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/'))
+      )
+    uses: ./.github/workflows/codeql.yml
+    secrets: inherit
 
   android-build:
     name: Android Build
