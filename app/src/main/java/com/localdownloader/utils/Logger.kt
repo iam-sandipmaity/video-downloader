@@ -48,6 +48,7 @@ class Logger @Inject constructor(
                 latestSettings = settings
                 fileScope.launch {
                     fileMutex.withLock {
+                        pruneArchivedLogHistoryCountLocked()
                         pruneLogFilesLocked()
                         pruneDeviceLogBackupsLocked()
                     }
@@ -115,6 +116,7 @@ class Logger @Inject constructor(
             }
             fileScope.launch {
                 fileMutex.withLock {
+                    pruneArchivedLogHistoryCountLocked()
                     pruneLogFilesLocked()
                     pruneDeviceLogBackupsLocked()
                 }
@@ -132,6 +134,7 @@ class Logger @Inject constructor(
                 fileName = backupFileName,
                 content = buildCombinedLogSnapshot(),
             )
+            pruneArchivedLogHistoryCountLocked()
             pruneDeviceLogBackupsLocked()
             backupFile
         }
@@ -139,6 +142,7 @@ class Logger @Inject constructor(
 
     suspend fun runMaintenance() {
         fileMutex.withLock {
+            pruneArchivedLogHistoryCountLocked()
             pruneLogFilesLocked()
             pruneDeviceLogBackupsLocked()
         }
@@ -228,6 +232,7 @@ class Logger @Inject constructor(
                 .onFailure { error -> Log.e("Logger", "Failed backing up rotated log", error) }
         }
 
+        pruneArchivedLogHistoryCountLocked()
         pruneLogFilesLocked()
         pruneDeviceLogBackupsLocked()
     }
@@ -275,6 +280,15 @@ class Logger @Inject constructor(
         val archivedFiles = archivedAppLogFiles() + archivedCrashLogFiles()
         archivedFiles
             .filter { it.lastModified() in 1 until cutoffMs }
+            .forEach { file ->
+                runCatching { file.delete() }
+            }
+    }
+
+    private fun pruneArchivedLogHistoryCountLocked() {
+        (archivedAppLogFiles() + archivedCrashLogFiles())
+            .sortedByDescending { it.lastModified() }
+            .drop(MAX_ARCHIVED_LOG_HISTORY_FILES)
             .forEach { file ->
                 runCatching { file.delete() }
             }
@@ -543,7 +557,8 @@ class Logger @Inject constructor(
         private const val LOG_FILE_NAME = "app.log"
         private const val CRASH_LOG_FILE_NAME = "crash.log"
         private const val MAX_LOG_FILE_SIZE_BYTES = 5L * 1024L * 1024L
-        private const val MAX_DEVICE_BACKUP_FILES = 20
+        private const val MAX_ARCHIVED_LOG_HISTORY_FILES = 3
+        private const val MAX_DEVICE_BACKUP_FILES = 3
         private const val MIN_RETENTION_DAYS = 3
         private const val MAX_RETENTION_DAYS = 90
         private const val DAY_IN_MILLIS = 24L * 60L * 60L * 1000L

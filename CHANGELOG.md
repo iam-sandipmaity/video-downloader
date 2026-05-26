@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
+## [1.7.2.6] - 2026-05-27
+
+### Fixed
+- **Cross-site analysis hang recovery** - stalled yt-dlp analyze attempts now time out cleanly, fall through to safer extractor candidates, and stop leaving pasted links stuck on endless `Analyzing`
+- **Playlist loading bottlenecks** - YouTube and other supported playlist-style links now use a lighter discovery path so large collections no longer deep-analyze every item before the list appears
+- **YouTube format noise** - storyboard and `mhtml` pseudo-formats are filtered out so the picker stops surfacing junk low-value entries instead of real download choices
+- **History cache growth** - analyzed link history now rotates automatically once it grows past `5 MB`, keeps timestamped backups, and prunes history backups down to the newest `3`
+- **Log archive sprawl** - archived app, crash, and device log backups are now automatically pruned so only the newest `3` history files are retained
+
+### Changed
+- **Faster link analysis routing** - normal YouTube links now force single-video analysis, reuse captured `info.json` metadata more aggressively, and avoid wasting time on playlist-style discovery for plain video URLs
+- **Safer playlist entry resolution** - playlist items now resolve relative entry URLs more reliably before later analysis or queueing tries to open them
+
+### Technical
+- **App version bump** - release metadata updated to `1.7.2.6`
+
 ## [1.7.2.5] - 2026-05-26
 
 ### Added

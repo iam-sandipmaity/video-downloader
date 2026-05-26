@@ -2,14 +2,17 @@ package com.localdownloader.downloader
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.runInterruptible
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.IOException
 import java.io.InputStream
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -26,6 +29,7 @@ class ProcessRunner @Inject constructor() {
         environment: Map<String, String> = emptyMap(),
         onStdoutLine: ((String) -> Unit)? = null,
         onStderrLine: ((String) -> Unit)? = null,
+        timeoutMs: Long? = null,
     ): CommandResult = withContext(Dispatchers.IO) {
         val processBuilder = ProcessBuilder(command)
         if (workingDirectory != null) {
@@ -91,7 +95,16 @@ class ProcessRunner @Inject constructor() {
                 }
 
                 val exitCode = try {
-                    runInterruptible { process.waitFor() }
+                    if (timeoutMs != null) {
+                        withTimeout(timeoutMs) {
+                            runInterruptible { process.waitFor() }
+                        }
+                    } else {
+                        runInterruptible { process.waitFor() }
+                    }
+                } catch (e: TimeoutCancellationException) {
+                    process.destroyForcibly()
+                    throw IOException("Command timed out after ${timeoutMs}ms")
                 } catch (e: CancellationException) {
                     process.destroyForcibly()
                     throw e
