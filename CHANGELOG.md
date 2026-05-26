@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
+## [1.7.2.5] - 2026-05-26
+
+### Added
+- **Video player previous and next controls** - the in-app video player now shows previous and next buttons for adjacent saved videos, hiding each direction whenever there is no matching neighbor in the local video library
+
+### Technical
+- **App version bump** - release metadata updated to `1.7.2.5`
+
 ## [1.7.2.4] - 2026-05-26
 
 ### Changed

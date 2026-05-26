@@ -78,6 +78,7 @@ import com.localdownloader.ui.screens.settings.NotificationsSettingsScreen
 import com.localdownloader.ui.screens.settings.StorageSettingsScreen
 import com.localdownloader.viewmodel.AppLogViewModel
 import com.localdownloader.ui.model.ExternalOpenRequest
+import com.localdownloader.ui.model.MediaKind
 import com.localdownloader.ui.model.buildVideoLibraryItems
 import com.localdownloader.ui.model.toAudioQueueItems
 import com.localdownloader.viewmodel.DownloadViewModel
@@ -139,6 +140,10 @@ fun DownloaderApp(
     val mediaToolsState by mediaToolsViewModel.uiState.collectAsStateWithLifecycle()
     val audioPlaybackState by audioPlaybackViewModel.uiState.collectAsStateWithLifecycle()
     val updatesState by updatesViewModel.uiState.collectAsStateWithLifecycle()
+    val savedMediaItems = remember(downloadState.tasks) { buildVideoLibraryItems(downloadState.tasks) }
+    val savedVideoItems = remember(savedMediaItems) {
+        savedMediaItems.filter { it.exists && it.mediaKind == MediaKind.VIDEO }
+    }
     val folderTreePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree(),
     ) { uri ->
@@ -471,7 +476,7 @@ fun DownloaderApp(
                         }
                     },
                     onPlayMusic = { taskId, shuffle ->
-                        val audioQueue = buildVideoLibraryItems(downloadState.tasks).toAudioQueueItems()
+                        val audioQueue = savedMediaItems.toAudioQueueItems()
                         if (audioQueue.isNotEmpty()) {
                             audioPlaybackViewModel.playQueue(audioQueue, taskId, shuffle)
                         }
@@ -853,10 +858,35 @@ fun DownloaderApp(
             ) { backStackEntry ->
                 val taskId = backStackEntry.arguments?.getString("taskId")
                 val task = downloadState.tasks.firstOrNull { it.id == taskId }
+                val currentVideoIndex = savedVideoItems.indexOfFirst { it.task.id == taskId }
+                val previousVideoTaskId = if (currentVideoIndex >= 0) {
+                    savedVideoItems.getOrNull(currentVideoIndex - 1)?.task?.id
+                } else {
+                    null
+                }
+                val nextVideoTaskId = if (currentVideoIndex >= 0) {
+                    savedVideoItems.getOrNull(currentVideoIndex + 1)?.task?.id
+                } else {
+                    null
+                }
                 val playerViewModel: PlayerViewModel = hiltViewModel(backStackEntry)
                 PlayerScreen(
                     task = task,
                     playerViewModel = playerViewModel,
+                    onOpenPrevious = previousVideoTaskId?.let { previousTaskId ->
+                        {
+                            navController.navigate("${Routes.Player}/$previousTaskId") {
+                                launchSingleTop = true
+                            }
+                        }
+                    },
+                    onOpenNext = nextVideoTaskId?.let { nextTaskId ->
+                        {
+                            navController.navigate("${Routes.Player}/$nextTaskId") {
+                                launchSingleTop = true
+                            }
+                        }
+                    },
                     onBack = { navController.popBackStack() },
                 )
             }
@@ -877,6 +907,8 @@ fun DownloaderApp(
                             outputPath = request.path,
                         ),
                         playerViewModel = playerViewModel,
+                        onOpenPrevious = null,
+                        onOpenNext = null,
                         onBack = {
                             activeExternalOpenRequest = null
                             navController.popBackStack()

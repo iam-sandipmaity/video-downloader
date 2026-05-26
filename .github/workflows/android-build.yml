@@ -5,7 +5,7 @@ on:
 
 jobs:
   build:
-    if: ${{ false }} # Disabled
+    # if: ${{ false }} # Disabled
     runs-on: ubuntu-latest
     permissions:
       contents: read
