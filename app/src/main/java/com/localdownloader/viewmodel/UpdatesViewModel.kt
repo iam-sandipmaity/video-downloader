@@ -319,6 +319,10 @@ class UpdatesViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(startupYtDlpPrompt = null)
     }
 
+    fun consumeStartupYtDlpPrompt() {
+        _uiState.value = _uiState.value.copy(startupYtDlpPrompt = null)
+    }
+
     private suspend fun refreshAppInternal() {
         _uiState.value = _uiState.value.copy(app = _uiState.value.app.copy(isChecking = true))
         runCatching {

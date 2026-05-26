@@ -364,7 +364,8 @@ fun DownloaderApp(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        updatesViewModel.dismissStartupYtDlpPrompt()
+                        updatesViewModel.consumeStartupYtDlpPrompt()
+                        updatesViewModel.installYtDlpUpdate()
                         navController.navigate(Routes.Updates) {
                             launchSingleTop = true
                         }
