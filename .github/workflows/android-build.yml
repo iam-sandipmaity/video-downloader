@@ -107,6 +107,12 @@ jobs:
           fi
           mv "$APK_SOURCE" "$APK_DIR/video-downloader-v${VERSION}-nightly-debug.apk"
 
+      - name: Create stable nightly.link APK filename
+        run: |
+          VERSION="${{ steps.version.outputs.version_name }}"
+          APK_DIR="app/build/outputs/apk/standard/debug"
+          cp "$APK_DIR/video-downloader-v${VERSION}-nightly-debug.apk" "$APK_DIR/nightly-debug.apk"
+
       - name: Upload nightly debug APK artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -116,5 +122,5 @@ jobs:
       - name: Upload latest nightly.link APK artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: nightly-debug-apk
-          path: app/build/outputs/apk/standard/debug/video-downloader-v${{ steps.version.outputs.version_name }}-nightly-debug.apk
+          path: app/build/outputs/apk/standard/debug/nightly-debug.apk
+          archive: false
