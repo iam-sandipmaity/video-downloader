@@ -6,6 +6,8 @@ import com.localdownloader.domain.models.AppSettings
 import com.localdownloader.domain.models.ContrastMode
 import com.localdownloader.domain.models.CookieProfile
 import com.localdownloader.domain.models.FormatChoice
+import com.localdownloader.domain.models.FormatViewMode
+import com.localdownloader.domain.models.LinkAnalysisResult
 import com.localdownloader.domain.models.OutputTransform
 import com.localdownloader.domain.models.PlaylistEntry
 import com.localdownloader.domain.models.SYSTEM_LANGUAGE_TAG
@@ -67,7 +69,9 @@ data class PlaylistItemUiState(
 data class FormatUiState(
     val urlInput: String = "",
     val isAnalyzing: Boolean = false,
+    val isLoadingFormats: Boolean = false,
     val isQueueing: Boolean = false,
+    val linkAnalysis: LinkAnalysisResult? = null,
     val videoInfo: VideoInfo? = null,
     val availableVideoAudioChoices: List<FormatChoice> = emptyList(),
     val availableVideoOnlyChoices: List<FormatChoice> = emptyList(),
@@ -77,6 +81,7 @@ data class FormatUiState(
     val selectedQuality: VideoQuality = VideoQuality.BEST,
     val selectedStreamType: StreamType = StreamType.VIDEO_AUDIO,
     val selectedOutputTransform: OutputTransform = OutputTransform.NONE,
+    val formatViewMode: FormatViewMode = FormatViewMode.SUGGESTED,
     val selectedContainer: String = "auto",
     val selectedAudioFormat: String = "mp3",
     val audioBitrateKbps: Int = 192,
@@ -111,6 +116,7 @@ data class FormatUiState(
     val cookieProfiles: List<CookieProfile> = emptyList(),
     val youtubeAuthConfig: YoutubeAuthConfig = YoutubeAuthConfig(),
     val playlistItems: List<PlaylistItemUiState> = emptyList(),
+    val selectedBrowseItemUrl: String? = null,
     val readyAnalyzedItems: List<AnalyzedLinkRecord> = emptyList(),
     val restoringReadyItemUrl: String? = null,
     val appSettings: AppSettings = AppSettings(),

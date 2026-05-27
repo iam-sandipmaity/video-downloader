@@ -5,6 +5,8 @@ import com.localdownloader.domain.models.CompressionRequest
 import com.localdownloader.domain.models.ConversionRequest
 import com.localdownloader.domain.models.DownloadOptions
 import com.localdownloader.domain.models.DownloadTask
+import com.localdownloader.domain.models.FormatLoadResult
+import com.localdownloader.domain.models.LinkAnalysisResult
 import com.localdownloader.domain.models.MediaSyncResult
 import com.localdownloader.domain.models.PlaylistDownloadRequest
 import com.localdownloader.domain.models.VideoInfo
@@ -14,11 +16,26 @@ import kotlinx.coroutines.flow.Flow
  * Domain-level contract for all downloader and media-processing operations.
  */
 interface DownloaderRepository {
+    suspend fun analyzeLink(
+        url: String,
+        cookiesPath: String? = null,
+        userAgent: String? = null,
+    ): Result<LinkAnalysisResult>
     suspend fun analyzeUrl(
         url: String,
         cookiesPath: String? = null,
         userAgent: String? = null,
     ): Result<VideoInfo>
+    suspend fun loadFormats(
+        url: String,
+        cookiesPath: String? = null,
+        userAgent: String? = null,
+    ): Result<FormatLoadResult>
+    suspend fun loadFormatsForItems(
+        urls: List<String>,
+        cookiesPath: String? = null,
+        userAgent: String? = null,
+    ): Result<List<FormatLoadResult>>
     suspend fun enqueueDownload(options: DownloadOptions, titleHint: String): Result<String>
     suspend fun enqueuePlaylistDownload(
         playlistTitle: String,

@@ -16,9 +16,11 @@ import com.localdownloader.domain.models.ContrastMode
 import com.localdownloader.domain.models.CookieProfile
 import com.localdownloader.domain.models.DownloadOptions
 import com.localdownloader.domain.models.FormatChoice
+import com.localdownloader.domain.models.LinkAnalysisResult
 import com.localdownloader.domain.models.MediaFormat
 import com.localdownloader.domain.models.OutputTransform
 import com.localdownloader.domain.models.PlaylistDownloadRequest
+import com.localdownloader.domain.models.PlaylistEntry
 import com.localdownloader.domain.models.SYSTEM_LANGUAGE_TAG
 import com.localdownloader.domain.models.StreamType
 import com.localdownloader.domain.models.ThemeMode
@@ -91,13 +93,16 @@ class FormatViewModel @Inject constructor(
             state.copy(
                 urlInput = "",
                 isAnalyzing = false,
+                isLoadingFormats = false,
                 isQueueing = false,
+                linkAnalysis = null,
                 videoInfo = null,
                 availableVideoAudioChoices = emptyList(),
                 availableVideoOnlyChoices = emptyList(),
                 availableAudioOnlyChoices = emptyList(),
                 playlistItems = emptyList(),
                 selectedFormatSelector = null,
+                selectedBrowseItemUrl = null,
                 customFileName = "",
                 infoMessage = null,
                 errorMessage = null,
@@ -115,13 +120,16 @@ class FormatViewModel @Inject constructor(
             val removedCurrent = state.videoInfo?.webpageUrl == webpageUrl
             state.copy(
                 isAnalyzing = false,
+                isLoadingFormats = false,
                 isQueueing = false,
+                linkAnalysis = if (removedCurrent) null else state.linkAnalysis,
                 videoInfo = if (removedCurrent) null else state.videoInfo,
                 availableVideoAudioChoices = if (removedCurrent) emptyList() else state.availableVideoAudioChoices,
                 availableVideoOnlyChoices = if (removedCurrent) emptyList() else state.availableVideoOnlyChoices,
                 availableAudioOnlyChoices = if (removedCurrent) emptyList() else state.availableAudioOnlyChoices,
                 playlistItems = if (removedCurrent) emptyList() else state.playlistItems,
                 selectedFormatSelector = if (removedCurrent) null else state.selectedFormatSelector,
+                selectedBrowseItemUrl = if (removedCurrent) null else state.selectedBrowseItemUrl,
                 customFileName = if (removedCurrent) "" else state.customFileName,
                 readyAnalyzedItems = state.readyAnalyzedItems.filterNot { it.webpageUrl == webpageUrl },
                 restoringReadyItemUrl = if (state.restoringReadyItemUrl == webpageUrl) null else state.restoringReadyItemUrl,
@@ -198,14 +206,17 @@ class FormatViewModel @Inject constructor(
                 state.copy(
                     urlInput = secureUrl,
                     isAnalyzing = true,
+                    isLoadingFormats = false,
                     errorMessage = null,
                     infoMessage = upgradeNotice,
+                    linkAnalysis = null,
                     videoInfo = null,
                     availableVideoAudioChoices = emptyList(),
                     availableVideoOnlyChoices = emptyList(),
                     availableAudioOnlyChoices = emptyList(),
                     playlistItems = emptyList(),
                     selectedFormatSelector = null,
+                    selectedBrowseItemUrl = null,
                     customFileName = "",
                     restoringReadyItemUrl = if (restoreIntoReady) secureUrl else state.restoringReadyItemUrl,
                 )
@@ -213,7 +224,7 @@ class FormatViewModel @Inject constructor(
 
             val runtimeCookiesPath = resolveRuntimeCookiesPathForUrl(secureUrl)
             val result = runCatching {
-                repository.analyzeUrl(
+                repository.analyzeLink(
                     url = secureUrl,
                     cookiesPath = runtimeCookiesPath,
                     userAgent = if (uiState.value.cookiesEnabled && uiState.value.cookieUserAgentEnabled) {
@@ -227,7 +238,8 @@ class FormatViewModel @Inject constructor(
                     Result.failure(IllegalStateException(throwable.message ?: "Analyze failed", throwable))
                 }
             result.fold(
-                onSuccess = { info ->
+                onSuccess = { analysis ->
+                    val info = analysis.toLegacyVideoInfo()
                     logger.i(
                         "FormatViewModel",
                         "Analyze success for URL: $secureUrl, title='${info.title}', formats=${info.formats.size}",
@@ -264,6 +276,7 @@ class FormatViewModel @Inject constructor(
                         state.copy(
                             isAnalyzing = false,
                             messageScope = FormatMessageScope.BROWSER,
+                            linkAnalysis = analysis,
                             videoInfo = info,
                             availableVideoAudioChoices = choiceBundle.videoAudioChoices,
                             availableVideoOnlyChoices = choiceBundle.videoOnlyChoices,
@@ -272,6 +285,7 @@ class FormatViewModel @Inject constructor(
                             selectedStreamType = resolvedStreamType,
                             selectedOutputTransform = resolvedOutputTransform,
                             selectedFormatSelector = selectedSelector,
+                            selectedBrowseItemUrl = analysis.primaryItem?.webpageUrl ?: info.webpageUrl,
                             customFileName = info.title,
                             enablePlaylist = state.enablePlaylist || info.isPlaylist,
                             readyAnalyzedItems = upsertReadyRecord(
@@ -310,6 +324,7 @@ class FormatViewModel @Inject constructor(
                                     append(" Ensure yt-dlp runtime is initialized and this device ABI is supported.")
                                 }
                             },
+                            linkAnalysis = null,
                             restoringReadyItemUrl = null,
                         )
                     }
@@ -2020,6 +2035,38 @@ class FormatViewModel @Inject constructor(
         val request: PlaylistDownloadRequest,
         val queueNote: String?,
     )
+
+    private fun LinkAnalysisResult.toLegacyVideoInfo(): VideoInfo {
+        val playlistEntries = items.mapIndexed { index, item ->
+            PlaylistEntry(
+                playlistItemIndex = item.playlistItemIndex ?: index + 1,
+                id = item.id,
+                title = item.title,
+                webpageUrl = item.webpageUrl,
+                uploader = item.uploader,
+                durationSeconds = item.durationSeconds,
+                thumbnailUrl = item.thumbnailUrl,
+                formats = item.formats,
+            )
+        }
+        val primaryItem = primaryItem
+        val resolvedWebpageUrl = webpageUrl ?: primaryItem?.webpageUrl ?: input
+        val resolvedFormats = rootFormats.ifEmpty { primaryItem?.formats.orEmpty() }
+        return VideoInfo(
+            id = rootId.ifBlank { primaryItem?.id.orEmpty() },
+            title = title,
+            uploader = uploader ?: primaryItem?.uploader,
+            durationSeconds = durationSeconds ?: primaryItem?.durationSeconds,
+            thumbnailUrl = thumbnailUrl ?: primaryItem?.thumbnailUrl,
+            webpageUrl = resolvedWebpageUrl,
+            formats = resolvedFormats,
+            extractorArgs = extractorArgs ?: primaryItem?.extractorArgs,
+            infoJsonPath = infoJsonPath ?: primaryItem?.infoJsonPath,
+            isPlaylist = isCollection,
+            playlistCount = playlistCount ?: items.size.takeIf { isCollection },
+            playlistEntries = playlistEntries,
+        )
+    }
 
     private fun buildPlaylistItemStates(
         info: VideoInfo,

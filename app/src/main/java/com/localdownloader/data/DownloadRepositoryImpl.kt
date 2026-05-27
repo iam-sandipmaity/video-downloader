@@ -16,6 +16,8 @@ import com.localdownloader.domain.models.ConversionRequest
 import com.localdownloader.domain.models.DownloadOptions
 import com.localdownloader.domain.models.DownloadStatus
 import com.localdownloader.domain.models.DownloadTask
+import com.localdownloader.domain.models.FormatLoadResult
+import com.localdownloader.domain.models.LinkAnalysisResult
 import com.localdownloader.domain.models.MediaSyncResult
 import com.localdownloader.domain.models.PlaylistDownloadRequest
 import com.localdownloader.domain.models.VideoInfo
@@ -94,6 +96,28 @@ class DownloadRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun analyzeLink(
+        url: String,
+        cookiesPath: String?,
+        userAgent: String?,
+    ): Result<LinkAnalysisResult> {
+        logger.i("DownloadRepository", "analyzeLink called for: $url")
+        val result = formatExtractor.analyzeLink(
+            url = url,
+            cookiesPath = cookiesPath,
+            userAgent = userAgent,
+        )
+        result.onSuccess { info ->
+            logger.i(
+                "DownloadRepository",
+                "analyzeLink success: title='${info.title}', itemCount=${info.items.size}, source=${info.sourceKind}",
+            )
+        }.onFailure { error ->
+            logger.e("DownloadRepository", "analyzeLink failed for: $url", error)
+        }
+        return result
+    }
+
     override suspend fun analyzeUrl(
         url: String,
         cookiesPath: String?,
@@ -114,6 +138,57 @@ class DownloadRepositoryImpl @Inject constructor(
             logger.e("DownloadRepository", "analyzeUrl failed for: $url", error)
         }
         return result
+    }
+
+    override suspend fun loadFormats(
+        url: String,
+        cookiesPath: String?,
+        userAgent: String?,
+    ): Result<FormatLoadResult> {
+        logger.i("DownloadRepository", "loadFormats called for: $url")
+        val result = formatExtractor.loadFormats(
+            url = url,
+            cookiesPath = cookiesPath,
+            userAgent = userAgent,
+        )
+        result.onSuccess { info ->
+            logger.i(
+                "DownloadRepository",
+                "loadFormats success: title='${info.title}', formats=${info.formats.size}",
+            )
+        }.onFailure { error ->
+            logger.e("DownloadRepository", "loadFormats failed for: $url", error)
+        }
+        return result
+    }
+
+    override suspend fun loadFormatsForItems(
+        urls: List<String>,
+        cookiesPath: String?,
+        userAgent: String?,
+    ): Result<List<FormatLoadResult>> {
+        return runCatching {
+            val successes = mutableListOf<FormatLoadResult>()
+            var firstFailure: Throwable? = null
+            urls.forEach { url ->
+                formatExtractor.loadFormats(
+                    url = url,
+                    cookiesPath = cookiesPath,
+                    userAgent = userAgent,
+                ).onSuccess { result ->
+                    successes += result
+                }.onFailure { error ->
+                    logger.w("DownloadRepository", "loadFormatsForItems item failed for: $url", error)
+                    if (firstFailure == null) {
+                        firstFailure = error
+                    }
+                }
+            }
+            if (successes.isEmpty() && firstFailure != null) {
+                throw firstFailure ?: IllegalStateException("Unable to load formats for the requested items.")
+            }
+            successes
+        }
     }
 
     override suspend fun enqueueDownload(options: DownloadOptions, titleHint: String): Result<String> {
