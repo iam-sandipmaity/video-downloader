@@ -826,16 +826,6 @@ class FormatExtractor @Inject constructor(
         )
     }
 
-    internal fun shouldContinueAnalyzeCandidateSearch(
-        totalFormats: Int,
-        videoOnlyFormats: Int,
-        maxHeight: Int,
-    ): Boolean {
-        if (videoOnlyFormats > 0 && maxHeight >= 720) return false
-        if (totalFormats >= 20 && maxHeight >= 720) return false
-        return true
-    }
-
     private fun resolveFailedAnalyzeAttempt(vararg attempts: AnalyzeAttempt): AnalyzeAttempt {
         return attempts
             .lastOrNull { !it.errorMessage.isNullOrBlank() }
@@ -854,6 +844,16 @@ internal fun analyzeProcessTimeoutMillis(socketTimeoutSeconds: Int): Long {
     } else {
         DEFAULT_ANALYZE_PROCESS_TIMEOUT_MILLIS
     }
+}
+
+internal fun shouldContinueAnalyzeCandidateSearch(
+    totalFormats: Int,
+    videoOnlyFormats: Int,
+    maxHeight: Int,
+): Boolean {
+    if (videoOnlyFormats > 0 && maxHeight >= 720) return false
+    if (totalFormats >= 20 && maxHeight >= 720) return false
+    return true
 }
 
 internal fun shouldRetryAnalyzeWithExtendedTimeout(vararg failureMessages: String?): Boolean {
