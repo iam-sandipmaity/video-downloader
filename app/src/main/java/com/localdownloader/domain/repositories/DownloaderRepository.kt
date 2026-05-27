@@ -18,6 +18,7 @@ interface DownloaderRepository {
         url: String,
         cookiesPath: String? = null,
         userAgent: String? = null,
+        preferredExtractorArgs: String? = null,
     ): Result<VideoInfo>
     suspend fun enqueueDownload(options: DownloadOptions, titleHint: String): Result<String>
     suspend fun enqueuePlaylistDownload(

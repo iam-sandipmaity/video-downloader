@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
+## [1.7.2.7] - 2026-05-28
+
+### Added
+- **Smart analyze prefetch** - pasted or typed secure links now start a quiet debounced background analyze so tapping Analyze can attach to an in-flight result or open immediately from a fresh cache
+- **Playlist file format analysis** - playlist items can now lazy-load file-specific formats from Edit, and selected fallback-backed files can be analyzed together from the Files section
+
+### Changed
+- **Browse analyze speed and routing** - YouTube analysis now prefers saved access/session hints, trims fallback attempts, reuses recent info-json snapshots where safe, and avoids carrying audio-only state into the next fresh analyze
+- **Playlist format architecture** - large playlists now stay light at first and only deepen format data when the user asks for a specific file or uses Analyze all
+- **Thumbnail post-processing** - embedded or written thumbnails are converted to JPG to reduce WebP-related post-processing failures
+
+### Fixed
+- **Duplicate YouTube format rows** - same-spec format choices are collapsed before the picker renders them so repeated 1080p/MP4-style rows no longer flood the list
+- **Audio-only carryover** - a previous audio analysis no longer makes the next video or playlist default to audio-only unexpectedly
+- **Sparse platform formats** - parser fallback now accepts requested formats, requested downloads, and root-level metadata so audio sites and mixed platforms expose usable choices more reliably
+- **Post-processing feedback** - queue items now surface extract, merge, metadata, thumbnail, and container-finalizing stages instead of looking stuck at 100%
+- **Localization lint** - transient playlist-analysis helper labels are marked non-translatable so localized builds no longer fail on missing translations
+
+### Technical
+- **App version bump** - release metadata updated to `1.7.2.7`
+
 ## [1.7.2.6] - 2026-05-27
 
 ### Fixed

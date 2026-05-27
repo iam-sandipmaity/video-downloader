@@ -132,6 +132,7 @@ fun BrowserScreen(
     onWriteThumbnailChanged: (Boolean) -> Unit,
     onPlaylistEnabledChanged: (Boolean) -> Unit,
     onPlaylistSelectAllChanged: (Boolean) -> Unit,
+    onPlaylistAnalyzeAllClicked: () -> Unit,
     onPlaylistItemSelectedChanged: (Int, Boolean) -> Unit,
     onPlaylistItemExpandedChanged: (Int, Boolean) -> Unit,
     onPlaylistItemUseGlobalChanged: (Int, Boolean) -> Unit,
@@ -219,12 +220,6 @@ fun BrowserScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .verticalScroll(homeScrollState)
-            .animateContentSize(
-                animationSpec = spring(
-                    dampingRatio = 0.9f,
-                    stiffness = 500f,
-                ),
-            )
             .padding(horizontal = 18.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
@@ -622,7 +617,12 @@ fun BrowserScreen(
                                     totalCount = uiState.playlistItems.size,
                                     selectedCount = uiState.selectedPlaylistItemCount,
                                     allSelected = uiState.areAllPlaylistItemsSelected,
+                                    pendingAnalyzeCount = uiState.playlistItems.count {
+                                        it.isSelected && it.areChoicesFromFallback && !it.isLoadingChoices
+                                    },
+                                    isAnalyzingAny = uiState.playlistItems.any { it.isSelected && it.isLoadingChoices },
                                     onSelectAllChanged = onPlaylistSelectAllChanged,
+                                    onAnalyzeAllClicked = onPlaylistAnalyzeAllClicked,
                                 )
                             }
                         }
@@ -1320,12 +1320,13 @@ private fun SelectionOptionsCard(
     }
     val effectiveStreamType = effectiveOutputStreamType(streamType, outputTransform)
     val visibleChoices = remember(choices, streamType, container) {
-        if (streamType == StreamType.VIDEO_AUDIO) {
+        val filteredChoices = if (streamType == StreamType.VIDEO_AUDIO) {
             choices.filter { choice -> isChoiceCompatibleWithRequestedContainer(container, choice) }
                 .ifEmpty { choices }
         } else {
             choices
         }
+        distinctDisplayChoices(filteredChoices)
     }
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -1474,54 +1475,85 @@ private fun localizedVideoQualityLabel(quality: VideoQuality): String {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PlaylistSelectionSummaryCard(
     totalCount: Int,
     selectedCount: Int,
     allSelected: Boolean,
+    pendingAnalyzeCount: Int,
+    isAnalyzingAny: Boolean,
     onSelectAllChanged: (Boolean) -> Unit,
+    onAnalyzeAllClicked: () -> Unit,
 ) {
     Surface(
         shape = RoundedCornerShape(22.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 14.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Checkbox(
-                checked = allSelected,
-                onCheckedChange = { onSelectAllChanged(it) },
-            )
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = stringResource(R.string.browser_all_files),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
+                Checkbox(
+                    checked = allSelected,
+                    onCheckedChange = { onSelectAllChanged(it) },
                 )
-                Text(
-                    text = stringResource(R.string.browser_selected_count_of_total, selectedCount, totalCount),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.browser_all_files),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = stringResource(R.string.browser_selected_count_of_total, selectedCount, totalCount),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                TextButton(onClick = { onSelectAllChanged(!allSelected) }) {
+                    Text(
+                        stringResource(
+                            if (allSelected) {
+                                R.string.common_clear
+                            } else {
+                                R.string.common_select
+                            },
+                        ),
+                    )
+                }
             }
-            TextButton(onClick = { onSelectAllChanged(!allSelected) }) {
-                Text(
-                    stringResource(
-                        if (allSelected) {
-                            R.string.common_clear
-                        } else {
-                            R.string.common_select
-                        },
-                    ),
-                )
+            if (pendingAnalyzeCount > 0 || isAnalyzingAny) {
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    TextButton(
+                        onClick = onAnalyzeAllClicked,
+                        enabled = pendingAnalyzeCount > 0 && !isAnalyzingAny,
+                    ) {
+                        Text(
+                            stringResource(
+                                if (isAnalyzingAny) {
+                                    R.string.browser_playlist_analyzing_files
+                                } else {
+                                    R.string.browser_playlist_analyze_all
+                                },
+                            ),
+                        )
+                    }
+                }
             }
         }
     }
@@ -1679,6 +1711,30 @@ private fun PlaylistItemCard(
                     if (item.useGlobalSettings) {
                         BrowserMetaChip(text = stringResource(R.string.browser_using_global_format))
                     } else {
+                        if (item.isLoadingChoices) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                                Text(
+                                    text = stringResource(R.string.browser_playlist_loading_item_formats),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                        item.choiceLoadErrorMessage?.takeIf { it.isNotBlank() }?.let { message ->
+                            Text(
+                                text = message,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                        if (item.areChoicesFromFallback && !item.isLoadingChoices) {
+                            Text(
+                                text = stringResource(R.string.browser_playlist_specific_formats_hint),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                         SelectionOptionsCard(
                             streamType = item.selectedStreamType,
                             onStreamTypeChanged = onStreamTypeChanged,
@@ -1970,6 +2026,35 @@ private fun buildFormatMenuMetadata(
             add("a:${compactCodecLabel(it)}")
         }
     }.joinToString(" | ").ifBlank { null }
+}
+
+private fun distinctDisplayChoices(choices: List<FormatChoice>): List<FormatChoice> {
+    return choices
+        .groupBy(::displayChoiceKey)
+        .values
+        .mapNotNull { group ->
+            group.maxWithOrNull(
+                compareBy<FormatChoice> { if (it.isImageLike) 0 else 1 }
+                    .thenBy { if (it.isMerged) 0 else 1 }
+                    .thenByDescending { it.fileSizeBytes ?: 0L }
+                    .thenByDescending { it.estimatedSizeBytes ?: 0L }
+                    .thenByDescending { it.bitrateKbps ?: 0 }
+                    .thenByDescending { it.height ?: 0 }
+                    .thenByDescending { it.fps ?: 0.0 },
+            )
+        }
+}
+
+private fun displayChoiceKey(choice: FormatChoice): String {
+    return listOf(
+        choice.streamType.name,
+        choice.container.lowercase(),
+        choice.height?.toString() ?: "na",
+        choice.fps?.toInt()?.toString() ?: "na",
+        compactCodecLabel(choice.videoCodec ?: ""),
+        compactCodecLabel(choice.audioCodec ?: ""),
+        choice.bitrateKbps?.toString() ?: "na",
+    ).joinToString("|")
 }
 
 private fun resolvedOutputContainer(

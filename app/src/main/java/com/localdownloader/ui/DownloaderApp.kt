@@ -432,6 +432,7 @@ fun DownloaderApp(
                     onWriteThumbnailChanged = formatViewModel::onWriteThumbnailChanged,
                     onPlaylistEnabledChanged = formatViewModel::onPlaylistEnabledChanged,
                     onPlaylistSelectAllChanged = formatViewModel::onPlaylistSelectAllChanged,
+                    onPlaylistAnalyzeAllClicked = formatViewModel::analyzeSelectedPlaylistItems,
                     onPlaylistItemSelectedChanged = formatViewModel::onPlaylistItemSelectedChanged,
                     onPlaylistItemExpandedChanged = formatViewModel::onPlaylistItemExpandedChanged,
                     onPlaylistItemUseGlobalChanged = formatViewModel::onPlaylistItemUseGlobalChanged,

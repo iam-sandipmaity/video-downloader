@@ -22,6 +22,20 @@ class YoutubeRequestPlannerTest {
     }
 
     @Test
+    fun analyzeCandidates_prioritizePreferredPlanBeforeFallbacks() {
+        val preferred = "youtube:player_client=default,web;player_skip=webpage,configs"
+
+        val candidates = YoutubeRequestPlanner.analyzeCandidates(
+            cookiesAvailable = true,
+            preferredExtractorArgs = preferred,
+        )
+
+        assertEquals(preferred, candidates.first())
+        assertTrue(candidates.contains(null))
+        assertFalse(candidates.any { it?.contains("default,android") == true })
+    }
+
+    @Test
     fun authenticatedSameSelectorAttempts_keepRequestedSelector() {
         val attempts = YoutubeRequestPlanner.authenticatedSameSelectorAttempts(
             requestedSelector = "137+140",
@@ -58,6 +72,21 @@ class YoutubeRequestPlannerTest {
 
         assertEquals(
             "youtube:player_client=default,web;player_skip=webpage,configs;data_sync_id=SYNC_ID_123;po_token=web.gvs+gvs123,web.player+player456,web.subs+subs789",
+            extractorArgs,
+        )
+    }
+
+    @Test
+    fun preferredAuthenticatedExtractorArgs_usesVisitorDataWhenSyncIdMissing() {
+        val extractorArgs = YoutubeRequestPlanner.preferredAuthenticatedExtractorArgs(
+            poToken = null,
+            preferredHint = "mweb.gvs",
+            dataSyncId = null,
+            visitorData = "VISITOR_123",
+        )
+
+        assertEquals(
+            "youtube:player_client=default,mweb;player_skip=webpage,configs;visitor_data=VISITOR_123",
             extractorArgs,
         )
     }

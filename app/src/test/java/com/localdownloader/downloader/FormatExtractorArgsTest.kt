@@ -96,4 +96,22 @@ class FormatExtractorArgsTest {
             ),
         )
     }
+
+    @Test
+    fun buildAnalyzeArgsForRequest_forcesNoPlaylistOnYoutubeVideos() {
+        val tempDir = Files.createTempDirectory("format-extractor-youtube-video")
+
+        val args = buildAnalyzeArgsForRequest(
+            url = "https://www.youtube.com/watch?v=abc123",
+            extractorArgs = null,
+            cookiesPath = null,
+            userAgent = null,
+            capturedInfoJsonPath = tempDir.resolve("capture.info.json").toString(),
+            tempDirPath = tempDir.toString(),
+            useLineJsonMode = false,
+        )
+
+        assertTrue(args.contains("--no-playlist"))
+        assertFalse(args.contains("--flat-playlist"))
+    }
 }

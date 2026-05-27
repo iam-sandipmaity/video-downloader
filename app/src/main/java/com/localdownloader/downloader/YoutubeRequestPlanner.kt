@@ -7,16 +7,19 @@ object YoutubeRequestPlanner {
         val extractorArgs: String?,
     )
 
-    fun analyzeCandidates(cookiesAvailable: Boolean): List<String?> {
+    fun analyzeCandidates(
+        cookiesAvailable: Boolean,
+        preferredExtractorArgs: String? = null,
+    ): List<String?> {
         val candidates = buildList {
+            preferredExtractorArgs?.trim()?.ifBlank { null }?.let(::add)
             add(null)
-            // Stay close to stock yt-dlp first, then try web clients that usually expose adaptive formats.
+            // Keep analyze closer to the faster apps: try the preferred/default plan first,
+            // then only a couple of web-focused fallbacks that usually unlock adaptive formats.
             add(buildExtractorArgs(clientSpec = "default,mweb"))
             add(buildExtractorArgs(clientSpec = "default,web"))
-            add(buildExtractorArgs(clientSpec = "default,android", includePlayerSkip = true))
-            add(buildExtractorArgs(clientSpec = "tv,android", includePlayerSkip = true))
             if (cookiesAvailable) {
-                add(buildExtractorArgs(clientSpec = "default,mweb,web,android,tv", includePlayerSkip = true))
+                add(buildExtractorArgs(clientSpec = "default,mweb,web", includePlayerSkip = true))
             }
         }
         return candidates.distinct()
@@ -24,7 +27,7 @@ object YoutubeRequestPlanner {
 
     fun recoveryCandidates(selectedExtractorArgs: String?, cookiesAvailable: Boolean): List<String?> {
         val normalizedSelectedArgs = normalizeExtractorArgs(selectedExtractorArgs)
-        return analyzeCandidates(cookiesAvailable)
+        return analyzeCandidates(cookiesAvailable = cookiesAvailable)
             .map(::normalizeExtractorArgs)
             .distinct()
             .filter { it != normalizedSelectedArgs }
@@ -164,13 +167,15 @@ object YoutubeRequestPlanner {
         poToken: String?,
         preferredHint: String,
         dataSyncId: String? = null,
+        visitorData: String? = null,
     ): String? {
-        if (poToken.isNullOrBlank() && dataSyncId.isNullOrBlank()) return null
+        if (poToken.isNullOrBlank() && dataSyncId.isNullOrBlank() && visitorData.isNullOrBlank()) return null
         return buildExtractorArgs(
             clientSpec = preferredClientSpecForHint(preferredHint),
             includePlayerSkip = preferredHint.trim().lowercase() != "android.gvs",
             poToken = poToken,
             dataSyncId = dataSyncId,
+            visitorData = visitorData,
         )
     }
 
@@ -204,13 +209,16 @@ object YoutubeRequestPlanner {
         includePlayerSkip: Boolean = false,
         poToken: String? = null,
         dataSyncId: String? = null,
+        visitorData: String? = null,
     ): String {
         val parts = mutableListOf("player_client=$clientSpec")
-        if (includePlayerSkip) {
+        if (includePlayerSkip || !dataSyncId.isNullOrBlank() || !visitorData.isNullOrBlank()) {
             parts += "player_skip=webpage,configs"
         }
         if (!dataSyncId.isNullOrBlank()) {
             parts += "data_sync_id=${dataSyncId.trim()}"
+        } else if (!visitorData.isNullOrBlank()) {
+            parts += "visitor_data=${visitorData.trim()}"
         }
 
         val poTokenEntries = buildPoTokenEntries(
