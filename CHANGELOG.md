@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
+## [1.7.2.7] - 2026-05-27
+
+### Fixed
+- **YouTube watch-in-playlist analysis routing** - YouTube links such as `watch?v=...&list=...` now stay on the single-video analyze path, so opening one video after playlist browsing no longer gets delayed by playlist discovery or falls back to reduced `360p`-style results
+- **Audio-site format preservation** - standalone audio formats that omit explicit codec flags now still surface as real `Audio only` choices, restoring JioSaavn-style bitrate picks instead of dropping back to generic `Best available`
+
+### Technical
+- **App version bump** - release metadata updated to `1.7.2.7`
+
 ## [1.7.2.6] - 2026-05-27
 
 ### Fixed

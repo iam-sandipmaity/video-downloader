@@ -729,23 +729,10 @@ class FormatExtractor @Inject constructor(
             videoCodec = item["vcodec"]?.jsonPrimitive?.contentOrNull ?: "none",
             audioCodec = item["acodec"]?.jsonPrimitive?.contentOrNull ?: "none",
             fileSizeBytes = approximateSize,
-            bitrateKbps = item["tbr"]?.jsonPrimitive?.doubleOrNull?.toInt(),
+            bitrateKbps = parseFormatBitrateKbps(item),
             fps = item["fps"]?.jsonPrimitive?.doubleOrNull,
             note = item["format_note"]?.jsonPrimitive?.contentOrNull,
         )
-    }
-
-    private fun shouldIgnoreFormat(item: JsonObject): Boolean {
-        val formatId = item["format_id"]?.jsonPrimitive?.contentOrNull?.trim()?.lowercase().orEmpty()
-        val note = item["format_note"]?.jsonPrimitive?.contentOrNull?.trim()?.lowercase().orEmpty()
-        val extension = item["ext"]?.jsonPrimitive?.contentOrNull?.trim()?.lowercase().orEmpty()
-        val videoCodec = item["vcodec"]?.jsonPrimitive?.contentOrNull?.trim()?.lowercase().orEmpty()
-        val audioCodec = item["acodec"]?.jsonPrimitive?.contentOrNull?.trim()?.lowercase().orEmpty()
-        if (formatId.startsWith("sb")) return true
-        if (note.contains("storyboard")) return true
-        if (extension == "mhtml" || extension == "mht") return true
-        return (videoCodec.isBlank() || videoCodec == "none") &&
-            (audioCodec.isBlank() || audioCodec == "none")
     }
 
     private fun parseHeight(resolution: String?): Int? {
@@ -855,6 +842,50 @@ internal fun isTransientAnalyzeFailure(message: String): Boolean {
         lower.contains("transport endpoint is not connected")
 }
 
+internal fun parseFormatBitrateKbps(item: JsonObject): Int? {
+    return item["tbr"]?.jsonPrimitive?.doubleOrNull?.toInt()
+        ?: item["abr"]?.jsonPrimitive?.doubleOrNull?.toInt()
+}
+
+internal fun shouldIgnoreFormat(item: JsonObject): Boolean {
+    val formatId = item["format_id"]?.jsonPrimitive?.contentOrNull?.trim()?.lowercase().orEmpty()
+    val note = item["format_note"]?.jsonPrimitive?.contentOrNull?.trim()?.lowercase().orEmpty()
+    val extension = item["ext"]?.jsonPrimitive?.contentOrNull?.trim()?.lowercase().orEmpty()
+    val videoCodec = item["vcodec"]?.jsonPrimitive?.contentOrNull?.trim()?.lowercase().orEmpty()
+    val audioCodec = item["acodec"]?.jsonPrimitive?.contentOrNull?.trim()?.lowercase().orEmpty()
+    if (formatId.startsWith("sb")) return true
+    if (note.contains("storyboard")) return true
+    if (extension == "mhtml" || extension == "mht") return true
+
+    val hasDeclaredCodec = (videoCodec.isNotBlank() && videoCodec != "none") ||
+        (audioCodec.isNotBlank() && audioCodec != "none")
+    if (hasDeclaredCodec) return false
+
+    val resolution = item["resolution"]?.jsonPrimitive?.contentOrNull?.trim()?.lowercase().orEmpty()
+    val hasDimensions = item["height"]?.jsonPrimitive?.intOrNull != null ||
+        item["width"]?.jsonPrimitive?.intOrNull != null ||
+        resolution.endsWith("p") ||
+        resolution.contains('x')
+    val looksLikeAudioFormat = extension in KNOWN_AUDIO_ONLY_FORMAT_EXTENSIONS || note.contains("audio")
+    val hasBitrateHint = parseFormatBitrateKbps(item) != null ||
+        item["asr"]?.jsonPrimitive?.intOrNull != null
+    return !hasDimensions && !looksLikeAudioFormat && !hasBitrateHint
+}
+
+private val KNOWN_AUDIO_ONLY_FORMAT_EXTENSIONS = setOf(
+    "m4a",
+    "mp3",
+    "aac",
+    "opus",
+    "ogg",
+    "oga",
+    "flac",
+    "wav",
+    "amr",
+    "mka",
+    "weba",
+)
+
 internal fun buildAnalyzeArgsForRequest(
     url: String,
     extractorArgs: String?,
@@ -928,8 +959,40 @@ internal fun looksLikeYoutubeUrl(url: String): Boolean {
     return normalized.contains("youtube.com") || normalized.contains("youtu.be")
 }
 
+internal fun isExplicitYoutubeVideoUrl(url: String): Boolean {
+    if (!looksLikeYoutubeUrl(url)) return false
+
+    val normalized = url.trim()
+    return runCatching {
+        val uri = URI(normalized)
+        val host = uri.host?.lowercase().orEmpty()
+        val path = uri.path.orEmpty().lowercase()
+        val query = uri.rawQuery.orEmpty().lowercase()
+        val hasVideoQueryParam = query.split('&').any { part ->
+            part.startsWith("v=") && part.length > 2
+        }
+
+        when {
+            hasVideoQueryParam -> true
+            host == "youtu.be" || host.endsWith(".youtu.be") -> path.trim('/').isNotBlank()
+            path.startsWith("/shorts/") -> true
+            path.startsWith("/live/") -> true
+            path.startsWith("/embed/") -> true
+            else -> false
+        }
+    }.getOrElse {
+        val fallback = normalized.lowercase()
+        fallback.contains("watch?v=") ||
+            fallback.contains("youtu.be/") ||
+            fallback.contains("/shorts/") ||
+            fallback.contains("/live/") ||
+            fallback.contains("/embed/")
+    }
+}
+
 internal fun isLikelyYoutubePlaylistUrl(url: String): Boolean {
     if (!looksLikeYoutubeUrl(url)) return false
+    if (isExplicitYoutubeVideoUrl(url)) return false
     val normalized = url.lowercase()
     return normalized.contains("list=") || normalized.contains("/playlist")
 }
@@ -943,7 +1006,7 @@ internal fun shouldUseFastPlaylistAnalyze(url: String): Boolean {
 }
 
 internal fun shouldForceNoPlaylistAnalyze(url: String): Boolean {
-    return looksLikeYoutubeUrl(url) && !isLikelyYoutubePlaylistUrl(url)
+    return isExplicitYoutubeVideoUrl(url)
 }
 
 internal fun extractYoutubePlaylistId(url: String): String? {

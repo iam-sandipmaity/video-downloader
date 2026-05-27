@@ -1,6 +1,8 @@
 package com.localdownloader.downloader
 
 import java.nio.file.Files
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -95,5 +97,57 @@ class FormatExtractorArgsTest {
                 "requested format is not available",
             ),
         )
+    }
+
+    @Test
+    fun shouldIgnoreFormat_keepsAudioContainersEvenWhenCodecFlagsAreMissing() {
+        val item = buildJsonObject {
+            put("format_id", "320")
+            put("ext", "m4a")
+            put("format_note", "audio only")
+            put("abr", 320)
+        }
+
+        assertFalse(shouldIgnoreFormat(item))
+    }
+
+    @Test
+    fun parseFormatBitrateKbps_fallsBackToAbrForAudioEntries() {
+        val item = buildJsonObject {
+            put("format_id", "128")
+            put("ext", "m4a")
+            put("abr", 128)
+        }
+
+        assertEquals(128, parseFormatBitrateKbps(item))
+    }
+
+    @Test
+    fun youtubeWatchUrlsWithPlaylistContextStillForceSingleVideoAnalyze() {
+        val url = "https://www.youtube.com/watch?v=abc123&list=PL_test_123&index=4"
+
+        assertTrue(isExplicitYoutubeVideoUrl(url))
+        assertFalse(isLikelyYoutubePlaylistUrl(url))
+        assertFalse(shouldUseFastPlaylistAnalyze(url))
+        assertTrue(shouldForceNoPlaylistAnalyze(url))
+    }
+
+    @Test
+    fun buildAnalyzeArgsForRequest_addsNoPlaylistForYoutubeWatchUrlInsidePlaylist() {
+        val tempDir = Files.createTempDirectory("format-extractor-watch-list")
+
+        val args = buildAnalyzeArgsForRequest(
+            url = "https://www.youtube.com/watch?v=abc123&list=PL_test_123&index=4",
+            extractorArgs = null,
+            cookiesPath = null,
+            userAgent = null,
+            capturedInfoJsonPath = tempDir.resolve("capture.info.json").toString(),
+            tempDirPath = tempDir.toString(),
+            useLineJsonMode = false,
+        )
+
+        assertTrue(args.contains("--no-playlist"))
+        assertFalse(args.contains("--flat-playlist"))
+        assertFalse(args.contains("--lazy-playlist"))
     }
 }
