@@ -39,11 +39,16 @@ class FormatExtractor @Inject constructor(
     ): Result<VideoInfo> {
         return runCatching {
             logger.i("FormatExtractor", "Starting yt-dlp analyze for URL: $url")
-            val analyzeMode = resolveAnalyzeRequestMode(url)
+            val youtubeIntent = resolveYoutubeAnalyzeIntent(url)
+            if (youtubeIntent != YoutubeAnalyzeIntent.NON_YOUTUBE) {
+                logger.i("FormatExtractor", "Resolved YouTube analyze intent=$youtubeIntent for URL: $url")
+            }
+            val analyzeMode = resolveAnalyzeRequestMode(youtubeIntent)
 
             val hasCookies = !cookiesPath.isNullOrBlank() && File(cookiesPath).exists()
-            val extractorCandidates = if (isYoutubeUrl(url)) {
+            val extractorCandidates = if (youtubeIntent != YoutubeAnalyzeIntent.NON_YOUTUBE) {
                 YoutubeRequestPlanner.analyzeCandidates(
+                    intent = youtubeIntent,
                     cookiesAvailable = hasCookies,
                     preferredExtractorArgs = preferredExtractorArgs,
                 )
@@ -552,8 +557,8 @@ class FormatExtractor @Inject constructor(
         return looksLikeYoutubeUrl(url)
     }
 
-    private fun resolveAnalyzeRequestMode(url: String): AnalyzeRequestMode {
-        return if (shouldUseFastPlaylistAnalyze(url)) {
+    private fun resolveAnalyzeRequestMode(youtubeIntent: YoutubeAnalyzeIntent): AnalyzeRequestMode {
+        return if (youtubeIntent.usesFastListAnalyze()) {
             AnalyzeRequestMode.YOUTUBE_PLAYLIST_FAST
         } else {
             AnalyzeRequestMode.STANDARD
@@ -958,6 +963,16 @@ internal enum class AnalyzeRequestMode {
     YOUTUBE_PLAYLIST_FAST,
 }
 
+internal enum class YoutubeAnalyzeIntent {
+    NON_YOUTUBE,
+    EXPLICIT_VIDEO,
+    PLAYLIST,
+    WATCH_VIDEOS,
+    CHANNEL_TAB,
+    CHANNEL_ROOT,
+    GENERIC_YOUTUBE,
+}
+
 internal fun looksLikeYoutubeUrl(url: String): Boolean {
     val normalized = url.lowercase()
     return normalized.contains("youtube.com") || normalized.contains("youtu.be")
@@ -995,22 +1010,70 @@ internal fun isExplicitYoutubeVideoUrl(url: String): Boolean {
 }
 
 internal fun isLikelyYoutubePlaylistUrl(url: String): Boolean {
-    if (!looksLikeYoutubeUrl(url)) return false
-    if (isExplicitYoutubeVideoUrl(url)) return false
-    val normalized = url.lowercase()
-    return normalized.contains("list=") || normalized.contains("/playlist")
+    return resolveYoutubeAnalyzeIntent(url) == YoutubeAnalyzeIntent.PLAYLIST
+}
+
+internal fun isYoutubeWatchVideosUrl(url: String): Boolean {
+    return resolveYoutubeAnalyzeIntent(url) == YoutubeAnalyzeIntent.WATCH_VIDEOS
+}
+
+internal fun isYoutubeChannelTabUrl(url: String): Boolean {
+    return resolveYoutubeAnalyzeIntent(url) == YoutubeAnalyzeIntent.CHANNEL_TAB
+}
+
+internal fun resolveYoutubeAnalyzeIntent(url: String): YoutubeAnalyzeIntent {
+    if (!looksLikeYoutubeUrl(url)) return YoutubeAnalyzeIntent.NON_YOUTUBE
+    if (isExplicitYoutubeVideoUrl(url)) return YoutubeAnalyzeIntent.EXPLICIT_VIDEO
+
+    val normalized = url.trim()
+    return runCatching {
+        val uri = URI(normalized)
+        val path = uri.path.orEmpty().trimEnd('/').lowercase()
+        val queryParts = uri.rawQuery.orEmpty()
+            .split('&')
+            .mapNotNull { part ->
+                val key = part.substringBefore('=').trim().lowercase()
+                if (key.isBlank()) null else key
+            }
+            .toSet()
+
+        when {
+            path == "/watch_videos" && "video_ids" in queryParts -> YoutubeAnalyzeIntent.WATCH_VIDEOS
+            path == "/playlist" || "list" in queryParts -> YoutubeAnalyzeIntent.PLAYLIST
+            path.startsWith("/@") && path.substringAfterLast('/') in YOUTUBE_CHANNEL_TABS -> YoutubeAnalyzeIntent.CHANNEL_TAB
+            path.startsWith("/channel/") && path.substringAfterLast('/') in YOUTUBE_CHANNEL_TABS -> YoutubeAnalyzeIntent.CHANNEL_TAB
+            path.startsWith("/c/") && path.substringAfterLast('/') in YOUTUBE_CHANNEL_TABS -> YoutubeAnalyzeIntent.CHANNEL_TAB
+            path.startsWith("/user/") && path.substringAfterLast('/') in YOUTUBE_CHANNEL_TABS -> YoutubeAnalyzeIntent.CHANNEL_TAB
+            path.startsWith("/@") || path.startsWith("/channel/") || path.startsWith("/c/") || path.startsWith("/user/") ->
+                YoutubeAnalyzeIntent.CHANNEL_ROOT
+            else -> YoutubeAnalyzeIntent.GENERIC_YOUTUBE
+        }
+    }.getOrElse {
+        val fallback = normalized.lowercase()
+        when {
+            fallback.contains("/watch_videos?") && fallback.contains("video_ids=") -> YoutubeAnalyzeIntent.WATCH_VIDEOS
+            fallback.contains("/playlist") || fallback.contains("list=") -> YoutubeAnalyzeIntent.PLAYLIST
+            fallback.contains("/@") || fallback.contains("/channel/") || fallback.contains("/c/") || fallback.contains("/user/") ->
+                if (YOUTUBE_CHANNEL_TABS.any { tab -> fallback.contains("/$tab") }) {
+                    YoutubeAnalyzeIntent.CHANNEL_TAB
+                } else {
+                    YoutubeAnalyzeIntent.CHANNEL_ROOT
+                }
+            else -> YoutubeAnalyzeIntent.GENERIC_YOUTUBE
+        }
+    }
 }
 
 internal fun shouldUseFastPlaylistAnalyze(url: String): Boolean {
     val normalized = url.trim().lowercase()
     if (normalized.isBlank()) return false
     if (normalized.contains("soundcloud.com")) return false
-    if (looksLikeYoutubeUrl(url)) return isLikelyYoutubePlaylistUrl(url)
+    if (looksLikeYoutubeUrl(url)) return resolveYoutubeAnalyzeIntent(url).usesFastListAnalyze()
     return PLAYLIST_ANALYZE_HINTS.any { hint -> normalized.contains(hint) }
 }
 
 internal fun shouldForceNoPlaylistAnalyze(url: String): Boolean {
-    return isExplicitYoutubeVideoUrl(url)
+    return resolveYoutubeAnalyzeIntent(url) == YoutubeAnalyzeIntent.EXPLICIT_VIDEO
 }
 
 internal fun extractYoutubePlaylistId(url: String): String? {
@@ -1034,4 +1097,18 @@ private val PLAYLIST_ANALYZE_HINTS = listOf(
     "/collections/",
     "/featured/",
 )
+
+private val YOUTUBE_CHANNEL_TABS = setOf(
+    "videos",
+    "streams",
+    "shorts",
+    "playlists",
+    "featured",
+)
+
+private fun YoutubeAnalyzeIntent.usesFastListAnalyze(): Boolean {
+    return this == YoutubeAnalyzeIntent.PLAYLIST ||
+        this == YoutubeAnalyzeIntent.WATCH_VIDEOS ||
+        this == YoutubeAnalyzeIntent.CHANNEL_TAB
+}
 

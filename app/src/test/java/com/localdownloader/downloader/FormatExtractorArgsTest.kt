@@ -155,10 +155,40 @@ class FormatExtractorArgsTest {
     fun youtubeWatchUrlsWithPlaylistContextStillForceSingleVideoAnalyze() {
         val url = "https://www.youtube.com/watch?v=abc123&list=PL_test_123&index=4"
 
+        assertEquals(YoutubeAnalyzeIntent.EXPLICIT_VIDEO, resolveYoutubeAnalyzeIntent(url))
         assertTrue(isExplicitYoutubeVideoUrl(url))
         assertFalse(isLikelyYoutubePlaylistUrl(url))
         assertFalse(shouldUseFastPlaylistAnalyze(url))
         assertTrue(shouldForceNoPlaylistAnalyze(url))
+    }
+
+    @Test
+    fun youtubeWatchVideosUrlsUseFastListAnalyzeIntent() {
+        val url = "https://www.youtube.com/watch_videos?video_ids=abc123,def456"
+
+        assertEquals(YoutubeAnalyzeIntent.WATCH_VIDEOS, resolveYoutubeAnalyzeIntent(url))
+        assertTrue(isYoutubeWatchVideosUrl(url))
+        assertTrue(shouldUseFastPlaylistAnalyze(url))
+        assertFalse(shouldForceNoPlaylistAnalyze(url))
+    }
+
+    @Test
+    fun youtubeChannelTabUrlsUseFastListAnalyzeIntent() {
+        val url = "https://www.youtube.com/@openai/videos"
+
+        assertEquals(YoutubeAnalyzeIntent.CHANNEL_TAB, resolveYoutubeAnalyzeIntent(url))
+        assertTrue(isYoutubeChannelTabUrl(url))
+        assertTrue(shouldUseFastPlaylistAnalyze(url))
+        assertFalse(shouldForceNoPlaylistAnalyze(url))
+    }
+
+    @Test
+    fun youtubeChannelRootUrlsStayOutOfFastListAnalyzeForNow() {
+        val url = "https://www.youtube.com/@openai"
+
+        assertEquals(YoutubeAnalyzeIntent.CHANNEL_ROOT, resolveYoutubeAnalyzeIntent(url))
+        assertFalse(shouldUseFastPlaylistAnalyze(url))
+        assertFalse(shouldForceNoPlaylistAnalyze(url))
     }
 
     @Test

@@ -67,25 +67,47 @@ class YoutubeRequestPlannerTest {
         val preferred = "youtube:player_client=default,web;player_skip=webpage,configs;po_token=web.gvs+token123"
 
         val candidates = YoutubeRequestPlanner.analyzeCandidates(
+            intent = YoutubeAnalyzeIntent.EXPLICIT_VIDEO,
             cookiesAvailable = true,
             preferredExtractorArgs = preferred,
         )
 
         assertTrue(candidates.isNotEmpty())
-        assertTrue(candidates.first()?.contains("default,android") == true)
+        assertEquals(null, candidates.first())
+        assertTrue(candidates[1]?.contains("default,android") == true)
         assertEquals(preferred, candidates.last())
         assertTrue(candidates.indexOf(null) < candidates.indexOf(preferred))
     }
 
     @Test
-    fun analyzeCandidates_restores1726ReleaseOrderForSingleVideoFallbacks() {
-        val candidates = YoutubeRequestPlanner.analyzeCandidates(cookiesAvailable = false)
+    fun analyzeCandidates_restores1723ReleaseOrderForSingleVideoFallbacks() {
+        val candidates = YoutubeRequestPlanner.analyzeCandidates(
+            intent = YoutubeAnalyzeIntent.EXPLICIT_VIDEO,
+            cookiesAvailable = false,
+        )
 
-        assertTrue(candidates.first()?.contains("default,android") == true)
-        assertTrue(candidates[1]?.contains("tv,android") == true)
-        assertFalse(candidates.first()?.contains("default,mweb") == true)
-        assertFalse(candidates.first()?.contains("default,web") == true)
-        assertEquals(null, candidates.last())
-        assertTrue(candidates.first()?.contains("player_skip=webpage,configs") == true)
+        assertEquals(null, candidates.first())
+        assertTrue(candidates[1]?.contains("default,android") == true)
+        assertTrue(candidates[2]?.contains("tv,android") == true)
+        assertFalse(candidates[1]?.contains("default,mweb") == true)
+        assertFalse(candidates[1]?.contains("default,web") == true)
+        assertTrue(candidates[1]?.contains("player_skip=webpage,configs") == true)
+    }
+
+    @Test
+    fun analyzeCandidates_usesLightweightListFallbacksForPlaylistStyleUrls() {
+        val preferred = "youtube:player_client=default,web;player_skip=webpage,configs;po_token=web.gvs+token123"
+
+        val candidates = YoutubeRequestPlanner.analyzeCandidates(
+            intent = YoutubeAnalyzeIntent.PLAYLIST,
+            cookiesAvailable = true,
+            preferredExtractorArgs = preferred,
+        )
+
+        assertEquals(null, candidates.first())
+        assertTrue(candidates[1]?.contains("default,mweb,web,android,tv") == true)
+        assertTrue(candidates[2]?.contains("default,web") == true)
+        assertEquals(preferred, candidates.last())
+        assertFalse(candidates.any { it?.contains("player_client=default,android;") == true })
     }
 }
