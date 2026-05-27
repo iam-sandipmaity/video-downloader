@@ -91,6 +91,7 @@ import com.localdownloader.downloader.isAutomaticContainerSelection
 import com.localdownloader.downloader.isChoiceCompatibleWithRequestedContainer
 import com.localdownloader.downloader.resolveMergeContainerCompatibility
 import com.localdownloader.domain.models.FormatChoice
+import com.localdownloader.domain.models.LinkAnalysisResult
 import com.localdownloader.domain.models.OutputTransform
 import com.localdownloader.domain.models.StreamType
 import com.localdownloader.domain.models.VideoQuality
@@ -145,6 +146,7 @@ fun BrowserScreen(
     onPlaylistItemFileNameChanged: (Int, String) -> Unit,
     onOutputTemplateChanged: (String) -> Unit,
     onAudioOutputTemplateChanged: (String) -> Unit,
+    onPrepareDownloadClicked: () -> Unit,
     onClearBrowserState: () -> Unit,
     onClearAnalyzedResult: () -> Unit,
     onOpenReadyItem: (String) -> Unit,
@@ -162,6 +164,7 @@ fun BrowserScreen(
     onDismissMeteredNetworkDialog: () -> Unit,
     onQueueWhenWifiAvailable: () -> Unit,
     onAllowCellularDownloadsAndQueue: () -> Unit,
+    onOptionsSheetRequestConsumed: () -> Unit,
     onDarkThemeChanged: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     isDownloadButtonEnabled: Boolean = true,
@@ -204,8 +207,11 @@ fun BrowserScreen(
         )
     }
 
-    LaunchedEffect(uiState.videoInfo?.webpageUrl, uiState.shouldShowDownloadSetupNotice) {
-        showOptionsSheet = uiState.videoInfo != null && !uiState.shouldShowDownloadSetupNotice
+    LaunchedEffect(uiState.shouldOpenOptionsSheet, uiState.shouldShowDownloadSetupNotice) {
+        if (uiState.shouldOpenOptionsSheet && !uiState.shouldShowDownloadSetupNotice) {
+            showOptionsSheet = true
+            onOptionsSheetRequestConsumed()
+        }
     }
 
     LaunchedEffect(uiState.shouldShowDownloadSetupNotice) {
@@ -431,15 +437,34 @@ fun BrowserScreen(
             }
         }
 
+        uiState.linkAnalysis?.let { analysis ->
+            DiscoveredResultsCard(
+                analysis = analysis,
+                isLoading = uiState.isLoadingFormats,
+                isReady = uiState.videoInfo != null && !uiState.isLoadingFormats,
+                onDownload = onPrepareDownloadClicked,
+            )
+        }
+
+        val currentAnalysisUrl = uiState.linkAnalysis?.let { analysis ->
+            if (analysis.isCollection) {
+                analysis.webpageUrl ?: analysis.input
+            } else {
+                analysis.primaryItem?.webpageUrl ?: analysis.webpageUrl ?: analysis.input
+            }
+        }
+        val visibleReadyItems = uiState.readyAnalyzedItems.filterNot { item ->
+            currentAnalysisUrl != null && item.webpageUrl == currentAnalysisUrl
+        }
         AnimatedVisibility(
-            visible = uiState.readyAnalyzedItems.isNotEmpty(),
+            visible = visibleReadyItems.isNotEmpty(),
             enter = fadeIn(animationSpec = tween(durationMillis = 220)) +
                 expandVertically(animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing)),
             exit = fadeOut(animationSpec = tween(durationMillis = 160)) +
                 shrinkVertically(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                uiState.readyAnalyzedItems.forEach { item ->
+                visibleReadyItems.forEach { item ->
                     ReadyAnalyzedCard(
                         item = item,
                         isActive = uiState.videoInfo?.webpageUrl == item.webpageUrl,
@@ -961,6 +986,167 @@ private fun ReadyAnalyzedCard(
                             },
                         )
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DiscoveredResultsCard(
+    analysis: LinkAnalysisResult,
+    isLoading: Boolean,
+    isReady: Boolean,
+    onDownload: () -> Unit,
+) {
+    val previewItems = if (analysis.isCollection) analysis.items.take(20) else emptyList()
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize(
+                animationSpec = spring(
+                    dampingRatio = 0.9f,
+                    stiffness = 500f,
+                ),
+            ),
+        shape = RoundedCornerShape(26.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = if (analysis.isCollection) "Found files" else "Found file",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOfNotNull(
+                        if (analysis.isCollection) "${analysis.playlistCount ?: analysis.items.size} items" else null,
+                        playlistDurationLabel(analysis.durationSeconds),
+                    ).forEach { chip ->
+                        BrowserMetaChip(text = chip)
+                    }
+                }
+            }
+
+            Surface(
+                shape = RoundedCornerShape(22.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    AsyncImage(
+                        model = analysis.thumbnailUrl ?: analysis.primaryItem?.thumbnailUrl,
+                        contentDescription = analysis.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(width = 120.dp, height = 68.dp),
+                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = analysis.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            text = analysis.uploader
+                                ?: analysis.primaryItem?.uploader
+                                ?: stringResource(R.string.common_unknown_uploader),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+
+            Button(
+                onClick = onDownload,
+                enabled = !isLoading,
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(vertical = 14.dp),
+            ) {
+                Text(
+                    when {
+                        isLoading -> "Loading options..."
+                        isReady -> stringResource(R.string.browser_open_options)
+                        else -> stringResource(R.string.browser_download_button)
+                    },
+                )
+            }
+
+            if (previewItems.isNotEmpty()) {
+                Text(
+                    text = if (analysis.isCollection) "Files" else "File",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                previewItems.forEach { item ->
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            AsyncImage(
+                                model = item.thumbnailUrl ?: analysis.thumbnailUrl,
+                                contentDescription = item.title,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .size(width = 92.dp, height = 52.dp),
+                            )
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Text(
+                                    text = item.title,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    text = item.uploader
+                                        ?: analysis.uploader
+                                        ?: stringResource(R.string.common_unknown_uploader),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                            playlistDurationLabel(item.durationSeconds)?.let { duration ->
+                                BrowserMetaChip(text = duration)
+                            }
+                        }
+                    }
+                }
+                if (analysis.isCollection && analysis.items.size > previewItems.size) {
+                    Text(
+                        text = "Showing first ${previewItems.size} of ${analysis.items.size} files.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
         }

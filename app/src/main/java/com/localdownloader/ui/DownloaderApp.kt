@@ -445,6 +445,7 @@ fun DownloaderApp(
                     onPlaylistItemFileNameChanged = formatViewModel::onPlaylistItemFileNameChanged,
                     onOutputTemplateChanged = formatViewModel::onOutputTemplateChanged,
                     onAudioOutputTemplateChanged = formatViewModel::onAudioOutputTemplateChanged,
+                    onPrepareDownloadClicked = formatViewModel::prepareCurrentLinkForDownload,
                     onClearBrowserState = formatViewModel::clearBrowserState,
                     onClearAnalyzedResult = formatViewModel::clearAnalyzedResult,
                     onOpenReadyItem = formatViewModel::reopenReadyItem,
@@ -462,6 +463,7 @@ fun DownloaderApp(
                     onDismissMeteredNetworkDialog = formatViewModel::dismissMeteredNetworkDialog,
                     onQueueWhenWifiAvailable = formatViewModel::queueDownloadWhenWifiAvailable,
                     onAllowCellularDownloadsAndQueue = formatViewModel::allowCellularDownloadsAndQueue,
+                    onOptionsSheetRequestConsumed = formatViewModel::consumeOptionsSheetRequest,
                     onDarkThemeChanged = formatViewModel::toggleDarkTheme,
                     isDownloadButtonEnabled = formatViewModel.isDownloadButtonEnabled(),
                 )

@@ -96,6 +96,7 @@ class FormatViewModel @Inject constructor(
                 urlInput = "",
                 isAnalyzing = false,
                 isLoadingFormats = false,
+                shouldOpenOptionsSheet = false,
                 isQueueing = false,
                 linkAnalysis = null,
                 videoInfo = null,
@@ -123,6 +124,7 @@ class FormatViewModel @Inject constructor(
             state.copy(
                 isAnalyzing = false,
                 isLoadingFormats = false,
+                shouldOpenOptionsSheet = false,
                 isQueueing = false,
                 linkAnalysis = if (removedCurrent) null else state.linkAnalysis,
                 videoInfo = if (removedCurrent) null else state.videoInfo,
@@ -209,6 +211,7 @@ class FormatViewModel @Inject constructor(
                     urlInput = secureUrl,
                     isAnalyzing = true,
                     isLoadingFormats = false,
+                    shouldOpenOptionsSheet = false,
                     errorMessage = null,
                     infoMessage = upgradeNotice,
                     linkAnalysis = null,
@@ -241,25 +244,22 @@ class FormatViewModel @Inject constructor(
             }
             result.fold(
                 onSuccess = { analysis ->
-                    val info = analysis.toLegacyVideoInfo()
-                    logger.i("FormatViewModel", "Analyze success for URL: $secureUrl, title='${info.title}', formats=${info.formats.size}")
-                    val shouldLoadFormatsInBackground =
-                        analysis.sourceKind == LinkSourceKind.SINGLE_VIDEO && info.formats.isEmpty()
-                    applyAnalyzedInfo(
-                        analysis = analysis,
-                        info = info,
-                        upgradeNotice = upgradeNotice,
-                        keepLoadingFormats = shouldLoadFormatsInBackground,
+                    logger.i(
+                        "FormatViewModel",
+                        "Analyze success for URL: $secureUrl, title='${analysis.title}', items=${analysis.items.size}, source=${analysis.sourceKind}",
                     )
-                    if (shouldLoadFormatsInBackground) {
-                        loadFormatsForDiscoveredLink(
+                    applyDiscoveredAnalysis(
+                        analysis = analysis,
+                        upgradeNotice = upgradeNotice,
+                    )
+                    if (restoreIntoReady) {
+                        prepareDownloadOptionsForAnalysis(
                             analysis = analysis,
-                            secureUrl = secureUrl,
+                            selectionUrl = browseActionUrlFor(analysis),
                             runtimeCookiesPath = runtimeCookiesPath,
                             upgradeNotice = upgradeNotice,
+                            openOptionsOnReady = true,
                         )
-                    } else {
-                        persistReadyRecordIfNeeded(info)
                     }
                 },
                 onFailure = { error ->
@@ -269,6 +269,7 @@ class FormatViewModel @Inject constructor(
                         state.copy(
                             isAnalyzing = false,
                             isLoadingFormats = false,
+                            shouldOpenOptionsSheet = false,
                             messageScope = FormatMessageScope.BROWSER,
                             errorMessage = buildString {
                                 append(baseMessage)
@@ -283,6 +284,60 @@ class FormatViewModel @Inject constructor(
                 },
             )
         }
+    }
+
+    fun prepareCurrentLinkForDownload() {
+        val state = uiState.value
+        val analysis = state.linkAnalysis
+        if (analysis == null) {
+            if (state.videoInfo != null) {
+                _uiState.update { current ->
+                    current.copy(
+                        shouldOpenOptionsSheet = true,
+                        errorMessage = null,
+                    )
+                }
+            } else {
+                _uiState.update { current ->
+                    scopedMessageState(
+                        state = current,
+                        scope = FormatMessageScope.BROWSER,
+                        errorMessage = "Analyze a link first.",
+                    )
+                }
+            }
+            return
+        }
+
+        val selectionUrl = browseActionUrlFor(analysis)
+        if (
+            state.videoInfo != null &&
+            state.selectedBrowseItemUrl == selectionUrl &&
+            !state.isLoadingFormats
+        ) {
+            _uiState.update { current ->
+                current.copy(
+                    shouldOpenOptionsSheet = true,
+                    errorMessage = null,
+                )
+            }
+            return
+        }
+
+        val runtimeCookiesPath = resolveRuntimeCookiesPathForUrl(selectionUrl)
+        viewModelScope.launch {
+            prepareDownloadOptionsForAnalysis(
+                analysis = analysis,
+                selectionUrl = selectionUrl,
+                runtimeCookiesPath = runtimeCookiesPath,
+                upgradeNotice = null,
+                openOptionsOnReady = true,
+            )
+        }
+    }
+
+    fun consumeOptionsSheetRequest() {
+        _uiState.update { state -> state.copy(shouldOpenOptionsSheet = false) }
     }
 
     fun onQualityChanged(quality: VideoQuality) {
@@ -2054,19 +2109,103 @@ class FormatViewModel @Inject constructor(
         )
     }
 
+    private fun LinkAnalysisResult.withLoadedFormats(results: List<FormatLoadResult>): LinkAnalysisResult {
+        val updated = results.fold(this) { current, result ->
+            current.withLoadedFormats(result)
+        }
+        if (!updated.isCollection) {
+            return updated
+        }
+        return updated.copy(
+            rootFormats = aggregateCollectionFormats(updated.items),
+        )
+    }
+
+    private fun aggregateCollectionFormats(items: List<LinkAnalysisItem>): List<MediaFormat> {
+        return items
+            .flatMap { it.formats }
+            .distinctBy { format ->
+                listOf(
+                    format.formatId,
+                    format.extension,
+                    format.resolution.orEmpty(),
+                    format.videoCodec,
+                    format.audioCodec,
+                    format.note.orEmpty(),
+                ).joinToString("|")
+            }
+            .sortedWith(
+                compareByDescending<MediaFormat> { parseHeight(it.resolution) ?: 0 }
+                    .thenByDescending { it.bitrateKbps ?: 0 },
+            )
+    }
+
+    private fun browseActionUrlFor(analysis: LinkAnalysisResult): String {
+        return if (analysis.isCollection) {
+            analysis.webpageUrl ?: analysis.input
+        } else {
+            analysis.primaryItem?.webpageUrl ?: analysis.webpageUrl ?: analysis.input
+        }
+    }
+
+    private fun buildDiscoverySuccessMessage(
+        analysis: LinkAnalysisResult,
+        upgradeNotice: String?,
+    ): String {
+        val status = when {
+            analysis.isCollection -> {
+                val itemCount = analysis.playlistCount ?: analysis.items.size
+                "Found $itemCount items. Tap Download to choose options."
+            }
+            else -> "Link found. Tap Download to choose options."
+        }
+        return listOfNotNull(upgradeNotice, status).joinToString(" ")
+    }
+
+    private fun applyDiscoveredAnalysis(
+        analysis: LinkAnalysisResult,
+        upgradeNotice: String?,
+    ) {
+        _uiState.update { state ->
+            state.copy(
+                isAnalyzing = false,
+                isLoadingFormats = false,
+                shouldOpenOptionsSheet = false,
+                messageScope = FormatMessageScope.BROWSER,
+                linkAnalysis = analysis,
+                videoInfo = null,
+                availableVideoAudioChoices = emptyList(),
+                availableVideoOnlyChoices = emptyList(),
+                availableAudioOnlyChoices = emptyList(),
+                playlistItems = emptyList(),
+                selectedFormatSelector = null,
+                selectedBrowseItemUrl = null,
+                customFileName = "",
+                restoringReadyItemUrl = null,
+                infoMessage = buildDiscoverySuccessMessage(
+                    analysis = analysis,
+                    upgradeNotice = upgradeNotice,
+                ),
+                errorMessage = null,
+            )
+        }
+    }
+
     private fun buildAnalyzeSuccessMessage(
         info: VideoInfo,
         upgradeNotice: String?,
         isLoadingFormats: Boolean,
     ): String {
         val status = when {
-            isLoadingFormats -> "Link ready. Loading formats..."
+            isLoadingFormats -> "Loading download options..."
             info.isPlaylist -> {
                 val itemCount = info.playlistCount ?: info.playlistEntries.size
-                if (info.formats.isEmpty()) {
+                val hasLoadedPlaylistFormats = info.formats.isNotEmpty() ||
+                    info.playlistEntries.any { it.formats.isNotEmpty() }
+                if (!hasLoadedPlaylistFormats) {
                     "Playlist ready: $itemCount items found. Formats will resolve automatically when you queue selected items."
                 } else {
-                    "Playlist ready: $itemCount items will queue one by one."
+                    "Playlist ready: $itemCount items are ready to configure."
                 }
             }
             else -> "Found ${info.formats.size} formats."
@@ -2079,6 +2218,8 @@ class FormatViewModel @Inject constructor(
         info: VideoInfo,
         upgradeNotice: String?,
         keepLoadingFormats: Boolean,
+        selectedBrowseUrl: String,
+        openOptionsOnReady: Boolean,
     ) {
         val choiceBundle = buildChoices(info)
         val currentState = uiState.value
@@ -2113,6 +2254,7 @@ class FormatViewModel @Inject constructor(
             state.copy(
                 isAnalyzing = false,
                 isLoadingFormats = keepLoadingFormats,
+                shouldOpenOptionsSheet = openOptionsOnReady && !keepLoadingFormats,
                 messageScope = FormatMessageScope.BROWSER,
                 linkAnalysis = analysis,
                 videoInfo = info,
@@ -2123,7 +2265,7 @@ class FormatViewModel @Inject constructor(
                 selectedStreamType = resolvedStreamType,
                 selectedOutputTransform = resolvedOutputTransform,
                 selectedFormatSelector = selectedSelector,
-                selectedBrowseItemUrl = analysis.primaryItem?.webpageUrl ?: info.webpageUrl,
+                selectedBrowseItemUrl = selectedBrowseUrl,
                 customFileName = if (state.videoInfo?.webpageUrl == info.webpageUrl && state.customFileName.isNotBlank()) {
                     state.customFileName
                 } else {
@@ -2145,17 +2287,33 @@ class FormatViewModel @Inject constructor(
         }
     }
 
-    private fun loadFormatsForDiscoveredLink(
+    private suspend fun prepareDownloadOptionsForAnalysis(
         analysis: LinkAnalysisResult,
-        secureUrl: String,
+        selectionUrl: String,
         runtimeCookiesPath: String?,
         upgradeNotice: String?,
+        openOptionsOnReady: Boolean,
     ) {
-        val sourceUrl = analysis.primaryItem?.webpageUrl ?: analysis.webpageUrl ?: secureUrl
-        viewModelScope.launch {
-            val result = runCatching {
-                repository.loadFormats(
-                    url = sourceUrl,
+        _uiState.update { state ->
+            state.copy(
+                isAnalyzing = false,
+                isLoadingFormats = true,
+                shouldOpenOptionsSheet = false,
+                selectedBrowseItemUrl = selectionUrl,
+                messageScope = FormatMessageScope.BROWSER,
+                errorMessage = null,
+                infoMessage = if (analysis.isCollection) {
+                    "Loading collection download options..."
+                } else {
+                    "Loading download options..."
+                },
+            )
+        }
+
+        val result = if (analysis.isCollection) {
+            runCatching {
+                repository.loadFormatsForItems(
+                    urls = analysis.items.map { it.webpageUrl },
                     cookiesPath = runtimeCookiesPath,
                     userAgent = if (uiState.value.cookiesEnabled && uiState.value.cookieUserAgentEnabled) {
                         CookieTextCodec.COOKIE_USER_AGENT
@@ -2165,45 +2323,66 @@ class FormatViewModel @Inject constructor(
                 )
             }.getOrElse { throwable ->
                 Result.failure(IllegalStateException(throwable.message ?: "Format loading failed", throwable))
+            }.map { loadResults ->
+                analysis.withLoadedFormats(loadResults)
             }
-            result.fold(
-                onSuccess = { loadResult ->
-                    val current = uiState.value
-                    if (current.selectedBrowseItemUrl != sourceUrl && current.videoInfo?.webpageUrl != sourceUrl) {
-                        return@fold
-                    }
-                    val updatedAnalysis = analysis.withLoadedFormats(loadResult)
-                    val updatedInfo = updatedAnalysis.toLegacyVideoInfo()
-                    applyAnalyzedInfo(
-                        analysis = updatedAnalysis,
-                        info = updatedInfo,
-                        upgradeNotice = upgradeNotice,
-                        keepLoadingFormats = false,
-                    )
-                    persistReadyRecordIfNeeded(updatedInfo)
-                },
-                onFailure = { error ->
-                    logger.e("FormatViewModel", "Background format load failed for URL: $sourceUrl", error)
-                    val baseMessage = error.message?.takeIf { it.isNotBlank() } ?: "Unable to load formats right now."
-                    _uiState.update { state ->
-                        if (state.selectedBrowseItemUrl != sourceUrl && state.videoInfo?.webpageUrl != sourceUrl) {
-                            state
-                        } else {
-                            state.copy(
-                                isLoadingFormats = false,
-                                messageScope = FormatMessageScope.BROWSER,
-                                errorMessage = buildString {
-                                    append(baseMessage)
-                                    if (shouldShowRuntimeHint(baseMessage)) {
-                                        append(" Ensure yt-dlp runtime is initialized and this device ABI is supported.")
-                                    }
-                                },
-                            )
-                        }
-                    }
-                },
-            )
+        } else {
+            runCatching {
+                repository.loadFormats(
+                    url = selectionUrl,
+                    cookiesPath = runtimeCookiesPath,
+                    userAgent = if (uiState.value.cookiesEnabled && uiState.value.cookieUserAgentEnabled) {
+                        CookieTextCodec.COOKIE_USER_AGENT
+                    } else {
+                        null
+                    },
+                )
+            }.getOrElse { throwable ->
+                Result.failure(IllegalStateException(throwable.message ?: "Format loading failed", throwable))
+            }.map { loadResult ->
+                analysis.withLoadedFormats(loadResult)
+            }
         }
+
+        result.fold(
+            onSuccess = { updatedAnalysis ->
+                val current = uiState.value
+                if (current.selectedBrowseItemUrl != selectionUrl) {
+                    return@fold
+                }
+                val updatedInfo = updatedAnalysis.toLegacyVideoInfo()
+                applyAnalyzedInfo(
+                    analysis = updatedAnalysis,
+                    info = updatedInfo,
+                    upgradeNotice = upgradeNotice,
+                    keepLoadingFormats = false,
+                    selectedBrowseUrl = selectionUrl,
+                    openOptionsOnReady = openOptionsOnReady,
+                )
+                persistReadyRecordIfNeeded(updatedInfo)
+            },
+            onFailure = { error ->
+                logger.e("FormatViewModel", "Format load failed for selection: $selectionUrl", error)
+                val baseMessage = error.message?.takeIf { it.isNotBlank() } ?: "Unable to load formats right now."
+                _uiState.update { state ->
+                    if (state.selectedBrowseItemUrl != selectionUrl) {
+                        state
+                    } else {
+                        state.copy(
+                            isLoadingFormats = false,
+                            shouldOpenOptionsSheet = false,
+                            messageScope = FormatMessageScope.BROWSER,
+                            errorMessage = buildString {
+                                append(baseMessage)
+                                if (shouldShowRuntimeHint(baseMessage)) {
+                                    append(" Ensure yt-dlp runtime is initialized and this device ABI is supported.")
+                                }
+                            },
+                        )
+                    }
+                }
+            },
+        )
     }
 
     private fun buildPlaylistItemStates(

@@ -70,6 +70,7 @@ data class FormatUiState(
     val urlInput: String = "",
     val isAnalyzing: Boolean = false,
     val isLoadingFormats: Boolean = false,
+    val shouldOpenOptionsSheet: Boolean = false,
     val isQueueing: Boolean = false,
     val linkAnalysis: LinkAnalysisResult? = null,
     val videoInfo: VideoInfo? = null,
