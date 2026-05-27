@@ -7,7 +7,7 @@ object YoutubeRequestPlanner {
         val extractorArgs: String?,
     )
 
-    fun analyzeCandidates(
+    internal fun analyzeCandidates(
         intent: YoutubeAnalyzeIntent,
         cookiesAvailable: Boolean,
         preferredExtractorArgs: String? = null,
