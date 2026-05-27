@@ -7,43 +7,15 @@ object YoutubeRequestPlanner {
         val extractorArgs: String?,
     )
 
-    internal fun analyzeCandidates(
-        intent: YoutubeAnalyzeIntent,
-        cookiesAvailable: Boolean,
-        preferredExtractorArgs: String? = null,
-    ): List<String?> {
+    fun analyzeCandidates(cookiesAvailable: Boolean): List<String?> {
         val candidates = buildList {
-            when (intent) {
-                YoutubeAnalyzeIntent.PLAYLIST,
-                YoutubeAnalyzeIntent.WATCH_VIDEOS,
-                YoutubeAnalyzeIntent.CHANNEL_TAB,
-                -> {
-                    // List-style YouTube pages usually only need a lightweight flat-playlist probe.
-                    add(null)
-                    if (cookiesAvailable) {
-                        add(buildExtractorArgs(clientSpec = "default,mweb,web,android,tv", includePlayerSkip = true))
-                        add(buildExtractorArgs(clientSpec = "default,web", includePlayerSkip = true))
-                    }
-                    preferredExtractorArgs?.trim()?.ifBlank { null }?.let(::add)
-                }
-                YoutubeAnalyzeIntent.EXPLICIT_VIDEO,
-                YoutubeAnalyzeIntent.CHANNEL_ROOT,
-                YoutubeAnalyzeIntent.GENERIC_YOUTUBE,
-                -> {
-                    // Restore the 1.7.2.3 single-video probing order that proved most reliable in-app.
-                    add(null)
-                    add(buildExtractorArgs(clientSpec = "default,android", includePlayerSkip = true))
-                    add(buildExtractorArgs(clientSpec = "tv,android", includePlayerSkip = true))
-                    if (cookiesAvailable) {
-                        add(buildExtractorArgs(clientSpec = "default,mweb,web,android,tv", includePlayerSkip = true))
-                        add(buildExtractorArgs(clientSpec = "default,mweb", includePlayerSkip = true))
-                        add(buildExtractorArgs(clientSpec = "default,web", includePlayerSkip = true))
-                    }
-                    preferredExtractorArgs?.trim()?.ifBlank { null }?.let(::add)
-                }
-                YoutubeAnalyzeIntent.NON_YOUTUBE -> {
-                    add(null)
-                }
+            add(null)
+            add(buildExtractorArgs(clientSpec = "default,android"))
+            add(buildExtractorArgs(clientSpec = "tv,android"))
+            if (cookiesAvailable) {
+                add(buildExtractorArgs(clientSpec = "default,mweb,web,android,tv", includePlayerSkip = true))
+                add(buildExtractorArgs(clientSpec = "default,mweb", includePlayerSkip = true))
+                add(buildExtractorArgs(clientSpec = "default,web", includePlayerSkip = true))
             }
         }
         return candidates.distinct()
@@ -51,10 +23,7 @@ object YoutubeRequestPlanner {
 
     fun recoveryCandidates(selectedExtractorArgs: String?, cookiesAvailable: Boolean): List<String?> {
         val normalizedSelectedArgs = normalizeExtractorArgs(selectedExtractorArgs)
-        return analyzeCandidates(
-            intent = YoutubeAnalyzeIntent.EXPLICIT_VIDEO,
-            cookiesAvailable = cookiesAvailable,
-        )
+        return analyzeCandidates(cookiesAvailable)
             .map(::normalizeExtractorArgs)
             .distinct()
             .filter { it != normalizedSelectedArgs }
