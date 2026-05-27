@@ -39,6 +39,10 @@ import com.localdownloader.utils.Logger
 import com.localdownloader.utils.NetworkStatusMonitor
 import com.localdownloader.utils.UrlValidator
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -59,6 +63,10 @@ class FormatViewModel @Inject constructor(
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(FormatUiState())
     val uiState: StateFlow<FormatUiState> = _uiState.asStateFlow()
+    private var analyzePrefetchJob: Job? = null
+    private var analyzePrefetchUrl: String? = null
+    private var analyzePrefetchDeferred: Deferred<Result<VideoInfo>>? = null
+    private var analyzePrefetchResult: AnalyzePrefetchResult? = null
 
     private fun scopedMessageState(
         state: FormatUiState,
@@ -84,9 +92,11 @@ class FormatViewModel @Inject constructor(
         _uiState.update { state ->
             state.copy(urlInput = url, errorMessage = null, infoMessage = null)
         }
+        scheduleAnalyzePrefetch(url)
     }
 
     fun clearBrowserState() {
+        cancelAnalyzePrefetch()
         _uiState.update { state ->
             state.copy(
                 urlInput = "",
@@ -143,6 +153,33 @@ class FormatViewModel @Inject constructor(
     fun analyzeUrl() {
         val url = uiState.value.urlInput.trim()
         analyzeUrlInternal(url = url, restoreIntoReady = false)
+    }
+
+    fun analyzeSelectedPlaylistItems() {
+        val targets = uiState.value.playlistItems
+            .withIndex()
+            .filter { (_, item) -> item.isSelected && item.areChoicesFromFallback && !item.isLoadingChoices }
+            .map { (index, item) -> index to item.entry.webpageUrl }
+        if (targets.isEmpty()) return
+
+        _uiState.update { state ->
+            val targetIndexes = targets.map { it.first }.toSet()
+            state.copy(
+                playlistItems = state.playlistItems.mapIndexed { index, item ->
+                    if (index in targetIndexes) {
+                        item.copy(isLoadingChoices = true, choiceLoadErrorMessage = null)
+                    } else {
+                        item
+                    }
+                },
+            )
+        }
+
+        viewModelScope.launch {
+            targets.forEach { (index, itemUrl) ->
+                analyzePlaylistItemFormats(index = index, expectedUrl = itemUrl)
+            }
+        }
     }
 
     fun reopenReadyItem(webpageUrl: String) {
@@ -211,7 +248,7 @@ class FormatViewModel @Inject constructor(
                 )
             }
 
-            val result = analyzeResolvedUrl(secureUrl)
+            val result = analyzeWithPrefetchOrRun(secureUrl)
             result.fold(
                 onSuccess = { info ->
                     logger.i(
@@ -326,6 +363,97 @@ class FormatViewModel @Inject constructor(
         }.getOrElse { throwable ->
             Result.failure(IllegalStateException(throwable.message ?: "Analyze failed", throwable))
         }
+    }
+
+    private fun scheduleAnalyzePrefetch(rawUrl: String) {
+        analyzePrefetchJob?.cancel()
+        analyzePrefetchJob = null
+        analyzePrefetchUrl = null
+        analyzePrefetchDeferred = null
+        val normalized = urlValidator.normalizeForSecureUse(rawUrl)?.normalizedUrl ?: return
+        val cached = analyzePrefetchResult
+        if (cached != null && cached.url == normalized && cached.isFresh()) return
+        if (analyzePrefetchUrl == normalized && analyzePrefetchDeferred?.isActive == true) return
+
+        analyzePrefetchJob = viewModelScope.launch {
+            delay(ANALYZE_PREFETCH_DEBOUNCE_MS)
+            val currentUrl = urlValidator.normalizeForSecureUse(uiState.value.urlInput)?.normalizedUrl
+            if (currentUrl != normalized || uiState.value.videoInfo?.webpageUrl == normalized) return@launch
+
+            val deferred = async { analyzeResolvedUrl(normalized) }
+            analyzePrefetchUrl = normalized
+            analyzePrefetchDeferred = deferred
+            val result = deferred.await()
+            analyzePrefetchResult = AnalyzePrefetchResult(
+                url = normalized,
+                result = result,
+                createdAtEpochMs = System.currentTimeMillis(),
+            )
+            if (analyzePrefetchUrl == normalized) {
+                analyzePrefetchDeferred = null
+            }
+        }
+    }
+
+    private suspend fun analyzeWithPrefetchOrRun(url: String): Result<VideoInfo> {
+        val cached = analyzePrefetchResult
+        if (cached != null && cached.url == url && cached.isFresh()) {
+            return cached.result
+        }
+
+        val inFlight = analyzePrefetchDeferred
+        if (analyzePrefetchUrl == url && inFlight != null) {
+            return inFlight.await()
+        }
+
+        cancelAnalyzePrefetch()
+        return analyzeResolvedUrl(url)
+    }
+
+    private fun cancelAnalyzePrefetch() {
+        analyzePrefetchJob?.cancel()
+        analyzePrefetchJob = null
+        analyzePrefetchUrl = null
+        analyzePrefetchDeferred = null
+        analyzePrefetchResult = null
+    }
+
+    private suspend fun analyzePlaylistItemFormats(
+        index: Int,
+        expectedUrl: String,
+        keepExpanded: Boolean = false,
+    ) {
+        analyzeResolvedUrl(expectedUrl).fold(
+            onSuccess = { loadedInfo ->
+                val loadedBundle = buildChoices(loadedInfo)
+                _uiState.update { state ->
+                    if (index !in state.playlistItems.indices) return@update state
+                    val updatedItems = state.playlistItems.toMutableList()
+                    if (updatedItems[index].entry.webpageUrl != expectedUrl) return@update state
+                    updatedItems[index] = applyChoiceBundleToPlaylistItem(
+                        item = updatedItems[index],
+                        state = state,
+                        choiceBundle = loadedBundle,
+                        areChoicesFromFallback = false,
+                    ).copy(
+                        isExpanded = keepExpanded || updatedItems[index].isExpanded,
+                        isLoadingChoices = false,
+                        choiceLoadErrorMessage = null,
+                    )
+                    state.copy(playlistItems = updatedItems)
+                }
+            },
+            onFailure = { error ->
+                updatePlaylistItem(index) { existing ->
+                    if (existing.entry.webpageUrl != expectedUrl) return@updatePlaylistItem existing
+                    existing.copy(
+                        isExpanded = keepExpanded || existing.isExpanded,
+                        isLoadingChoices = false,
+                        choiceLoadErrorMessage = error.message ?: "Could not load file-specific formats.",
+                    )
+                }
+            },
+        )
     }
 
     private fun buildPreferredAnalyzeExtractorArgs(
@@ -577,41 +705,7 @@ class FormatViewModel @Inject constructor(
             )
         }
         viewModelScope.launch {
-            analyzeResolvedUrl(item.entry.webpageUrl).fold(
-                onSuccess = { loadedInfo ->
-                    val loadedBundle = buildChoices(loadedInfo)
-                    _uiState.update { state ->
-                        if (index !in state.playlistItems.indices) return@update state
-                        val updatedItems = state.playlistItems.toMutableList()
-                        if (updatedItems[index].entry.webpageUrl != item.entry.webpageUrl) {
-                            return@update state
-                        }
-                        updatedItems[index] = applyChoiceBundleToPlaylistItem(
-                            item = updatedItems[index],
-                            state = state,
-                            choiceBundle = loadedBundle,
-                            areChoicesFromFallback = false,
-                        ).copy(
-                            isExpanded = true,
-                            isLoadingChoices = false,
-                            choiceLoadErrorMessage = null,
-                        )
-                        state.copy(playlistItems = updatedItems)
-                    }
-                },
-                onFailure = { error ->
-                    updatePlaylistItem(index) { existing ->
-                        if (existing.entry.webpageUrl != item.entry.webpageUrl) {
-                            return@updatePlaylistItem existing
-                        }
-                        existing.copy(
-                            isExpanded = true,
-                            isLoadingChoices = false,
-                            choiceLoadErrorMessage = error.message ?: "Could not load file-specific formats.",
-                        )
-                    }
-                },
-            )
+            analyzePlaylistItemFormats(index = index, expectedUrl = item.entry.webpageUrl, keepExpanded = true)
         }
     }
 
@@ -2099,6 +2193,16 @@ class FormatViewModel @Inject constructor(
         val queueNote: String?,
     )
 
+    private data class AnalyzePrefetchResult(
+        val url: String,
+        val result: Result<VideoInfo>,
+        val createdAtEpochMs: Long,
+    ) {
+        fun isFresh(nowEpochMs: Long = System.currentTimeMillis()): Boolean {
+            return nowEpochMs - createdAtEpochMs <= ANALYZE_PREFETCH_TTL_MS
+        }
+    }
+
     private fun buildPlaylistItemStates(
         info: VideoInfo,
         fallbackChoiceBundle: ChoiceBundle,
@@ -2689,3 +2793,6 @@ class FormatViewModel @Inject constructor(
             .sortedByDescending { it.analyzedAtEpochMs }
     }
 }
+
+private const val ANALYZE_PREFETCH_DEBOUNCE_MS = 700L
+private const val ANALYZE_PREFETCH_TTL_MS = 5 * 60 * 1000L

@@ -108,8 +108,10 @@
     <string name="browser_playlist_edit">Edit</string>
     <string name="browser_playlist_hide">Hide</string>
     <string name="browser_playlist_auto_format">Auto format will be used for this file.</string>
-    <string name="browser_playlist_loading_item_formats">Loading formats for this file...</string>
-    <string name="browser_playlist_specific_formats_hint">Showing quick fallback choices now. This file will switch to its own formats as soon as loading finishes.</string>
+    <string name="browser_playlist_loading_item_formats" translatable="false">Loading formats for this file...</string>
+    <string name="browser_playlist_specific_formats_hint" translatable="false">Showing quick fallback choices now. This file will switch to its own formats as soon as loading finishes.</string>
+    <string name="browser_playlist_analyze_all" translatable="false">Analyze all</string>
+    <string name="browser_playlist_analyzing_files" translatable="false">Analyzing files...</string>
     <plurals name="browser_files_count">
         <item quantity="one">%1$d file</item>
         <item quantity="other">%1$d files</item>

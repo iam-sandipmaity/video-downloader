@@ -132,6 +132,7 @@ fun BrowserScreen(
     onWriteThumbnailChanged: (Boolean) -> Unit,
     onPlaylistEnabledChanged: (Boolean) -> Unit,
     onPlaylistSelectAllChanged: (Boolean) -> Unit,
+    onPlaylistAnalyzeAllClicked: () -> Unit,
     onPlaylistItemSelectedChanged: (Int, Boolean) -> Unit,
     onPlaylistItemExpandedChanged: (Int, Boolean) -> Unit,
     onPlaylistItemUseGlobalChanged: (Int, Boolean) -> Unit,
@@ -616,7 +617,12 @@ fun BrowserScreen(
                                     totalCount = uiState.playlistItems.size,
                                     selectedCount = uiState.selectedPlaylistItemCount,
                                     allSelected = uiState.areAllPlaylistItemsSelected,
+                                    pendingAnalyzeCount = uiState.playlistItems.count {
+                                        it.isSelected && it.areChoicesFromFallback && !it.isLoadingChoices
+                                    },
+                                    isAnalyzingAny = uiState.playlistItems.any { it.isSelected && it.isLoadingChoices },
                                     onSelectAllChanged = onPlaylistSelectAllChanged,
+                                    onAnalyzeAllClicked = onPlaylistAnalyzeAllClicked,
                                 )
                             }
                         }
@@ -1469,54 +1475,85 @@ private fun localizedVideoQualityLabel(quality: VideoQuality): String {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PlaylistSelectionSummaryCard(
     totalCount: Int,
     selectedCount: Int,
     allSelected: Boolean,
+    pendingAnalyzeCount: Int,
+    isAnalyzingAny: Boolean,
     onSelectAllChanged: (Boolean) -> Unit,
+    onAnalyzeAllClicked: () -> Unit,
 ) {
     Surface(
         shape = RoundedCornerShape(22.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 14.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Checkbox(
-                checked = allSelected,
-                onCheckedChange = { onSelectAllChanged(it) },
-            )
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = stringResource(R.string.browser_all_files),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
+                Checkbox(
+                    checked = allSelected,
+                    onCheckedChange = { onSelectAllChanged(it) },
                 )
-                Text(
-                    text = stringResource(R.string.browser_selected_count_of_total, selectedCount, totalCount),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.browser_all_files),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = stringResource(R.string.browser_selected_count_of_total, selectedCount, totalCount),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                TextButton(onClick = { onSelectAllChanged(!allSelected) }) {
+                    Text(
+                        stringResource(
+                            if (allSelected) {
+                                R.string.common_clear
+                            } else {
+                                R.string.common_select
+                            },
+                        ),
+                    )
+                }
             }
-            TextButton(onClick = { onSelectAllChanged(!allSelected) }) {
-                Text(
-                    stringResource(
-                        if (allSelected) {
-                            R.string.common_clear
-                        } else {
-                            R.string.common_select
-                        },
-                    ),
-                )
+            if (pendingAnalyzeCount > 0 || isAnalyzingAny) {
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    TextButton(
+                        onClick = onAnalyzeAllClicked,
+                        enabled = pendingAnalyzeCount > 0 && !isAnalyzingAny,
+                    ) {
+                        Text(
+                            stringResource(
+                                if (isAnalyzingAny) {
+                                    R.string.browser_playlist_analyzing_files
+                                } else {
+                                    R.string.browser_playlist_analyze_all
+                                },
+                            ),
+                        )
+                    }
+                }
             }
         }
     }
