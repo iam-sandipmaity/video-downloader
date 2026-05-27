@@ -71,17 +71,28 @@ class FormatExtractor @Inject constructor(
     ): Result<LinkAnalysisResult> {
         return runCatching {
             logger.i("FormatExtractor", "Starting discovery-first link analysis for URL: $url")
+            val sourceKind = LinkSourceClassifier.classify(url)
             val resolved = resolveBestAnalyzeCandidate(
                 url = url,
                 cookiesPath = cookiesPath,
                 userAgent = userAgent,
+                purpose = AnalyzePurpose.DISCOVERY,
             )
             mapLinkAnalysis(
                 root = resolved.root,
                 fallbackUrl = url,
                 extractorArgs = resolved.extractorArgs,
                 infoJsonPath = resolved.infoJsonPath,
-            )
+            ).let { analysis ->
+                if (sourceKind == LinkSourceKind.SINGLE_VIDEO) {
+                    analysis.copy(
+                        rootFormats = emptyList(),
+                        items = analysis.items.map { item -> item.copy(formats = emptyList(), infoJsonPath = null) },
+                    )
+                } else {
+                    analysis
+                }
+            }
         }.onFailure { error ->
             logger.e("FormatExtractor", "Link analysis exception for URL: $url", error)
         }
@@ -120,10 +131,15 @@ class FormatExtractor @Inject constructor(
         cookiesPath: String?,
         userAgent: String?,
         requestMode: AnalyzeRequestMode = resolveAnalyzeRequestMode(url),
+        purpose: AnalyzePurpose = AnalyzePurpose.FULL,
     ): AnalyzeCandidate {
         val hasCookies = !cookiesPath.isNullOrBlank() && File(cookiesPath).exists()
         val extractorCandidates = if (isYoutubeUrl(url)) {
-            YoutubeRequestPlanner.analyzeCandidates(cookiesAvailable = hasCookies)
+            if (purpose == AnalyzePurpose.DISCOVERY) {
+                YoutubeRequestPlanner.discoveryCandidates(cookiesAvailable = hasCookies)
+            } else {
+                YoutubeRequestPlanner.analyzeCandidates(cookiesAvailable = hasCookies)
+            }
         } else {
             listOf<String?>(null)
         }
@@ -139,13 +155,23 @@ class FormatExtractor @Inject constructor(
             }
             if (best != null && !shouldTryMoreCandidates(best?.stats)) return@forEachIndexed
             val attempt = runCatching {
-                analyzeWithExtractor(
-                    url = url,
-                    extractorArgs = extractorArgs,
-                    cookiesPath = cookiesPath,
-                    userAgent = userAgent,
-                    requestMode = requestMode,
-                )
+                if (purpose == AnalyzePurpose.DISCOVERY) {
+                    analyzeWithExtractorForDiscovery(
+                        url = url,
+                        extractorArgs = extractorArgs,
+                        cookiesPath = cookiesPath,
+                        userAgent = userAgent,
+                        requestMode = requestMode,
+                    )
+                } else {
+                    analyzeWithExtractor(
+                        url = url,
+                        extractorArgs = extractorArgs,
+                        cookiesPath = cookiesPath,
+                        userAgent = userAgent,
+                        requestMode = requestMode,
+                    )
+                }
             }.getOrElse { error ->
                 logger.w(
                     "FormatExtractor",
@@ -191,6 +217,49 @@ class FormatExtractor @Inject constructor(
         }
 
         return best ?: throw IllegalStateException(lastFailureMessage ?: "yt-dlp analyze failed")
+    }
+
+    private suspend fun analyzeWithExtractorForDiscovery(
+        url: String,
+        extractorArgs: String?,
+        cookiesPath: String?,
+        userAgent: String?,
+        requestMode: AnalyzeRequestMode,
+    ): AnalyzeAttempt {
+        if (requestMode == AnalyzeRequestMode.YOUTUBE_PLAYLIST_FAST) {
+            return analyzeWithExtractor(
+                url = url,
+                extractorArgs = extractorArgs,
+                cookiesPath = cookiesPath,
+                userAgent = userAgent,
+                requestMode = requestMode,
+            )
+        }
+
+        val cachedInfoJsonPath = resolveRecentInfoJsonSnapshotPath(url)
+        val capturedInfoJsonFile = createAnalyzeCaptureFile(url = url, extractorArgs = extractorArgs)
+        val lineJsonAttempt = executeAnalyzeAttempt(
+            url = url,
+            extractorArgs = extractorArgs,
+            cookiesPath = cookiesPath,
+            userAgent = userAgent,
+            capturedInfoJsonFile = capturedInfoJsonFile,
+            loadInfoJsonPath = cachedInfoJsonPath,
+            socketTimeoutSeconds = DEFAULT_ANALYZE_SOCKET_TIMEOUT_SECONDS,
+            useLineJsonMode = true,
+            requestMode = requestMode,
+        )
+        if (lineJsonAttempt.candidate != null) {
+            return lineJsonAttempt
+        }
+
+        return analyzeWithExtractor(
+            url = url,
+            extractorArgs = extractorArgs,
+            cookiesPath = cookiesPath,
+            userAgent = userAgent,
+            requestMode = requestMode,
+        )
     }
 
     private fun logFormatSummary(url: String, formats: List<MediaFormat>, extractorArgs: String?) {
@@ -1072,6 +1141,11 @@ internal fun buildAnalyzeArgsForRequest(
 internal enum class AnalyzeRequestMode {
     STANDARD,
     YOUTUBE_PLAYLIST_FAST,
+}
+
+private enum class AnalyzePurpose {
+    FULL,
+    DISCOVERY,
 }
 
 internal fun looksLikeYoutubeUrl(url: String): Boolean {

@@ -344,7 +344,7 @@ fun BrowserScreen(
                     },
                 )
                 AnimatedVisibility(
-                    visible = uiState.isAnalyzing,
+                    visible = uiState.isAnalyzing || uiState.isLoadingFormats,
                     enter = fadeIn(animationSpec = tween(durationMillis = 180)) +
                         expandVertically(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)),
                     exit = fadeOut(animationSpec = tween(durationMillis = 140)) +
@@ -383,19 +383,16 @@ fun BrowserScreen(
                     }
                     Button(
                         onClick = onAnalyzeClicked,
-                        enabled = !uiState.isAnalyzing,
+                        enabled = !uiState.isAnalyzing && !uiState.isLoadingFormats,
                         modifier = Modifier.weight(1f),
                         contentPadding = PaddingValues(vertical = 14.dp),
                     ) {
-                        Text(
-                            stringResource(
-                                if (uiState.isAnalyzing) {
-                                    R.string.browser_analyzing
-                                } else {
-                                    R.string.browser_analyze_link
-                                },
-                            ),
-                        )
+                        val buttonText = when {
+                            uiState.isAnalyzing -> stringResource(R.string.browser_analyzing)
+                            uiState.isLoadingFormats -> "Loading formats..."
+                            else -> stringResource(R.string.browser_analyze_link)
+                        }
+                        Text(buttonText)
                     }
                 }
             }
@@ -446,7 +443,8 @@ fun BrowserScreen(
                     ReadyAnalyzedCard(
                         item = item,
                         isActive = uiState.videoInfo?.webpageUrl == item.webpageUrl,
-                        isLoading = uiState.restoringReadyItemUrl == item.webpageUrl && uiState.isAnalyzing,
+                        isLoading = uiState.restoringReadyItemUrl == item.webpageUrl &&
+                            (uiState.isAnalyzing || uiState.isLoadingFormats),
                         onOpen = {
                             if (uiState.videoInfo?.webpageUrl == item.webpageUrl) {
                                 showOptionsSheet = true

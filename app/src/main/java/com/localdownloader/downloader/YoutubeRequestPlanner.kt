@@ -22,6 +22,18 @@ object YoutubeRequestPlanner {
         return candidates.distinct()
     }
 
+    fun discoveryCandidates(cookiesAvailable: Boolean): List<String?> {
+        val candidates = buildList {
+            add(buildExtractorArgs(clientSpec = "default,mweb", includePlayerSkip = true))
+            add(buildExtractorArgs(clientSpec = "default,web", includePlayerSkip = true))
+            add(null)
+            if (cookiesAvailable) {
+                add(buildExtractorArgs(clientSpec = "default,mweb,web,android,tv", includePlayerSkip = true))
+            }
+        }
+        return candidates.distinct()
+    }
+
     fun recoveryCandidates(selectedExtractorArgs: String?, cookiesAvailable: Boolean): List<String?> {
         val normalizedSelectedArgs = normalizeExtractorArgs(selectedExtractorArgs)
         return analyzeCandidates(cookiesAvailable)

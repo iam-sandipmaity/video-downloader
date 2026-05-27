@@ -16,7 +16,9 @@ import com.localdownloader.domain.models.ContrastMode
 import com.localdownloader.domain.models.CookieProfile
 import com.localdownloader.domain.models.DownloadOptions
 import com.localdownloader.domain.models.FormatChoice
+import com.localdownloader.domain.models.FormatLoadResult
 import com.localdownloader.domain.models.LinkAnalysisResult
+import com.localdownloader.domain.models.LinkSourceKind
 import com.localdownloader.domain.models.MediaFormat
 import com.localdownloader.domain.models.OutputTransform
 import com.localdownloader.domain.models.PlaylistDownloadRequest
@@ -236,80 +238,29 @@ class FormatViewModel @Inject constructor(
             }
                 .getOrElse { throwable ->
                     Result.failure(IllegalStateException(throwable.message ?: "Analyze failed", throwable))
-                }
+            }
             result.fold(
                 onSuccess = { analysis ->
                     val info = analysis.toLegacyVideoInfo()
-                    logger.i(
-                        "FormatViewModel",
-                        "Analyze success for URL: $secureUrl, title='${info.title}', formats=${info.formats.size}",
+                    logger.i("FormatViewModel", "Analyze success for URL: $secureUrl, title='${info.title}', formats=${info.formats.size}")
+                    val shouldLoadFormatsInBackground =
+                        analysis.sourceKind == LinkSourceKind.SINGLE_VIDEO && info.formats.isEmpty()
+                    applyAnalyzedInfo(
+                        analysis = analysis,
+                        info = info,
+                        upgradeNotice = upgradeNotice,
+                        keepLoadingFormats = shouldLoadFormatsInBackground,
                     )
-                    val choiceBundle = buildChoices(info)
-                    val resolvedStreamType = resolveAvailableStreamType(
-                        preferredStreamType = uiState.value.selectedStreamType,
-                        videoAudioChoices = choiceBundle.videoAudioChoices,
-                        videoOnlyChoices = choiceBundle.videoOnlyChoices,
-                        audioOnlyChoices = choiceBundle.audioOnlyChoices,
-                    )
-                    val resolvedOutputTransform = resolveAvailableOutputTransform(
-                        preferredTransform = OutputTransform.NONE,
-                        sourceStreamType = resolvedStreamType,
-                        videoAudioChoices = choiceBundle.videoAudioChoices,
-                        videoOnlyChoices = choiceBundle.videoOnlyChoices,
-                        audioOnlyChoices = choiceBundle.audioOnlyChoices,
-                    )
-                    val selectedSelector = firstSelectorForStreamType(
-                        streamType = resolvedStreamType,
-                        container = uiState.value.selectedContainer,
-                        videoAudioChoices = choiceBundle.videoAudioChoices,
-                        videoOnlyChoices = choiceBundle.videoOnlyChoices,
-                        audioOnlyChoices = choiceBundle.audioOnlyChoices,
-                    )
-                    _uiState.update { state ->
-                        val playlistItems = buildPlaylistItemStates(
-                            info = info,
-                            streamType = resolvedStreamType,
-                            container = state.selectedContainer,
-                            audioFormat = state.selectedAudioFormat,
-                            audioBitrateKbps = state.audioBitrateKbps,
+                    if (shouldLoadFormatsInBackground) {
+                        loadFormatsForDiscoveredLink(
+                            analysis = analysis,
+                            secureUrl = secureUrl,
+                            runtimeCookiesPath = runtimeCookiesPath,
+                            upgradeNotice = upgradeNotice,
                         )
-                        state.copy(
-                            isAnalyzing = false,
-                            messageScope = FormatMessageScope.BROWSER,
-                            linkAnalysis = analysis,
-                            videoInfo = info,
-                            availableVideoAudioChoices = choiceBundle.videoAudioChoices,
-                            availableVideoOnlyChoices = choiceBundle.videoOnlyChoices,
-                            availableAudioOnlyChoices = choiceBundle.audioOnlyChoices,
-                            playlistItems = playlistItems,
-                            selectedStreamType = resolvedStreamType,
-                            selectedOutputTransform = resolvedOutputTransform,
-                            selectedFormatSelector = selectedSelector,
-                            selectedBrowseItemUrl = analysis.primaryItem?.webpageUrl ?: info.webpageUrl,
-                            customFileName = info.title,
-                            enablePlaylist = state.enablePlaylist || info.isPlaylist,
-                            readyAnalyzedItems = upsertReadyRecord(
-                                state.readyAnalyzedItems,
-                                buildReadyRecord(info),
-                            ),
-                            restoringReadyItemUrl = null,
-                            infoMessage = listOfNotNull(
-                                upgradeNotice,
-                                when {
-                                    info.isPlaylist -> {
-                                        val itemCount = info.playlistCount ?: info.playlistEntries.size
-                                        if (info.formats.isEmpty()) {
-                                            "Playlist ready: $itemCount items found. Formats will resolve automatically when you queue selected items."
-                                        } else {
-                                            "Playlist ready: $itemCount items will queue one by one."
-                                        }
-                                    }
-                                    else -> "Found ${info.formats.size} formats."
-                                },
-                            ).joinToString(" "),
-                        )
+                    } else {
+                        persistReadyRecordIfNeeded(info)
                     }
-                    persistReadyRecordIfNeeded(info)
                 },
                 onFailure = { error ->
                     logger.e("FormatViewModel", "Analyze failed for URL: $secureUrl", error)
@@ -317,6 +268,7 @@ class FormatViewModel @Inject constructor(
                     _uiState.update { state ->
                         state.copy(
                             isAnalyzing = false,
+                            isLoadingFormats = false,
                             messageScope = FormatMessageScope.BROWSER,
                             errorMessage = buildString {
                                 append(baseMessage)
@@ -1819,7 +1771,7 @@ class FormatViewModel @Inject constructor(
      */
     fun isDownloadButtonEnabled(): Boolean {
         val state = uiState.value
-        if (state.isQueueing) return false
+        if (state.isQueueing || state.isLoadingFormats) return false
         
         if (state.isDownloadButtonDisabled) {
             val elapsed = System.currentTimeMillis() - state.downloadButtonDisabledAt
@@ -2066,6 +2018,191 @@ class FormatViewModel @Inject constructor(
             playlistCount = playlistCount ?: items.size.takeIf { isCollection },
             playlistEntries = playlistEntries,
         )
+    }
+
+    private fun LinkAnalysisResult.withLoadedFormats(result: FormatLoadResult): LinkAnalysisResult {
+        val targetUrl = result.webpageUrl
+        val updatedItems = items.map { item ->
+            if (item.webpageUrl == targetUrl) {
+                item.copy(
+                    title = result.title.ifBlank { item.title },
+                    formats = result.formats,
+                    extractorArgs = result.extractorArgs ?: item.extractorArgs,
+                    infoJsonPath = result.infoJsonPath ?: item.infoJsonPath,
+                )
+            } else {
+                item
+            }
+        }
+        val primaryUpdated = updatedItems.firstOrNull { it.webpageUrl == targetUrl }
+        return copy(
+            title = if (sourceKind == LinkSourceKind.SINGLE_VIDEO && result.title.isNotBlank()) result.title else title,
+            rootFormats = if (sourceKind == LinkSourceKind.SINGLE_VIDEO) result.formats else rootFormats,
+            extractorArgs = result.extractorArgs ?: extractorArgs,
+            infoJsonPath = result.infoJsonPath ?: infoJsonPath,
+            items = updatedItems.ifEmpty {
+                listOfNotNull(
+                    primaryUpdated ?: primaryItem?.copy(
+                        title = result.title.ifBlank { primaryItem.title },
+                        formats = result.formats,
+                        extractorArgs = result.extractorArgs ?: primaryItem.extractorArgs,
+                        infoJsonPath = result.infoJsonPath ?: primaryItem.infoJsonPath,
+                    ),
+                )
+            },
+        )
+    }
+
+    private fun buildAnalyzeSuccessMessage(
+        info: VideoInfo,
+        upgradeNotice: String?,
+        isLoadingFormats: Boolean,
+    ): String {
+        val status = when {
+            isLoadingFormats -> "Link ready. Loading formats..."
+            info.isPlaylist -> {
+                val itemCount = info.playlistCount ?: info.playlistEntries.size
+                if (info.formats.isEmpty()) {
+                    "Playlist ready: $itemCount items found. Formats will resolve automatically when you queue selected items."
+                } else {
+                    "Playlist ready: $itemCount items will queue one by one."
+                }
+            }
+            else -> "Found ${info.formats.size} formats."
+        }
+        return listOfNotNull(upgradeNotice, status).joinToString(" ")
+    }
+
+    private fun applyAnalyzedInfo(
+        analysis: LinkAnalysisResult,
+        info: VideoInfo,
+        upgradeNotice: String?,
+        keepLoadingFormats: Boolean,
+    ) {
+        val choiceBundle = buildChoices(info)
+        val currentState = uiState.value
+        val resolvedStreamType = resolveAvailableStreamType(
+            preferredStreamType = currentState.selectedStreamType,
+            videoAudioChoices = choiceBundle.videoAudioChoices,
+            videoOnlyChoices = choiceBundle.videoOnlyChoices,
+            audioOnlyChoices = choiceBundle.audioOnlyChoices,
+        )
+        val resolvedOutputTransform = resolveAvailableOutputTransform(
+            preferredTransform = OutputTransform.NONE,
+            sourceStreamType = resolvedStreamType,
+            videoAudioChoices = choiceBundle.videoAudioChoices,
+            videoOnlyChoices = choiceBundle.videoOnlyChoices,
+            audioOnlyChoices = choiceBundle.audioOnlyChoices,
+        )
+        val selectedSelector = firstSelectorForStreamType(
+            streamType = resolvedStreamType,
+            container = currentState.selectedContainer,
+            videoAudioChoices = choiceBundle.videoAudioChoices,
+            videoOnlyChoices = choiceBundle.videoOnlyChoices,
+            audioOnlyChoices = choiceBundle.audioOnlyChoices,
+        )
+        _uiState.update { state ->
+            val playlistItems = buildPlaylistItemStates(
+                info = info,
+                streamType = resolvedStreamType,
+                container = state.selectedContainer,
+                audioFormat = state.selectedAudioFormat,
+                audioBitrateKbps = state.audioBitrateKbps,
+            )
+            state.copy(
+                isAnalyzing = false,
+                isLoadingFormats = keepLoadingFormats,
+                messageScope = FormatMessageScope.BROWSER,
+                linkAnalysis = analysis,
+                videoInfo = info,
+                availableVideoAudioChoices = choiceBundle.videoAudioChoices,
+                availableVideoOnlyChoices = choiceBundle.videoOnlyChoices,
+                availableAudioOnlyChoices = choiceBundle.audioOnlyChoices,
+                playlistItems = playlistItems,
+                selectedStreamType = resolvedStreamType,
+                selectedOutputTransform = resolvedOutputTransform,
+                selectedFormatSelector = selectedSelector,
+                selectedBrowseItemUrl = analysis.primaryItem?.webpageUrl ?: info.webpageUrl,
+                customFileName = if (state.videoInfo?.webpageUrl == info.webpageUrl && state.customFileName.isNotBlank()) {
+                    state.customFileName
+                } else {
+                    info.title
+                },
+                enablePlaylist = state.enablePlaylist || info.isPlaylist,
+                readyAnalyzedItems = upsertReadyRecord(
+                    state.readyAnalyzedItems,
+                    buildReadyRecord(info),
+                ),
+                restoringReadyItemUrl = null,
+                infoMessage = buildAnalyzeSuccessMessage(
+                    info = info,
+                    upgradeNotice = upgradeNotice,
+                    isLoadingFormats = keepLoadingFormats,
+                ),
+                errorMessage = null,
+            )
+        }
+    }
+
+    private fun loadFormatsForDiscoveredLink(
+        analysis: LinkAnalysisResult,
+        secureUrl: String,
+        runtimeCookiesPath: String?,
+        upgradeNotice: String?,
+    ) {
+        val sourceUrl = analysis.primaryItem?.webpageUrl ?: analysis.webpageUrl ?: secureUrl
+        viewModelScope.launch {
+            val result = runCatching {
+                repository.loadFormats(
+                    url = sourceUrl,
+                    cookiesPath = runtimeCookiesPath,
+                    userAgent = if (uiState.value.cookiesEnabled && uiState.value.cookieUserAgentEnabled) {
+                        CookieTextCodec.COOKIE_USER_AGENT
+                    } else {
+                        null
+                    },
+                )
+            }.getOrElse { throwable ->
+                Result.failure(IllegalStateException(throwable.message ?: "Format loading failed", throwable))
+            }
+            result.fold(
+                onSuccess = { loadResult ->
+                    val current = uiState.value
+                    if (current.selectedBrowseItemUrl != sourceUrl && current.videoInfo?.webpageUrl != sourceUrl) {
+                        return@fold
+                    }
+                    val updatedAnalysis = analysis.withLoadedFormats(loadResult)
+                    val updatedInfo = updatedAnalysis.toLegacyVideoInfo()
+                    applyAnalyzedInfo(
+                        analysis = updatedAnalysis,
+                        info = updatedInfo,
+                        upgradeNotice = upgradeNotice,
+                        keepLoadingFormats = false,
+                    )
+                    persistReadyRecordIfNeeded(updatedInfo)
+                },
+                onFailure = { error ->
+                    logger.e("FormatViewModel", "Background format load failed for URL: $sourceUrl", error)
+                    val baseMessage = error.message?.takeIf { it.isNotBlank() } ?: "Unable to load formats right now."
+                    _uiState.update { state ->
+                        if (state.selectedBrowseItemUrl != sourceUrl && state.videoInfo?.webpageUrl != sourceUrl) {
+                            state
+                        } else {
+                            state.copy(
+                                isLoadingFormats = false,
+                                messageScope = FormatMessageScope.BROWSER,
+                                errorMessage = buildString {
+                                    append(baseMessage)
+                                    if (shouldShowRuntimeHint(baseMessage)) {
+                                        append(" Ensure yt-dlp runtime is initialized and this device ABI is supported.")
+                                    }
+                                },
+                            )
+                        }
+                    }
+                },
+            )
+        }
     }
 
     private fun buildPlaylistItemStates(
