@@ -22,7 +22,8 @@ data class MediaFormat(
         get() = container.trim().lowercase()
 
     val isAudioOnly: Boolean
-        get() = videoCodec == "none" && audioCodec != "none"
+        get() = videoCodec == "none" &&
+            (audioCodec != "none" || normalizedExtension in AUDIO_ONLY_EXTENSIONS || normalizedContainer in AUDIO_ONLY_EXTENSIONS)
 
     val isVideoOnly: Boolean
         get() = videoCodec != "none" && audioCodec == "none"
@@ -39,6 +40,19 @@ data class MediaFormat(
     }
 
     private companion object {
+        private val AUDIO_ONLY_EXTENSIONS = setOf(
+            "aac",
+            "amr",
+            "flac",
+            "m4a",
+            "mka",
+            "mp3",
+            "oga",
+            "ogg",
+            "opus",
+            "wav",
+            "weba",
+        )
         private val IMAGE_LIKE_EXTENSIONS = setOf(
             "apng",
             "avif",

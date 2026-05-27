@@ -168,7 +168,12 @@ class FormatExtractor @Inject constructor(
         val fallbackFormats = firstEntryWithFormats(root["entries"] as? JsonArray)
             ?.let(::parseFormats)
             .orEmpty()
-        val formats = rootFormats.ifEmpty { fallbackFormats }
+        val requestedFormats = parseRequestedFormats(root)
+        val inlineFallbackFormat = parseInlineRootFormat(root)?.let(::listOf).orEmpty()
+        val formats = rootFormats
+            .ifEmpty { fallbackFormats }
+            .ifEmpty { requestedFormats }
+            .ifEmpty { inlineFallbackFormat }
         val type = root["\u005ftype"]?.jsonPrimitive?.contentOrNull
         return VideoInfo(
             id = root["id"]?.jsonPrimitive?.contentOrNull.orEmpty(),
@@ -723,9 +728,17 @@ class FormatExtractor @Inject constructor(
     }
 
     private fun parseFormatObject(element: JsonElement): MediaFormat? {
-        val item = element.jsonObject
-        if (shouldIgnoreFormat(item)) return null
-        val formatId = item["format_id"]?.jsonPrimitive?.contentOrNull ?: return null
+        return parseFormatObject(
+            item = element.jsonObject,
+            fallbackFormatId = null,
+        )
+    }
+
+    private fun parseFormatObject(
+        item: JsonObject,
+        fallbackFormatId: String?,
+    ): MediaFormat? {
+        val formatId = item["format_id"]?.jsonPrimitive?.contentOrNull ?: fallbackFormatId ?: return null
         val ext = item["ext"]?.jsonPrimitive?.contentOrNull ?: "bin"
         val height = item["height"]?.jsonPrimitive?.intOrNull
         val width = item["width"]?.jsonPrimitive?.intOrNull
@@ -739,32 +752,62 @@ class FormatExtractor @Inject constructor(
 
         val approximateSize = item["filesize"]?.jsonPrimitive?.longOrNull
             ?: item["filesize_approx"]?.jsonPrimitive?.longOrNull
+        val note = item["format_note"]?.jsonPrimitive?.contentOrNull
+        val codecs = inferParsedCodecs(
+            extension = ext,
+            resolution = resolution,
+            rawVideoCodec = item["vcodec"]?.jsonPrimitive?.contentOrNull,
+            rawAudioCodec = item["acodec"]?.jsonPrimitive?.contentOrNull,
+            note = note,
+        )
+        if (
+            shouldIgnoreParsedFormat(
+                formatId = formatId,
+                extension = ext,
+                note = note,
+                resolvedVideoCodec = codecs.videoCodec,
+                resolvedAudioCodec = codecs.audioCodec,
+            )
+        ) {
+            return null
+        }
 
         return MediaFormat(
             formatId = formatId,
             extension = ext,
             container = ext,
             resolution = resolution,
-            videoCodec = item["vcodec"]?.jsonPrimitive?.contentOrNull ?: "none",
-            audioCodec = item["acodec"]?.jsonPrimitive?.contentOrNull ?: "none",
+            videoCodec = codecs.videoCodec,
+            audioCodec = codecs.audioCodec,
             fileSizeBytes = approximateSize,
             bitrateKbps = item["tbr"]?.jsonPrimitive?.doubleOrNull?.toInt(),
             fps = item["fps"]?.jsonPrimitive?.doubleOrNull,
-            note = item["format_note"]?.jsonPrimitive?.contentOrNull,
+            note = note,
         )
     }
 
-    private fun shouldIgnoreFormat(item: JsonObject): Boolean {
-        val formatId = item["format_id"]?.jsonPrimitive?.contentOrNull?.trim()?.lowercase().orEmpty()
-        val note = item["format_note"]?.jsonPrimitive?.contentOrNull?.trim()?.lowercase().orEmpty()
-        val extension = item["ext"]?.jsonPrimitive?.contentOrNull?.trim()?.lowercase().orEmpty()
-        val videoCodec = item["vcodec"]?.jsonPrimitive?.contentOrNull?.trim()?.lowercase().orEmpty()
-        val audioCodec = item["acodec"]?.jsonPrimitive?.contentOrNull?.trim()?.lowercase().orEmpty()
-        if (formatId.startsWith("sb")) return true
-        if (note.contains("storyboard")) return true
-        if (extension == "mhtml" || extension == "mht") return true
-        return (videoCodec.isBlank() || videoCodec == "none") &&
-            (audioCodec.isBlank() || audioCodec == "none")
+    private fun parseRequestedFormats(root: JsonObject): List<MediaFormat> {
+        val requestedFormats = root["requested_formats"] as? JsonArray
+        val requestedDownloads = root["requested_downloads"] as? JsonArray
+        return buildList {
+            requestedFormats?.forEach { add(it) }
+            requestedDownloads?.forEach { download ->
+                val item = download as? JsonObject ?: return@forEach
+                val nestedRequestedFormats = item["requested_formats"] as? JsonArray
+                if (nestedRequestedFormats != null) {
+                    nestedRequestedFormats.forEach { add(it) }
+                } else {
+                    add(item)
+                }
+            }
+        }.let(::JsonArray).let(::parseFormats)
+    }
+
+    private fun parseInlineRootFormat(root: JsonObject): MediaFormat? {
+        return parseFormatObject(
+            item = root,
+            fallbackFormatId = "best",
+        )
     }
 
     private fun parseHeight(resolution: String?): Int? {
@@ -791,12 +834,14 @@ class FormatExtractor @Inject constructor(
         val total: Int,
         val videoOnly: Int,
         val audioOnly: Int,
+        val muxed: Int,
         val maxHeight: Int,
         val hasAdaptiveVideo: Boolean,
     ) {
         fun isBetterThan(other: FormatStats?): Boolean {
             if (other == null) return true
             if (total != other.total) return total > other.total
+            if (muxed != other.muxed) return muxed > other.muxed
             if (videoOnly != other.videoOnly) return videoOnly > other.videoOnly
             if (maxHeight != other.maxHeight) return maxHeight > other.maxHeight
             return audioOnly > other.audioOnly
@@ -806,12 +851,14 @@ class FormatExtractor @Inject constructor(
             fun from(formats: List<MediaFormat>): FormatStats {
                 val videoOnly = formats.count { it.isVideoOnly }
                 val audioOnly = formats.count { it.isAudioOnly }
+                val muxed = formats.count { !it.isVideoOnly && !it.isAudioOnly }
                 val maxHeight = formats.mapNotNull { parseHeight(it.resolution) }.maxOrNull() ?: 0
                 val hasAdaptiveVideo = videoOnly > 0 && maxHeight >= 720
                 return FormatStats(
                     total = formats.size,
                     videoOnly = videoOnly,
                     audioOnly = audioOnly,
+                    muxed = muxed,
                     maxHeight = maxHeight,
                     hasAdaptiveVideo = hasAdaptiveVideo,
                 )
@@ -826,6 +873,9 @@ class FormatExtractor @Inject constructor(
 
     private fun shouldTryMoreCandidates(stats: FormatStats?): Boolean {
         if (stats == null) return true
+        if (stats.muxed > 0) return false
+        if (stats.videoOnly > 0 && stats.audioOnly > 0) return false
+        if (stats.audioOnly > 0 && stats.videoOnly == 0 && stats.maxHeight == 0) return false
         if (stats.hasAdaptiveVideo) return false
         if (stats.maxHeight >= 720 && stats.videoOnly > 0 && stats.audioOnly > 0) return false
         if (stats.total >= 20) return false
@@ -841,8 +891,8 @@ class FormatExtractor @Inject constructor(
 
 internal const val DEFAULT_ANALYZE_SOCKET_TIMEOUT_SECONDS = 5
 internal const val EXTENDED_ANALYZE_SOCKET_TIMEOUT_SECONDS = 15
-internal const val DEFAULT_ANALYZE_PROCESS_TIMEOUT_MILLIS = 20_000L
-internal const val EXTENDED_ANALYZE_PROCESS_TIMEOUT_MILLIS = 40_000L
+internal const val DEFAULT_ANALYZE_PROCESS_TIMEOUT_MILLIS = 45_000L
+internal const val EXTENDED_ANALYZE_PROCESS_TIMEOUT_MILLIS = 90_000L
 
 internal fun analyzeProcessTimeoutMillis(socketTimeoutSeconds: Int): Long {
     return if (socketTimeoutSeconds >= EXTENDED_ANALYZE_SOCKET_TIMEOUT_SECONDS) {
@@ -987,5 +1037,94 @@ private val PLAYLIST_ANALYZE_HINTS = listOf(
     "/collection/",
     "/collections/",
     "/featured/",
+)
+
+internal data class ParsedFormatCodecs(
+    val videoCodec: String,
+    val audioCodec: String,
+)
+
+internal fun inferParsedCodecs(
+    extension: String,
+    resolution: String?,
+    rawVideoCodec: String?,
+    rawAudioCodec: String?,
+    note: String?,
+): ParsedFormatCodecs {
+    val normalizedExt = extension.trim().lowercase()
+    val normalizedResolution = resolution?.trim()?.lowercase().orEmpty()
+    val normalizedNote = note?.trim()?.lowercase().orEmpty()
+    val normalizedVideoCodec = rawVideoCodec?.trim().orEmpty()
+    val normalizedAudioCodec = rawAudioCodec?.trim().orEmpty()
+
+    val explicitVideoNone = normalizedVideoCodec.equals("none", ignoreCase = true)
+    val explicitAudioNone = normalizedAudioCodec.equals("none", ignoreCase = true)
+    val hasVideoCodec = normalizedVideoCodec.isNotBlank() && !normalizedVideoCodec.equals("none", ignoreCase = true)
+    val hasAudioCodec = normalizedAudioCodec.isNotBlank() && !normalizedAudioCodec.equals("none", ignoreCase = true)
+    val audioOnlyByContainer = normalizedExt in PARSED_AUDIO_ONLY_EXTENSIONS
+    val audioOnlyHint = normalizedNote.contains("audio only") ||
+        normalizedResolution == "audio only" ||
+        explicitVideoNone ||
+        audioOnlyByContainer
+    val visualHint = parseParsedFormatHeight(resolution) != null ||
+        normalizedResolution.endsWith("w") ||
+        normalizedResolution.contains("x")
+    val videoOnlyHint = normalizedNote.contains("video only") ||
+        (explicitAudioNone && visualHint)
+
+    val resolvedVideoCodec = when {
+        hasVideoCodec -> normalizedVideoCodec
+        audioOnlyHint -> "none"
+        visualHint || videoOnlyHint -> "unknown"
+        else -> "none"
+    }
+    val resolvedAudioCodec = when {
+        hasAudioCodec -> normalizedAudioCodec
+        videoOnlyHint -> "none"
+        audioOnlyHint -> "unknown"
+        else -> "none"
+    }
+
+    return ParsedFormatCodecs(
+        videoCodec = resolvedVideoCodec,
+        audioCodec = resolvedAudioCodec,
+    )
+}
+
+internal fun shouldIgnoreParsedFormat(
+    formatId: String?,
+    extension: String,
+    note: String?,
+    resolvedVideoCodec: String,
+    resolvedAudioCodec: String,
+): Boolean {
+    val normalizedFormatId = formatId?.trim()?.lowercase().orEmpty()
+    val normalizedNote = note?.trim()?.lowercase().orEmpty()
+    val normalizedExtension = extension.trim().lowercase()
+    if (normalizedFormatId.startsWith("sb")) return true
+    if (normalizedNote.contains("storyboard")) return true
+    if (normalizedExtension == "mhtml" || normalizedExtension == "mht") return true
+    return resolvedVideoCodec == "none" &&
+        resolvedAudioCodec == "none" &&
+        normalizedExtension !in PARSED_AUDIO_ONLY_EXTENSIONS
+}
+
+private fun parseParsedFormatHeight(resolution: String?): Int? {
+    val trimmed = resolution ?: return null
+    return trimmed.substringBefore("p", trimmed).toIntOrNull()
+}
+
+private val PARSED_AUDIO_ONLY_EXTENSIONS = setOf(
+    "aac",
+    "amr",
+    "flac",
+    "m4a",
+    "mka",
+    "mp3",
+    "oga",
+    "ogg",
+    "opus",
+    "wav",
+    "weba",
 )
 
