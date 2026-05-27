@@ -2198,7 +2198,7 @@ class FormatViewModel @Inject constructor(
         isLoadingFormats: Boolean,
     ): String {
         val status = when {
-            isLoadingFormats -> "Loading download options..."
+            isLoadingFormats -> "Download options are open. Exact formats are still loading..."
             info.isPlaylist -> {
                 val itemCount = info.playlistCount ?: info.playlistEntries.size
                 val hasLoadedPlaylistFormats = info.formats.isNotEmpty() ||
@@ -2255,7 +2255,7 @@ class FormatViewModel @Inject constructor(
             state.copy(
                 isAnalyzing = false,
                 isLoadingFormats = keepLoadingFormats,
-                shouldOpenOptionsSheet = openOptionsOnReady && !keepLoadingFormats,
+                shouldOpenOptionsSheet = openOptionsOnReady,
                 messageScope = FormatMessageScope.BROWSER,
                 linkAnalysis = analysis,
                 videoInfo = info,
@@ -2273,10 +2273,14 @@ class FormatViewModel @Inject constructor(
                     info.title
                 },
                 enablePlaylist = state.enablePlaylist || info.isPlaylist,
-                readyAnalyzedItems = upsertReadyRecord(
-                    state.readyAnalyzedItems,
-                    buildReadyRecord(info),
-                ),
+                readyAnalyzedItems = if (keepLoadingFormats) {
+                    state.readyAnalyzedItems
+                } else {
+                    upsertReadyRecord(
+                        state.readyAnalyzedItems,
+                        buildReadyRecord(info),
+                    )
+                },
                 restoringReadyItemUrl = null,
                 infoMessage = buildAnalyzeSuccessMessage(
                     info = info,
@@ -2295,20 +2299,25 @@ class FormatViewModel @Inject constructor(
         upgradeNotice: String?,
         openOptionsOnReady: Boolean,
     ) {
-        _uiState.update { state ->
-            state.copy(
-                isAnalyzing = false,
-                isLoadingFormats = true,
-                shouldOpenOptionsSheet = false,
-                selectedBrowseItemUrl = selectionUrl,
-                messageScope = FormatMessageScope.BROWSER,
-                errorMessage = null,
-                infoMessage = if (analysis.isCollection) {
-                    "Loading collection download options..."
-                } else {
-                    "Loading download options..."
-                },
-            )
+        val initialInfo = analysis.toLegacyVideoInfo()
+        val requiresDeferredFormatLoading = if (analysis.isCollection) {
+            initialInfo.playlistEntries.any { it.formats.isEmpty() }
+        } else {
+            initialInfo.formats.isEmpty()
+        }
+
+        applyAnalyzedInfo(
+            analysis = analysis,
+            info = initialInfo,
+            upgradeNotice = upgradeNotice,
+            keepLoadingFormats = requiresDeferredFormatLoading,
+            selectedBrowseUrl = selectionUrl,
+            openOptionsOnReady = openOptionsOnReady,
+        )
+
+        if (!requiresDeferredFormatLoading) {
+            persistReadyRecordIfNeeded(initialInfo)
+            return
         }
 
         val result = if (analysis.isCollection) {
@@ -2358,7 +2367,7 @@ class FormatViewModel @Inject constructor(
                     upgradeNotice = upgradeNotice,
                     keepLoadingFormats = false,
                     selectedBrowseUrl = selectionUrl,
-                    openOptionsOnReady = openOptionsOnReady,
+                    openOptionsOnReady = false,
                 )
                 persistReadyRecordIfNeeded(updatedInfo)
             },
