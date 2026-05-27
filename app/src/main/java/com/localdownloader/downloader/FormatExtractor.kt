@@ -267,14 +267,7 @@ class FormatExtractor @Inject constructor(
             extractorArgs = resolved.extractorArgs,
             infoJsonPath = resolved.infoJsonPath,
         )
-        return if (sourceKind == LinkSourceKind.SINGLE_VIDEO) {
-            analysis.copy(
-                rootFormats = emptyList(),
-                items = analysis.items.map { item -> item.copy(formats = emptyList(), infoJsonPath = null) },
-            )
-        } else {
-            analysis
-        }
+        return analysis
     }
 
     private suspend fun executeFastDiscoveryRequest(
@@ -532,14 +525,7 @@ class FormatExtractor @Inject constructor(
                 extractorArgs = extractorArgs,
                 infoJsonPath = null,
             )
-            if (mapped.sourceKind == LinkSourceKind.SINGLE_VIDEO) {
-                mapped.copy(
-                    rootFormats = emptyList(),
-                    items = mapped.items.map { item -> item.copy(formats = emptyList(), infoJsonPath = null) },
-                )
-            } else {
-                mapped
-            }
+            mapped
         }.getOrNull()
     }
 
@@ -565,14 +551,7 @@ class FormatExtractor @Inject constructor(
                 extractorArgs = extractorArgs,
                 infoJsonPath = null,
             )
-            return if (mapped.sourceKind == LinkSourceKind.SINGLE_VIDEO) {
-                mapped.copy(
-                    rootFormats = emptyList(),
-                    items = mapped.items.map { item -> item.copy(formats = emptyList(), infoJsonPath = null) },
-                )
-            } else {
-                mapped
-            }
+            return mapped
         }
 
         data class DiscoverySummary(
@@ -621,7 +600,7 @@ class FormatExtractor @Inject constructor(
                 durationSeconds = item["duration"]?.jsonPrimitive?.longOrNull,
                 thumbnailUrl = resolveThumbnailUrl(item),
                 playlistItemIndex = item["playlist_index"]?.jsonPrimitive?.intOrNull ?: index + 1,
-                formats = emptyList(),
+                formats = parseFormats(item["formats"] as? JsonArray ?: JsonArray(emptyList())),
                 extractorArgs = extractorArgs,
                 infoJsonPath = null,
             )
@@ -645,7 +624,7 @@ class FormatExtractor @Inject constructor(
             durationSeconds = if (sourceKind == LinkSourceKind.SINGLE_VIDEO) primaryItem.durationSeconds else null,
             thumbnailUrl = primaryItem.thumbnailUrl,
             webpageUrl = summary.webpageUrl ?: primaryItem.webpageUrl,
-            rootFormats = emptyList(),
+            rootFormats = if (sourceKind == LinkSourceKind.SINGLE_VIDEO) primaryItem.formats else emptyList(),
             extractorArgs = extractorArgs,
             infoJsonPath = null,
             playlistCount = if (sourceKind == LinkSourceKind.SINGLE_VIDEO) null else summary.playlistCount ?: items.size,
