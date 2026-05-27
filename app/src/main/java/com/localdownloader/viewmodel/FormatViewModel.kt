@@ -2022,6 +2022,7 @@ class FormatViewModel @Inject constructor(
 
     private fun LinkAnalysisResult.withLoadedFormats(result: FormatLoadResult): LinkAnalysisResult {
         val targetUrl = result.webpageUrl
+        val existingPrimaryItem = primaryItem
         val updatedItems = items.map { item ->
             if (item.webpageUrl == targetUrl) {
                 item.copy(
@@ -2042,11 +2043,11 @@ class FormatViewModel @Inject constructor(
             infoJsonPath = result.infoJsonPath ?: infoJsonPath,
             items = updatedItems.ifEmpty {
                 listOfNotNull(
-                    primaryUpdated ?: primaryItem?.copy(
-                        title = result.title.ifBlank { primaryItem.title },
+                    primaryUpdated ?: existingPrimaryItem?.copy(
+                        title = result.title.ifBlank { existingPrimaryItem.title },
                         formats = result.formats,
-                        extractorArgs = result.extractorArgs ?: primaryItem.extractorArgs,
-                        infoJsonPath = result.infoJsonPath ?: primaryItem.infoJsonPath,
+                        extractorArgs = result.extractorArgs ?: existingPrimaryItem.extractorArgs,
+                        infoJsonPath = result.infoJsonPath ?: existingPrimaryItem.infoJsonPath,
                     ),
                 )
             },
