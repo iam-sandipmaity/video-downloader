@@ -71,28 +71,11 @@ class FormatExtractor @Inject constructor(
     ): Result<LinkAnalysisResult> {
         return runCatching {
             logger.i("FormatExtractor", "Starting discovery-first link analysis for URL: $url")
-            val sourceKind = LinkSourceClassifier.classify(url)
-            val resolved = resolveBestAnalyzeCandidate(
+            fastAnalyzeLink(
                 url = url,
                 cookiesPath = cookiesPath,
                 userAgent = userAgent,
-                purpose = AnalyzePurpose.DISCOVERY,
             )
-            mapLinkAnalysis(
-                root = resolved.root,
-                fallbackUrl = url,
-                extractorArgs = resolved.extractorArgs,
-                infoJsonPath = resolved.infoJsonPath,
-            ).let { analysis ->
-                if (sourceKind == LinkSourceKind.SINGLE_VIDEO) {
-                    analysis.copy(
-                        rootFormats = emptyList(),
-                        items = analysis.items.map { item -> item.copy(formats = emptyList(), infoJsonPath = null) },
-                    )
-                } else {
-                    analysis
-                }
-            }
         }.onFailure { error ->
             logger.e("FormatExtractor", "Link analysis exception for URL: $url", error)
         }
@@ -217,6 +200,148 @@ class FormatExtractor @Inject constructor(
         }
 
         return best ?: throw IllegalStateException(lastFailureMessage ?: "yt-dlp analyze failed")
+    }
+
+    private suspend fun fastAnalyzeLink(
+        url: String,
+        cookiesPath: String?,
+        userAgent: String?,
+    ): LinkAnalysisResult {
+        val hasCookies = !cookiesPath.isNullOrBlank() && File(cookiesPath).exists()
+        val candidates = if (isYoutubeUrl(url)) {
+            YoutubeRequestPlanner.discoveryCandidates(cookiesAvailable = hasCookies)
+                .take(1)
+        } else {
+            listOf<String?>(null)
+        }
+
+        var lastFailure: String? = null
+        candidates.forEachIndexed { index, extractorArgs ->
+            val attempt = runCatching {
+                executeFastDiscoveryRequest(
+                    url = url,
+                    extractorArgs = extractorArgs,
+                    cookiesPath = cookiesPath,
+                    userAgent = userAgent,
+                )
+            }.getOrElse { error ->
+                logger.w(
+                    "FormatExtractor",
+                    "Fast discovery candidate[$index] failed for args=${extractorArgs ?: "(default)"}",
+                    error,
+                )
+                Result.failure(
+                    IllegalStateException(
+                        error.message?.takeIf { it.isNotBlank() } ?: "Fast discovery failed",
+                        error,
+                    ),
+                )
+            }
+
+            val analysis = attempt.getOrNull()
+            if (analysis != null) {
+                logger.i(
+                    "FormatExtractor",
+                    "Fast discovery success args=${extractorArgs ?: "(default)"} source=${analysis.sourceKind} items=${analysis.items.size}",
+                )
+                return analysis
+            }
+            lastFailure = attempt.exceptionOrNull()?.message
+        }
+
+        if (!lastFailure.isNullOrBlank() && isTransientAnalyzeFailure(lastFailure)) {
+            throw IllegalStateException(lastFailure)
+        }
+
+        logger.i("FormatExtractor", "Fast discovery fell back to full analyzer for URL: $url")
+        val resolved = resolveBestAnalyzeCandidate(
+            url = url,
+            cookiesPath = cookiesPath,
+            userAgent = userAgent,
+            purpose = AnalyzePurpose.DISCOVERY,
+        )
+        val sourceKind = LinkSourceClassifier.classify(url)
+        val analysis = mapLinkAnalysis(
+            root = resolved.root,
+            fallbackUrl = url,
+            extractorArgs = resolved.extractorArgs,
+            infoJsonPath = resolved.infoJsonPath,
+        )
+        return if (sourceKind == LinkSourceKind.SINGLE_VIDEO) {
+            analysis.copy(
+                rootFormats = emptyList(),
+                items = analysis.items.map { item -> item.copy(formats = emptyList(), infoJsonPath = null) },
+            )
+        } else {
+            analysis
+        }
+    }
+
+    private suspend fun executeFastDiscoveryRequest(
+        url: String,
+        extractorArgs: String?,
+        cookiesPath: String?,
+        userAgent: String?,
+    ): Result<LinkAnalysisResult> {
+        val stdoutLines = mutableListOf<String>()
+        val stderrLines = mutableListOf<String>()
+        val args = buildFastDiscoveryArgs(
+            url = url,
+            extractorArgs = extractorArgs,
+            cookiesPath = cookiesPath,
+            userAgent = userAgent,
+        )
+        val result = ytDlpExecutor.execute(
+            args = args,
+            logOutputLines = false,
+            onStdoutLine = { line ->
+                val trimmed = line.trim()
+                if (trimmed.isNotBlank()) {
+                    stdoutLines += trimmed
+                }
+            },
+            onStderrLine = { line ->
+                val trimmed = line.trim()
+                if (trimmed.isNotBlank()) {
+                    stderrLines += trimmed
+                }
+            },
+            timeoutMs = FAST_DISCOVERY_PROCESS_TIMEOUT_MILLIS,
+        )
+
+        val combinedStdout = buildString {
+            if (stdoutLines.isNotEmpty()) {
+                append(stdoutLines.joinToString(System.lineSeparator()))
+            } else if (result.stdout.isNotBlank()) {
+                append(result.stdout.trim())
+            }
+        }.trim()
+
+        val lineAnalysis = parseFastDiscoveryOutput(
+            url = url,
+            extractorArgs = extractorArgs,
+            stdoutLines = stdoutLines,
+            combinedStdout = combinedStdout,
+        )
+        if (lineAnalysis != null) {
+            return Result.success(lineAnalysis)
+        }
+
+        if (!result.isSuccess) {
+            val message = extractAnalyzeFailureMessage(
+                stderr = stderrLines.joinToString(System.lineSeparator()).ifBlank { result.stderr },
+                stdout = combinedStdout.ifBlank { result.stdout },
+            )
+            return Result.failure(IllegalStateException(sanitizeAnalyzeFailureMessage(message)))
+        }
+
+        return Result.failure(
+            IllegalStateException(
+                stderrLines.lastOrNull()
+                    ?: preferredAnalyzeFailureLine(result.stderr)
+                    ?: "Fast discovery returned no usable metadata",
+            ),
+        )
     }
 
     private suspend fun analyzeWithExtractorForDiscovery(
@@ -380,6 +505,162 @@ class FormatExtractor @Inject constructor(
             ?.let(::parseFormats)
             .orEmpty()
         return rootFormats.ifEmpty { fallbackFormats }
+    }
+
+    private fun parseFastDiscoveryOutput(
+        url: String,
+        extractorArgs: String?,
+        stdoutLines: List<String>,
+        combinedStdout: String,
+    ): LinkAnalysisResult? {
+        if (stdoutLines.isNotEmpty()) {
+            parseDiscoveryLineItems(
+                lines = stdoutLines,
+                fallbackUrl = url,
+                extractorArgs = extractorArgs,
+            )?.let { return it }
+        }
+
+        val normalizedStdout = combinedStdout.trim()
+        if (normalizedStdout.isBlank()) return null
+
+        return runCatching {
+            val root = json.parseToJsonElement(normalizedStdout).jsonObject
+            val mapped = mapLinkAnalysis(
+                root = root,
+                fallbackUrl = url,
+                extractorArgs = extractorArgs,
+                infoJsonPath = null,
+            )
+            if (mapped.sourceKind == LinkSourceKind.SINGLE_VIDEO) {
+                mapped.copy(
+                    rootFormats = emptyList(),
+                    items = mapped.items.map { item -> item.copy(formats = emptyList(), infoJsonPath = null) },
+                )
+            } else {
+                mapped
+            }
+        }.getOrNull()
+    }
+
+    private fun parseDiscoveryLineItems(
+        lines: List<String>,
+        fallbackUrl: String,
+        extractorArgs: String?,
+    ): LinkAnalysisResult? {
+        val parsedObjects = lines.mapNotNull { line ->
+            runCatching { json.parseToJsonElement(line).jsonObject }.getOrNull()
+        }
+        if (parsedObjects.isEmpty()) return null
+
+        val sourceKindHint = LinkSourceClassifier.classify(fallbackUrl)
+        val rootObject = parsedObjects.firstOrNull { candidate ->
+            val type = candidate["_type"]?.jsonPrimitive?.contentOrNull
+            type == "playlist" || candidate["entries"] is JsonArray
+        }
+        if (rootObject != null) {
+            val mapped = mapLinkAnalysis(
+                root = rootObject,
+                fallbackUrl = fallbackUrl,
+                extractorArgs = extractorArgs,
+                infoJsonPath = null,
+            )
+            return if (mapped.sourceKind == LinkSourceKind.SINGLE_VIDEO) {
+                mapped.copy(
+                    rootFormats = emptyList(),
+                    items = mapped.items.map { item -> item.copy(formats = emptyList(), infoJsonPath = null) },
+                )
+            } else {
+                mapped
+            }
+        }
+
+        data class DiscoverySummary(
+            val title: String? = null,
+            val uploader: String? = null,
+            val webpageUrl: String? = null,
+            val playlistCount: Int? = null,
+        )
+
+        var summary = DiscoverySummary()
+        val items = parsedObjects.mapIndexedNotNull { index, item ->
+            val id = item["id"]?.jsonPrimitive?.contentOrNull.orEmpty()
+            val title = item["title"]?.jsonPrimitive?.contentOrNull.orEmpty()
+            if (title == "[Private video]" || title == "[Deleted video]") {
+                return@mapIndexedNotNull null
+            }
+            val rawWebpageUrl = item["webpage_url"]?.jsonPrimitive?.contentOrNull
+                ?: item["original_url"]?.jsonPrimitive?.contentOrNull
+                ?: item["url"]?.jsonPrimitive?.contentOrNull
+            val resolvedUrl = resolvePlaylistEntryWebpageUrl(
+                rawUrl = rawWebpageUrl,
+                entryId = id,
+                playlistSourceUrl = fallbackUrl,
+            ) ?: if (sourceKindHint == LinkSourceKind.SINGLE_VIDEO) fallbackUrl else null
+            if (resolvedUrl == null) return@mapIndexedNotNull null
+
+            if (summary.title.isNullOrBlank()) {
+                summary = summary.copy(
+                    title = item["playlist_title"]?.jsonPrimitive?.contentOrNull
+                        ?: item["channel"]?.jsonPrimitive?.contentOrNull
+                        ?: title.takeIf { sourceKindHint == LinkSourceKind.SINGLE_VIDEO },
+                    uploader = item["playlist_uploader"]?.jsonPrimitive?.contentOrNull
+                        ?: item["uploader"]?.jsonPrimitive?.contentOrNull,
+                    webpageUrl = item["playlist_webpage_url"]?.jsonPrimitive?.contentOrNull
+                        ?: fallbackUrl,
+                    playlistCount = item["playlist_count"]?.jsonPrimitive?.intOrNull,
+                )
+            }
+
+            LinkAnalysisItem(
+                id = id.ifBlank { "item-${index + 1}" },
+                title = title.ifBlank { "Item ${index + 1}" },
+                webpageUrl = resolvedUrl,
+                uploader = item["uploader"]?.jsonPrimitive?.contentOrNull
+                    ?: item["channel"]?.jsonPrimitive?.contentOrNull,
+                durationSeconds = item["duration"]?.jsonPrimitive?.longOrNull,
+                thumbnailUrl = resolveThumbnailUrl(item),
+                playlistItemIndex = item["playlist_index"]?.jsonPrimitive?.intOrNull ?: index + 1,
+                formats = emptyList(),
+                extractorArgs = extractorArgs,
+                infoJsonPath = null,
+            )
+        }
+
+        if (items.isEmpty()) return null
+
+        val sourceKind = if (items.size > 1 || sourceKindHint == LinkSourceKind.PLAYLIST || sourceKindHint == LinkSourceKind.CHANNEL) {
+            if (sourceKindHint == LinkSourceKind.CHANNEL) LinkSourceKind.CHANNEL else LinkSourceKind.PLAYLIST
+        } else {
+            LinkSourceKind.SINGLE_VIDEO
+        }
+        val primaryItem = items.first()
+        return LinkAnalysisResult(
+            sourceKind = sourceKind,
+            input = fallbackUrl,
+            rootId = if (sourceKind == LinkSourceKind.SINGLE_VIDEO) primaryItem.id else "",
+            title = summary.title?.takeIf { it.isNotBlank() }
+                ?: primaryItem.title,
+            uploader = summary.uploader ?: primaryItem.uploader,
+            durationSeconds = if (sourceKind == LinkSourceKind.SINGLE_VIDEO) primaryItem.durationSeconds else null,
+            thumbnailUrl = primaryItem.thumbnailUrl,
+            webpageUrl = summary.webpageUrl ?: primaryItem.webpageUrl,
+            rootFormats = emptyList(),
+            extractorArgs = extractorArgs,
+            infoJsonPath = null,
+            playlistCount = if (sourceKind == LinkSourceKind.SINGLE_VIDEO) null else summary.playlistCount ?: items.size,
+            items = items,
+        )
+    }
+
+    private fun resolveThumbnailUrl(item: JsonObject): String? {
+        item["thumbnail"]?.jsonPrimitive?.contentOrNull?.let { return it }
+        val thumbnails = item["thumbnails"] as? JsonArray ?: return null
+        return thumbnails.lastOrNull()
+            ?.jsonObject
+            ?.get("url")
+            ?.jsonPrimitive
+            ?.contentOrNull
     }
 
     private fun resolveSourceKind(
@@ -663,6 +944,55 @@ class FormatExtractor @Inject constructor(
             useLineJsonMode = useLineJsonMode,
             requestMode = requestMode,
         )
+    }
+
+    private fun buildFastDiscoveryArgs(
+        url: String,
+        extractorArgs: String?,
+        cookiesPath: String?,
+        userAgent: String?,
+    ): List<String> {
+        val tempDir = File(context.cacheDir, "tmp").apply { mkdirs() }
+        return buildList {
+            add("-j")
+            add("--skip-download")
+            add("--quiet")
+            add("--ignore-errors")
+            add("--no-warnings")
+            add("--ignore-config")
+            add("-R")
+            add("1")
+            add("--compat-options")
+            add("manifest-filesize-approx")
+            add("--socket-timeout")
+            add(DEFAULT_ANALYZE_SOCKET_TIMEOUT_SECONDS.toString())
+            add("-P")
+            add(tempDir.absolutePath)
+            if (shouldApplyFlatPlaylistDiscovery(url)) {
+                add("--flat-playlist")
+            }
+            add("--lazy-playlist")
+            if (!cookiesPath.isNullOrBlank() && File(cookiesPath).exists()) {
+                add("--cookies")
+                add(cookiesPath)
+            }
+            if (!userAgent.isNullOrBlank()) {
+                add("--add-header")
+                add("User-Agent:$userAgent")
+            }
+            if (!extractorArgs.isNullOrBlank()) {
+                add("--extractor-args")
+                add(extractorArgs)
+            }
+            add(url)
+        }
+    }
+
+    private fun shouldApplyFlatPlaylistDiscovery(url: String): Boolean {
+        val normalized = url.trim().lowercase()
+        if (normalized.isBlank()) return false
+        if (normalized.contains("soundcloud.com")) return false
+        return true
     }
 
     private fun extractAnalyzeFailureMessage(stderr: String, stdout: String): String {
@@ -1042,6 +1372,7 @@ class FormatExtractor @Inject constructor(
 
 internal const val DEFAULT_ANALYZE_SOCKET_TIMEOUT_SECONDS = 5
 internal const val EXTENDED_ANALYZE_SOCKET_TIMEOUT_SECONDS = 15
+internal const val FAST_DISCOVERY_PROCESS_TIMEOUT_MILLIS = 12_000L
 internal const val DEFAULT_ANALYZE_PROCESS_TIMEOUT_MILLIS = 20_000L
 internal const val EXTENDED_ANALYZE_PROCESS_TIMEOUT_MILLIS = 40_000L
 
