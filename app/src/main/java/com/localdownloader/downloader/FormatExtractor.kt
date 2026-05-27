@@ -228,13 +228,6 @@ class FormatExtractor @Inject constructor(
         userAgent: String?,
         requestMode: AnalyzeRequestMode,
     ): AnalyzeAttempt {
-        val cachedInfoJsonPath = when (requestMode) {
-            AnalyzeRequestMode.STANDARD -> resolveRecentInfoJsonSnapshotPath(
-                url = url,
-                extractorArgs = extractorArgs,
-            )
-            AnalyzeRequestMode.YOUTUBE_PLAYLIST_FAST -> null
-        }
         val capturedInfoJsonFile = when (requestMode) {
             AnalyzeRequestMode.STANDARD -> createAnalyzeCaptureFile(url = url, extractorArgs = extractorArgs)
             AnalyzeRequestMode.YOUTUBE_PLAYLIST_FAST -> null
@@ -245,7 +238,6 @@ class FormatExtractor @Inject constructor(
             cookiesPath = cookiesPath,
             userAgent = userAgent,
             capturedInfoJsonFile = capturedInfoJsonFile,
-            loadInfoJsonPath = cachedInfoJsonPath,
             socketTimeoutSeconds = DEFAULT_ANALYZE_SOCKET_TIMEOUT_SECONDS,
             useLineJsonMode = false,
             requestMode = requestMode,
@@ -265,7 +257,6 @@ class FormatExtractor @Inject constructor(
                 cookiesPath = cookiesPath,
                 userAgent = userAgent,
                 capturedInfoJsonFile = capturedInfoJsonFile,
-                loadInfoJsonPath = cachedInfoJsonPath,
                 socketTimeoutSeconds = DEFAULT_ANALYZE_SOCKET_TIMEOUT_SECONDS,
                 useLineJsonMode = true,
                 requestMode = requestMode,
@@ -289,7 +280,6 @@ class FormatExtractor @Inject constructor(
                 cookiesPath = cookiesPath,
                 userAgent = userAgent,
                 capturedInfoJsonFile = capturedInfoJsonFile,
-                loadInfoJsonPath = cachedInfoJsonPath,
                 socketTimeoutSeconds = EXTENDED_ANALYZE_SOCKET_TIMEOUT_SECONDS,
                 useLineJsonMode = false,
                 requestMode = requestMode,
@@ -304,7 +294,6 @@ class FormatExtractor @Inject constructor(
                 cookiesPath = cookiesPath,
                 userAgent = userAgent,
                 capturedInfoJsonFile = capturedInfoJsonFile,
-                loadInfoJsonPath = cachedInfoJsonPath,
                 socketTimeoutSeconds = EXTENDED_ANALYZE_SOCKET_TIMEOUT_SECONDS,
                 useLineJsonMode = true,
                 requestMode = requestMode,
@@ -330,7 +319,6 @@ class FormatExtractor @Inject constructor(
         cookiesPath: String?,
         userAgent: String?,
         capturedInfoJsonFile: File?,
-        loadInfoJsonPath: String?,
         socketTimeoutSeconds: Int,
         useLineJsonMode: Boolean,
         requestMode: AnalyzeRequestMode,
@@ -341,7 +329,6 @@ class FormatExtractor @Inject constructor(
             cookiesPath = cookiesPath,
             userAgent = userAgent,
             capturedInfoJsonFile = capturedInfoJsonFile,
-            loadInfoJsonPath = loadInfoJsonPath,
             socketTimeoutSeconds = socketTimeoutSeconds,
             useLineJsonMode = useLineJsonMode,
             requestMode = requestMode,
@@ -432,7 +419,6 @@ class FormatExtractor @Inject constructor(
         cookiesPath: String?,
         userAgent: String?,
         capturedInfoJsonFile: File?,
-        loadInfoJsonPath: String?,
         socketTimeoutSeconds: Int,
         useLineJsonMode: Boolean,
         requestMode: AnalyzeRequestMode,
@@ -444,7 +430,6 @@ class FormatExtractor @Inject constructor(
             cookiesPath = cookiesPath,
             userAgent = userAgent,
             capturedInfoJsonPath = capturedInfoJsonFile?.absolutePath,
-            loadInfoJsonPath = loadInfoJsonPath,
             tempDirPath = tempDir.absolutePath,
             socketTimeoutSeconds = socketTimeoutSeconds,
             useLineJsonMode = useLineJsonMode,
@@ -654,23 +639,6 @@ class FormatExtractor @Inject constructor(
             logger.w("FormatExtractor", "Unable to persist analyze info-json snapshot", error)
             null
         }
-    }
-
-    private fun resolveRecentInfoJsonSnapshotPath(
-        url: String,
-        extractorArgs: String?,
-    ): String? {
-        val file = persistedInfoJsonFile(
-            url = url,
-            extractorArgs = extractorArgs,
-        )
-        if (!file.exists()) return null
-        val ageMs = System.currentTimeMillis() - file.lastModified()
-        if (ageMs > PERSISTED_ANALYZE_INFO_JSON_TTL_MILLIS) {
-            runCatching { file.delete() }
-            return null
-        }
-        return file.absolutePath
     }
 
     private fun persistedInfoJsonFile(
@@ -1050,8 +1018,6 @@ internal fun extractYoutubePlaylistId(url: String): String? {
     if (listSegment.isBlank()) return null
     return listSegment.substringBefore('&').ifBlank { null }
 }
-
-private const val PERSISTED_ANALYZE_INFO_JSON_TTL_MILLIS = 5 * 60 * 60 * 1000L
 
 private val PLAYLIST_ANALYZE_HINTS = listOf(
     "list=",

@@ -12,17 +12,17 @@ object YoutubeRequestPlanner {
         preferredExtractorArgs: String? = null,
     ): List<String?> {
         val candidates = buildList {
-            preferredExtractorArgs?.trim()?.ifBlank { null }?.let(::add)
-            // Prefer faster player-only retries first so single-video analysis does not sit on
-            // slower webpage/config fetches before we even know whether adaptive formats exist.
-            add(buildExtractorArgs(clientSpec = "default,mweb", includePlayerSkip = true))
-            add(buildExtractorArgs(clientSpec = "default,web", includePlayerSkip = true))
+            // Restore the 1.7.2.6 single-video probing order that proved most reliable in-app,
+            // while keeping authenticated hints as a late fallback rather than the first attempt.
             add(buildExtractorArgs(clientSpec = "default,android", includePlayerSkip = true))
             add(buildExtractorArgs(clientSpec = "tv,android", includePlayerSkip = true))
-            add(null)
             if (cookiesAvailable) {
                 add(buildExtractorArgs(clientSpec = "default,mweb,web,android,tv", includePlayerSkip = true))
+                add(buildExtractorArgs(clientSpec = "default,mweb", includePlayerSkip = true))
+                add(buildExtractorArgs(clientSpec = "default,web", includePlayerSkip = true))
             }
+            add(null)
+            preferredExtractorArgs?.trim()?.ifBlank { null }?.let(::add)
         }
         return candidates.distinct()
     }

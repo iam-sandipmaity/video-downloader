@@ -63,7 +63,7 @@ class YoutubeRequestPlannerTest {
     }
 
     @Test
-    fun analyzeCandidates_prioritizesPreferredAuthenticatedArgsFirst() {
+    fun analyzeCandidates_keepsReleaseFallbacksAheadOfPreferredAuthenticatedArgs() {
         val preferred = "youtube:player_client=default,web;player_skip=webpage,configs;po_token=web.gvs+token123"
 
         val candidates = YoutubeRequestPlanner.analyzeCandidates(
@@ -72,15 +72,20 @@ class YoutubeRequestPlannerTest {
         )
 
         assertTrue(candidates.isNotEmpty())
-        assertEquals(preferred, candidates.first())
+        assertTrue(candidates.first()?.contains("default,android") == true)
+        assertEquals(preferred, candidates.last())
+        assertTrue(candidates.indexOf(null) < candidates.indexOf(preferred))
     }
 
     @Test
-    fun analyzeCandidates_prefersLightweightMwebCandidateBeforeDefaultFallback() {
+    fun analyzeCandidates_restores1726ReleaseOrderForSingleVideoFallbacks() {
         val candidates = YoutubeRequestPlanner.analyzeCandidates(cookiesAvailable = false)
 
-        assertTrue(candidates.first()?.contains("default,mweb") == true)
+        assertTrue(candidates.first()?.contains("default,android") == true)
+        assertTrue(candidates[1]?.contains("tv,android") == true)
+        assertFalse(candidates.first()?.contains("default,mweb") == true)
+        assertFalse(candidates.first()?.contains("default,web") == true)
+        assertEquals(null, candidates.last())
         assertTrue(candidates.first()?.contains("player_skip=webpage,configs") == true)
-        assertTrue(candidates.contains(null))
     }
 }

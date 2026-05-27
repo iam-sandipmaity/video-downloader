@@ -7,7 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ## [Unreleased]
 
 ### Fixed
-- **YouTube single-video analysis follow-up** - saved YouTube access hints now seed analysis retries, extractor-specific analyze caches no longer bleed across different YouTube client modes, and single-video candidate ordering now favors faster stream discovery before slower fallback probes
+- **YouTube single-video analysis restore** - single-video YouTube analysis now follows the proven `1.7.2.6` fallback order again and no longer replays cached analyze metadata before probing fresh formats, while the fast playlist analysis path remains unchanged
 
 ## [1.7.2.7] - 2026-05-27
 
