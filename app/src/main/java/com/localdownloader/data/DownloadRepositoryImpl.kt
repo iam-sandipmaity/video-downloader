@@ -98,12 +98,14 @@ class DownloadRepositoryImpl @Inject constructor(
         url: String,
         cookiesPath: String?,
         userAgent: String?,
+        preferredExtractorArgs: String?,
     ): Result<VideoInfo> {
         logger.i("DownloadRepository", "analyzeUrl called for: $url")
         val result = formatExtractor.analyze(
             url = url,
             cookiesPath = cookiesPath,
             userAgent = userAgent,
+            preferredExtractorArgs = preferredExtractorArgs,
         )
         result.onSuccess { info ->
             logger.i(

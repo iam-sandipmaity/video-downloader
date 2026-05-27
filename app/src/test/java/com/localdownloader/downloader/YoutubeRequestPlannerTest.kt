@@ -61,4 +61,26 @@ class YoutubeRequestPlannerTest {
             extractorArgs,
         )
     }
+
+    @Test
+    fun analyzeCandidates_prioritizesPreferredAuthenticatedArgsFirst() {
+        val preferred = "youtube:player_client=default,web;player_skip=webpage,configs;po_token=web.gvs+token123"
+
+        val candidates = YoutubeRequestPlanner.analyzeCandidates(
+            cookiesAvailable = true,
+            preferredExtractorArgs = preferred,
+        )
+
+        assertTrue(candidates.isNotEmpty())
+        assertEquals(preferred, candidates.first())
+    }
+
+    @Test
+    fun analyzeCandidates_prefersLightweightMwebCandidateBeforeDefaultFallback() {
+        val candidates = YoutubeRequestPlanner.analyzeCandidates(cookiesAvailable = false)
+
+        assertTrue(candidates.first()?.contains("default,mweb") == true)
+        assertTrue(candidates.first()?.contains("player_skip=webpage,configs") == true)
+        assertTrue(candidates.contains(null))
+    }
 }

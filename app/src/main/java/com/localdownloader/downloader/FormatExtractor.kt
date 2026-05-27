@@ -35,6 +35,7 @@ class FormatExtractor @Inject constructor(
         url: String,
         cookiesPath: String? = null,
         userAgent: String? = null,
+        preferredExtractorArgs: String? = null,
     ): Result<VideoInfo> {
         return runCatching {
             logger.i("FormatExtractor", "Starting yt-dlp analyze for URL: $url")
@@ -42,7 +43,10 @@ class FormatExtractor @Inject constructor(
 
             val hasCookies = !cookiesPath.isNullOrBlank() && File(cookiesPath).exists()
             val extractorCandidates = if (isYoutubeUrl(url)) {
-                YoutubeRequestPlanner.analyzeCandidates(cookiesAvailable = hasCookies)
+                YoutubeRequestPlanner.analyzeCandidates(
+                    cookiesAvailable = hasCookies,
+                    preferredExtractorArgs = preferredExtractorArgs,
+                )
             } else {
                 listOf<String?>(null)
             }
@@ -225,7 +229,10 @@ class FormatExtractor @Inject constructor(
         requestMode: AnalyzeRequestMode,
     ): AnalyzeAttempt {
         val cachedInfoJsonPath = when (requestMode) {
-            AnalyzeRequestMode.STANDARD -> resolveRecentInfoJsonSnapshotPath(url)
+            AnalyzeRequestMode.STANDARD -> resolveRecentInfoJsonSnapshotPath(
+                url = url,
+                extractorArgs = extractorArgs,
+            )
             AnalyzeRequestMode.YOUTUBE_PLAYLIST_FAST -> null
         }
         val capturedInfoJsonFile = when (requestMode) {
@@ -491,6 +498,7 @@ class FormatExtractor @Inject constructor(
                 val type = root["_type"]?.jsonPrimitive?.contentOrNull
                 val infoJsonPath = persistInfoJsonSnapshot(
                     url = url,
+                    extractorArgs = extractorArgs,
                     root = root,
                     rawJson = rawJson,
                 )
@@ -628,13 +636,17 @@ class FormatExtractor @Inject constructor(
 
     private fun persistInfoJsonSnapshot(
         url: String,
+        extractorArgs: String?,
         root: JsonObject,
         rawJson: String,
     ): String? {
         val type = root["_type"]?.jsonPrimitive?.contentOrNull
         if (type == "playlist") return null
 
-        val file = persistedInfoJsonFile(url)
+        val file = persistedInfoJsonFile(
+            url = url,
+            extractorArgs = extractorArgs,
+        )
         return runCatching {
             file.writeText(rawJson)
             file.absolutePath
@@ -644,8 +656,14 @@ class FormatExtractor @Inject constructor(
         }
     }
 
-    private fun resolveRecentInfoJsonSnapshotPath(url: String): String? {
-        val file = persistedInfoJsonFile(url)
+    private fun resolveRecentInfoJsonSnapshotPath(
+        url: String,
+        extractorArgs: String?,
+    ): String? {
+        val file = persistedInfoJsonFile(
+            url = url,
+            extractorArgs = extractorArgs,
+        )
         if (!file.exists()) return null
         val ageMs = System.currentTimeMillis() - file.lastModified()
         if (ageMs > PERSISTED_ANALYZE_INFO_JSON_TTL_MILLIS) {
@@ -655,8 +673,15 @@ class FormatExtractor @Inject constructor(
         return file.absolutePath
     }
 
-    private fun persistedInfoJsonFile(url: String): File {
-        val hash = CRC32().apply { update(url.toByteArray()) }.value.toString(16)
+    private fun persistedInfoJsonFile(
+        url: String,
+        extractorArgs: String?,
+    ): File {
+        val hash = CRC32().apply {
+            update(url.toByteArray())
+            update('|'.code)
+            update(extractorArgs.orEmpty().toByteArray())
+        }.value.toString(16)
         val directory = File(context.cacheDir, "ytdlp-info").apply { mkdirs() }
         return File(directory, "$hash-video.info.json")
     }
@@ -794,9 +819,20 @@ class FormatExtractor @Inject constructor(
 
     private fun shouldTryMoreCandidates(stats: FormatStats?): Boolean {
         if (stats == null) return true
-        if (stats.hasAdaptiveVideo) return false
-        if (stats.maxHeight >= 720 && stats.videoOnly > 0 && stats.audioOnly > 0) return false
-        if (stats.total >= 20) return false
+        return shouldContinueAnalyzeCandidateSearch(
+            totalFormats = stats.total,
+            videoOnlyFormats = stats.videoOnly,
+            maxHeight = stats.maxHeight,
+        )
+    }
+
+    internal fun shouldContinueAnalyzeCandidateSearch(
+        totalFormats: Int,
+        videoOnlyFormats: Int,
+        maxHeight: Int,
+    ): Boolean {
+        if (videoOnlyFormats > 0 && maxHeight >= 720) return false
+        if (totalFormats >= 20 && maxHeight >= 720) return false
         return true
     }
 

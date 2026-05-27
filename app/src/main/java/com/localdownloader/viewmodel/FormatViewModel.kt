@@ -8,6 +8,7 @@ import com.localdownloader.downloader.FormatSelectorBuilder
 import com.localdownloader.downloader.YoutubeRequestPlanner
 import com.localdownloader.downloader.isAutomaticContainerSelection
 import com.localdownloader.downloader.isChoiceCompatibleWithRequestedContainer
+import com.localdownloader.downloader.looksLikeYoutubeUrl
 import com.localdownloader.downloader.resolveMergeContainerCompatibility
 import com.localdownloader.downloader.resolveYoutubeFormatRouting
 import com.localdownloader.domain.models.AnalyzedLinkRecord
@@ -194,6 +195,15 @@ class FormatViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
+            val youtubeAnalyzeAuthConfig = uiState.value.youtubeAuthConfig
+                .takeIf { looksLikeYoutubeUrl(secureUrl) && it.enabled && it.isConfigured() }
+            val preferredAnalyzeExtractorArgs = youtubeAnalyzeAuthConfig?.let { authConfig ->
+                YoutubeRequestPlanner.preferredAuthenticatedExtractorArgs(
+                    poToken = authConfig.buildPoTokenValue(),
+                    preferredHint = authConfig.clientHint,
+                    dataSyncId = authConfig.dataSyncId.ifBlank { null },
+                )
+            }
             _uiState.update { state ->
                 state.copy(
                     urlInput = secureUrl,
@@ -221,6 +231,7 @@ class FormatViewModel @Inject constructor(
                     } else {
                         null
                     },
+                    preferredExtractorArgs = preferredAnalyzeExtractorArgs,
                 )
             }
                 .getOrElse { throwable ->

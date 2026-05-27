@@ -100,6 +100,35 @@ class FormatExtractorArgsTest {
     }
 
     @Test
+    fun shouldContinueAnalyzeCandidateSearch_keepsRetryingForLowQualityOnlyResults() {
+        assertTrue(
+            shouldContinueAnalyzeCandidateSearch(
+                totalFormats = 28,
+                videoOnlyFormats = 0,
+                maxHeight = 360,
+            ),
+        )
+    }
+
+    @Test
+    fun shouldContinueAnalyzeCandidateSearch_stopsOnceHdSelectionIsAvailable() {
+        assertFalse(
+            shouldContinueAnalyzeCandidateSearch(
+                totalFormats = 28,
+                videoOnlyFormats = 0,
+                maxHeight = 720,
+            ),
+        )
+        assertFalse(
+            shouldContinueAnalyzeCandidateSearch(
+                totalFormats = 8,
+                videoOnlyFormats = 2,
+                maxHeight = 1080,
+            ),
+        )
+    }
+
+    @Test
     fun shouldIgnoreFormat_keepsAudioContainersEvenWhenCodecFlagsAreMissing() {
         val item = buildJsonObject {
             put("format_id", "320")

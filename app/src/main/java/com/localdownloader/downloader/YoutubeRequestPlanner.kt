@@ -7,14 +7,19 @@ object YoutubeRequestPlanner {
         val extractorArgs: String?,
     )
 
-    fun analyzeCandidates(cookiesAvailable: Boolean): List<String?> {
+    fun analyzeCandidates(
+        cookiesAvailable: Boolean,
+        preferredExtractorArgs: String? = null,
+    ): List<String?> {
         val candidates = buildList {
-            add(null)
-            // Stay close to stock yt-dlp first, then try web clients that usually expose adaptive formats.
-            add(buildExtractorArgs(clientSpec = "default,mweb"))
-            add(buildExtractorArgs(clientSpec = "default,web"))
+            preferredExtractorArgs?.trim()?.ifBlank { null }?.let(::add)
+            // Prefer faster player-only retries first so single-video analysis does not sit on
+            // slower webpage/config fetches before we even know whether adaptive formats exist.
+            add(buildExtractorArgs(clientSpec = "default,mweb", includePlayerSkip = true))
+            add(buildExtractorArgs(clientSpec = "default,web", includePlayerSkip = true))
             add(buildExtractorArgs(clientSpec = "default,android", includePlayerSkip = true))
             add(buildExtractorArgs(clientSpec = "tv,android", includePlayerSkip = true))
+            add(null)
             if (cookiesAvailable) {
                 add(buildExtractorArgs(clientSpec = "default,mweb,web,android,tv", includePlayerSkip = true))
             }
@@ -24,7 +29,7 @@ object YoutubeRequestPlanner {
 
     fun recoveryCandidates(selectedExtractorArgs: String?, cookiesAvailable: Boolean): List<String?> {
         val normalizedSelectedArgs = normalizeExtractorArgs(selectedExtractorArgs)
-        return analyzeCandidates(cookiesAvailable)
+        return analyzeCandidates(cookiesAvailable = cookiesAvailable)
             .map(::normalizeExtractorArgs)
             .distinct()
             .filter { it != normalizedSelectedArgs }
