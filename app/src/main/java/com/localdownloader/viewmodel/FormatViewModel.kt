@@ -211,34 +211,7 @@ class FormatViewModel @Inject constructor(
                 )
             }
 
-            val runtimeCookiesPath = resolveRuntimeCookiesPathForUrl(secureUrl)
-            val youtubeAuthConfig = uiState.value.youtubeAuthConfig
-                .takeIf { it.enabled && it.isConfigured() }
-            val preferredAnalyzeExtractorArgs = youtubeAuthConfig
-                ?.takeIf { secureUrl.contains("youtube.com", ignoreCase = true) || secureUrl.contains("youtu.be", ignoreCase = true) }
-                ?.let { config ->
-                    YoutubeRequestPlanner.preferredAuthenticatedExtractorArgs(
-                        poToken = config.buildPoTokenValue(),
-                        preferredHint = config.clientHint,
-                        dataSyncId = config.dataSyncId.ifBlank { null },
-                        visitorData = config.visitorData.ifBlank { null },
-                    )
-                }
-            val result = runCatching {
-                repository.analyzeUrl(
-                    url = secureUrl,
-                    cookiesPath = runtimeCookiesPath,
-                    userAgent = if (uiState.value.cookiesEnabled && uiState.value.cookieUserAgentEnabled) {
-                        CookieTextCodec.COOKIE_USER_AGENT
-                    } else {
-                        null
-                    },
-                    preferredExtractorArgs = preferredAnalyzeExtractorArgs,
-                )
-            }
-                .getOrElse { throwable ->
-                    Result.failure(IllegalStateException(throwable.message ?: "Analyze failed", throwable))
-                }
+            val result = analyzeResolvedUrl(secureUrl)
             result.fold(
                 onSuccess = { info ->
                     logger.i(
@@ -247,7 +220,7 @@ class FormatViewModel @Inject constructor(
                     )
                     val choiceBundle = buildChoices(info)
                     val resolvedStreamType = resolveAvailableStreamType(
-                        preferredStreamType = uiState.value.selectedStreamType,
+                        preferredStreamType = StreamType.VIDEO_AUDIO,
                         videoAudioChoices = choiceBundle.videoAudioChoices,
                         videoOnlyChoices = choiceBundle.videoOnlyChoices,
                         audioOnlyChoices = choiceBundle.audioOnlyChoices,
@@ -330,6 +303,45 @@ class FormatViewModel @Inject constructor(
                 },
             )
         }
+    }
+
+    private suspend fun analyzeResolvedUrl(url: String): Result<VideoInfo> {
+        val runtimeCookiesPath = resolveRuntimeCookiesPathForUrl(url)
+        val state = uiState.value
+        val preferredAnalyzeExtractorArgs = buildPreferredAnalyzeExtractorArgs(
+            url = url,
+            youtubeAuthConfig = state.youtubeAuthConfig,
+        )
+        return runCatching {
+            repository.analyzeUrl(
+                url = url,
+                cookiesPath = runtimeCookiesPath,
+                userAgent = if (state.cookiesEnabled && state.cookieUserAgentEnabled) {
+                    CookieTextCodec.COOKIE_USER_AGENT
+                } else {
+                    null
+                },
+                preferredExtractorArgs = preferredAnalyzeExtractorArgs,
+            )
+        }.getOrElse { throwable ->
+            Result.failure(IllegalStateException(throwable.message ?: "Analyze failed", throwable))
+        }
+    }
+
+    private fun buildPreferredAnalyzeExtractorArgs(
+        url: String,
+        youtubeAuthConfig: YoutubeAuthConfig,
+    ): String? {
+        val authConfig = youtubeAuthConfig
+            .takeIf { it.enabled && it.isConfigured() }
+            ?: return null
+        if (!isYoutubeUrl(url)) return null
+        return YoutubeRequestPlanner.preferredAuthenticatedExtractorArgs(
+            poToken = authConfig.buildPoTokenValue(),
+            preferredHint = authConfig.clientHint,
+            dataSyncId = authConfig.dataSyncId.ifBlank { null },
+            visitorData = authConfig.visitorData.ifBlank { null },
+        )
     }
 
     fun onQualityChanged(quality: VideoQuality) {
@@ -548,7 +560,59 @@ class FormatViewModel @Inject constructor(
     }
 
     fun onPlaylistItemExpandedChanged(index: Int, value: Boolean) {
-        updatePlaylistItem(index) { item -> item.copy(isExpanded = value) }
+        val currentState = uiState.value
+        val item = currentState.playlistItems.getOrNull(index) ?: return
+        updatePlaylistItem(index) { existing ->
+            existing.copy(
+                isExpanded = value,
+                choiceLoadErrorMessage = if (value) null else existing.choiceLoadErrorMessage,
+            )
+        }
+        if (!value || !item.areChoicesFromFallback || item.isLoadingChoices) return
+
+        updatePlaylistItem(index) { existing ->
+            existing.copy(
+                isLoadingChoices = true,
+                choiceLoadErrorMessage = null,
+            )
+        }
+        viewModelScope.launch {
+            analyzeResolvedUrl(item.entry.webpageUrl).fold(
+                onSuccess = { loadedInfo ->
+                    val loadedBundle = buildChoices(loadedInfo)
+                    _uiState.update { state ->
+                        if (index !in state.playlistItems.indices) return@update state
+                        val updatedItems = state.playlistItems.toMutableList()
+                        if (updatedItems[index].entry.webpageUrl != item.entry.webpageUrl) {
+                            return@update state
+                        }
+                        updatedItems[index] = applyChoiceBundleToPlaylistItem(
+                            item = updatedItems[index],
+                            state = state,
+                            choiceBundle = loadedBundle,
+                            areChoicesFromFallback = false,
+                        ).copy(
+                            isExpanded = true,
+                            isLoadingChoices = false,
+                            choiceLoadErrorMessage = null,
+                        )
+                        state.copy(playlistItems = updatedItems)
+                    }
+                },
+                onFailure = { error ->
+                    updatePlaylistItem(index) { existing ->
+                        if (existing.entry.webpageUrl != item.entry.webpageUrl) {
+                            return@updatePlaylistItem existing
+                        }
+                        existing.copy(
+                            isExpanded = true,
+                            isLoadingChoices = false,
+                            choiceLoadErrorMessage = error.message ?: "Could not load file-specific formats.",
+                        )
+                    }
+                },
+            )
+        }
     }
 
     fun onPlaylistItemUseGlobalChanged(index: Int, value: Boolean) {
@@ -2044,7 +2108,8 @@ class FormatViewModel @Inject constructor(
         audioBitrateKbps: Int,
     ): List<PlaylistItemUiState> {
         return info.playlistEntries.map { entry ->
-            val itemChoiceBundle = if (entry.formats.isEmpty()) {
+            val usesFallbackChoices = entry.formats.isEmpty()
+            val itemChoiceBundle = if (usesFallbackChoices) {
                 fallbackChoiceBundle
             } else {
                 buildChoiceBundle(
@@ -2083,6 +2148,7 @@ class FormatViewModel @Inject constructor(
                 availableVideoAudioChoices = itemChoiceBundle.videoAudioChoices,
                 availableVideoOnlyChoices = itemChoiceBundle.videoOnlyChoices,
                 availableAudioOnlyChoices = itemChoiceBundle.audioOnlyChoices,
+                areChoicesFromFallback = usesFallbackChoices,
             )
         }
     }
@@ -2238,13 +2304,119 @@ class FormatViewModel @Inject constructor(
 
         val videoAudioChoices = (mergedChoices + muxedChoices)
             .distinctBy { it.selector }
+            .let(::collapseEquivalentChoices)
             .sortedWith(compareByDescending<FormatChoice> { it.height ?: 0 }.thenByDescending { extractBitrate(it.label) })
 
         return ChoiceBundle(
             videoAudioChoices = videoAudioChoices,
-            videoOnlyChoices = videoOnlyChoices,
-            audioOnlyChoices = audioChoices,
+            videoOnlyChoices = collapseEquivalentChoices(videoOnlyChoices)
+                .sortedWith(compareByDescending<FormatChoice> { it.height ?: 0 }.thenByDescending { extractBitrate(it.label) }),
+            audioOnlyChoices = collapseEquivalentChoices(audioChoices)
+                .sortedByDescending { extractBitrate(it.label) },
         )
+    }
+
+    private fun applyChoiceBundleToPlaylistItem(
+        item: PlaylistItemUiState,
+        state: FormatUiState,
+        choiceBundle: ChoiceBundle,
+        areChoicesFromFallback: Boolean,
+    ): PlaylistItemUiState {
+        val preferredStreamType = if (item.useGlobalSettings) {
+            state.selectedStreamType
+        } else {
+            item.selectedStreamType
+        }
+        val preferredOutputTransform = if (item.useGlobalSettings) {
+            state.selectedOutputTransform
+        } else {
+            item.selectedOutputTransform
+        }
+        val preferredContainer = if (item.useGlobalSettings) {
+            state.selectedContainer
+        } else {
+            item.selectedContainer
+        }
+        val preferredSelector = if (item.useGlobalSettings) {
+            state.selectedFormatSelector
+        } else {
+            item.selectedFormatSelector
+        }
+        val resolvedStreamType = resolveAvailableStreamType(
+            preferredStreamType = preferredStreamType,
+            videoAudioChoices = choiceBundle.videoAudioChoices,
+            videoOnlyChoices = choiceBundle.videoOnlyChoices,
+            audioOnlyChoices = choiceBundle.audioOnlyChoices,
+        )
+        val compatibleChoices = compatibleChoicesForStreamType(
+            streamType = resolvedStreamType,
+            container = preferredContainer,
+            videoAudioChoices = choiceBundle.videoAudioChoices,
+            videoOnlyChoices = choiceBundle.videoOnlyChoices,
+            audioOnlyChoices = choiceBundle.audioOnlyChoices,
+        )
+        val resolvedSelector = preferredSelector
+            ?.takeIf { selector -> compatibleChoices.any { it.selector == selector } }
+            ?: preferredDefaultChoiceForStreamType(
+                streamType = resolvedStreamType,
+                requestedContainer = preferredContainer,
+                choices = compatibleChoices,
+            )?.selector
+            ?: firstSelectorForStreamType(
+                streamType = resolvedStreamType,
+                container = preferredContainer,
+                videoAudioChoices = choiceBundle.videoAudioChoices,
+                videoOnlyChoices = choiceBundle.videoOnlyChoices,
+                audioOnlyChoices = choiceBundle.audioOnlyChoices,
+            )
+        return item.copy(
+            selectedStreamType = resolvedStreamType,
+            selectedOutputTransform = resolveAvailableOutputTransform(
+                preferredTransform = preferredOutputTransform,
+                sourceStreamType = resolvedStreamType,
+                videoAudioChoices = choiceBundle.videoAudioChoices,
+                videoOnlyChoices = choiceBundle.videoOnlyChoices,
+                audioOnlyChoices = choiceBundle.audioOnlyChoices,
+            ),
+            selectedFormatSelector = resolvedSelector,
+            availableVideoAudioChoices = choiceBundle.videoAudioChoices,
+            availableVideoOnlyChoices = choiceBundle.videoOnlyChoices,
+            availableAudioOnlyChoices = choiceBundle.audioOnlyChoices,
+            areChoicesFromFallback = areChoicesFromFallback,
+        )
+    }
+
+    private fun collapseEquivalentChoices(choices: List<FormatChoice>): List<FormatChoice> {
+        return choices
+            .groupBy(::choiceEquivalenceKey)
+            .values
+            .mapNotNull { group ->
+                group.maxWithOrNull(
+                    compareBy<FormatChoice> { if (it.isImageLike) 0 else 1 }
+                        .thenBy { if (it.isMerged) 0 else 1 }
+                        .thenByDescending { it.fileSizeBytes ?: 0L }
+                        .thenByDescending { it.estimatedSizeBytes ?: 0L }
+                        .thenByDescending { it.bitrateKbps ?: 0 }
+                        .thenByDescending { it.height ?: 0 }
+                        .thenByDescending { it.fps ?: 0.0 }
+                        .thenByDescending { it.selector.length },
+                )
+            }
+    }
+
+    private fun choiceEquivalenceKey(choice: FormatChoice): String {
+        val heightPart = choice.height?.toString() ?: "na"
+        val fpsPart = choice.fps?.toInt()?.toString() ?: "na"
+        val bitratePart = choice.bitrateKbps?.toString() ?: "na"
+        return listOf(
+            choice.streamType.name,
+            choice.container.lowercase(),
+            heightPart,
+            fpsPart,
+            normalizeCodecFamily(choice.videoCodec),
+            normalizeCodecFamily(choice.audioCodec),
+            bitratePart,
+        ).joinToString("|")
     }
 
     private fun preferredAudioExts(videoExt: String): List<String> {

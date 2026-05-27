@@ -176,6 +176,7 @@ class DownloadWorker @AssistedInject constructor(
                 onOutputLine = { line ->
                     logger.d("DownloadWorker/output", "taskId=$taskId line=$line")
                     appendDebugTrace(taskId, "yt-dlp: ${line.take(MAX_OUTPUT_TRACE_LINE_LENGTH)}")
+                    updateTaskForPostprocessingLine(taskId = taskId, line = line)
                     if (line.contains("has already been downloaded", ignoreCase = true)) {
                         reusedExistingDownloadFile = true
                     }
@@ -1228,6 +1229,30 @@ class DownloadWorker @AssistedInject constructor(
         }
 
         return null
+    }
+
+    private fun updateTaskForPostprocessingLine(taskId: String, line: String) {
+        val stageLabel = when {
+            line.contains("[ExtractAudio] Destination: ") -> "Post-processing audio"
+            line.contains("Merging formats into \"") -> "Merging streams"
+            line.contains("Adding metadata to \"") -> "Writing metadata"
+            line.contains("Fixing MPEG-TS in MP4 container of \"") -> "Finalizing container"
+            line.contains("EmbedThumbnail", ignoreCase = true) -> "Embedding thumbnail"
+            line.contains("ThumbnailsConvertor", ignoreCase = true) -> "Converting thumbnail"
+            else -> null
+        } ?: return
+
+        downloadTaskStore.update(taskId) { task ->
+            task.copy(
+                status = DownloadStatus.RUNNING,
+                progressPercent = maxOf(task.progressPercent, 100),
+                speed = null,
+                eta = null,
+                downloadedStr = stageLabel,
+                totalSizeStr = null,
+                updatedAtEpochMs = System.currentTimeMillis(),
+            )
+        }
     }
 
     private fun recoverPrimaryMediaAfterThumbnailFailure(

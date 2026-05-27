@@ -1314,12 +1314,13 @@ private fun SelectionOptionsCard(
     }
     val effectiveStreamType = effectiveOutputStreamType(streamType, outputTransform)
     val visibleChoices = remember(choices, streamType, container) {
-        if (streamType == StreamType.VIDEO_AUDIO) {
+        val filteredChoices = if (streamType == StreamType.VIDEO_AUDIO) {
             choices.filter { choice -> isChoiceCompatibleWithRequestedContainer(container, choice) }
                 .ifEmpty { choices }
         } else {
             choices
         }
+        distinctDisplayChoices(filteredChoices)
     }
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -1673,6 +1674,30 @@ private fun PlaylistItemCard(
                     if (item.useGlobalSettings) {
                         BrowserMetaChip(text = stringResource(R.string.browser_using_global_format))
                     } else {
+                        if (item.isLoadingChoices) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                                Text(
+                                    text = stringResource(R.string.browser_playlist_loading_item_formats),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                        item.choiceLoadErrorMessage?.takeIf { it.isNotBlank() }?.let { message ->
+                            Text(
+                                text = message,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                        if (item.areChoicesFromFallback && !item.isLoadingChoices) {
+                            Text(
+                                text = stringResource(R.string.browser_playlist_specific_formats_hint),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                         SelectionOptionsCard(
                             streamType = item.selectedStreamType,
                             onStreamTypeChanged = onStreamTypeChanged,
@@ -1964,6 +1989,35 @@ private fun buildFormatMenuMetadata(
             add("a:${compactCodecLabel(it)}")
         }
     }.joinToString(" | ").ifBlank { null }
+}
+
+private fun distinctDisplayChoices(choices: List<FormatChoice>): List<FormatChoice> {
+    return choices
+        .groupBy(::displayChoiceKey)
+        .values
+        .mapNotNull { group ->
+            group.maxWithOrNull(
+                compareBy<FormatChoice> { if (it.isImageLike) 0 else 1 }
+                    .thenBy { if (it.isMerged) 0 else 1 }
+                    .thenByDescending { it.fileSizeBytes ?: 0L }
+                    .thenByDescending { it.estimatedSizeBytes ?: 0L }
+                    .thenByDescending { it.bitrateKbps ?: 0 }
+                    .thenByDescending { it.height ?: 0 }
+                    .thenByDescending { it.fps ?: 0.0 },
+            )
+        }
+}
+
+private fun displayChoiceKey(choice: FormatChoice): String {
+    return listOf(
+        choice.streamType.name,
+        choice.container.lowercase(),
+        choice.height?.toString() ?: "na",
+        choice.fps?.toInt()?.toString() ?: "na",
+        compactCodecLabel(choice.videoCodec ?: ""),
+        compactCodecLabel(choice.audioCodec ?: ""),
+        choice.bitrateKbps?.toString() ?: "na",
+    ).joinToString("|")
 }
 
 private fun resolvedOutputContainer(
