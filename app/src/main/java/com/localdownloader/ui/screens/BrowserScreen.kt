@@ -62,7 +62,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -878,7 +877,7 @@ private fun ReadyAnalyzedCard(
     isQueueEnabled: Boolean,
     isQueueing: Boolean,
 ) {
-    Surface(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
             .animateContentSize(
@@ -887,45 +886,28 @@ private fun ReadyAnalyzedCard(
                     stiffness = 500f,
                 ),
             ),
-        shape = RoundedCornerShape(28.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        tonalElevation = 1.dp,
+        shape = RoundedCornerShape(24.dp),
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Surface(
-                    shape = RoundedCornerShape(999.dp),
-                    color = if (isActive) {
-                        MaterialTheme.colorScheme.primaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.surface
-                    },
-                ) {
-                    Text(
-                        text = stringResource(
-                            if (isActive) {
-                                R.string.browser_ready
-                            } else {
-                                R.string.browser_saved_ready_link
-                            },
-                        ),
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (isActive) {
-                            MaterialTheme.colorScheme.onPrimaryContainer
+                Text(
+                    text = stringResource(
+                        if (isActive) {
+                            R.string.browser_ready
                         } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
+                            R.string.browser_saved_ready_link
                         },
-                    )
-                }
+                    ),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
                 IconButton(onClick = onRemove) {
                     Icon(
                         imageVector = Icons.Outlined.Clear,
@@ -941,59 +923,42 @@ private fun ReadyAnalyzedCard(
                     BrowserMetaChip(text = chip)
                 }
             }
-            Surface(
-                shape = RoundedCornerShape(24.dp),
-                color = MaterialTheme.colorScheme.surface,
-                modifier = Modifier.fillMaxWidth(),
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onOpen),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(onClick = onOpen)
-                        .padding(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    modifier = Modifier.size(width = 112.dp, height = 64.dp),
                 ) {
-                    Surface(
-                        shape = RoundedCornerShape(18.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        modifier = Modifier
-                            .size(width = 112.dp, height = 64.dp),
-                    ) {
-                        AsyncImage(
-                            model = item.thumbnailUrl,
-                            contentDescription = item.title,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    }
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Text(
-                            text = item.title,
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            text = item.uploader ?: stringResource(R.string.common_unknown_uploader),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            text = if (isActive) {
-                                stringResource(R.string.browser_open_options)
-                            } else {
-                                stringResource(R.string.browser_load)
-                            },
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
+                    AsyncImage(
+                        model = item.thumbnailUrl,
+                        contentDescription = item.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        text = item.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = item.uploader ?: stringResource(R.string.common_unknown_uploader),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1001,7 +966,6 @@ private fun ReadyAnalyzedCard(
                     onClick = onOpen,
                     enabled = !isLoading,
                     modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(vertical = 13.dp),
                 ) {
                     Text(
                         when {
@@ -1012,11 +976,10 @@ private fun ReadyAnalyzedCard(
                     )
                 }
                 if (isActive) {
-                    OutlinedButton(
+                    TextButton(
                         onClick = onQueue,
                         enabled = isQueueEnabled,
                         modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(vertical = 13.dp),
                     ) {
                         Text(
                             when {
@@ -1039,15 +1002,15 @@ private fun DiscoveredResultsCard(
     isReady: Boolean,
     onDownload: () -> Unit,
 ) {
-    var showFilesPreview by rememberSaveable(analysis.input) { mutableStateOf(false) }
-    val previewItems = if (analysis.isCollection) analysis.items.take(6) else emptyList()
+    val previewItems = if (analysis.isCollection) analysis.items.take(4) else emptyList()
     val heroThumbnail = analysis.thumbnailUrl ?: analysis.primaryItem?.thumbnailUrl
     val sourceLabel = when (analysis.sourceKind) {
         com.localdownloader.domain.models.LinkSourceKind.CHANNEL -> "Channel"
         com.localdownloader.domain.models.LinkSourceKind.PLAYLIST -> "Playlist"
+        com.localdownloader.domain.models.LinkSourceKind.GENERIC_URL -> "Link"
         else -> "Video"
     }
-    Surface(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
             .animateContentSize(
@@ -1056,165 +1019,86 @@ private fun DiscoveredResultsCard(
                     stiffness = 500f,
                 ),
             ),
-        shape = RoundedCornerShape(30.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        tonalElevation = 1.dp,
+        shape = RoundedCornerShape(24.dp),
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
+        Column {
             Surface(
-                shape = RoundedCornerShape(26.dp),
-                color = MaterialTheme.colorScheme.surface,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f),
-            ) {
-                if (heroThumbnail != null) {
-                    AsyncImage(
-                        model = heroThumbnail,
-                        contentDescription = analysis.title,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.primaryContainer),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.TravelExplore,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(42.dp),
-                        )
-                    }
-                }
-            }
-
-            Row(
+                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top,
             ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
+                Box {
+                    if (heroThumbnail != null) {
+                        AsyncImage(
+                            model = heroThumbnail,
+                            contentDescription = analysis.title,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(16f / 9f),
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(16f / 9f)
+                                .background(MaterialTheme.colorScheme.surfaceContainerLow),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.TravelExplore,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(32.dp),
+                            )
+                        }
+                    }
                     Surface(
-                        shape = RoundedCornerShape(999.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(8.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
                     ) {
                         Text(
-                            text = if (analysis.isCollection) "Ready to review" else "Ready to download",
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            text = sourceLabel,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    Text(
-                        text = analysis.title,
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = analysis.uploader
-                            ?: analysis.primaryItem?.uploader
-                            ?: stringResource(R.string.common_unknown_uploader),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
                 }
-                BrowserMetaChip(text = sourceLabel)
             }
-
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+            Column(
+                modifier = Modifier.padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                buildDiscoveredChips(analysis).forEach { chip ->
-                    BrowserMetaChip(text = chip)
-                }
-            }
-
-            Text(
-                text = when {
-                    isLoading -> "Preparing download options so the sheet opens already filled in."
-                    analysis.isCollection -> "Start with a quick overview, then open options when you're ready to batch the whole collection."
-                    isReady -> "Everything is ready. Open options to pick quality, format, and extras."
-                    else -> "We found the link. Open options to finish the download setup."
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
-            if (analysis.isCollection) {
+                Text(
+                    text = analysis.title,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = analysis.uploader
+                        ?: analysis.primaryItem?.uploader
+                        ?: stringResource(R.string.common_unknown_uploader),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    FilterChip(
-                        selected = !showFilesPreview,
-                        onClick = { showFilesPreview = false },
-                        label = { Text("Overview") },
-                    )
-                    FilterChip(
-                        selected = showFilesPreview,
-                        onClick = { showFilesPreview = true },
-                        label = { Text("Files") },
-                    )
-                }
-            }
-
-            if (!analysis.isCollection || !showFilesPreview) {
-                Surface(
-                    shape = RoundedCornerShape(24.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Column(
-                        modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        Text(
-                            text = if (analysis.isCollection) "Quick overview" else "Download setup preview",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            text = if (analysis.isCollection) {
-                                "Use one format for the whole collection, then fine-tune individual files in the options sheet if needed."
-                            } else {
-                                "This result will open straight into the download sheet without another format fetch when formats are already available."
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        if (analysis.isCollection) {
-                            previewItems.take(3).forEachIndexed { index, item ->
-                                CollectionPreviewLine(
-                                    indexLabel = (item.playlistItemIndex ?: index + 1).toString(),
-                                    title = item.title,
-                                    subtitle = item.uploader ?: analysis.uploader,
-                                    thumbnailUrl = item.thumbnailUrl ?: heroThumbnail,
-                                    trailing = playlistDurationLabel(item.durationSeconds),
-                                )
-                            }
-                        }
+                    buildDiscoveredChips(analysis).forEach { chip ->
+                        BrowserMetaChip(text = chip)
                     }
                 }
-            }
-
-            if (analysis.isCollection && showFilesPreview && previewItems.isNotEmpty()) {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (previewItems.isNotEmpty()) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
                     previewItems.forEachIndexed { index, item ->
                         CollectionPreviewLine(
                             indexLabel = (item.playlistItemIndex ?: index + 1).toString(),
@@ -1226,81 +1110,25 @@ private fun DiscoveredResultsCard(
                     }
                     if (analysis.items.size > previewItems.size) {
                         Text(
-                            text = "Showing first ${previewItems.size} of ${analysis.items.size} files.",
+                            text = "And ${analysis.items.size - previewItems.size} more files",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
-            }
-
-            Surface(
-                shape = RoundedCornerShape(24.dp),
-                color = MaterialTheme.colorScheme.surface,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Column(
-                    modifier = Modifier.padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                Button(
+                    onClick = onDownload,
+                    enabled = !isLoading,
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(vertical = 14.dp),
                 ) {
                     Text(
-                        text = when {
-                            isLoading -> "Preparing your options"
-                            isReady -> "Options are ready"
-                            else -> "Open the download sheet"
+                        when {
+                            isLoading -> "Loading options..."
+                            isReady -> stringResource(R.string.browser_open_options)
+                            else -> stringResource(R.string.browser_download_button)
                         },
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
                     )
-                    Text(
-                        text = when {
-                            isLoading -> "We are matching the best available formats for this result."
-                            analysis.isCollection -> "You can queue the collection from the sheet after choosing one clean starting setup."
-                            else -> "Choose quality, output format, subtitles, metadata, and naming in one place."
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    if (analysis.isCollection) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Button(
-                                onClick = onDownload,
-                                enabled = !isLoading,
-                                modifier = Modifier.weight(1f),
-                                contentPadding = PaddingValues(vertical = 14.dp),
-                            ) {
-                                Text(
-                                    when {
-                                        isLoading -> "Loading options..."
-                                        isReady -> stringResource(R.string.browser_open_options)
-                                        else -> stringResource(R.string.browser_download_button)
-                                    },
-                                )
-                            }
-                            OutlinedButton(
-                                onClick = { showFilesPreview = !showFilesPreview },
-                                modifier = Modifier.weight(1f),
-                                contentPadding = PaddingValues(vertical = 14.dp),
-                            ) {
-                                Text(if (showFilesPreview) "Show overview" else "Preview files")
-                            }
-                        }
-                    } else {
-                        Button(
-                            onClick = onDownload,
-                            enabled = !isLoading,
-                            modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(vertical = 14.dp),
-                        ) {
-                            Text(
-                                when {
-                                    isLoading -> "Loading options..."
-                                    isReady -> stringResource(R.string.browser_open_options)
-                                    else -> stringResource(R.string.browser_download_button)
-                                },
-                            )
-                        }
-                    }
                 }
             }
         }

@@ -5,11 +5,13 @@ import androidx.lifecycle.viewModelScope
 import com.localdownloader.data.AnalyzedLinkHistoryStore
 import com.localdownloader.domain.models.AccentPreset
 import com.localdownloader.downloader.FormatSelectorBuilder
+import com.localdownloader.downloader.LinkSourceClassifier
 import com.localdownloader.downloader.YoutubeRequestPlanner
 import com.localdownloader.downloader.isAutomaticContainerSelection
 import com.localdownloader.downloader.isChoiceCompatibleWithRequestedContainer
 import com.localdownloader.downloader.resolveMergeContainerCompatibility
 import com.localdownloader.downloader.resolveYoutubeFormatRouting
+import com.localdownloader.downloader.shouldUseFastPlaylistAnalyze
 import com.localdownloader.domain.models.AnalyzedLinkRecord
 import com.localdownloader.domain.models.AppSettings
 import com.localdownloader.domain.models.ContrastMode
@@ -207,6 +209,11 @@ class FormatViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
+            val sourceKindHint = LinkSourceClassifier.classify(secureUrl)
+            val shouldUseCollectionAnalyze =
+                sourceKindHint == LinkSourceKind.PLAYLIST ||
+                    sourceKindHint == LinkSourceKind.CHANNEL ||
+                    shouldUseFastPlaylistAnalyze(secureUrl)
             _uiState.update { state ->
                 state.copy(
                     urlInput = secureUrl,
@@ -229,60 +236,99 @@ class FormatViewModel @Inject constructor(
             }
 
             val runtimeCookiesPath = resolveRuntimeCookiesPathForUrl(secureUrl)
-            val result = runCatching {
-                repository.analyzeLink(
-                    url = secureUrl,
-                    cookiesPath = runtimeCookiesPath,
-                    userAgent = if (uiState.value.cookiesEnabled && uiState.value.cookieUserAgentEnabled) {
-                        CookieTextCodec.COOKIE_USER_AGENT
-                    } else {
-                        null
+            val userAgent = if (uiState.value.cookiesEnabled && uiState.value.cookieUserAgentEnabled) {
+                CookieTextCodec.COOKIE_USER_AGENT
+            } else {
+                null
+            }
+
+            if (shouldUseCollectionAnalyze) {
+                val result = runCatching {
+                    repository.analyzeLink(
+                        url = secureUrl,
+                        cookiesPath = runtimeCookiesPath,
+                        userAgent = userAgent,
+                    )
+                }.getOrElse { throwable ->
+                    Result.failure(IllegalStateException(throwable.message ?: "Analyze failed", throwable))
+                }
+                result.fold(
+                    onSuccess = { analysis ->
+                        logger.i(
+                            "FormatViewModel",
+                            "Collection analyze success for URL: $secureUrl, title='${analysis.title}', items=${analysis.items.size}, source=${analysis.sourceKind}",
+                        )
+                        val info = analysis.toLegacyVideoInfo()
+                        applyAnalyzedInfo(
+                            analysis = analysis,
+                            info = info,
+                            upgradeNotice = upgradeNotice,
+                            keepLoadingFormats = false,
+                            selectedBrowseUrl = browseActionUrlFor(analysis),
+                            openOptionsOnReady = restoreIntoReady,
+                        )
+                        persistReadyRecordIfNeeded(info)
+                    },
+                    onFailure = { error ->
+                        handleAnalyzeFailure(secureUrl = secureUrl, error = error)
                     },
                 )
+                return@launch
             }
-                .getOrElse { throwable ->
-                    Result.failure(IllegalStateException(throwable.message ?: "Analyze failed", throwable))
+
+            val result = runCatching {
+                repository.analyzeUrl(
+                    url = secureUrl,
+                    cookiesPath = runtimeCookiesPath,
+                    userAgent = userAgent,
+                )
+            }.getOrElse { throwable ->
+                Result.failure(IllegalStateException(throwable.message ?: "Analyze failed", throwable))
             }
             result.fold(
-                onSuccess = { analysis ->
+                onSuccess = { info ->
+                    val analysis = info.toLinkAnalysisResult(inputUrl = secureUrl)
                     logger.i(
                         "FormatViewModel",
-                        "Analyze success for URL: $secureUrl, title='${analysis.title}', items=${analysis.items.size}, source=${analysis.sourceKind}",
+                        "Single-link analyze success for URL: $secureUrl, title='${info.title}', formats=${info.formats.size}, source=${analysis.sourceKind}",
                     )
-                    applyDiscoveredAnalysis(
+                    applyAnalyzedInfo(
                         analysis = analysis,
+                        info = info,
                         upgradeNotice = upgradeNotice,
+                        keepLoadingFormats = false,
+                        selectedBrowseUrl = info.webpageUrl,
+                        openOptionsOnReady = restoreIntoReady,
                     )
-                    if (restoreIntoReady) {
-                        prepareDownloadOptionsForAnalysis(
-                            analysis = analysis,
-                            selectionUrl = browseActionUrlFor(analysis),
-                            runtimeCookiesPath = runtimeCookiesPath,
-                            upgradeNotice = upgradeNotice,
-                            openOptionsOnReady = true,
-                        )
-                    }
+                    persistReadyRecordIfNeeded(info)
                 },
                 onFailure = { error ->
-                    logger.e("FormatViewModel", "Analyze failed for URL: $secureUrl", error)
-                    val baseMessage = error.message?.takeIf { it.isNotBlank() } ?: "Failed to analyze URL."
-                    _uiState.update { state ->
-                        state.copy(
-                            isAnalyzing = false,
-                            isLoadingFormats = false,
-                            shouldOpenOptionsSheet = false,
-                            messageScope = FormatMessageScope.BROWSER,
-                            errorMessage = buildString {
-                                append(baseMessage)
-                                if (shouldShowRuntimeHint(baseMessage)) {
-                                    append(" Ensure yt-dlp runtime is initialized and this device ABI is supported.")
-                                }
-                            },
-                            linkAnalysis = null,
-                            restoringReadyItemUrl = null,
-                        )
+                    handleAnalyzeFailure(secureUrl = secureUrl, error = error)
+                },
+            )
+        }
+    }
+
+    private fun handleAnalyzeFailure(
+        secureUrl: String,
+        error: Throwable,
+    ) {
+        logger.e("FormatViewModel", "Analyze failed for URL: $secureUrl", error)
+        val baseMessage = error.message?.takeIf { it.isNotBlank() } ?: "Failed to analyze URL."
+        _uiState.update { state ->
+            state.copy(
+                isAnalyzing = false,
+                isLoadingFormats = false,
+                shouldOpenOptionsSheet = false,
+                messageScope = FormatMessageScope.BROWSER,
+                errorMessage = buildString {
+                    append(baseMessage)
+                    if (shouldShowRuntimeHint(baseMessage)) {
+                        append(" Ensure yt-dlp runtime is initialized and this device ABI is supported.")
                     }
                 },
+                linkAnalysis = null,
+                restoringReadyItemUrl = null,
             )
         }
     }
@@ -2107,6 +2153,64 @@ class FormatViewModel @Inject constructor(
                     ),
                 )
             },
+        )
+    }
+
+    private fun VideoInfo.toLinkAnalysisResult(inputUrl: String): LinkAnalysisResult {
+        val sourceKind = when {
+            isPlaylist -> {
+                if (LinkSourceClassifier.classify(inputUrl) == LinkSourceKind.CHANNEL) {
+                    LinkSourceKind.CHANNEL
+                } else {
+                    LinkSourceKind.PLAYLIST
+                }
+            }
+            else -> LinkSourceClassifier.classify(inputUrl)
+        }
+        val items = if (playlistEntries.isNotEmpty()) {
+            playlistEntries.map { entry ->
+                LinkAnalysisItem(
+                    id = entry.id,
+                    title = entry.title,
+                    webpageUrl = entry.webpageUrl,
+                    uploader = entry.uploader,
+                    durationSeconds = entry.durationSeconds,
+                    thumbnailUrl = entry.thumbnailUrl,
+                    playlistItemIndex = entry.playlistItemIndex,
+                    formats = entry.formats,
+                    extractorArgs = extractorArgs,
+                    infoJsonPath = null,
+                )
+            }
+        } else {
+            listOf(
+                LinkAnalysisItem(
+                    id = id,
+                    title = title,
+                    webpageUrl = webpageUrl,
+                    uploader = uploader,
+                    durationSeconds = durationSeconds,
+                    thumbnailUrl = thumbnailUrl,
+                    formats = formats,
+                    extractorArgs = extractorArgs,
+                    infoJsonPath = infoJsonPath,
+                ),
+            )
+        }
+        return LinkAnalysisResult(
+            sourceKind = sourceKind,
+            input = inputUrl,
+            rootId = id,
+            title = title,
+            uploader = uploader,
+            durationSeconds = durationSeconds,
+            thumbnailUrl = thumbnailUrl,
+            webpageUrl = webpageUrl,
+            rootFormats = formats,
+            extractorArgs = extractorArgs,
+            infoJsonPath = infoJsonPath,
+            playlistCount = playlistCount ?: playlistEntries.size.takeIf { isPlaylist },
+            items = items,
         )
     }
 
