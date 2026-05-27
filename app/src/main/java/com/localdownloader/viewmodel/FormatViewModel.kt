@@ -212,6 +212,18 @@ class FormatViewModel @Inject constructor(
             }
 
             val runtimeCookiesPath = resolveRuntimeCookiesPathForUrl(secureUrl)
+            val youtubeAuthConfig = uiState.value.youtubeAuthConfig
+                .takeIf { it.enabled && it.isConfigured() }
+            val preferredAnalyzeExtractorArgs = youtubeAuthConfig
+                ?.takeIf { secureUrl.contains("youtube.com", ignoreCase = true) || secureUrl.contains("youtu.be", ignoreCase = true) }
+                ?.let { config ->
+                    YoutubeRequestPlanner.preferredAuthenticatedExtractorArgs(
+                        poToken = config.buildPoTokenValue(),
+                        preferredHint = config.clientHint,
+                        dataSyncId = config.dataSyncId.ifBlank { null },
+                        visitorData = config.visitorData.ifBlank { null },
+                    )
+                }
             val result = runCatching {
                 repository.analyzeUrl(
                     url = secureUrl,
@@ -221,6 +233,7 @@ class FormatViewModel @Inject constructor(
                     } else {
                         null
                     },
+                    preferredExtractorArgs = preferredAnalyzeExtractorArgs,
                 )
             }
                 .getOrElse { throwable ->
@@ -256,6 +269,7 @@ class FormatViewModel @Inject constructor(
                     _uiState.update { state ->
                         val playlistItems = buildPlaylistItemStates(
                             info = info,
+                            fallbackChoiceBundle = choiceBundle,
                             streamType = resolvedStreamType,
                             container = state.selectedContainer,
                             audioFormat = state.selectedAudioFormat,
@@ -2023,16 +2037,21 @@ class FormatViewModel @Inject constructor(
 
     private fun buildPlaylistItemStates(
         info: VideoInfo,
+        fallbackChoiceBundle: ChoiceBundle,
         streamType: StreamType,
         container: String,
         audioFormat: String,
         audioBitrateKbps: Int,
     ): List<PlaylistItemUiState> {
         return info.playlistEntries.map { entry ->
-            val itemChoiceBundle = buildChoiceBundle(
-                formats = entry.formats.ifEmpty { info.formats },
-                durationSeconds = entry.durationSeconds ?: info.durationSeconds,
-            )
+            val itemChoiceBundle = if (entry.formats.isEmpty()) {
+                fallbackChoiceBundle
+            } else {
+                buildChoiceBundle(
+                    formats = entry.formats,
+                    durationSeconds = entry.durationSeconds ?: info.durationSeconds,
+                )
+            }
             val resolvedStreamType = resolveAvailableStreamType(
                 preferredStreamType = streamType,
                 videoAudioChoices = itemChoiceBundle.videoAudioChoices,
@@ -2176,6 +2195,21 @@ class FormatViewModel @Inject constructor(
                 )
             }
         }
+            .groupBy { choice ->
+                Triple(
+                    choice.height ?: -1,
+                    choice.container.lowercase(),
+                    normalizeCodecFamily(choice.videoCodec),
+                )
+            }
+            .values
+            .mapNotNull { choices ->
+                choices.maxWithOrNull(
+                    compareBy<FormatChoice> { it.height ?: -1 }
+                        .thenByDescending { it.bitrateKbps ?: 0 }
+                        .thenByDescending { it.estimatedSizeBytes ?: 0L },
+                )
+            }
 
         val muxedChoices = muxed.map { item ->
             val fps = item.fps?.let { "${it.toInt()}fps" } ?: ""
@@ -2229,6 +2263,15 @@ class FormatViewModel @Inject constructor(
     private fun extractBitrate(label: String): Int {
         val match = Regex("(\\d+)kbps").find(label) ?: return 0
         return match.groupValues[1].toIntOrNull() ?: 0
+    }
+
+    private fun normalizeCodecFamily(codec: String?): String {
+        return codec
+            ?.substringBefore('.')
+            ?.substringBefore(' ')
+            ?.trim()
+            ?.lowercase()
+            .orEmpty()
     }
 
     private fun combineFormatSizes(videoSizeBytes: Long?, audioSizeBytes: Long?): Long? {

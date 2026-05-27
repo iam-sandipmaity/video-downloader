@@ -35,19 +35,28 @@ class FormatExtractor @Inject constructor(
         url: String,
         cookiesPath: String? = null,
         userAgent: String? = null,
+        preferredExtractorArgs: String? = null,
     ): Result<VideoInfo> {
         return runCatching {
             logger.i("FormatExtractor", "Starting yt-dlp analyze for URL: $url")
             val analyzeMode = resolveAnalyzeRequestMode(url)
+            val isYoutube = isYoutubeUrl(url)
 
             val hasCookies = !cookiesPath.isNullOrBlank() && File(cookiesPath).exists()
-            val extractorCandidates = if (isYoutubeUrl(url)) {
-                YoutubeRequestPlanner.analyzeCandidates(cookiesAvailable = hasCookies)
+            val extractorCandidates = if (isYoutube) {
+                YoutubeRequestPlanner.analyzeCandidates(
+                    cookiesAvailable = hasCookies,
+                    preferredExtractorArgs = preferredExtractorArgs,
+                )
             } else {
                 listOf<String?>(null)
             }
 
-            var best: AnalyzeCandidate? = null
+            var best: AnalyzeCandidate? = if (!isYoutube && analyzeMode == AnalyzeRequestMode.STANDARD) {
+                loadRecentAnalyzeSnapshot(url)
+            } else {
+                null
+            }
             var lastFailureMessage: String? = null
             extractorCandidates.forEachIndexed { index, extractorArgs ->
                 if (analyzeMode == AnalyzeRequestMode.YOUTUBE_PLAYLIST_FAST &&
@@ -553,6 +562,16 @@ class FormatExtractor @Inject constructor(
             }
             ?.trim()
             ?.ifBlank { null }
+    }
+
+    private fun loadRecentAnalyzeSnapshot(url: String): AnalyzeCandidate? {
+        val cachedInfoJsonPath = resolveRecentInfoJsonSnapshotPath(url) ?: return null
+        return parseAnalyzeSuccess(
+            url = url,
+            extractorArgs = null,
+            stdout = "",
+            capturedInfoJsonPath = cachedInfoJsonPath,
+        ).candidate
     }
 
     private fun isYoutubeUrl(url: String): Boolean {
