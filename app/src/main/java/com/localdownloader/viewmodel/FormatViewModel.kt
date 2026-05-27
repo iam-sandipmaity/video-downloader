@@ -17,6 +17,7 @@ import com.localdownloader.domain.models.CookieProfile
 import com.localdownloader.domain.models.DownloadOptions
 import com.localdownloader.domain.models.FormatChoice
 import com.localdownloader.domain.models.FormatLoadResult
+import com.localdownloader.domain.models.LinkAnalysisItem
 import com.localdownloader.domain.models.LinkAnalysisResult
 import com.localdownloader.domain.models.LinkSourceKind
 import com.localdownloader.domain.models.MediaFormat
