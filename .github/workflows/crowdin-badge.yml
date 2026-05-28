@@ -1,21 +1,16 @@
 name: Crowdin Badge
 
 on:
+  workflow_call:
   workflow_dispatch:
   schedule:
     - cron: "17 3 * * *"
-  workflow_run:
-    workflows:
-      - Crowdin
-    types:
-      - completed
 
 permissions:
   contents: write
 
 jobs:
   update:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
 
     steps:

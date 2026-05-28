@@ -142,6 +142,21 @@ jobs:
     uses: ./.github/workflows/crowdin.yml
     secrets: inherit
 
+  crowdin-badge:
+    name: Crowdin Badge
+    needs:
+      - workflow-flags
+      - crowdin
+    permissions:
+      contents: write
+    if: |
+      always() &&
+      needs.workflow-flags.outputs.enable_crowdin == 'true' &&
+      needs.crowdin.result == 'success' &&
+      github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/crowdin-badge.yml
+    secrets: inherit
+
   cleanup:
     name: Cleanup Artifacts
     needs: workflow-flags
