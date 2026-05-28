@@ -17,8 +17,9 @@ fun buildVideoLibraryItems(tasks: List<DownloadTask>): List<VideoLibraryItem> {
         .sortedByDescending { it.updatedAtEpochMs }
         .map { task ->
             val file = task.outputPath?.let(::File)
+            val fileExists = file?.exists() == true
             val resolvedSize = file
-                ?.takeIf { it.exists() }
+                ?.takeIf { fileExists }
                 ?.length()
                 ?.toReadableSize()
                 ?.takeIf { it.isNotBlank() }
@@ -30,7 +31,7 @@ fun buildVideoLibraryItems(tasks: List<DownloadTask>): List<VideoLibraryItem> {
                 file = file,
                 displayTitle = task.title.ifBlank { file?.nameWithoutExtension ?: file?.name ?: "Saved media" },
                 displaySize = resolvedSize,
-                exists = file?.exists() == true,
+                exists = fileExists,
                 mediaKind = resolveMediaKind(file),
             )
         }
