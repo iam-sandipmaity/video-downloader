@@ -13,6 +13,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
 
       - name: Sync translations
         uses: crowdin/github-action@v2.12.0
@@ -26,6 +29,7 @@ jobs:
           upload_translations: false
           download_translations: true
           skip_untranslated_strings: true
+          skip_ref_checkout: true
           localization_branch_name: l10n_crowdin_translations
           create_pull_request: true
           pull_request_title: Crowdin translation updates

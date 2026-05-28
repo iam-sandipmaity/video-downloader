@@ -22,8 +22,8 @@
   <a href="https://github.com/iam-sandipmaity/video-downloader/releases">
     <img alt="Downloads" src="https://img.shields.io/github/downloads/iam-sandipmaity/video-downloader/total?label=downloads" />
   </a>
-  <a href="CONTRIBUTING.md#translation-contributions">
-    <img alt="Help translate" src="https://img.shields.io/badge/help%20translate-Crowdin-2E3340?logo=crowdin&logoColor=white" />
+  <a href="https://crowdin.com/project/local-video-downloader">
+    <img alt="Crowdin translation progress" src="https://badges.crowdin.net/local-video-downloader/localized.svg" />
   </a>
   <a href="https://video.sandipmaity.me">
     <img alt="Website" src="https://img.shields.io/badge/website-video.sandipmaity.me-orange" />
