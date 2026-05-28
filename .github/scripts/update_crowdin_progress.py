@@ -1,5 +1,7 @@
 import json
 import os
+import hashlib
+import re
 import urllib.parse
 import urllib.request
 from html import escape
@@ -7,6 +9,7 @@ from html import escape
 
 BADGE_PATH = ".github/badges/crowdin.json"
 SVG_PATH = ".github/badges/crowdin-progress.svg"
+README_PATH = "README.md"
 
 
 def as_number(value):
@@ -189,12 +192,55 @@ def write_progress_svg(progress_items, progress):
         output.write("\n")
 
 
+def asset_cache_key():
+    digest = hashlib.sha256()
+    for path in (BADGE_PATH, SVG_PATH):
+        with open(path, "rb") as input_file:
+            digest.update(input_file.read())
+    return digest.hexdigest()[:12]
+
+
+def update_readme_cache_keys(cache_key):
+    badge_json_url = (
+        "https://raw.githubusercontent.com/iam-sandipmaity/video-downloader/"
+        f"main/.github/badges/crowdin.json?v={cache_key}"
+    )
+    badge_url = (
+        "https://img.shields.io/endpoint?"
+        f"url={urllib.parse.quote(badge_json_url, safe='')}&cacheSeconds=300"
+    )
+    progress_url = (
+        "https://raw.githubusercontent.com/iam-sandipmaity/video-downloader/"
+        f"main/.github/badges/crowdin-progress.svg?v={cache_key}"
+    )
+
+    with open(README_PATH, "r", encoding="utf-8") as input_file:
+        readme = input_file.read()
+
+    readme = re.sub(
+        r"https://img\.shields\.io/endpoint\?url=[^\"]*crowdin\.json[^\"]*",
+        badge_url,
+        readme,
+        count=1,
+    )
+    readme = re.sub(
+        r"(?:\.github/badges/crowdin-progress\.svg|https://raw\.githubusercontent\.com/iam-sandipmaity/video-downloader/main/\.github/badges/crowdin-progress\.svg[^\"]*)",
+        progress_url,
+        readme,
+        count=1,
+    )
+
+    with open(README_PATH, "w", encoding="utf-8") as output:
+        output.write(readme)
+
+
 def main():
     payload = fetch_crowdin_progress()
     progress_items = parse_progress_items(payload)
     progress = overall_progress(progress_items)
     write_badge(progress)
     write_progress_svg(progress_items, progress)
+    update_readme_cache_keys(asset_cache_key())
 
 
 if __name__ == "__main__":

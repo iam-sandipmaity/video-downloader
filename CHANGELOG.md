@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ### Fixed
 - **Crowdin progress refresh** - the progress asset workflow now runs from `Master CI` after the reusable Crowdin sync job succeeds, instead of waiting on a `workflow_run` event that reusable workflows do not emit
+- **Crowdin README image cache** - generated progress updates now refresh README image URLs with an asset cache key so GitHub and Shields do not keep showing the old `pending` artwork
 
 ## [1.7.2.9] - 2026-05-28
 

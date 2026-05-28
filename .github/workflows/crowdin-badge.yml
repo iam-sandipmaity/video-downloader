@@ -33,13 +33,13 @@ jobs:
 
       - name: Commit Crowdin progress updates
         run: |
-          if git diff --quiet -- .github/badges/crowdin.json .github/badges/crowdin-progress.svg; then
+          if git diff --quiet -- README.md .github/badges/crowdin.json .github/badges/crowdin-progress.svg; then
             echo "Crowdin progress assets are already current."
             exit 0
           fi
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .github/badges/crowdin.json .github/badges/crowdin-progress.svg
+          git add README.md .github/badges/crowdin.json .github/badges/crowdin-progress.svg
           git commit -m "Update Crowdin translation progress"
           git push
