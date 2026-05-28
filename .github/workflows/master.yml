@@ -136,7 +136,9 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    if: needs.workflow-flags.outputs.enable_crowdin == 'true'
+    if: |
+      needs.workflow-flags.outputs.enable_crowdin == 'true' &&
+      github.ref == 'refs/heads/main'
     uses: ./.github/workflows/crowdin.yml
     secrets: inherit
 
