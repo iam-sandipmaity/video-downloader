@@ -1,6 +1,7 @@
 package com.localdownloader.data
 
 import android.content.Context
+import androidx.core.content.edit
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
@@ -29,10 +30,10 @@ class PlaybackSessionStore @Inject constructor(
 
     fun save(sessionKey: String, session: PlaybackSession) {
         sessions[sessionKey] = session
-        preferences.edit()
-            .putLong(positionKey(sessionKey), session.positionMs.coerceAtLeast(0L))
-            .putBoolean(playWhenReadyKey(sessionKey), session.playWhenReady)
-            .apply()
+        preferences.edit {
+            putLong(positionKey(sessionKey), session.positionMs.coerceAtLeast(0L))
+            putBoolean(playWhenReadyKey(sessionKey), session.playWhenReady)
+        }
     }
 
     private fun positionKey(sessionKey: String): String = "$KEY_POSITION_PREFIX$sessionKey"
