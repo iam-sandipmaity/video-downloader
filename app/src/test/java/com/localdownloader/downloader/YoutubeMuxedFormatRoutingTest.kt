@@ -81,6 +81,28 @@ class YoutubeMuxedFormatRoutingTest {
         assertNotNull(routing.queueNote)
     }
 
+    @Test
+    fun resolveYoutubeFormatRouting_reroutesMuxedYoutubeEvenWhenOnlyProgressiveChoicesWereListed() {
+        val routing = resolveYoutubeFormatRouting(
+            sourceUrl = "https://www.youtube.com/watch?v=test",
+            streamType = StreamType.VIDEO_AUDIO,
+            selectedChoice = muxedChoice(container = "mp4", height = 720).copy(
+                selector = "96/b[ext=mp4]/b/best",
+                videoCodec = "avc1.4d401f",
+                audioCodec = "mp4a.40.2",
+            ),
+            requestedContainer = "mp4",
+            fallbackSelector = "96/b[ext=mp4]/b/best",
+            hasMergedVideoAudioChoice = false,
+        )
+
+        assertEquals(
+            "bestvideo[height<=720][ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720][vcodec^=avc1]+bestaudio/bestvideo[height<=720]+bestaudio/best[height<=720]/best",
+            routing.selector,
+        )
+        assertNotNull(routing.queueNote)
+    }
+
     private fun muxedChoice(
         container: String,
         height: Int,

@@ -878,7 +878,6 @@ class FormatExtractor @Inject constructor(
 
     private fun shouldTryMoreCandidates(stats: FormatStats?): Boolean {
         if (stats == null) return true
-        if (stats.muxed > 0) return false
         if (stats.videoOnly > 0 && stats.audioOnly > 0) return false
         if (stats.audioOnly > 0 && stats.videoOnly == 0 && stats.maxHeight == 0) return false
         if (stats.hasAdaptiveVideo) return false
