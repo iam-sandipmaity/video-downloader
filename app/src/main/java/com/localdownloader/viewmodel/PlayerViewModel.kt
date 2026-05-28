@@ -99,6 +99,7 @@ class PlayerViewModel @Inject constructor(
                     durationMs = player.duration.takeIf { it > 0 } ?: state.durationMs,
                     positionMs = player.currentPosition.coerceAtLeast(0L),
                     bufferedPositionMs = player.bufferedPosition.coerceAtLeast(player.currentPosition),
+                    isSeekable = isCurrentMediaSeekable(),
                 )
             }
         }
@@ -180,6 +181,7 @@ class PlayerViewModel @Inject constructor(
                     durationMs = 0L,
                     positionMs = 0L,
                     bufferedPositionMs = 0L,
+                    isSeekable = false,
                     playbackSpeed = currentPlaybackSpeed,
                     resizeMode = currentResizeMode,
                     volumeBoostMb = currentVolumeBoostMb,
@@ -266,6 +268,7 @@ class PlayerViewModel @Inject constructor(
                 durationMs = player.duration.takeIf { it > 0 } ?: 0L,
                 positionMs = savedPosition,
                 bufferedPositionMs = savedPosition,
+                isSeekable = isCurrentMediaSeekable(),
                 playbackSpeed = currentPlaybackSpeed,
                 resizeMode = currentResizeMode,
                 volumeBoostMb = currentVolumeBoostMb,
@@ -293,14 +296,17 @@ class PlayerViewModel @Inject constructor(
 
     fun seekTo(positionMs: Long) {
         if (!uiState.value.isAvailable) return
-        player.seekTo(positionMs.coerceIn(0L, player.duration.takeIf { it > 0 } ?: Long.MAX_VALUE))
+        val durationMs = player.duration.takeIf { it > 0 } ?: return
+        if (!player.isCurrentMediaItemSeekable) return
+        player.seekTo(positionMs.coerceIn(0L, durationMs))
         snapshotPlaybackState()
         persistPlaybackState()
     }
 
     fun seekBy(offsetMs: Long): Long {
         if (!uiState.value.isAvailable) return 0L
-        val durationMs = player.duration.takeIf { it > 0 } ?: Long.MAX_VALUE
+        val durationMs = player.duration.takeIf { it > 0 } ?: return 0L
+        if (!player.isCurrentMediaItemSeekable) return 0L
         val previousPosition = player.currentPosition
         val targetPosition = (previousPosition + offsetMs).coerceIn(0L, durationMs)
         player.seekTo(targetPosition)
@@ -454,8 +460,13 @@ class PlayerViewModel @Inject constructor(
                 durationMs = player.duration.takeIf { it > 0 } ?: state.durationMs,
                 positionMs = player.currentPosition.coerceAtLeast(0L),
                 bufferedPositionMs = player.bufferedPosition.coerceAtLeast(player.currentPosition),
+                isSeekable = isCurrentMediaSeekable(),
             )
         }
+    }
+
+    private fun isCurrentMediaSeekable(): Boolean {
+        return player.duration > 0 && player.isCurrentMediaItemSeekable
     }
 
     private fun pausePlaybackForConflict() {
@@ -699,6 +710,7 @@ data class PlayerUiState(
     val durationMs: Long = 0L,
     val positionMs: Long = 0L,
     val bufferedPositionMs: Long = 0L,
+    val isSeekable: Boolean = false,
     val playbackSpeed: Float = 1.0f,
     val resizeMode: Int = PlayerResizeModes.FIT,
     val volumeBoostMb: Int = 0,

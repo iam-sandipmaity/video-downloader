@@ -1187,6 +1187,7 @@ class DownloadWorker @AssistedInject constructor(
                 finalSubtitlePaths += artifact.absolutePath
             }
         }
+        fileUtils.pruneEmptyPrivateDownloadDirectories()
         appendDebugTrace(taskId, "Saved file: $finalPrimaryPath")
         return ExportedMediaBundle(
             primaryPath = finalPrimaryPath,

@@ -332,6 +332,21 @@ class FileUtils @Inject constructor(
         return bundleFiles.all { candidate -> deleteManagedFile(candidate.absolutePath) }
     }
 
+    fun pruneEmptyPrivateDownloadDirectories() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+        val downloadsRoot = ensureDownloadsDir().absoluteFile.normalize()
+        downloadsRoot
+            .walkBottomUp()
+            .filter { candidate ->
+                candidate.isDirectory &&
+                    candidate.absoluteFile.normalize() != downloadsRoot &&
+                    candidate.listFiles()?.isEmpty() == true
+            }
+            .forEach { candidate ->
+                runCatching { candidate.delete() }
+            }
+    }
+
     fun deleteManagedFile(path: String): Boolean {
         val targetFile = File(path)
         if (!targetFile.exists()) return true

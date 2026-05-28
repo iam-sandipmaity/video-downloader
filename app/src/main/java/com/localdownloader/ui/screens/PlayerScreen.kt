@@ -149,6 +149,7 @@ fun PlayerScreen(
     val selectedSubtitleTrack = uiState.subtitleTracks.firstOrNull { it.isSelected }
     val currentOrientation = configuration.orientation
     val openExternalUnavailableLabel = stringResource(R.string.player_open_external_unavailable)
+    val canSeek = uiState.isSeekable && uiState.durationMs > 0L
 
     var isFullscreen by rememberSaveable { mutableStateOf(false) }
     var controlsVisible by rememberSaveable { mutableStateOf(true) }
@@ -375,20 +376,24 @@ fun PlayerScreen(
                         activePanelName = PlayerPanel.NONE.name
                     }
                 },
-                    onSeekBack = {
-                        val appliedMs = playerViewModel.seekBy(-SEEK_INCREMENT_MS)
-                        if (appliedMs != 0L) {
-                            gestureFeedback = "-${abs(appliedMs / 1000)}s"
-                        }
-                        activePanelName = PlayerPanel.NONE.name
-                    },
-                    onSeekForward = {
-                        val appliedMs = playerViewModel.seekBy(SEEK_INCREMENT_MS)
-                        if (appliedMs != 0L) {
-                            gestureFeedback = "+${abs(appliedMs / 1000)}s"
-                        }
-                        activePanelName = PlayerPanel.NONE.name
-                    },
+                onSeekBack = {
+                    val appliedMs = playerViewModel.seekBy(-SEEK_INCREMENT_MS)
+                    if (appliedMs != 0L) {
+                        gestureFeedback = "-${abs(appliedMs / 1000)}s"
+                    } else if (!canSeek) {
+                        gestureFeedback = "Seeking unavailable"
+                    }
+                    activePanelName = PlayerPanel.NONE.name
+                },
+                onSeekForward = {
+                    val appliedMs = playerViewModel.seekBy(SEEK_INCREMENT_MS)
+                    if (appliedMs != 0L) {
+                        gestureFeedback = "+${abs(appliedMs / 1000)}s"
+                    } else if (!canSeek) {
+                        gestureFeedback = "Seeking unavailable"
+                    }
+                    activePanelName = PlayerPanel.NONE.name
+                },
                 onDoubleTapCenter = {
                     val wasPlaying = uiState.isPlaying
                     playerViewModel.togglePlayback()
@@ -397,6 +402,10 @@ fun PlayerScreen(
                 },
                 playerWidthPx = playerWidthPx,
                 playerHeightPx = playerHeightPx,
+                canSeek = canSeek,
+                onSeekUnavailable = {
+                    gestureFeedback = "Seeking unavailable"
+                },
                 onAdjustmentStart = { side ->
                     swipeHintVisible = false
                     gestureFeedback = null
@@ -548,6 +557,7 @@ fun PlayerScreen(
                 canEnterPictureInPicture = uiState.isAvailable && isLikelyVideoFile(playablePath),
                 isRotationLocked = uiState.isLocked,
                 canOpenExternally = playablePath != null,
+                canSeek = canSeek,
                 onOpenPrevious = onOpenPrevious,
                 onOpenNext = onOpenNext,
                 onBack = {
@@ -731,6 +741,8 @@ private fun BoxScope.GestureLayer(
     onDoubleTapCenter: () -> Unit,
     playerWidthPx: Int,
     playerHeightPx: Int,
+    canSeek: Boolean,
+    onSeekUnavailable: () -> Unit,
     onAdjustmentStart: (SwipeAdjustmentSide) -> Unit,
     onAdjustmentChange: (SwipeAdjustmentSide, Float) -> Unit,
     onAdjustmentEnd: () -> Unit,
@@ -775,8 +787,13 @@ private fun BoxScope.GestureLayer(
 
                             activeMode = when {
                                 absHorizontalDrag > absVerticalDrag * SWIPE_DIRECTION_LOCK_RATIO -> {
-                                    onSeekSwipeStart()
-                                    SwipeGestureMode.HORIZONTAL
+                                    if (canSeek) {
+                                        onSeekSwipeStart()
+                                        SwipeGestureMode.HORIZONTAL
+                                    } else {
+                                        onSeekUnavailable()
+                                        SwipeGestureMode.NONE
+                                    }
                                 }
 
                                 absVerticalDrag > absHorizontalDrag * SWIPE_DIRECTION_LOCK_RATIO -> {
@@ -983,6 +1000,7 @@ private fun BoxScope.PlayerChrome(
     canEnterPictureInPicture: Boolean,
     isRotationLocked: Boolean,
     canOpenExternally: Boolean,
+    canSeek: Boolean,
     onOpenPrevious: (() -> Unit)?,
     onOpenNext: (() -> Unit)?,
     onBack: () -> Unit,
@@ -1080,6 +1098,7 @@ private fun BoxScope.PlayerChrome(
                         currentPositionMs = currentPositionMs,
                         durationMs = uiState.durationMs,
                         bufferedPositionMs = uiState.bufferedPositionMs,
+                        canSeek = canSeek,
                         onSeekChanged = onSeekChanged,
                         onSeekFinished = onSeekFinished,
                     )
@@ -1089,7 +1108,7 @@ private fun BoxScope.PlayerChrome(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = "${formatPlaybackTime(currentPositionMs)} / ${formatPlaybackTime(uiState.durationMs)}",
+                            text = "${formatPlaybackTime(currentPositionMs)} / ${formatDurationOrUnknown(uiState.durationMs)}",
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.Medium,
                             color = Color.White,
@@ -1230,6 +1249,7 @@ private fun PlayerTimeline(
     currentPositionMs: Long,
     durationMs: Long,
     bufferedPositionMs: Long,
+    canSeek: Boolean,
     onSeekChanged: (Float) -> Unit,
     onSeekFinished: () -> Unit,
 ) {
@@ -1250,14 +1270,20 @@ private fun PlayerTimeline(
         )
 
         Slider(
-            value = currentPositionMs.coerceAtLeast(0L).toFloat(),
+            value = currentPositionMs
+                .coerceIn(0L, durationMs.coerceAtLeast(1L))
+                .toFloat(),
             onValueChange = onSeekChanged,
             onValueChangeFinished = onSeekFinished,
             valueRange = 0f..durationMs.coerceAtLeast(1L).toFloat(),
+            enabled = canSeek,
             colors = SliderDefaults.colors(
                 thumbColor = Color.White,
                 activeTrackColor = Color.White,
                 inactiveTrackColor = Color.White.copy(alpha = 0.18f),
+                disabledThumbColor = Color.White.copy(alpha = 0.38f),
+                disabledActiveTrackColor = Color.White.copy(alpha = 0.24f),
+                disabledInactiveTrackColor = Color.White.copy(alpha = 0.12f),
             ),
             modifier = Modifier
                 .fillMaxWidth()
@@ -1649,6 +1675,10 @@ private fun formatPlaybackTime(timeMs: Long): String {
     } else {
         "%02d:%02d".format(minutes, seconds)
     }
+}
+
+private fun formatDurationOrUnknown(timeMs: Long): String {
+    return if (timeMs > 0L) formatPlaybackTime(timeMs) else "--:--"
 }
 
 private fun isLikelyVideoFile(path: String?): Boolean {
