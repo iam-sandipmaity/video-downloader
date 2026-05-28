@@ -35,6 +35,7 @@ internal fun resolveYoutubeFormatRouting(
             preferredHeight = choice.height,
             container = requestedContainer.ifBlank { choice.container },
             preferredVideoCodec = choice.videoCodec,
+            preferredAudioLanguage = choice.audioLanguage,
         ),
         queueNote = "YouTube muxed video was routed through a safer adaptive merge path to avoid broken duration and postprocessing issues.",
     )
@@ -44,6 +45,7 @@ private fun buildAdaptiveVideoAudioSelector(
     preferredHeight: Int?,
     container: String,
     preferredVideoCodec: String?,
+    preferredAudioLanguage: String?,
 ): String {
     val heightFilter = preferredHeight?.let { "[height<=$it]" }.orEmpty()
     val normalizedContainer = container.trim().lowercase()
@@ -58,11 +60,21 @@ private fun buildAdaptiveVideoAudioSelector(
         "webm" -> "[ext=webm]"
         else -> ""
     }
-    return "bestvideo$heightFilter$videoExtensionFilter$videoCodecFilter+bestaudio$audioExtensionFilter/" +
-        "bestvideo$heightFilter$videoExtensionFilter+bestaudio$audioExtensionFilter/" +
-        "bestvideo$heightFilter$videoCodecFilter+bestaudio/" +
-        "bestvideo$heightFilter+bestaudio/" +
-        "best$heightFilter/best"
+    val audioLanguageFilter = languagePrefixFilter(preferredAudioLanguage)
+    return buildList {
+        if (audioLanguageFilter != null) {
+            add("bestvideo$heightFilter$videoExtensionFilter$videoCodecFilter+bestaudio$audioExtensionFilter$audioLanguageFilter")
+            add("bestvideo$heightFilter$videoExtensionFilter+bestaudio$audioExtensionFilter$audioLanguageFilter")
+            add("bestvideo$heightFilter$videoCodecFilter+bestaudio$audioLanguageFilter")
+            add("bestvideo$heightFilter+bestaudio$audioLanguageFilter")
+        }
+        add("bestvideo$heightFilter$videoExtensionFilter$videoCodecFilter+bestaudio$audioExtensionFilter")
+        add("bestvideo$heightFilter$videoExtensionFilter+bestaudio$audioExtensionFilter")
+        add("bestvideo$heightFilter$videoCodecFilter+bestaudio")
+        add("bestvideo$heightFilter+bestaudio")
+        add("best$heightFilter")
+        add("best")
+    }.distinct().joinToString("/")
 }
 
 private fun preferredVideoCodecFilter(codec: String?): String {
@@ -73,6 +85,17 @@ private fun preferredVideoCodecFilter(codec: String?): String {
         normalized.startsWith("vp9") -> "[vcodec^=vp9]"
         else -> ""
     }
+}
+
+private fun languagePrefixFilter(language: String?): String? {
+    val safe = language
+        ?.trim()
+        ?.lowercase()
+        ?.takeUnless { it.isBlank() || it == "und" }
+        ?.filter { it.isLetterOrDigit() || it == '-' || it == '_' }
+        ?.takeIf { it.isNotBlank() }
+        ?: return null
+    return "[language^=$safe]"
 }
 
 private fun isYoutubeUrl(url: String): Boolean {

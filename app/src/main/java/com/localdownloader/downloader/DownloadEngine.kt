@@ -89,9 +89,6 @@ class DownloadEngine @Inject constructor(
         if (options.shouldWriteThumbnail) {
             args += "--write-thumbnail"
         }
-        if (options.shouldEmbedThumbnail || options.shouldWriteThumbnail) {
-            args += listOf("--convert-thumbnails", "jpg")
-        }
 
         if (options.extractAudio) {
             args += "-x"

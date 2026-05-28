@@ -22,6 +22,7 @@ data class DownloadOptions(
     val youtubeDataSyncId: String? = null,
     val mergeOutputFormat: String? = null,
     val preferredVideoHeight: Int? = null,
+    val preferredAudioLanguage: String? = null,
     val expectedDurationSeconds: Long? = null,
     val downloadVideoOnly: Boolean = false,
     val isPlaylistEnabled: Boolean = false,

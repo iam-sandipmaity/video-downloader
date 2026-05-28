@@ -1752,6 +1752,7 @@ class FormatViewModel @Inject constructor(
                     youtubeDataSyncId = youtubeAuthConfig?.dataSyncId?.ifBlank { null },
                     mergeOutputFormat = mergeCompatibility.resolvedContainer,
                     preferredVideoHeight = selectedChoice?.height ?: state.selectedQuality.maxHeight,
+                    preferredAudioLanguage = selectedChoice?.audioLanguage,
                     expectedDurationSeconds = sourceDurationSeconds,
                     downloadVideoOnly = resolvedSourceStreamType == StreamType.VIDEO_ONLY,
                     isPlaylistEnabled = info.isPlaylist || state.enablePlaylist,
@@ -2293,6 +2294,8 @@ class FormatViewModel @Inject constructor(
                 fps = null,
                 bitrateKbps = audio.bitrateKbps,
                 note = audio.note,
+                audioLanguage = audio.language,
+                audioLanguagePreference = audio.languagePreference,
             )
         }.sortedByDescending { extractBitrate(it.label) }
 
@@ -2322,20 +2325,25 @@ class FormatViewModel @Inject constructor(
         }.sortedWith(compareByDescending<FormatChoice> { it.height ?: 0 }.thenByDescending { extractBitrate(it.label) })
 
         val audioByExt = audioOnly.groupBy { it.extension.lowercase() }
-        val bestAudioOverall = audioOnly.maxByOrNull { it.bitrateKbps ?: 0 }
+        val bestAudioOverall = selectPreferredAudio(audioOnly)
         val mergedChoices = videoOnly.mapNotNull { video ->
             val preferredExts = preferredAudioExts(video.extension)
             val preferredAudio = preferredExts.asSequence()
-                .mapNotNull { ext -> audioByExt[ext]?.maxByOrNull { it.bitrateKbps ?: 0 } }
+                .mapNotNull { ext -> selectPreferredAudio(audioByExt[ext].orEmpty()) }
                 .firstOrNull() ?: bestAudioOverall
             preferredAudio?.let { audio ->
                 val fps = video.fps?.let { "${it.toInt()}fps" } ?: ""
                 val audioBitrate = audio.bitrateKbps?.let { "${it}kbps" } ?: ""
+                val audioLanguage = audio.language
+                    ?.takeIf { it.isNotBlank() && !it.equals("und", ignoreCase = true) }
+                    ?.let { "lang=$it" }
+                    .orEmpty()
                 val label = listOf(
                     video.resolution ?: "video",
                     video.extension,
                     fps,
                     "audio=${audio.extension}",
+                    audioLanguage,
                     audioBitrate,
                     "merge",
                 ).filter { it.isNotBlank() }.joinToString(" ")
@@ -2362,6 +2370,8 @@ class FormatViewModel @Inject constructor(
                     fps = video.fps,
                     bitrateKbps = audio.bitrateKbps ?: video.bitrateKbps,
                     note = video.note ?: audio.note,
+                    audioLanguage = audio.language,
+                    audioLanguagePreference = audio.languagePreference,
                 )
             }
         }
@@ -2376,6 +2386,7 @@ class FormatViewModel @Inject constructor(
             .mapNotNull { choices ->
                 choices.maxWithOrNull(
                     compareBy<FormatChoice> { it.height ?: -1 }
+                        .thenByDescending { it.audioLanguagePreference ?: 0 }
                         .thenByDescending { it.bitrateKbps ?: 0 }
                         .thenByDescending { it.estimatedSizeBytes ?: 0L },
                 )
@@ -2403,6 +2414,8 @@ class FormatViewModel @Inject constructor(
                 fps = item.fps,
                 bitrateKbps = item.bitrateKbps,
                 note = item.note,
+                audioLanguage = item.language,
+                audioLanguagePreference = item.languagePreference,
             )
         }
 
@@ -2497,7 +2510,9 @@ class FormatViewModel @Inject constructor(
             .mapNotNull { group ->
                 group.maxWithOrNull(
                     compareBy<FormatChoice> { if (it.isImageLike) 0 else 1 }
-                        .thenBy { if (it.isMerged) 0 else 1 }
+                        .thenBy { if (it.isMerged) 1 else 0 }
+                        .thenBy { it.audioLanguagePreference ?: 0 }
+                        .thenBy { if (it.audioLanguage.isNullOrBlank()) 0 else 1 }
                         .thenByDescending { it.fileSizeBytes ?: 0L }
                         .thenByDescending { it.estimatedSizeBytes ?: 0L }
                         .thenByDescending { it.bitrateKbps ?: 0 }
@@ -2521,6 +2536,22 @@ class FormatViewModel @Inject constructor(
             normalizeCodecFamily(choice.audioCodec),
             bitratePart,
         ).joinToString("|")
+    }
+
+    private fun selectPreferredAudio(formats: List<MediaFormat>): MediaFormat? {
+        return formats.maxWithOrNull(
+            compareBy<MediaFormat> { it.languagePreference ?: 0 }
+                .thenBy { if (it.language.isNullOrBlank()) 0 else 1 }
+                .thenBy { it.bitrateKbps ?: 0 }
+                .thenByDescending { isLikelyDescriptiveAudio(it) },
+        )
+    }
+
+    private fun isLikelyDescriptiveAudio(format: MediaFormat): Int {
+        val text = listOf(format.note.orEmpty(), format.language.orEmpty())
+            .joinToString(" ")
+            .lowercase()
+        return if (text.contains("descriptive") || text.contains("description")) 0 else 1
     }
 
     private fun preferredAudioExts(videoExt: String): List<String> {

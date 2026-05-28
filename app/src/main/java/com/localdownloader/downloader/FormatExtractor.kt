@@ -753,6 +753,9 @@ class FormatExtractor @Inject constructor(
         val approximateSize = item["filesize"]?.jsonPrimitive?.longOrNull
             ?: item["filesize_approx"]?.jsonPrimitive?.longOrNull
         val note = item["format_note"]?.jsonPrimitive?.contentOrNull
+        val language = item["language"]?.jsonPrimitive?.contentOrNull
+            ?.takeUnless { it.isBlank() || it.equals("und", ignoreCase = true) }
+        val languagePreference = item["language_preference"]?.jsonPrimitive?.intOrNull
         val codecs = inferParsedCodecs(
             extension = ext,
             resolution = resolution,
@@ -783,6 +786,8 @@ class FormatExtractor @Inject constructor(
             bitrateKbps = item["tbr"]?.jsonPrimitive?.doubleOrNull?.toInt(),
             fps = item["fps"]?.jsonPrimitive?.doubleOrNull,
             note = note,
+            language = language,
+            languagePreference = languagePreference,
         )
     }
 

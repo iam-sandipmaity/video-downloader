@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
+## [1.7.2.8] - 2026-05-28
+
+### Changed
+- **Thumbnail post-processing** - downloads no longer force WebP thumbnails through JPG conversion, restoring the older optional-thumbnail behavior when device FFmpeg lacks WebP decoding
+
+### Fixed
+- **YouTube HLS MP4 recovery** - failed MPEG-TS-in-MP4 fixups now retry through adaptive merge instead of exporting unseekable `00:00` MP4 files
+- **Default audio language** - format selection now respects yt-dlp audio language/default preference so videos are less likely to download with a random dubbed track
+
+### Technical
+- **App version bump** - release metadata updated to `1.7.2.8`
+
 ## [1.7.2.7] - 2026-05-28
 
 ### Added

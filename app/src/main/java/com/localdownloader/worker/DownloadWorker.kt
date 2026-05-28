@@ -257,6 +257,13 @@ class DownloadWorker @AssistedInject constructor(
 
         suspend fun recoverCompletedMediaFromPostprocessingFailureIfAvailable(): Boolean {
             if (result.isSuccess || !isRecoverablePostprocessingFailure(result.stderr)) return false
+            if (isYoutubeUrl(options.url) && isBrokenHlsFixupFailure(result.stderr)) {
+                appendDebugTrace(
+                    taskId,
+                    "Skipping direct HLS MP4 recovery so YouTube can retry through adaptive merge",
+                )
+                return false
+            }
 
             val thumbnailRecoveredOutput = recoverPrimaryMediaAfterThumbnailFailure(
                 stderr = result.stderr,
@@ -528,15 +535,23 @@ class DownloadWorker @AssistedInject constructor(
         }
 
         if (!result.isSuccess) {
-            val recoveredOutputPath = recoverPrimaryMediaAfterPostprocessingFailure(
-                taskId = taskId,
-                stderr = result.stderr,
-                currentOutputPath = outputPath,
-                downloadedPrimaryPath = downloadedPrimaryPath,
-                outputTemplate = outputTemplate,
-                preferredExtension = options.mergeOutputFormat,
-                expectedDurationSeconds = options.expectedDurationSeconds,
-            )
+            val recoveredOutputPath = if (isYoutubeUrl(options.url) && isBrokenHlsFixupFailure(result.stderr)) {
+                appendDebugTrace(
+                    taskId,
+                    "Skipping final direct HLS MP4 recovery because the file may be unseekable",
+                )
+                null
+            } else {
+                recoverPrimaryMediaAfterPostprocessingFailure(
+                    taskId = taskId,
+                    stderr = result.stderr,
+                    currentOutputPath = outputPath,
+                    downloadedPrimaryPath = downloadedPrimaryPath,
+                    outputTemplate = outputTemplate,
+                    preferredExtension = options.mergeOutputFormat,
+                    expectedDurationSeconds = options.expectedDurationSeconds,
+                )
+            }
             if (recoveredOutputPath != null) {
                 outputPath = recoveredOutputPath
                 if (options.shouldWriteThumbnail) {
@@ -729,6 +744,7 @@ class DownloadWorker @AssistedInject constructor(
         return lower.contains("http error 403") ||
             lower.contains("403: forbidden") ||
             lower.contains("requested format is not available") ||
+            isBrokenHlsFixupFailure(stderr) ||
             isFragmentAccessFailure(lower)
     }
 
@@ -759,7 +775,7 @@ class DownloadWorker @AssistedInject constructor(
     private fun shouldRetryWithYoutubeAdaptiveFallback(options: DownloadOptions, stderr: String): Boolean {
         if (options.extractAudio) return false
         if (!isYoutubeUrl(options.url)) return false
-        return isYoutubeFormatAccessFailure(stderr)
+        return isYoutubeFormatAccessFailure(stderr) || isBrokenHlsFixupFailure(stderr)
     }
 
     private fun shouldRetryWithYoutubeSafeMode(options: DownloadOptions, stderr: String): Boolean {
@@ -855,6 +871,7 @@ class DownloadWorker @AssistedInject constructor(
             maxHeight = options.preferredVideoHeight,
             container = options.mergeOutputFormat,
             videoOnly = options.downloadVideoOnly,
+            preferredAudioLanguage = options.preferredAudioLanguage,
         )
         val attempts = buildList {
             if (adaptiveSelector != options.formatId || !options.loadInfoJsonPath.isNullOrBlank()) {
@@ -1229,6 +1246,12 @@ class DownloadWorker @AssistedInject constructor(
         }
 
         return null
+    }
+
+    private fun isBrokenHlsFixupFailure(stderr: String): Boolean {
+        val lower = stderr.lowercase()
+        val isHlsFixup = lower.contains("fixupm3u8") || lower.contains("mpeg-ts in mp4 container")
+        return isHlsFixup && lower.contains("invalid data found when processing input")
     }
 
     private fun updateTaskForPostprocessingLine(taskId: String, line: String) {

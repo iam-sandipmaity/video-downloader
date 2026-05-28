@@ -62,11 +62,34 @@ class FormatSelectorBuilderTest {
         assertFalse(selector.endsWith("/b"))
     }
 
+    @Test
+    fun buildMergedSelector_preservesAudioLanguageFallbacks() {
+        val video = mediaFormat(
+            formatId = "4000",
+            extension = "mp4",
+            videoCodec = "avc1",
+            audioCodec = "none",
+        )
+        val audio = mediaFormat(
+            formatId = "140-hi",
+            extension = "m4a",
+            videoCodec = "none",
+            audioCodec = "mp4a",
+            language = "hi",
+        )
+
+        val selector = FormatSelectorBuilder.buildMergedSelector(video, audio)
+
+        assertTrue(selector.contains("4000+ba[ext=m4a][language^=hi]"))
+        assertTrue(selector.contains("4000+ba[language^=hi]"))
+    }
+
     private fun mediaFormat(
         formatId: String,
         extension: String,
         videoCodec: String,
         audioCodec: String,
+        language: String? = null,
     ): MediaFormat {
         return MediaFormat(
             formatId = formatId,
@@ -79,6 +102,7 @@ class FormatSelectorBuilderTest {
             bitrateKbps = null,
             fps = null,
             note = null,
+            language = language,
         )
     }
 }
