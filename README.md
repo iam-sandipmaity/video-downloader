@@ -23,7 +23,7 @@
     <img alt="Downloads" src="https://img.shields.io/github/downloads/iam-sandipmaity/video-downloader/total?label=downloads" />
   </a>
   <a href="https://crowdin.com/project/local-video-downloader">
-    <img alt="Crowdin translation progress" src="https://badges.crowdin.net/local-video-downloader/localized.svg" />
+    <img alt="Crowdin translation progress" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fiam-sandipmaity%2Fvideo-downloader%2Fmain%2F.github%2Fbadges%2Fcrowdin.json" />
   </a>
   <a href="https://video.sandipmaity.me">
     <img alt="Website" src="https://img.shields.io/badge/website-video.sandipmaity.me-orange" />
@@ -187,6 +187,14 @@ Current in-app language support includes:
 - Korean
 - Japanese
 - Simplified Chinese
+
+## Translation Progress
+
+<p align="center">
+  <a href="https://crowdin.com/project/local-video-downloader">
+    <img src=".github/badges/crowdin-progress.svg" alt="Crowdin language translation progress" />
+  </a>
+</p>
 
 Want to improve a translation? The repository is ready for Crowdin through the
 GitHub Actions workflow, and direct translation pull requests are also welcome.

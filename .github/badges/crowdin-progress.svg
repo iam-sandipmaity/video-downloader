@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="156" viewBox="0 0 760 156" role="img" aria-label="Crowdin translation progress pending">
+<title>Crowdin translation progress pending</title>
+<rect width="760" height="156" rx="14" fill="#0f141b"/>
+<rect x="0" y="0" width="760" height="58" fill="#142a2a"/>
+<path d="M20 0 78 58M112 0l58 58M204 0l58 58M650 0l58 58" stroke="#1f6f66" stroke-width="8" opacity=".28"/>
+<text x="28" y="36" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="20" font-weight="700" fill="#f8fafc">Crowdin Translation Progress</text>
+<text x="732" y="36" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="18" font-weight="700" fill="#f8fafc" text-anchor="end">pending</text>
+<text x="28" y="88" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14" fill="#cbd5e1">Waiting for the GitHub workflow to fetch live Crowdin progress.</text>
+<rect x="28" y="112" width="704" height="8" rx="4" fill="#38424f"/>
+<rect x="28" y="112" width="176" height="8" rx="4" fill="#2775c9"/>
+</svg>
