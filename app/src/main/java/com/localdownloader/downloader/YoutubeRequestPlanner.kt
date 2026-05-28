@@ -183,6 +183,7 @@ object YoutubeRequestPlanner {
         maxHeight: Int?,
         container: String?,
         videoOnly: Boolean,
+        preferredAudioLanguage: String? = null,
     ): String {
         val heightFilter = maxHeight?.let { "[height<=$it]" }.orEmpty()
         val normalizedContainer = container?.trim()?.lowercase()
@@ -196,11 +197,21 @@ object YoutubeRequestPlanner {
             "webm" -> "[ext=webm]"
             else -> ""
         }
+        val audioLanguageFilter = languagePrefixFilter(preferredAudioLanguage)
 
         return if (videoOnly) {
             "bestvideo$heightFilter$videoExtFilter/bestvideo$heightFilter/bestvideo/best$heightFilter/best"
         } else {
-            "bestvideo$heightFilter$videoExtFilter+bestaudio$audioExtFilter/bestvideo$heightFilter+bestaudio/best$heightFilter/best"
+            buildList {
+                if (audioLanguageFilter != null) {
+                    add("bestvideo$heightFilter$videoExtFilter+bestaudio$audioExtFilter$audioLanguageFilter")
+                    add("bestvideo$heightFilter+bestaudio$audioLanguageFilter")
+                }
+                add("bestvideo$heightFilter$videoExtFilter+bestaudio$audioExtFilter")
+                add("bestvideo$heightFilter+bestaudio")
+                add("best$heightFilter")
+                add("best")
+            }.joinToString("/")
         }
     }
 
@@ -230,6 +241,17 @@ object YoutubeRequestPlanner {
         }
 
         return "youtube:${parts.joinToString(";")}"
+    }
+
+    private fun languagePrefixFilter(language: String?): String? {
+        val safe = language
+            ?.trim()
+            ?.lowercase()
+            ?.takeUnless { it.isBlank() || it == "und" }
+            ?.filter { it.isLetterOrDigit() || it == '-' || it == '_' }
+            ?.takeIf { it.isNotBlank() }
+            ?: return null
+        return "[language^=$safe]"
     }
 
     private fun buildAuthenticatedSameSelectorAttempts(

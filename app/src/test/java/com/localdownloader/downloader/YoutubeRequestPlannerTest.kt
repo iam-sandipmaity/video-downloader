@@ -63,6 +63,19 @@ class YoutubeRequestPlannerTest {
     }
 
     @Test
+    fun buildAdaptiveSelector_prefersRequestedAudioLanguage() {
+        val selector = YoutubeRequestPlanner.buildAdaptiveSelector(
+            maxHeight = 1080,
+            container = "mp4",
+            videoOnly = false,
+            preferredAudioLanguage = "hi",
+        )
+
+        assertTrue(selector.startsWith("bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a][language^=hi]"))
+        assertTrue(selector.contains("bestvideo[height<=1080]+bestaudio[language^=hi]"))
+    }
+
+    @Test
     fun preferredAuthenticatedExtractorArgs_preservesPreformattedPoTokensAndDataSyncId() {
         val extractorArgs = YoutubeRequestPlanner.preferredAuthenticatedExtractorArgs(
             poToken = "web.gvs+gvs123,web.player+player456,web.subs+subs789",

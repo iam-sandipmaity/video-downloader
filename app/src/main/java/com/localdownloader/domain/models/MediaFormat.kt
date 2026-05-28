@@ -14,6 +14,8 @@ data class MediaFormat(
     val bitrateKbps: Int?,
     val fps: Double?,
     val note: String?,
+    val language: String? = null,
+    val languagePreference: Int? = null,
 ) {
     val normalizedExtension: String
         get() = extension.trim().lowercase()
@@ -34,7 +36,8 @@ data class MediaFormat(
     fun asReadableLabel(): String {
         val qualityPart = resolution ?: if (isAudioOnly) "audio" else "unknown"
         val bitratePart = bitrateKbps?.let { "${it}kbps" } ?: ""
-        return listOf(formatId, extension, qualityPart, bitratePart, note.orEmpty())
+        val languagePart = language?.takeIf { it.isNotBlank() && it != "und" }?.let { "lang=$it" }.orEmpty()
+        return listOf(formatId, extension, qualityPart, bitratePart, languagePart, note.orEmpty())
             .filter { it.isNotBlank() }
             .joinToString(" | ")
     }

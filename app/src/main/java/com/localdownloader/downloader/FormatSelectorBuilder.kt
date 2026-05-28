@@ -11,6 +11,8 @@ object FormatSelectorBuilder {
         return joinAlternatives(
             listOfNotNull(
                 audio.formatId.takeIf { it.isNotBlank() },
+                bestAudioForExtensionAndLanguage(audio.normalizedExtension, audio.language),
+                bestAudioForLanguage(audio.language),
                 bestAudioForExtension(audio.normalizedExtension),
                 "ba",
                 "bestaudio",
@@ -42,6 +44,8 @@ object FormatSelectorBuilder {
     fun buildMergedSelector(video: MediaFormat, audio: MediaFormat): String {
         val segments = mutableListOf<String>()
         addSegment(segments, "${video.formatId}+${audio.formatId}")
+        addSegment(segments, bestAudioForExtensionAndLanguage(audio.normalizedExtension, audio.language)?.let { "${video.formatId}+$it" })
+        addSegment(segments, bestAudioForLanguage(audio.language)?.let { "${video.formatId}+$it" })
         addSegment(segments, bestAudioForExtension(audio.normalizedExtension)?.let { "${video.formatId}+$it" })
         addSegment(segments, "${video.formatId}+ba")
         addSegment(segments, "${video.formatId}+bestaudio")
@@ -50,6 +54,17 @@ object FormatSelectorBuilder {
         addSegment(segments, "b")
         addSegment(segments, "best")
         return joinAlternatives(segments)
+    }
+
+    private fun bestAudioForExtensionAndLanguage(extension: String, language: String?): String? {
+        val extensionSelector = bestAudioForExtension(extension) ?: return null
+        val languageFilter = languagePrefixFilter(language) ?: return null
+        return "$extensionSelector$languageFilter"
+    }
+
+    private fun bestAudioForLanguage(language: String?): String? {
+        val languageFilter = languagePrefixFilter(language) ?: return null
+        return "ba$languageFilter"
     }
 
     private fun bestAudioForExtension(extension: String): String? {
@@ -66,6 +81,17 @@ object FormatSelectorBuilder {
         val safe = normalized.filter { it.isLetterOrDigit() }
         if (safe.isBlank()) return null
         return "b[ext=$safe]"
+    }
+
+    private fun languagePrefixFilter(language: String?): String? {
+        val safe = language
+            ?.trim()
+            ?.lowercase()
+            ?.takeUnless { it.isBlank() || it == "und" }
+            ?.filter { it.isLetterOrDigit() || it == '-' || it == '_' }
+            ?.takeIf { it.isNotBlank() }
+            ?: return null
+        return "[language^=$safe]"
     }
 
     private fun addSegment(segments: MutableList<String>, value: String?) {

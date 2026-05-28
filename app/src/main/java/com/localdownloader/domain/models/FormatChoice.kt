@@ -18,4 +18,6 @@ data class FormatChoice(
     val fps: Double? = null,
     val bitrateKbps: Int? = null,
     val note: String? = null,
+    val audioLanguage: String? = null,
+    val audioLanguagePreference: Int? = null,
 )
