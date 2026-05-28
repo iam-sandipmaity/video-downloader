@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
+## [1.7.3.0] - 2026-05-29
+
 ### Added
 - **Crowdin translation helper** - added GitHub Actions configuration and contributor notes for syncing Android XML string resources through Crowdin while keeping manual translation PRs supported
 - **Crowdin README progress board** - added generated README translation-progress assets backed by Crowdin's API so language coverage can be shown as a badge and per-language SVG
