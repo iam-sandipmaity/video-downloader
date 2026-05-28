@@ -1,11 +1,87 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="760" height="156" viewBox="0 0 760 156" role="img" aria-label="Crowdin translation progress pending">
-<title>Crowdin translation progress pending</title>
-<rect width="760" height="156" rx="14" fill="#0f141b"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="464" viewBox="0 0 760 464" role="img" aria-label="Crowdin translation progress">
+<title>Crowdin translation progress</title>
+<rect width="760" height="464" rx="14" fill="#0f141b"/>
 <rect x="0" y="0" width="760" height="58" fill="#142a2a"/>
 <path d="M20 0 78 58M112 0l58 58M204 0l58 58M650 0l58 58" stroke="#1f6f66" stroke-width="8" opacity=".28"/>
-<text x="28" y="36" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="20" font-weight="700" fill="#f8fafc">Crowdin Translation Progress</text>
-<text x="732" y="36" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="18" font-weight="700" fill="#f8fafc" text-anchor="end">pending</text>
-<text x="28" y="88" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14" fill="#cbd5e1">Waiting for the GitHub workflow to fetch live Crowdin progress.</text>
-<rect x="28" y="112" width="704" height="8" rx="4" fill="#38424f"/>
-<rect x="28" y="112" width="176" height="8" rx="4" fill="#2775c9"/>
+<text x="28" y="36" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="20" font-weight="700" fill="#f8fafc" text-anchor="start">Crowdin Translation Progress</text>
+<text x="732" y="36" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="18" font-weight="700" fill="#f8fafc" text-anchor="end">40.7%</text>
+<text x="28" y="72" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="12" font-weight="700" fill="#94a3b8" text-anchor="start">Language</text>
+<text x="300" y="72" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="12" font-weight="700" fill="#94a3b8" text-anchor="start">Translated</text>
+<text x="628" y="72" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="12" font-weight="700" fill="#94a3b8" text-anchor="end">Approved</text>
+<text x="728" y="72" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="12" font-weight="700" fill="#94a3b8" text-anchor="end">Words</text>
+<text x="28" y="86" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14" font-weight="400" fill="#dbeafe" text-anchor="start">Bengali, India</text>
+<rect x="300" y="76" width="260" height="8" rx="4" fill="#38424f"/>
+<rect x="300" y="76" width="117.0" height="8" rx="4" fill="#df5a32"/>
+<rect x="300" y="88" width="260" height="3" rx="1.5" fill="#25303b"/>
+<rect x="300" y="88" width="0.0" height="3" rx="1.5" fill="#6ee7b7" opacity=".85"/>
+<text x="612" y="86" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13" font-weight="700" fill="#cbd5e1" text-anchor="end">45% / 0%</text>
+<text x="728" y="86" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13" font-weight="400" fill="#cbd5e1" text-anchor="end">7.9k words</text>
+<rect x="16" y="102" width="728" height="28" rx="6" fill="#111923"/>
+<text x="28" y="120" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14" font-weight="400" fill="#dbeafe" text-anchor="start">Chinese Simplified</text>
+<rect x="300" y="110" width="260" height="8" rx="4" fill="#38424f"/>
+<rect x="300" y="110" width="117.0" height="8" rx="4" fill="#df5a32"/>
+<rect x="300" y="122" width="260" height="3" rx="1.5" fill="#25303b"/>
+<rect x="300" y="122" width="0.0" height="3" rx="1.5" fill="#6ee7b7" opacity=".85"/>
+<text x="612" y="120" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13" font-weight="700" fill="#cbd5e1" text-anchor="end">45% / 0%</text>
+<text x="728" y="120" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13" font-weight="400" fill="#cbd5e1" text-anchor="end">7.9k words</text>
+<text x="28" y="154" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14" font-weight="400" fill="#dbeafe" text-anchor="start">English</text>
+<rect x="300" y="144" width="260" height="8" rx="4" fill="#38424f"/>
+<rect x="300" y="144" width="0.0" height="8" rx="4" fill="#a73c3c"/>
+<rect x="300" y="156" width="260" height="3" rx="1.5" fill="#25303b"/>
+<rect x="300" y="156" width="0.0" height="3" rx="1.5" fill="#6ee7b7" opacity=".85"/>
+<text x="612" y="154" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13" font-weight="700" fill="#cbd5e1" text-anchor="end">0% / 0%</text>
+<text x="728" y="154" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13" font-weight="400" fill="#cbd5e1" text-anchor="end">7.9k words</text>
+<rect x="16" y="170" width="728" height="28" rx="6" fill="#111923"/>
+<text x="28" y="188" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14" font-weight="400" fill="#dbeafe" text-anchor="start">Hindi</text>
+<rect x="300" y="178" width="260" height="8" rx="4" fill="#38424f"/>
+<rect x="300" y="178" width="117.0" height="8" rx="4" fill="#df5a32"/>
+<rect x="300" y="190" width="260" height="3" rx="1.5" fill="#25303b"/>
+<rect x="300" y="190" width="0.0" height="3" rx="1.5" fill="#6ee7b7" opacity=".85"/>
+<text x="612" y="188" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13" font-weight="700" fill="#cbd5e1" text-anchor="end">45% / 0%</text>
+<text x="728" y="188" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13" font-weight="400" fill="#cbd5e1" text-anchor="end">7.9k words</text>
+<text x="28" y="222" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14" font-weight="400" fill="#dbeafe" text-anchor="start">Japanese</text>
+<rect x="300" y="212" width="260" height="8" rx="4" fill="#38424f"/>
+<rect x="300" y="212" width="117.0" height="8" rx="4" fill="#df5a32"/>
+<rect x="300" y="224" width="260" height="3" rx="1.5" fill="#25303b"/>
+<rect x="300" y="224" width="0.0" height="3" rx="1.5" fill="#6ee7b7" opacity=".85"/>
+<text x="612" y="222" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13" font-weight="700" fill="#cbd5e1" text-anchor="end">45% / 0%</text>
+<text x="728" y="222" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13" font-weight="400" fill="#cbd5e1" text-anchor="end">7.9k words</text>
+<rect x="16" y="238" width="728" height="28" rx="6" fill="#111923"/>
+<text x="28" y="256" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14" font-weight="400" fill="#dbeafe" text-anchor="start">Kannada</text>
+<rect x="300" y="246" width="260" height="8" rx="4" fill="#38424f"/>
+<rect x="300" y="246" width="117.0" height="8" rx="4" fill="#df5a32"/>
+<rect x="300" y="258" width="260" height="3" rx="1.5" fill="#25303b"/>
+<rect x="300" y="258" width="0.0" height="3" rx="1.5" fill="#6ee7b7" opacity=".85"/>
+<text x="612" y="256" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13" font-weight="700" fill="#cbd5e1" text-anchor="end">45% / 0%</text>
+<text x="728" y="256" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13" font-weight="400" fill="#cbd5e1" text-anchor="end">7.9k words</text>
+<text x="28" y="290" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14" font-weight="400" fill="#dbeafe" text-anchor="start">Korean</text>
+<rect x="300" y="280" width="260" height="8" rx="4" fill="#38424f"/>
+<rect x="300" y="280" width="117.0" height="8" rx="4" fill="#df5a32"/>
+<rect x="300" y="292" width="260" height="3" rx="1.5" fill="#25303b"/>
+<rect x="300" y="292" width="0.0" height="3" rx="1.5" fill="#6ee7b7" opacity=".85"/>
+<text x="612" y="290" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13" font-weight="700" fill="#cbd5e1" text-anchor="end">45% / 0%</text>
+<text x="728" y="290" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13" font-weight="400" fill="#cbd5e1" text-anchor="end">7.9k words</text>
+<rect x="16" y="306" width="728" height="28" rx="6" fill="#111923"/>
+<text x="28" y="324" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14" font-weight="400" fill="#dbeafe" text-anchor="start">Malayalam</text>
+<rect x="300" y="314" width="260" height="8" rx="4" fill="#38424f"/>
+<rect x="300" y="314" width="114.4" height="8" rx="4" fill="#df5a32"/>
+<rect x="300" y="326" width="260" height="3" rx="1.5" fill="#25303b"/>
+<rect x="300" y="326" width="0.0" height="3" rx="1.5" fill="#6ee7b7" opacity=".85"/>
+<text x="612" y="324" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13" font-weight="700" fill="#cbd5e1" text-anchor="end">44% / 0%</text>
+<text x="728" y="324" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13" font-weight="400" fill="#cbd5e1" text-anchor="end">7.9k words</text>
+<text x="28" y="358" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14" font-weight="400" fill="#dbeafe" text-anchor="start">Tamil</text>
+<rect x="300" y="348" width="260" height="8" rx="4" fill="#38424f"/>
+<rect x="300" y="348" width="117.0" height="8" rx="4" fill="#df5a32"/>
+<rect x="300" y="360" width="260" height="3" rx="1.5" fill="#25303b"/>
+<rect x="300" y="360" width="0.0" height="3" rx="1.5" fill="#6ee7b7" opacity=".85"/>
+<text x="612" y="358" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13" font-weight="700" fill="#cbd5e1" text-anchor="end">45% / 0%</text>
+<text x="728" y="358" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13" font-weight="400" fill="#cbd5e1" text-anchor="end">7.9k words</text>
+<rect x="16" y="374" width="728" height="28" rx="6" fill="#111923"/>
+<text x="28" y="392" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14" font-weight="400" fill="#dbeafe" text-anchor="start">Telugu</text>
+<rect x="300" y="382" width="260" height="8" rx="4" fill="#38424f"/>
+<rect x="300" y="382" width="117.0" height="8" rx="4" fill="#df5a32"/>
+<rect x="300" y="394" width="260" height="3" rx="1.5" fill="#25303b"/>
+<rect x="300" y="394" width="0.0" height="3" rx="1.5" fill="#6ee7b7" opacity=".85"/>
+<text x="612" y="392" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13" font-weight="700" fill="#cbd5e1" text-anchor="end">45% / 0%</text>
+<text x="728" y="392" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13" font-weight="400" fill="#cbd5e1" text-anchor="end">7.9k words</text>
 </svg>
