@@ -138,11 +138,7 @@ jobs:
       pull-requests: write
     if: |
       needs.workflow-flags.outputs.enable_crowdin == 'true' &&
-      (
-        github.event_name == 'workflow_dispatch' ||
-        github.event_name == 'schedule' ||
-        (github.event_name == 'push' && github.ref == 'refs/heads/main')
-      )
+      github.event_name != 'pull_request'
     uses: ./.github/workflows/crowdin.yml
     secrets: inherit
 
