@@ -132,12 +132,6 @@ class DownloadWorker @AssistedInject constructor(
         suspend fun runDownloadAttempt(attemptOptions: DownloadOptions): CommandResult {
             lastAttemptOptions = attemptOptions
             reusedExistingDownloadFile = false
-            if (attemptOptions.forceFreshDownload) {
-                cleanupTransientDownloadArtifacts(
-                    outputTemplate = attemptOptions.outputTemplate,
-                    taskId = taskId,
-                )
-            }
             return downloadEngine.runDownload(
                 options = attemptOptions,
                 outputTemplate = attemptOptions.outputTemplate,
@@ -205,8 +199,9 @@ class DownloadWorker @AssistedInject constructor(
             if (!stageResult.isSuccess && shouldRetryWithFallbackExtractor(attemptOptions, stageResult.stderr)) {
                 appendDebugTrace(taskId, "$stageLabel retry: switching to analyzed YouTube extractor args")
                 stageResult = runDownloadAttempt(
-                    attemptOptions.asFreshDownloadRetry().copy(
+                    attemptOptions.copy(
                         extractorArgs = attemptOptions.fallbackExtractorArgs,
+                        loadInfoJsonPath = null,
                     ),
                 )
             }
@@ -331,8 +326,9 @@ class DownloadWorker @AssistedInject constructor(
 
         if (!result.isSuccess && shouldRetryWithFallbackExtractor(options, result.stderr)) {
             appendDebugTrace(taskId, "Retrying with analyzed YouTube extractor args after initial failure")
-            val fallbackOptions = options.asFreshDownloadRetry().copy(
+            val fallbackOptions = options.copy(
                 extractorArgs = options.fallbackExtractorArgs,
+                loadInfoJsonPath = null,
             )
             result = runDownloadAttempt(fallbackOptions)
         }
@@ -340,19 +336,19 @@ class DownloadWorker @AssistedInject constructor(
         if (!result.isSuccess && shouldRetryClosedStreamFailure(result.stderr)) {
             appendDebugTrace(taskId, "Retrying once after transient closed-stream yt-dlp failure")
             result = runDownloadAttempt(
-                lastAttemptOptions.asFreshDownloadRetry(),
+                lastAttemptOptions.copy(loadInfoJsonPath = null),
             )
         }
 
         if (!result.isSuccess && shouldTryExplicitSplitDownload(options, result.stderr)) {
             appendDebugTrace(taskId, "Retrying with explicit split-stream recovery")
             val splitResult = tryExplicitSplitDownload(
-                options = options.asFreshDownloadRetry(),
+                options = options.copy(loadInfoJsonPath = null),
                 originalOutputTemplate = outputTemplate,
                 taskId = taskId,
                 onRunDownload = { attemptOptions, stageLabel ->
                     runDownloadWithExtractorFallbacks(
-                        attemptOptions.asFreshDownloadRetry(),
+                        attemptOptions.copy(loadInfoJsonPath = null),
                         stageLabel,
                     )
                 },
@@ -373,12 +369,12 @@ class DownloadWorker @AssistedInject constructor(
         if (!result.isSuccess && shouldTryExplicitSplitDownloadAfterPostprocessingFailure(lastAttemptOptions, result.stderr)) {
             appendDebugTrace(taskId, "Retrying with explicit split-stream recovery after postprocessing failure")
             val splitResult = tryExplicitSplitDownload(
-                options = lastAttemptOptions.asFreshDownloadRetry(),
+                options = lastAttemptOptions.copy(loadInfoJsonPath = null),
                 originalOutputTemplate = outputTemplate,
                 taskId = taskId,
                 onRunDownload = { attemptOptions, stageLabel ->
                     runDownloadWithExtractorFallbacks(
-                        attemptOptions.asFreshDownloadRetry(),
+                        attemptOptions.copy(loadInfoJsonPath = null),
                         stageLabel,
                     )
                 },
@@ -403,10 +399,11 @@ class DownloadWorker @AssistedInject constructor(
                     "Retrying with fresh YouTube selector ${index + 1}/${recoveryAttempts.size}: ${attempt.label}",
                 )
                 result = runDownloadAttempt(
-                    options.asFreshDownloadRetry().copy(
+                    options.copy(
                         formatId = attempt.selector,
                         extractorArgs = attempt.extractorArgs,
                         fallbackExtractorArgs = null,
+                        loadInfoJsonPath = null,
                     ),
                 )
             }
@@ -431,10 +428,11 @@ class DownloadWorker @AssistedInject constructor(
                     },
                 )
                 result = runDownloadAttempt(
-                    options.asFreshDownloadRetry().copy(
+                    options.copy(
                         formatId = attempt.selector,
                         extractorArgs = attempt.extractorArgs,
                         fallbackExtractorArgs = null,
+                        loadInfoJsonPath = null,
                     ),
                 )
             }
@@ -449,10 +447,11 @@ class DownloadWorker @AssistedInject constructor(
                     "Retrying with adaptive YouTube recovery ${index + 1}/${adaptiveAttempts.size}: ${attempt.label}",
                 )
                 result = runDownloadAttempt(
-                    options.asFreshDownloadRetry().copy(
+                    options.copy(
                         formatId = attempt.selector,
                         extractorArgs = attempt.extractorArgs,
                         fallbackExtractorArgs = null,
+                        loadInfoJsonPath = null,
                     ),
                 )
             }
@@ -472,18 +471,20 @@ class DownloadWorker @AssistedInject constructor(
                         "Retrying with cookie-backed progressive fallback ${index + 1}/${progressiveAttempts.size}: ${attempt.label}",
                     )
                     result = runDownloadAttempt(
-                        options.asFreshDownloadRetry().copy(
+                        options.copy(
                             formatId = attempt.selector,
                             extractorArgs = attempt.extractorArgs,
                             fallbackExtractorArgs = null,
+                            loadInfoJsonPath = null,
                             mergeOutputFormat = "mp4",
                         ),
                     )
                 }
             } else {
                 appendDebugTrace(taskId, "Retrying with mp4 fallback after format/access failure")
-                val fallbackOptions = options.asFreshDownloadRetry().copy(
+                val fallbackOptions = options.copy(
                     formatId = buildMp4FallbackSelector(downloadVideoOnly = options.downloadVideoOnly),
+                    loadInfoJsonPath = null,
                     mergeOutputFormat = if (options.downloadVideoOnly) null else "mp4",
                 )
                 result = runDownloadAttempt(fallbackOptions)
@@ -499,9 +500,10 @@ class DownloadWorker @AssistedInject constructor(
                     "Retrying with YouTube safe mode ${index + 1}/${safeModeAttempts.size}: ${attempt.label}",
                 )
                 result = runDownloadAttempt(
-                    options.asFreshDownloadRetry().copy(
+                    options.copy(
                         formatId = attempt.selector,
                         extractorArgs = null,
+                        loadInfoJsonPath = null,
                         mergeOutputFormat = null,
                     ),
                 )
@@ -588,7 +590,7 @@ class DownloadWorker @AssistedInject constructor(
             outputPath = null
             reusedExistingDownloadFile = false
             retriedAfterDeletingInvalidExistingFile = true
-            result = runDownloadAttempt(lastAttemptOptions.asFreshDownloadRetry())
+            result = runDownloadAttempt(lastAttemptOptions.copy(loadInfoJsonPath = null))
         }
 
         if (
@@ -930,13 +932,6 @@ class DownloadWorker @AssistedInject constructor(
     private fun hasUsableCookies(options: DownloadOptions): Boolean {
         val cookiesPath = options.youtubeCookiesPath ?: return false
         return File(cookiesPath).exists()
-    }
-
-    private fun DownloadOptions.asFreshDownloadRetry(): DownloadOptions {
-        return copy(
-            forceFreshDownload = true,
-            loadInfoJsonPath = null,
-        )
     }
 
     private fun shouldTryExplicitSplitDownload(options: DownloadOptions, stderr: String): Boolean {
@@ -1986,23 +1981,6 @@ class DownloadWorker @AssistedInject constructor(
             ?.forEach { candidate ->
                 if (runCatching { candidate.delete() }.getOrDefault(false)) {
                     appendDebugTrace(taskId, "Removed stale artifact before download: ${candidate.name}")
-                }
-            }
-    }
-
-    private fun cleanupTransientDownloadArtifacts(outputTemplate: String, taskId: String) {
-        val templateFile = File(outputTemplate)
-        val parent = templateFile.parentFile ?: return
-        val stem = templateFile.name.substringBefore(".%(ext)s")
-        parent.listFiles()
-            ?.filter { candidate ->
-                candidate.isFile &&
-                    candidate.name.startsWith(stem) &&
-                    isTemporaryDownloadArtifactName(candidate.name)
-            }
-            ?.forEach { candidate ->
-                if (runCatching { candidate.delete() }.getOrDefault(false)) {
-                    appendDebugTrace(taskId, "Removed partial artifact before fresh retry: ${candidate.name}")
                 }
             }
     }

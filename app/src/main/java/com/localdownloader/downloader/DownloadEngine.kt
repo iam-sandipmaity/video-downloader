@@ -42,17 +42,10 @@ class DownloadEngine @Inject constructor(
             outputTemplate,
         )
 
-        if (options.forceFreshDownload) {
-            args += "--no-continue"
-        }
         if (!options.extractorArgs.isNullOrBlank()) {
             args += listOf("--extractor-args", options.extractorArgs)
         }
-        if (
-            !isYoutubeUrl(options.url) &&
-            !options.loadInfoJsonPath.isNullOrBlank() &&
-            File(options.loadInfoJsonPath).exists()
-        ) {
+        if (!options.loadInfoJsonPath.isNullOrBlank() && File(options.loadInfoJsonPath).exists()) {
             args += listOf("--load-info-json", options.loadInfoJsonPath)
         }
         if (!options.userAgentHeader.isNullOrBlank()) {

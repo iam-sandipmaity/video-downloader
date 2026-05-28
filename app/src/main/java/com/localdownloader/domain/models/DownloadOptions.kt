@@ -14,7 +14,6 @@ data class DownloadOptions(
     val extractorArgs: String? = null,
     val fallbackExtractorArgs: String? = null,
     val loadInfoJsonPath: String? = null,
-    val forceFreshDownload: Boolean = false,
     val userAgentHeader: String? = null,
     val youtubeAuthEnabled: Boolean = false,
     val youtubeCookiesPath: String? = null,

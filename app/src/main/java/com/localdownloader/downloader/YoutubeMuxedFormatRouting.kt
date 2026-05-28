@@ -26,6 +26,9 @@ internal fun resolveYoutubeFormatRouting(
     if (choice.isMerged || choice.selector.contains("+")) {
         return YoutubeFormatRouting(selector = fallbackSelector)
     }
+    if (!hasMergedVideoAudioChoice) {
+        return YoutubeFormatRouting(selector = fallbackSelector)
+    }
 
     return YoutubeFormatRouting(
         selector = buildAdaptiveVideoAudioSelector(
@@ -34,11 +37,7 @@ internal fun resolveYoutubeFormatRouting(
             preferredVideoCodec = choice.videoCodec,
             preferredAudioLanguage = choice.audioLanguage,
         ),
-        queueNote = if (hasMergedVideoAudioChoice) {
-            "YouTube muxed video was routed through a safer adaptive merge path to avoid broken duration and postprocessing issues."
-        } else {
-            "YouTube muxed video was routed through an adaptive merge path because direct muxed streams can expire or fail during postprocessing."
-        },
+        queueNote = "YouTube muxed video was routed through a safer adaptive merge path to avoid broken duration and postprocessing issues.",
     )
 }
 
