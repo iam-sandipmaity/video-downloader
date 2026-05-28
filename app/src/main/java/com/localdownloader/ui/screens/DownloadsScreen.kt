@@ -132,16 +132,25 @@ fun DownloadsScreen(
         .getOrDefault(DownloadsFilter.All)
     val normalizedSearchQuery = searchQuery.trim()
     val searchActive = normalizedSearchQuery.isNotBlank()
-    val filteredItems = items
-        .filter { currentFilter.matches(it.mediaKind) }
-        .filter { it.matchesDownloadsSearch(normalizedSearchQuery) }
-        .let { candidates ->
-            if (sortNewestFirst) {
-                candidates.sortedByDescending { it.task.updatedAtEpochMs }
-            } else {
-                candidates.sortedBy { it.task.updatedAtEpochMs }
+    val filteredItems = remember(items, currentFilter, normalizedSearchQuery, sortNewestFirst) {
+        items
+            .filter { currentFilter.matches(it.mediaKind) }
+            .filter { it.matchesDownloadsSearch(normalizedSearchQuery) }
+            .let { candidates ->
+                if (sortNewestFirst) {
+                    candidates.sortedByDescending { it.task.updatedAtEpochMs }
+                } else {
+                    candidates.sortedBy { it.task.updatedAtEpochMs }
+                }
             }
+    }
+    val activeDownloadsCount = remember(uiState.tasks) {
+        uiState.tasks.count {
+            it.status == DownloadStatus.RUNNING ||
+                it.status == DownloadStatus.QUEUED ||
+                it.status == DownloadStatus.PAUSED
         }
+    }
     val selectedItems = remember(items, selectedTaskIds) {
         val selectedIdSet = selectedTaskIds.toSet()
         items.filter { it.task.id in selectedIdSet }
@@ -164,11 +173,6 @@ fun DownloadsScreen(
         }
     }
 
-    val activeDownloadsCount = uiState.tasks.count {
-        it.status == DownloadStatus.RUNNING ||
-            it.status == DownloadStatus.QUEUED ||
-            it.status == DownloadStatus.PAUSED
-    }
     val hasActiveDownloads = activeDownloadsCount > 0
     val downloadsTitle = stringResource(R.string.downloads_title)
     val selectedTitle = pluralStringResource(

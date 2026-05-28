@@ -24,7 +24,8 @@ env:
   ENABLE_RELEASE_NIGHTLY: "true"
   ENABLE_RELEASE_MAIN: "true"
   ENABLE_RELEASE_TAG: "true"
-  ENABLE_CLEANUP: "false"
+  ENABLE_CROWDIN: "true"
+  ENABLE_CLEANUP: "true"
 
 jobs:
   workflow-flags:
@@ -38,6 +39,7 @@ jobs:
       enable_release_nightly: ${{ steps.flags.outputs.enable_release_nightly }}
       enable_release_main: ${{ steps.flags.outputs.enable_release_main }}
       enable_release_tag: ${{ steps.flags.outputs.enable_release_tag }}
+      enable_crowdin: ${{ steps.flags.outputs.enable_crowdin }}
       enable_cleanup: ${{ steps.flags.outputs.enable_cleanup }}
       cleanup_days: ${{ steps.flags.outputs.cleanup_days }}
     steps:
@@ -52,6 +54,7 @@ jobs:
           echo "enable_release_nightly=${ENABLE_RELEASE_NIGHTLY}" >> "$GITHUB_OUTPUT"
           echo "enable_release_main=${ENABLE_RELEASE_MAIN}" >> "$GITHUB_OUTPUT"
           echo "enable_release_tag=${ENABLE_RELEASE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "enable_crowdin=${ENABLE_CROWDIN}" >> "$GITHUB_OUTPUT"
           echo "enable_cleanup=${ENABLE_CLEANUP}" >> "$GITHUB_OUTPUT"
           echo "cleanup_days=${CLEANUP_DAYS}" >> "$GITHUB_OUTPUT"
 
@@ -125,6 +128,18 @@ jobs:
       github.event_name == 'push' &&
       startsWith(github.ref, 'refs/tags/v')
     uses: ./.github/workflows/release-tag.yml
+    secrets: inherit
+
+  crowdin:
+    name: Crowdin
+    needs: workflow-flags
+    permissions:
+      contents: write
+      pull-requests: write
+    if: |
+      needs.workflow-flags.outputs.enable_crowdin == 'true' &&
+      github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/crowdin.yml
     secrets: inherit
 
   cleanup:

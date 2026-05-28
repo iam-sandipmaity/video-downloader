@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
+### Added
+- **Crowdin translation helper** - added GitHub Actions configuration and contributor notes for syncing Android XML string resources through Crowdin while keeping manual translation PRs supported
+
+## [1.7.2.9] - 2026-05-28
+
+### Changed
+- **In-app player resume** - playback position and play/pause state are now saved across app restarts so local videos reopen where you left them
+- **Downloads smoothness** - local library filtering, sorting, and file checks now avoid repeated work while browsing downloaded media
+- **Storage cleanup** - empty private staging folders are pruned after successful public Downloads export, keeping app-managed storage leaner
+
+### Fixed
+- **Unknown-duration seeking** - the player now disables timeline and gesture seeking when a file reports no usable duration, avoiding confusing `00:00` seek resets
+
+### Technical
+- **App version bump** - release metadata updated to `1.7.2.9`
+
 ## [1.7.2.8] - 2026-05-28
 
 ### Changed
