@@ -93,12 +93,24 @@ For download-related work, also note:
 
 ## Translation Contributions
 
-When adding or improving a locale:
+Translation updates can be sent either through Crowdin after the project is
+connected, or by editing Android resource files directly in a pull request.
+
+Crowdin setup for maintainers lives entirely in the reusable
+[Crowdin workflow](.github/workflows/crowdin.yml). Add the
+`CROWDIN_PROJECT_ID` and `CROWDIN_PERSONAL_TOKEN` repository secrets, then set
+`ENABLE_CROWDIN` to `true` in the master controller when the Crowdin project is
+ready.
+
+When adding or improving a locale manually:
 
 1. update the locale `strings.xml`
 2. preserve placeholders like `%1$d`, `%1$s`, and formatting markup
 3. keep technical labels accurate when they should remain untranslated
 4. check plural blocks as well as plain strings
+5. if a Crowdin or manual update translates a key that also exists in a
+   locale `strings_lint_fillins.xml`, remove that fallback entry from the
+   fill-in file in the same pull request
 
 Please avoid machine-translated bulk locale updates without review.
 

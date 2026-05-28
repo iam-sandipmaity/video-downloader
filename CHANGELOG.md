@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
+### Added
+- **Crowdin translation helper** - added GitHub Actions configuration and contributor notes for syncing Android XML string resources through Crowdin while keeping manual translation PRs supported
+
 ## [1.7.2.9] - 2026-05-28
 
 ### Changed

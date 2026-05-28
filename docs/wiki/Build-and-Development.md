@@ -85,12 +85,23 @@ Typical path:
 
 ## Working On Localization
 
-When touching translations:
+Translations are wired for Crowdin through the reusable GitHub Actions workflow
+at `.github/workflows/crowdin.yml`. It uploads the base Android XML strings
+file and downloads translated Android XML back into the matching
+`values-<locale>` resource folder.
+
+Set `CROWDIN_PROJECT_ID` and `CROWDIN_PERSONAL_TOKEN` as repository secrets. Do
+not commit Crowdin API tokens. The workflow is called from `master.yml` only
+when `ENABLE_CROWDIN` is set to `true`.
+
+When touching translations manually:
 
 - keep keys aligned with `values/strings.xml`
 - preserve placeholders such as `%1$s` and `%1$d`
 - review plurals
 - avoid translating raw technical log output when fidelity matters more
+- remove translated keys from the matching locale `strings_lint_fillins.xml`
+  file if they were previously present only as lint fallbacks
 
 If adding a new language, also update:
 
