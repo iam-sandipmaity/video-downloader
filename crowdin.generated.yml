@@ -1,0 +1,26 @@
+project_id_env: CROWDIN_PROJECT_ID
+api_token_env: CROWDIN_PERSONAL_TOKEN
+base_path: "."
+base_url: "https://api.crowdin.com"
+preserve_hierarchy: true
+
+files:
+  - source: app/src/main/res/values/strings.xml
+    dest: /android/strings.xml
+    translation: app/src/main/res/values-%android_code%/%original_file_name%
+    type: android
+    skip_untranslated_files: true
+    labels:
+      - android
+      - app-ui
+    languages_mapping:
+      android_code:
+        bn-IN: bn
+        hi: hi
+        ja: ja
+        kn: kn
+        ko: ko
+        ml-IN: ml
+        ta: ta
+        te: te
+        zh-CN: zh-rCN
