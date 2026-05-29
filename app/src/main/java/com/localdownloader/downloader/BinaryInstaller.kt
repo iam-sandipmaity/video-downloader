@@ -378,13 +378,11 @@ class BinaryInstaller @Inject constructor(
 
     private fun unzipSafely(sourceZip: File, targetDir: File) {
         val targetRoot = targetDir.canonicalFile
+        val targetRootPath = targetRoot.toPath()
         ZipInputStream(FileInputStream(sourceZip)).use { zip ->
             var entry = zip.nextEntry
             while (entry != null) {
-                val output = File(targetDir, entry.name).canonicalFile
-                check(output.path.startsWith(targetRoot.path)) {
-                    "Unsafe zip entry path: ${entry.name}"
-                }
+                val output = safeZipEntryFile(targetRootPath, entry.name)
                 if (entry.isDirectory) {
                     output.mkdirs()
                 } else {
@@ -395,6 +393,26 @@ class BinaryInstaller @Inject constructor(
                 entry = zip.nextEntry
             }
         }
+    }
+
+    private fun safeZipEntryFile(targetRootPath: java.nio.file.Path, rawEntryName: String): File {
+        val normalizedEntryName = rawEntryName.replace('\\', '/')
+        val unsafeEntry = normalizedEntryName.isBlank() ||
+            normalizedEntryName.startsWith("/") ||
+            normalizedEntryName == "." ||
+            normalizedEntryName == ".." ||
+            normalizedEntryName.contains("/../") ||
+            normalizedEntryName.startsWith("../") ||
+            normalizedEntryName.endsWith("/..")
+        check(!unsafeEntry) {
+            "Unsafe zip entry path: $rawEntryName"
+        }
+
+        val outputPath = targetRootPath.resolve(normalizedEntryName).normalize()
+        check(outputPath.startsWith(targetRootPath)) {
+            "Unsafe zip entry path: $rawEntryName"
+        }
+        return outputPath.toFile()
     }
 
     private fun deleteRecursively(target: File): Long {

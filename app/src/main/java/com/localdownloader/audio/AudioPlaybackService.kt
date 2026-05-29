@@ -239,7 +239,9 @@ class AudioPlaybackService : Hilt_AudioPlaybackService() {
         PendingIntent.getService(
             this,
             requestCode,
-            Intent(this, AudioPlaybackService::class.java).setAction(action),
+            Intent(this, AudioPlaybackService::class.java)
+                .setAction(action)
+                .setPackage(packageName),
             pendingIntentFlags(updateCurrent = true),
         )
 

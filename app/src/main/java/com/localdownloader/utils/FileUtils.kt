@@ -1,5 +1,6 @@
 package com.localdownloader.utils
 
+import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
 import android.os.Build
@@ -114,7 +115,8 @@ class FileUtils @Inject constructor(
     }
 
     fun readTextFromUri(uri: Uri): String {
-        return context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+        val readableUri = requireReadableContentUri(uri)
+        return context.contentResolver.openInputStream(readableUri)?.bufferedReader()?.use { it.readText() }
             ?: throw IllegalStateException("Unable to read selected file")
     }
 
@@ -827,9 +829,10 @@ private fun normalizeRelativeDownloadsPath(
         }
 
         private fun getContentLength(context: Context, uri: Uri): Long {
+            val readableUri = requireReadableContentUri(uri)
             return try {
                 context.contentResolver.query(
-                    uri,
+                    readableUri,
                     arrayOf(OpenableColumns.SIZE),
                     null,
                     null,
@@ -840,7 +843,7 @@ private fun normalizeRelativeDownloadsPath(
                     } else {
                         null
                     }
-                } ?: context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { descriptor ->
+                } ?: context.contentResolver.openAssetFileDescriptor(readableUri, "r")?.use { descriptor ->
                     descriptor.length.takeIf { it > 0L }
                 } ?: 0L
             } catch (_: Exception) {
@@ -854,10 +857,13 @@ private fun normalizeRelativeDownloadsPath(
             targetFile: File,
             maxBytes: Long,
         ) {
-            val targetDir = targetFile.parentFile ?: throw IllegalStateException("Unable to resolve target directory.")
+            val readableUri = requireReadableContentUri(uri)
+            val managedTargetFile = requireManagedTargetFile(context, targetFile)
+            val targetDir = managedTargetFile.parentFile
+                ?: throw IllegalStateException("Unable to resolve target directory.")
             targetDir.mkdirs()
             val availableSpace = allocatableSpaceBytes(context, targetDir)
-            val contentLength = getContentLength(context, uri)
+            val contentLength = getContentLength(context, readableUri)
 
             if (contentLength > maxBytes) {
                 throw IllegalStateException("File is too large to cache (${contentLength / (1024 * 1024)}MB). Maximum allowed: ${maxBytes / (1024 * 1024)}MB")
@@ -867,8 +873,8 @@ private fun normalizeRelativeDownloadsPath(
             }
 
             try {
-                context.contentResolver.openInputStream(uri)?.use { input ->
-                    targetFile.outputStream().use { output ->
+                context.contentResolver.openInputStream(readableUri)?.use { input ->
+                    managedTargetFile.outputStream().use { output ->
                         copyStreamWithLimit(
                             input = input,
                             output = output,
@@ -878,9 +884,38 @@ private fun normalizeRelativeDownloadsPath(
                     }
                 } ?: error("Unable to open selected file")
             } catch (error: Throwable) {
-                runCatching { targetFile.delete() }
+                runCatching { managedTargetFile.delete() }
                 throw error
             }
+        }
+
+        private fun requireReadableContentUri(uri: Uri): Uri {
+            val normalizedUri = uri.normalizeScheme()
+            require(normalizedUri.scheme == ContentResolver.SCHEME_CONTENT) {
+                "Only content URIs can be imported through this path."
+            }
+            require(!normalizedUri.authority.isNullOrBlank()) {
+                "Content URI authority is required."
+            }
+            return normalizedUri
+        }
+
+        private fun requireManagedTargetFile(context: Context, targetFile: File): File {
+            val managedTargetFile = targetFile.canonicalFile
+            val managedRoots = listOf(
+                context.filesDir,
+                context.cacheDir,
+                context.noBackupFilesDir,
+            ).map { it.canonicalFile }
+
+            val insideManagedStorage = managedRoots.any { root ->
+                managedTargetFile == root ||
+                    managedTargetFile.path.startsWith(root.path + File.separator)
+            }
+            require(insideManagedStorage) {
+                "Target file must stay inside app-managed storage."
+            }
+            return managedTargetFile
         }
 
         private fun allocatableSpaceBytes(context: Context, directory: File): Long {

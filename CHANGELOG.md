@@ -17,6 +17,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - **Release workflow defaults** - the master workflow now keeps Android build checks and nightly publishing enabled while leaving stable main/tag release jobs disabled by default
 - **App update channel routing** - stable builds ignore nightly APK assets, while nightly builds read the rolling `nightly` release and choose the newest nightly APK version
 
+### Fixed
+- **CodeQL security hardening** - notification PendingIntents are package-bound, zip extraction rejects traversal paths, and imported content URIs now write only into validated app-managed storage
+
 ### Technical
 - **App version bump** - release metadata updated to `1.7.3.1`
 - **Channel version metadata** - stable and nightly builds now read separate version name/code properties so each release channel can advance independently

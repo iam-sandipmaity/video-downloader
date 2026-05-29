@@ -27,6 +27,7 @@ object AppLaunchRouter {
     ): Intent {
         return Intent(context, MainActivity::class.java).apply {
             action = ACTION_OPEN_ROUTE
+            setPackage(context.packageName)
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra(EXTRA_ROUTE, route)
             taskId?.takeIf { it.isNotBlank() }?.let { putExtra(EXTRA_TASK_ID, it) }
