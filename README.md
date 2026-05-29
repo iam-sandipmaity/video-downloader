@@ -22,8 +22,8 @@
   <a href="https://github.com/iam-sandipmaity/video-downloader/releases">
     <img alt="Downloads" src="https://img.shields.io/github/downloads/iam-sandipmaity/video-downloader/total?label=downloads" />
   </a>
-  <a href="https://hosted.weblate.org/projects/local-video-downloader/android-app-strings/">
-    <img alt="Translate on Hosted Weblate" src="https://img.shields.io/badge/translate-Hosted%20Weblate-2dbcae?logo=weblate&logoColor=white" />
+  <a href="https://hosted.weblate.org/engage/local-video-downloader/">
+    <img alt="Translation status" src="https://hosted.weblate.org/widgets/local-video-downloader/-/android-app-strings/svg-badge.svg" />
   </a>
   <a href="https://video.sandipmaity.me">
     <img alt="Website" src="https://img.shields.io/badge/website-video.sandipmaity.me-orange" />
@@ -191,8 +191,8 @@ Current in-app language support includes:
 ## Translation Progress
 
 <p align="center">
-  <a href="https://hosted.weblate.org/projects/local-video-downloader/android-app-strings/">
-    <img src="https://img.shields.io/badge/translate-Hosted%20Weblate-2dbcae?logo=weblate&logoColor=white" alt="Translate on Hosted Weblate" />
+  <a href="https://hosted.weblate.org/engage/local-video-downloader/">
+    <img src="https://hosted.weblate.org/widgets/local-video-downloader/-/android-app-strings/multi-auto.svg" alt="Translation status" />
   </a>
 </p>
 
