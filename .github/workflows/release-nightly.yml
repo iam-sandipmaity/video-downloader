@@ -37,8 +37,8 @@ jobs:
       - name: Verify wrapper
         run: ./gradlew --version
 
-      - name: Compile standard debug and run unit tests
-        run: ./gradlew :app:compileStandardDebugKotlin :app:testStandardDebugUnitTest
+      - name: Compile standard nightly and run unit tests
+        run: ./gradlew :app:compileStandardNightlyKotlin :app:testStandardNightlyUnitTest
 
       - name: Prepare signing files
         shell: bash
@@ -69,20 +69,20 @@ jobs:
             exit 1
           fi
 
-      - name: Build nightly debug APK
-        run: ./gradlew :app:assembleStandardDebug
+      - name: Build nightly APK
+        run: ./gradlew :app:assembleStandardNightly
 
-      - name: Rename nightly debug APK
+      - name: Rename nightly APK
         run: |
           VERSION="${{ steps.version.outputs.version_name }}"
-          APK_DIR="app/build/outputs/apk/standard/debug"
-          APK_SOURCE=$(find "$APK_DIR" -maxdepth 1 -name 'app-standard-debug*.apk' | head -n 1)
+          APK_DIR="app/build/outputs/apk/standard/nightly"
+          APK_SOURCE=$(find "$APK_DIR" -maxdepth 1 -name 'app-standard-nightly*.apk' | head -n 1)
           if [ -z "$APK_SOURCE" ]; then
-            echo "::error::Could not find the standard debug APK in $APK_DIR"
+            echo "::error::Could not find the standard nightly APK in $APK_DIR"
             find "$APK_DIR" -maxdepth 1 -type f || true
             exit 1
           fi
-          mv "$APK_SOURCE" "$APK_DIR/video-downloader-v${VERSION}-nightly-debug.apk"
+          mv "$APK_SOURCE" "$APK_DIR/nightly-${VERSION}.apk"
 
       - name: Refresh nightly tag
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
@@ -100,5 +100,53 @@ jobs:
           name: "Nightly Build (v${{ steps.version.outputs.version_name }})"
           target_commitish: ${{ github.sha }}
           prerelease: true
-          generate_release_notes: true
-          files: app/build/outputs/apk/standard/debug/video-downloader-*.apk
+          files: app/build/outputs/apk/standard/nightly/nightly-*.apk
+
+      - name: Update nightly release notes
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version_name }}
+        run: |
+          set -euo pipefail
+
+          NOTES_FILE="$RUNNER_TEMP/nightly-release-notes.md"
+          APK_INDEX_FILE="$RUNNER_TEMP/nightly-apk-index.md"
+          GENERATED_NOTES_FILE="$RUNNER_TEMP/nightly-generated-notes.md"
+
+          gh api "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+            -f tag_name=nightly \
+            -f target_commitish="${GITHUB_SHA}" \
+            --jq '.body // ""' > "$GENERATED_NOTES_FILE"
+
+          {
+            echo "## Nightly APKs"
+            echo
+
+            gh release view nightly --json assets --jq '.assets[].name' |
+              while IFS= read -r asset_name; do
+                version=""
+                if [[ "$asset_name" =~ ^nightly-v?([0-9]+(\.[0-9]+)+)\.apk$ ]]; then
+                  version="${BASH_REMATCH[1]}"
+                elif [[ "$asset_name" =~ ^video-downloader-v?([0-9]+(\.[0-9]+)+)-nightly-debug\.apk$ ]]; then
+                  version="${BASH_REMATCH[1]}"
+                fi
+
+                if [ -n "$version" ]; then
+                  printf '%s\t%s\t%s\n' "$version" "$version" "$asset_name"
+                fi
+              done |
+              sort -t $'\t' -k1,1Vr |
+              awk -F '\t' '!seen[$2]++ { printf "- [%s](https://github.com/%s/releases/download/nightly/%s)\n", $2, ENVIRON["GITHUB_REPOSITORY"], $3 }'
+          } > "$APK_INDEX_FILE"
+
+          {
+            cat "$APK_INDEX_FILE"
+            echo
+            cat "$GENERATED_NOTES_FILE"
+          } > "$NOTES_FILE"
+
+          gh release edit nightly \
+            --title "Nightly Build (v${VERSION})" \
+            --notes-file "$NOTES_FILE" \
+            --prerelease

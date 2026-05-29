@@ -92,35 +92,35 @@ jobs:
             exit 1
           fi
 
-      - name: Build nightly debug APK
-        run: ./gradlew :app:assembleStandardDebug
+      - name: Build nightly APK
+        run: ./gradlew :app:assembleStandardNightly
 
-      - name: Rename nightly debug APK
+      - name: Rename nightly APK
         run: |
           VERSION="${{ steps.version.outputs.version_name }}"
-          APK_DIR="app/build/outputs/apk/standard/debug"
-          APK_SOURCE=$(find "$APK_DIR" -maxdepth 1 -name 'app-standard-debug*.apk' | head -n 1)
+          APK_DIR="app/build/outputs/apk/standard/nightly"
+          APK_SOURCE=$(find "$APK_DIR" -maxdepth 1 -name 'app-standard-nightly*.apk' | head -n 1)
           if [ -z "$APK_SOURCE" ]; then
-            echo "::error::Could not find the standard debug APK in $APK_DIR"
+            echo "::error::Could not find the standard nightly APK in $APK_DIR"
             find "$APK_DIR" -maxdepth 1 -type f || true
             exit 1
           fi
-          mv "$APK_SOURCE" "$APK_DIR/video-downloader-v${VERSION}-nightly-debug.apk"
+          mv "$APK_SOURCE" "$APK_DIR/nightly-${VERSION}.apk"
 
       - name: Create stable nightly.link APK filename
         run: |
           VERSION="${{ steps.version.outputs.version_name }}"
-          APK_DIR="app/build/outputs/apk/standard/debug"
-          cp "$APK_DIR/video-downloader-v${VERSION}-nightly-debug.apk" "$APK_DIR/nightly-debug.apk"
+          APK_DIR="app/build/outputs/apk/standard/nightly"
+          cp "$APK_DIR/nightly-${VERSION}.apk" "$APK_DIR/nightly-debug.apk"
 
-      - name: Upload nightly debug APK artifact
+      - name: Upload nightly APK artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: video-downloader-v${{ steps.version.outputs.version_name }}-nightly-debug
-          path: app/build/outputs/apk/standard/debug/video-downloader-v${{ steps.version.outputs.version_name }}-nightly-debug.apk
+          name: nightly-${{ steps.version.outputs.version_name }}
+          path: app/build/outputs/apk/standard/nightly/nightly-${{ steps.version.outputs.version_name }}.apk
 
       - name: Upload latest nightly.link APK artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          path: app/build/outputs/apk/standard/debug/nightly-debug.apk
+          path: app/build/outputs/apk/standard/nightly/nightly-debug.apk
           archive: false
