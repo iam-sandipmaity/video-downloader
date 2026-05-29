@@ -198,9 +198,7 @@ Current in-app language support includes:
 
 Want to improve a translation? Use
 [Hosted Weblate](https://hosted.weblate.org/projects/local-video-downloader/android-app-strings/)
-or send a direct pull request against the Android resource files. The project is
-migrating translation work from Crowdin to Weblate so community translations can
-continue on libre hosting.
+or send a direct pull request against the Android resource files.
 
 ## Compatibility
 

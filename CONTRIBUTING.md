@@ -95,8 +95,7 @@ For download-related work, also note:
 
 Translation updates can be sent through
 [Hosted Weblate](https://hosted.weblate.org/projects/local-video-downloader/android-app-strings/)
-or by editing Android resource files directly in a pull request. The project is
-migrating from Crowdin to Weblate for community translation hosting.
+or by editing Android resource files directly in a pull request.
 
 When adding or improving a locale manually:
 

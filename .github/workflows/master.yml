@@ -24,7 +24,7 @@ env:
   ENABLE_RELEASE_NIGHTLY: "false"
   ENABLE_RELEASE_MAIN: "false"
   ENABLE_RELEASE_TAG: "false"
-  ENABLE_CROWDIN: "true"
+  ENABLE_CROWDIN: "false"
   ENABLE_CLEANUP: "false"
 
 jobs:

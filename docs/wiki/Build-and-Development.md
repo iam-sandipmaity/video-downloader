@@ -85,14 +85,14 @@ Typical path:
 
 ## Working On Localization
 
-Translations are wired for Crowdin through the reusable GitHub Actions workflow
-at `.github/workflows/crowdin.yml`. It uploads the base Android XML strings
-file and downloads translated Android XML back into the matching
-`values-<locale>` resource folder.
+Translations are managed through Hosted Weblate:
+`https://hosted.weblate.org/projects/local-video-downloader/android-app-strings/`.
+The Weblate component reads the base Android XML file at
+`app/src/main/res/values/strings.xml` and writes translated Android XML files
+back into the matching `values-<locale>` resource folders.
 
-Set `CROWDIN_PROJECT_ID` and `CROWDIN_PERSONAL_TOKEN` as repository secrets. Do
-not commit Crowdin API tokens. The workflow is called from `master.yml` only
-when `ENABLE_CROWDIN` is set to `true`.
+Keep the old Crowdin workflow disabled in `master.yml`. Only one localization
+platform should write translation updates to the repository at a time.
 
 When touching translations manually:
 
@@ -107,6 +107,14 @@ If adding a new language, also update:
 
 - the language catalog
 - locale configuration
+
+Maintainers should keep the Weblate component configured with:
+
+- source repository: `https://github.com/iam-sandipmaity/video-downloader.git`
+- branch: `main`
+- file format: Android String Resource
+- file mask: `app/src/main/res/values-*/strings.xml`
+- monolingual base language file: `app/src/main/res/values/strings.xml`
 
 ## Working On Update Flows
 
