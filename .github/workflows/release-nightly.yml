@@ -31,14 +31,18 @@ jobs:
       - name: Read version from gradle.properties
         id: version
         run: |
-          VERSION=$(grep '^APP_VERSION_NAME=' gradle.properties | cut -d'=' -f2)
+          VERSION=$(grep '^NIGHTLY_VERSION_NAME=' gradle.properties | cut -d'=' -f2)
+          VERSION_CODE=$(grep '^NIGHTLY_VERSION_CODE=' gradle.properties | cut -d'=' -f2)
           echo "version_name=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "version_code=${VERSION_CODE}" >> "$GITHUB_OUTPUT"
 
       - name: Verify wrapper
         run: ./gradlew --version
 
       - name: Compile standard nightly and run unit tests
-        run: ./gradlew :app:compileStandardNightlyKotlin :app:testStandardDebugUnitTest
+        run: |
+          ./gradlew -PAPP_RELEASE_CHANNEL=nightly :app:compileStandardNightlyKotlin
+          ./gradlew :app:testStandardDebugUnitTest
 
       - name: Prepare signing files
         shell: bash
@@ -70,7 +74,7 @@ jobs:
           fi
 
       - name: Build nightly APK
-        run: ./gradlew :app:assembleStandardNightly
+        run: ./gradlew -PAPP_RELEASE_CHANNEL=nightly :app:assembleStandardNightly
 
       - name: Rename nightly APK
         run: |

@@ -32,7 +32,9 @@ jobs:
         id: version
         run: |
           VERSION=$(grep '^APP_VERSION_NAME=' gradle.properties | cut -d'=' -f2)
+          VERSION_CODE=$(grep '^APP_VERSION_CODE=' gradle.properties | cut -d'=' -f2)
           echo "version_name=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "version_code=${VERSION_CODE}" >> "$GITHUB_OUTPUT"
 
       - name: Determine release tag
         id: release_tag
@@ -71,7 +73,7 @@ jobs:
 
       - name: Build release APK
         if: steps.release_tag.outputs.should_release == 'true'
-        run: ./gradlew :app:assembleStandardRelease
+        run: ./gradlew -PAPP_RELEASE_CHANNEL=stable :app:assembleStandardRelease
 
       - name: Rename release APK
         if: steps.release_tag.outputs.should_release == 'true'

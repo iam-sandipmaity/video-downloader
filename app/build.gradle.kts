@@ -23,13 +23,30 @@ fun signingValue(name: String): String? {
     return signingProps.getProperty(name)?.takeIf { it.isNotBlank() }
 }
 
+fun stringProperty(name: String, fallback: String): String {
+    return (project.findProperty(name) as String?)?.takeIf { it.isNotBlank() } ?: fallback
+}
+
 val generatedChangelogAssetsDir = layout.buildDirectory.dir("generated/changelogAssets")
 val syncBundledChangelog by tasks.registering(Copy::class) {
     from(rootProject.file("CHANGELOG.md"))
     into(generatedChangelogAssetsDir.map { it.dir("changelog") })
 }
-val appVersionCode = (project.findProperty("APP_VERSION_CODE") as String? ?: "1").toInt()
-val appVersionName = project.findProperty("APP_VERSION_NAME") as String? ?: "0.1.0"
+val stableVersionCode = stringProperty("APP_VERSION_CODE", "1").toInt()
+val stableVersionName = stringProperty("APP_VERSION_NAME", "0.1.0")
+val nightlyVersionCode = stringProperty("NIGHTLY_VERSION_CODE", stableVersionCode.toString()).toInt()
+val nightlyVersionName = stringProperty("NIGHTLY_VERSION_NAME", stableVersionName)
+val requestedReleaseChannel = stringProperty(
+    "APP_RELEASE_CHANNEL",
+    if (gradle.startParameter.taskNames.any { it.contains("Nightly", ignoreCase = true) }) {
+        "nightly"
+    } else {
+        "stable"
+    },
+)
+val isNightlyBuild = requestedReleaseChannel.equals("nightly", ignoreCase = true)
+val selectedVersionCode = if (isNightlyBuild) nightlyVersionCode else stableVersionCode
+val selectedVersionName = if (isNightlyBuild) nightlyVersionName else stableVersionName
 
 android {
     namespace = "com.localdownloader"
@@ -61,8 +78,8 @@ android {
         applicationId = "com.localdownloader"
         minSdk = 26
         targetSdk = 37
-        versionCode = appVersionCode
-        versionName = appVersionName
+        versionCode = selectedVersionCode
+        versionName = selectedVersionName
         buildConfigField("String", "APP_RELEASE_CHANNEL", "\"stable\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -129,7 +146,7 @@ android {
             initWith(getByName("debug"))
             applicationIdSuffix = ".nightly"
             matchingFallbacks += listOf("debug")
-            resValue("string", "app_name", "Nightly - $appVersionName")
+            resValue("string", "app_name", "Nightly - $nightlyVersionName")
             buildConfigField("String", "APP_RELEASE_CHANNEL", "\"nightly\"")
             if (hasInternalDebugSigning) {
                 signingConfig = signingConfigs.getByName("internalDebugStable")

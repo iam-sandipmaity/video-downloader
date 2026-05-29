@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ### Technical
 - **App version bump** - release metadata updated to `1.7.3.1`
+- **Channel version metadata** - stable and nightly builds now read separate version name/code properties so each release channel can advance independently
 
 ## [1.7.3.0] - 2026-05-29
 
