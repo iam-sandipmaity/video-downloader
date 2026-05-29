@@ -58,7 +58,7 @@
 > Nightly builds are unstable and may contain bugs. Use at your own risk.
 
 <p align="center">
-  <a href="https://nightly.link/iam-sandipmaity/video-downloader/workflows/master.yml/main/nightly-debug-apk">
+  <a href="https://github.com/iam-sandipmaity/video-downloader/releases/tag/nightly">
     <img src="https://raw.githubusercontent.com/rubenpgrady/get-it-on-github/refs/heads/main/get-it-on-github.png" alt="Get latest nightly debug build" width="250" />
   </a>
 </p>
