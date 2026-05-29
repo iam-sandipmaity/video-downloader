@@ -28,6 +28,8 @@ val syncBundledChangelog by tasks.registering(Copy::class) {
     from(rootProject.file("CHANGELOG.md"))
     into(generatedChangelogAssetsDir.map { it.dir("changelog") })
 }
+val appVersionCode = (project.findProperty("APP_VERSION_CODE") as String? ?: "1").toInt()
+val appVersionName = project.findProperty("APP_VERSION_NAME") as String? ?: "0.1.0"
 
 android {
     namespace = "com.localdownloader"
@@ -59,8 +61,9 @@ android {
         applicationId = "com.localdownloader"
         minSdk = 26
         targetSdk = 37
-        versionCode = (project.findProperty("APP_VERSION_CODE") as String? ?: "1").toInt()
-        versionName = project.findProperty("APP_VERSION_NAME") as String? ?: "0.1.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
+        buildConfigField("String", "APP_RELEASE_CHANNEL", "\"stable\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -122,6 +125,16 @@ android {
                 signingConfig = signingConfigs.getByName("internalDebugStable")
             }
         }
+        create("nightly") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".nightly"
+            matchingFallbacks += listOf("debug")
+            resValue("string", "app_name", "Nightly - $appVersionName")
+            buildConfigField("String", "APP_RELEASE_CHANNEL", "\"nightly\"")
+            if (hasInternalDebugSigning) {
+                signingConfig = signingConfigs.getByName("internalDebugStable")
+            }
+        }
     }
 
     compileOptions {
@@ -132,6 +145,7 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+        resValues = true
     }
 
     bundle {

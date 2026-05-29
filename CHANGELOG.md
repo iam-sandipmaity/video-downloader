@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
+## [1.7.3.1] - 2026-05-29
+
+### Added
+- **Downloads long-press selection** - long-pressing a saved video or audio card now enters selection mode and selects that item immediately, making the existing select-all and batch actions easier to reach
+- **Dedicated nightly app channel** - nightly builds now install as `com.localdownloader.nightly` with the `Nightly - <version>` app label so they can live beside the stable app
+
+### Changed
+- **Nightly release publishing** - nightly APKs now build from the dedicated nightly variant, use `nightly-<version>.apk` filenames, and list available nightly APKs at the top of the rolling nightly release notes
+- **Release workflow defaults** - the master workflow now keeps Android build checks and nightly publishing enabled while leaving stable main/tag release jobs disabled by default
+- **App update channel routing** - stable builds ignore nightly APK assets, while nightly builds read the rolling `nightly` release and choose the newest nightly APK version
+
+### Technical
+- **App version bump** - release metadata updated to `1.7.3.1`
+
 ## [1.7.3.0] - 2026-05-29
 
 ### Added

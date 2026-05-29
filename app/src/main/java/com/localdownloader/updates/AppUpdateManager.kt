@@ -27,16 +27,24 @@ class AppUpdateManager @Inject constructor(
 
     suspend fun checkForUpdate(includePrerelease: Boolean): ComponentUpdateCheck {
         val releases = gitHubReleaseClient.fetchReleases(APP_REPOSITORY)
-        val targetRelease = releases.firstOrNull { includePrerelease || !it.prerelease }
+        val targetRelease = releases.firstOrNull { release ->
+            if (isNightlyChannel()) {
+                release.tag_name.equals(NIGHTLY_TAG, ignoreCase = true)
+            } else {
+                !release.tag_name.equals(NIGHTLY_TAG, ignoreCase = true) &&
+                    (includePrerelease || !release.prerelease)
+            }
+        }
             ?: throw IOException("No matching app releases were found on GitHub")
-        val latestVersion = normalizeReleaseVersion(targetRelease.tag_name)
         val selectedAsset = selectApkAsset(targetRelease)
-        val updateAvailable = compareLooseVersions(BuildConfig.VERSION_NAME, latestVersion) < 0 && selectedAsset != null
+        val latestVersion = releaseVersion(targetRelease, selectedAsset)
+        val versionComparison = compareLooseVersions(BuildConfig.VERSION_NAME, latestVersion)
+        val updateAvailable = versionComparison < 0 && selectedAsset != null
         return ComponentUpdateCheck(
             currentVersion = BuildConfig.VERSION_NAME,
             latestVersion = latestVersion,
             updateAvailable = updateAvailable,
-            summary = if (compareLooseVersions(BuildConfig.VERSION_NAME, latestVersion) < 0 && selectedAsset == null) {
+            summary = if (versionComparison < 0 && selectedAsset == null) {
                 "A newer release exists, but no installable APK asset was found for this device."
             } else if (updateAvailable) {
                 "A newer app release is available."
@@ -87,8 +95,24 @@ class AppUpdateManager @Inject constructor(
     }
 
     private fun selectApkAsset(release: GitHubReleaseDto): GitHubAssetDto? {
-        val apkAssets = release.assets.filter { it.name.endsWith(".apk", ignoreCase = true) }
+        val apkAssets = release.assets
+            .filter { it.name.endsWith(".apk", ignoreCase = true) }
+            .filter { asset ->
+                if (isNightlyChannel()) {
+                    isNightlyAsset(asset.name)
+                } else {
+                    !isNightlyAsset(asset.name)
+                }
+            }
         if (apkAssets.isEmpty()) return null
+        if (isNightlyChannel()) {
+            return apkAssets.maxWithOrNull { left, right ->
+                compareLooseVersions(
+                    parseNightlyAssetVersion(left.name),
+                    parseNightlyAssetVersion(right.name),
+                )
+            }
+        }
 
         val abi = when {
             Build.SUPPORTED_ABIS.firstOrNull()?.startsWith("arm64") == true -> "arm64-v8a"
@@ -107,7 +131,45 @@ class AppUpdateManager @Inject constructor(
         } ?: apkAssets.first()
     }
 
+    private fun releaseVersion(release: GitHubReleaseDto, selectedAsset: GitHubAssetDto?): String? {
+        return if (isNightlyChannel()) {
+            parseNightlyAssetVersion(selectedAsset?.name)
+                ?: parseNightlyReleaseNameVersion(release.name)
+                ?: normalizeReleaseVersion(release.tag_name)
+        } else {
+            normalizeReleaseVersion(release.tag_name)
+        }
+    }
+
+    private fun isNightlyChannel(): Boolean {
+        return BuildConfig.APP_RELEASE_CHANNEL.equals(NIGHTLY_TAG, ignoreCase = true)
+    }
+
     private companion object {
         private const val APP_REPOSITORY = "iam-sandipmaity/video-downloader"
+        private const val NIGHTLY_TAG = "nightly"
+        private val NIGHTLY_ASSET_VERSION_REGEX =
+            Regex("""^(?:nightly-v?([0-9]+(?:\.[0-9]+)+)|video-downloader-v?([0-9]+(?:\.[0-9]+)+)-nightly-debug)\.apk$""")
+        private val NIGHTLY_RELEASE_NAME_VERSION_REGEX =
+            Regex("""\bv([0-9]+(?:\.[0-9]+)+)\b""")
+
+        private fun isNightlyAsset(name: String): Boolean {
+            return NIGHTLY_ASSET_VERSION_REGEX.matches(name)
+        }
+
+        private fun parseNightlyAssetVersion(name: String?): String? {
+            val match = name
+                ?.let(NIGHTLY_ASSET_VERSION_REGEX::matchEntire)
+                ?: return null
+            return match.groupValues.getOrNull(1)?.takeIf { it.isNotBlank() }
+                ?: match.groupValues.getOrNull(2)?.takeIf { it.isNotBlank() }
+        }
+
+        private fun parseNightlyReleaseNameVersion(name: String?): String? {
+            return name
+                ?.let(NIGHTLY_RELEASE_NAME_VERSION_REGEX::find)
+                ?.groupValues
+                ?.getOrNull(1)
+        }
     }
 }
