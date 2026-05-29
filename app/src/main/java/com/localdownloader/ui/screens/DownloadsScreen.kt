@@ -18,8 +18,10 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -729,6 +731,13 @@ fun DownloadsScreen(
                                 selectedTaskIds + taskId
                             }
                         },
+                        onStartSelection = {
+                            val taskId = item.task.id
+                            selectionMode = true
+                            if (!selectedTaskIds.contains(taskId)) {
+                                selectedTaskIds = selectedTaskIds + taskId
+                            }
+                        },
                     )
                 }
             }
@@ -978,6 +987,7 @@ private fun QueueActionButton(
 }
 
 @Composable
+@OptIn(ExperimentalFoundationApi::class)
 private fun DownloadHeroCard(
     item: VideoLibraryItem,
     selectionMode: Boolean,
@@ -988,6 +998,7 @@ private fun DownloadHeroCard(
     onRename: () -> Unit,
     onDelete: () -> Unit,
     onToggleSelected: () -> Unit,
+    onStartSelection: () -> Unit,
 ) {
     var showMenu by remember { mutableStateOf(false) }
     val snapshot = rememberLocalMediaSnapshot(item.file?.absolutePath)
@@ -1002,7 +1013,14 @@ private fun DownloadHeroCard(
         tonalElevation = 1.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = selectionMode, onClick = onToggleSelected),
+            .combinedClickable(
+                onClick = {
+                    if (selectionMode) {
+                        onToggleSelected()
+                    }
+                },
+                onLongClick = onStartSelection,
+            ),
     ) {
         Box(
             modifier = Modifier
