@@ -22,8 +22,8 @@
   <a href="https://github.com/iam-sandipmaity/video-downloader/releases">
     <img alt="Downloads" src="https://img.shields.io/github/downloads/iam-sandipmaity/video-downloader/total?label=downloads" />
   </a>
-  <a href="https://crowdin.com/project/local-video-downloader">
-    <img alt="Crowdin translation progress" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fiam-sandipmaity%2Fvideo-downloader%2Fmain%2F.github%2Fbadges%2Fcrowdin.json%3Fv%3Db6493bfcbe88&cacheSeconds=300" />
+  <a href="https://hosted.weblate.org/projects/local-video-downloader/android-app-strings/">
+    <img alt="Translate on Hosted Weblate" src="https://img.shields.io/badge/translate-Hosted%20Weblate-2dbcae?logo=weblate&logoColor=white" />
   </a>
   <a href="https://video.sandipmaity.me">
     <img alt="Website" src="https://img.shields.io/badge/website-video.sandipmaity.me-orange" />
@@ -191,15 +191,16 @@ Current in-app language support includes:
 ## Translation Progress
 
 <p align="center">
-  <a href="https://crowdin.com/project/local-video-downloader">
-    <img src="https://raw.githubusercontent.com/iam-sandipmaity/video-downloader/main/.github/badges/crowdin-progress.svg?v=b6493bfcbe88" alt="Crowdin language translation progress" />
+  <a href="https://hosted.weblate.org/projects/local-video-downloader/android-app-strings/">
+    <img src="https://img.shields.io/badge/translate-Hosted%20Weblate-2dbcae?logo=weblate&logoColor=white" alt="Translate on Hosted Weblate" />
   </a>
 </p>
 
-Want to improve a translation? The repository is ready for Crowdin through the
-GitHub Actions workflow, and direct translation pull requests are also welcome.
-See [Translation Contributions](CONTRIBUTING.md#translation-contributions) for
-the workflow.
+Want to improve a translation? Use
+[Hosted Weblate](https://hosted.weblate.org/projects/local-video-downloader/android-app-strings/)
+or send a direct pull request against the Android resource files. The project is
+migrating translation work from Crowdin to Weblate so community translations can
+continue on libre hosting.
 
 ## Compatibility
 
