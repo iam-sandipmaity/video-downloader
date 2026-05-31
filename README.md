@@ -78,7 +78,7 @@ Stable downloads use GitHub's latest release endpoint, which tracks the newest n
   <strong>Rolling nightly release tag</strong> - always points to the newest successful <code>main</code> debug build
 </p>
 
-Nightly downloads use the rolling `nightly` release tag, which is separate from stable releases.
+Nightly downloads use the rolling `nightly` release tag, which is separate from stable releases. Nightly-only changes are tracked in [CHANGELOG-NIGHTLY.md](CHANGELOG-NIGHTLY.md).
 
 ### Requirements
 

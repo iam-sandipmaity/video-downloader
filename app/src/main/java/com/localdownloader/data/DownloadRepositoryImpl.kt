@@ -317,6 +317,52 @@ class DownloadRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun moveQueuedDownload(taskId: String, earlier: Boolean): Result<Unit> {
+        return runCatching {
+            schedulingMutex.withLock {
+                val queuedTasks = downloadTaskStore.getAllTasks()
+                    .filter { task ->
+                        task.status == DownloadStatus.QUEUED &&
+                            task.activeWorkId.isNullOrBlank()
+                    }
+                    .sortedBy { it.createdAtEpochMs }
+                val currentIndex = queuedTasks.indexOfFirst { it.id == taskId }
+                require(currentIndex >= 0) {
+                    "Only waiting queue items can be reordered."
+                }
+                val swapIndex = if (earlier) currentIndex - 1 else currentIndex + 1
+                require(swapIndex in queuedTasks.indices) {
+                    if (earlier) {
+                        "This item is already first in the waiting queue."
+                    } else {
+                        "This item is already last in the waiting queue."
+                    }
+                }
+
+                val currentTask = queuedTasks[currentIndex]
+                val swapTask = queuedTasks[swapIndex]
+                val now = System.currentTimeMillis()
+                downloadTaskStore.update(currentTask.id) { task ->
+                    task.copy(
+                        createdAtEpochMs = swapTask.createdAtEpochMs,
+                        debugTrace = appendDebugLine(task.debugTrace, "Queue order changed by user"),
+                        updatedAtEpochMs = now,
+                    )
+                }
+                downloadTaskStore.update(swapTask.id) { task ->
+                    task.copy(
+                        createdAtEpochMs = currentTask.createdAtEpochMs,
+                        debugTrace = appendDebugLine(task.debugTrace, "Queue order changed by user"),
+                        updatedAtEpochMs = now,
+                    )
+                }
+                fillAvailableDownloadSlotsLocked(settingsStore.observeSettings().first())
+            }
+        }.onFailure { error ->
+            logger.e("DownloadRepository", "moveQueuedDownload failed taskId=$taskId earlier=$earlier", error)
+        }
+    }
+
     override suspend fun cancelDownload(taskId: String) {
         logger.i("DownloadRepository", "cancelDownload taskId=$taskId")
         val existingTask = downloadTaskStore.getTask(taskId)
@@ -532,7 +578,7 @@ class DownloadRepositoryImpl @Inject constructor(
 
             val missingTasks = completedTasks.filter { task ->
                 val outputPath = task.outputPath?.takeIf { it.isNotBlank() } ?: return@filter true
-                !File(fileUtils.normalizeLibraryOutputPath(outputPath)).exists()
+                !fileUtils.managedFileExists(fileUtils.normalizeLibraryOutputPath(outputPath))
             }
 
             if (shouldRemoveMissing && missingTasks.isNotEmpty()) {
@@ -954,10 +1000,11 @@ class DownloadRepositoryImpl @Inject constructor(
     }
 
     private fun ensureDebugLine(existing: String?, line: String): String {
-        return if (existing.isNullOrBlank()) {
-            appendDebugLine(existing, line)
+        val sanitized = SensitiveDataSanitizer.sanitize(line)
+        return if (existing.orEmpty().lineSequence().any { it.trim() == sanitized }) {
+            existing.orEmpty()
         } else {
-            existing
+            appendDebugLine(existing, sanitized)
         }
     }
 

@@ -23,6 +23,7 @@ import com.localdownloader.data.PlaybackSessionStore
 import com.localdownloader.domain.models.DownloadTask
 import com.localdownloader.media.PlayerResizeModes
 import com.localdownloader.media.resolvePreferredMediaMimeType
+import com.localdownloader.utils.FileUtils
 import com.localdownloader.utils.Logger
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -45,6 +46,7 @@ class PlayerViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
     private val logger: Logger,
     private val playbackConflictManager: PlaybackConflictManager,
+    private val fileUtils: FileUtils,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(PlayerUiState())
     val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
@@ -156,7 +158,7 @@ class PlayerViewModel @Inject constructor(
     fun bindTask(task: DownloadTask?) {
         val previousSessionKey = currentSessionKey
         val playablePath = task?.outputPath?.takeIf { path ->
-            path.isNotBlank() && File(path).exists()
+            path.isNotBlank() && fileUtils.managedFileExists(path)
         }
         val title = task?.title.orEmpty()
         val sessionKey = task?.id ?: playablePath

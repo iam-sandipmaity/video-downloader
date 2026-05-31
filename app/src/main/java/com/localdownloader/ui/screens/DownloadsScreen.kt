@@ -114,6 +114,7 @@ fun DownloadsScreen(
     onDismissAudioError: () -> Unit,
     onOpenQueue: () -> Unit,
     modifier: Modifier = Modifier,
+    fileExists: (String) -> Boolean = { path -> java.io.File(path).exists() },
 ) {
     var selectedFilter by rememberSaveable { mutableStateOf(DownloadsFilter.All.name) }
     var sortNewestFirst by rememberSaveable { mutableStateOf(true) }
@@ -128,7 +129,7 @@ fun DownloadsScreen(
     var showHeaderMenu by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
-    val items = remember(uiState.tasks) { buildVideoLibraryItems(uiState.tasks) }
+    val items = remember(uiState.tasks, fileExists) { buildVideoLibraryItems(uiState.tasks, fileExists) }
     val audioItems = remember(items) { items.filter { it.exists && it.mediaKind == MediaKind.AUDIO } }
     val currentFilter = runCatching { DownloadsFilter.valueOf(selectedFilter) }
         .getOrDefault(DownloadsFilter.All)

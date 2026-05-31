@@ -41,11 +41,14 @@ import com.localdownloader.viewmodel.FormatUiState
 fun StorageSettingsScreen(
     uiState: FormatUiState,
     savedItemsCount: Int,
+    duplicateSavedItemsCount: Int,
+    availableStorageBytes: Long,
     modifier: Modifier = Modifier,
     mediaInfoMessage: String? = null,
     mediaErrorMessage: String? = null,
     onDismissMediaLibraryMessage: () -> Unit = {},
     onDownloadsRootFolderNameChanged: (String) -> Unit,
+    onDownloadsRootPublicPathChanged: (String) -> Unit,
     onVideoSubfolderNameChanged: (String) -> Unit,
     onAudioSubfolderNameChanged: (String) -> Unit,
     onOtherSubfolderNameChanged: (String) -> Unit,
@@ -150,17 +153,23 @@ fun StorageSettingsScreen(
                 FolderPreferenceRow(
                     title = stringResource(R.string.storage_root_title),
                     subtitle = stringResource(R.string.storage_root_subtitle),
-                    value = uiState.downloadsRootFolderName.folderPreview(
-                        stringResource(R.string.storage_default_root),
+                    value = uiState.downloadsRootDisplayPath(
+                        defaultLabel = stringResource(R.string.storage_default_root),
                     ),
                     onEditClick = {
                         textDialog = SettingTextDialogState(
                             title = storageRootTitle,
-                            value = uiState.downloadsRootFolderName,
+                            value = uiState.downloadsRootPublicPath.ifBlank { uiState.downloadsRootFolderName },
                             label = storageFolderLabelRoot,
                             supporting = storageRootSupporting,
                             confirmLabel = commonSaveLabel,
-                            onConfirm = onDownloadsRootFolderNameChanged,
+                            onConfirm = { value ->
+                                if (value.isPublicStorageRootPath()) {
+                                    onDownloadsRootPublicPathChanged(value)
+                                } else {
+                                    onDownloadsRootFolderNameChanged(value)
+                                }
+                            },
                         )
                     },
                     onBrowseClick = onBrowseDownloadsRootFolder,
@@ -263,6 +272,22 @@ fun StorageSettingsScreen(
                 )
                 PreferenceDivider()
                 PreferenceRow(
+                    icon = Icons.Rounded.LibraryBooks,
+                    title = "Possible duplicates",
+                    subtitle = "Saved files with the same name or source are grouped here before cleanup.",
+                    value = duplicateSavedItemsCount.toString(),
+                    onClick = null,
+                )
+                PreferenceDivider()
+                PreferenceRow(
+                    icon = Icons.Rounded.Storage,
+                    title = "Available storage",
+                    subtitle = "Check free device storage before queueing large downloads.",
+                    value = formatFileSize(availableStorageBytes),
+                    onClick = null,
+                )
+                PreferenceDivider()
+                PreferenceRow(
                     icon = Icons.Rounded.Storage,
                     title = stringResource(R.string.storage_temp_cache_title),
                     subtitle = stringResource(R.string.storage_temp_cache_subtitle),
@@ -336,6 +361,32 @@ fun StorageSettingsScreen(
             }
         }
     }
+}
+
+private fun FormatUiState.downloadsRootDisplayPath(defaultLabel: String): String {
+    return downloadsRootPublicPath
+        .ifBlank { "Download/${downloadsRootFolderName.folderPreview(defaultLabel)}" }
+        .folderPreview(defaultLabel)
+}
+
+private fun String.isPublicStorageRootPath(): Boolean {
+    val firstSegment = trim()
+        .replace('\\', '/')
+        .trim('/')
+        .substringBefore('/')
+        .lowercase()
+    return firstSegment in setOf(
+        "download",
+        "downloads",
+        "documents",
+        "movies",
+        "music",
+        "pictures",
+        "dcim",
+        "audiobooks",
+        "podcasts",
+        "ringtones",
+    )
 }
 
 @Composable

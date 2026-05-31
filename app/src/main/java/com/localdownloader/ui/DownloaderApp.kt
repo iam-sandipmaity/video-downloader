@@ -1,5 +1,8 @@
 package com.localdownloader.ui
 
+import android.content.Intent
+import android.os.Environment
+import android.os.StatFs
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -46,6 +49,7 @@ import com.localdownloader.AppLaunchRouter
 import com.localdownloader.AppOpenRequest
 import com.localdownloader.domain.models.AccentPreset
 import com.localdownloader.domain.models.DownloadStatus
+import com.localdownloader.domain.models.DownloadTask
 import com.localdownloader.domain.models.ContrastMode
 import com.localdownloader.domain.models.ThemeMode
 import com.localdownloader.media.isLikelyPlayableMediaPath
@@ -140,7 +144,9 @@ fun DownloaderApp(
     val mediaToolsState by mediaToolsViewModel.uiState.collectAsStateWithLifecycle()
     val audioPlaybackState by audioPlaybackViewModel.uiState.collectAsStateWithLifecycle()
     val updatesState by updatesViewModel.uiState.collectAsStateWithLifecycle()
-    val savedMediaItems = remember(downloadState.tasks) { buildVideoLibraryItems(downloadState.tasks) }
+    val savedMediaItems = remember(downloadState.tasks) {
+        buildVideoLibraryItems(downloadState.tasks, fileUtils::managedFileExists)
+    }
     val savedVideoItems = remember(savedMediaItems) {
         savedMediaItems.filter { it.exists && it.mediaKind == MediaKind.VIDEO }
     }
@@ -151,10 +157,17 @@ fun DownloaderApp(
         pendingFolderBrowseTarget = null
         if (target == null || uri == null) return@rememberLauncherForActivityResult
 
-        val relativeDownloadsPath = fileUtils.resolveRelativeDownloadsFolderFromTreeUri(uri)
-        if (relativeDownloadsPath == null) {
+        runCatching {
+            context.contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+            )
+        }
+
+        val relativePublicPath = fileUtils.resolveRelativeExternalStorageFolderFromTreeUri(uri)
+        if (relativePublicPath == null) {
             formatViewModel.showSettingsMessage(
-                message = "Pick a folder inside your public Downloads directory.",
+                message = "Pick a folder on shared device storage.",
                 isError = true,
             )
             return@rememberLauncherForActivityResult
@@ -162,25 +175,29 @@ fun DownloaderApp(
 
         when (target) {
             FolderBrowseTarget.DOWNLOADS_ROOT -> {
-                if (relativeDownloadsPath.isBlank()) {
+                if (relativePublicPath.isBlank()) {
                     formatViewModel.showSettingsMessage(
-                        message = "Pick a subfolder inside Downloads for the app root.",
+                        message = "Pick a folder for the app root.",
                         isError = true,
                     )
                 } else {
-                    formatViewModel.onDownloadsRootFolderNameChanged(relativeDownloadsPath)
+                    formatViewModel.onDownloadsRootPublicPathChanged(
+                        value = relativePublicPath,
+                        treeUri = uri.toString(),
+                    )
                     formatViewModel.showSettingsMessage("Downloads root updated.")
                 }
             }
 
             FolderBrowseTarget.VIDEO -> {
-                val relativeSubfolder = fileUtils.deriveSubfolderSettingFromRelativeDownloadsPath(
+                val relativeSubfolder = fileUtils.deriveSubfolderSettingFromRelativePublicPath(
+                    rootPublicPath = formatState.downloadsRootPublicPath,
                     rootFolderSetting = formatState.downloadsRootFolderName,
-                    selectedRelativeDownloadsPath = relativeDownloadsPath,
+                    selectedRelativePublicPath = relativePublicPath,
                 )
                 if (relativeSubfolder == null) {
                     formatViewModel.showSettingsMessage(
-                        message = "Pick a folder inside the current downloads root for videos.",
+                        message = "Pick a folder inside the current storage root for videos.",
                         isError = true,
                     )
                 } else {
@@ -190,13 +207,14 @@ fun DownloaderApp(
             }
 
             FolderBrowseTarget.AUDIO -> {
-                val relativeSubfolder = fileUtils.deriveSubfolderSettingFromRelativeDownloadsPath(
+                val relativeSubfolder = fileUtils.deriveSubfolderSettingFromRelativePublicPath(
+                    rootPublicPath = formatState.downloadsRootPublicPath,
                     rootFolderSetting = formatState.downloadsRootFolderName,
-                    selectedRelativeDownloadsPath = relativeDownloadsPath,
+                    selectedRelativePublicPath = relativePublicPath,
                 )
                 if (relativeSubfolder == null) {
                     formatViewModel.showSettingsMessage(
-                        message = "Pick a folder inside the current downloads root for audio.",
+                        message = "Pick a folder inside the current storage root for audio.",
                         isError = true,
                     )
                 } else {
@@ -206,13 +224,14 @@ fun DownloaderApp(
             }
 
             FolderBrowseTarget.OTHER -> {
-                val relativeSubfolder = fileUtils.deriveSubfolderSettingFromRelativeDownloadsPath(
+                val relativeSubfolder = fileUtils.deriveSubfolderSettingFromRelativePublicPath(
+                    rootPublicPath = formatState.downloadsRootPublicPath,
                     rootFolderSetting = formatState.downloadsRootFolderName,
-                    selectedRelativeDownloadsPath = relativeDownloadsPath,
+                    selectedRelativePublicPath = relativePublicPath,
                 )
                 if (relativeSubfolder == null) {
                     formatViewModel.showSettingsMessage(
-                        message = "Pick a folder inside the current downloads root for other files.",
+                        message = "Pick a folder inside the current storage root for other files.",
                         isError = true,
                     )
                 } else {
@@ -225,6 +244,8 @@ fun DownloaderApp(
     val currentDestination = navController.currentBackStackEntryAsState().value?.destination
     val currentRoute = currentDestination?.route
     val savedItemsCount = downloadState.tasks.count { it.status == DownloadStatus.COMPLETED }
+    val duplicateSavedItemsCount = remember(downloadState.tasks) { countPossibleDuplicateSavedItems(downloadState.tasks) }
+    val availableDownloadsStorageBytes = remember { queryAvailableDownloadsStorageBytes() }
 
     LaunchedEffect(formatState.themeMode, formatState.accentPreset, formatState.contrastMode) {
         onAppearanceUpdated?.invoke(
@@ -457,6 +478,8 @@ fun DownloaderApp(
                     onOpenYoutubeAccess = { navController.navigate(Routes.YoutubeAuth) },
                     onOpenCookies = { navController.navigate(Routes.Cookies) },
                     onOpenSettings = { navController.navigate(Routes.Settings) },
+                    onOpenDownloadSettings = { navController.navigate(Routes.SettingsDownloads) },
+                    onOpenStorageSettings = { navController.navigate(Routes.SettingsStorage) },
                     onOpenHelp = { navController.navigate(Routes.Help) },
                     onDismissDownloadSetupNotice = formatViewModel::dismissDownloadSetupNotice,
                     onDismissMessage = formatViewModel::dismissMessage,
@@ -495,6 +518,7 @@ fun DownloaderApp(
                     onDeleteCompletedFromDevice = downloadViewModel::deleteAllCompletedMedia,
                     onDismissMessage = downloadViewModel::dismissMessage,
                     onOpenQueue = { navController.navigate(Routes.DownloadQueue) },
+                    fileExists = fileUtils::managedFileExists,
                 )
             }
             composable(Routes.DownloadQueue) {
@@ -508,6 +532,8 @@ fun DownloaderApp(
                     onResumeTasks = downloadViewModel::resumeTasks,
                     onRetryTasks = downloadViewModel::retryTasks,
                     onCancelTasks = downloadViewModel::cancelTasks,
+                    onMoveQueuedEarlier = downloadViewModel::moveQueuedTaskEarlier,
+                    onMoveQueuedLater = downloadViewModel::moveQueuedTaskLater,
                     onOpenCookies = { navController.navigate(Routes.Cookies) },
                     onOpenYoutubeAccess = { navController.navigate(Routes.YoutubeAuth) },
                     onToggleDebug = downloadViewModel::toggleDebug,
@@ -683,10 +709,13 @@ fun DownloaderApp(
                 StorageSettingsScreen(
                     uiState = formatState,
                     savedItemsCount = savedItemsCount,
+                    duplicateSavedItemsCount = duplicateSavedItemsCount,
+                    availableStorageBytes = availableDownloadsStorageBytes,
                     mediaInfoMessage = downloadState.infoMessage,
                     mediaErrorMessage = downloadState.errorMessage,
                     onDismissMediaLibraryMessage = downloadViewModel::dismissMessage,
                     onDownloadsRootFolderNameChanged = formatViewModel::onDownloadsRootFolderNameChanged,
+                    onDownloadsRootPublicPathChanged = formatViewModel::onDownloadsRootPublicPathChanged,
                     onVideoSubfolderNameChanged = formatViewModel::onVideoSubfolderNameChanged,
                     onAudioSubfolderNameChanged = formatViewModel::onAudioSubfolderNameChanged,
                     onOtherSubfolderNameChanged = formatViewModel::onOtherSubfolderNameChanged,
@@ -851,6 +880,7 @@ fun DownloaderApp(
                     onStopAudioPlayback = audioPlaybackViewModel::stopPlayback,
                     onDismissAudioError = audioPlaybackViewModel::dismissError,
                     onBack = { navController.popBackStack() },
+                    fileExists = fileUtils::managedFileExists,
                 )
             }
             composable(
@@ -988,6 +1018,33 @@ private fun isWebPreviewRequest(request: ExternalOpenRequest): Boolean {
     val mime = request.mimeType?.lowercase().orEmpty()
     val extension = request.path.substringAfterLast('.', "").lowercase()
     return mime.contains("html") || mime.contains("multipart/related") || extension in setOf("html", "htm", "mhtml", "mht")
+}
+
+private fun countPossibleDuplicateSavedItems(tasks: List<DownloadTask>): Int {
+    val completed = tasks.filter { task -> task.status == DownloadStatus.COMPLETED }
+    val duplicatePathCount = completed
+        .mapNotNull { task -> task.outputPath?.substringAfterLast('/')?.substringAfterLast('\\')?.lowercase() }
+        .filter { it.isNotBlank() }
+        .groupingBy { it }
+        .eachCount()
+        .values
+        .sumOf { count -> (count - 1).coerceAtLeast(0) }
+    val duplicateSourceCount = completed
+        .map { task -> task.url.trim().lowercase() }
+        .filter { it.isNotBlank() }
+        .groupingBy { it }
+        .eachCount()
+        .values
+        .sumOf { count -> (count - 1).coerceAtLeast(0) }
+    return maxOf(duplicatePathCount, duplicateSourceCount)
+}
+
+private fun queryAvailableDownloadsStorageBytes(): Long {
+    return runCatching {
+        val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        val stats = StatFs(downloadsDir.absolutePath)
+        stats.availableBytes
+    }.getOrDefault(0L)
 }
 
 private val primaryRouteOrder = listOf(

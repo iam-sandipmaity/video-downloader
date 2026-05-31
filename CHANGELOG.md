@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
+Nightly-only changes are tracked separately in [CHANGELOG-NIGHTLY.md](CHANGELOG-NIGHTLY.md).
+
 ## [1.7.3.1] - 2026-05-29
 
 ### Added

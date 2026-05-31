@@ -53,6 +53,8 @@ class SettingsStore @Inject constructor(
         val mergeContainer = stringPreferencesKey("merge_container")
         val audioFormat = stringPreferencesKey("audio_format")
         val downloadsRootFolderName = stringPreferencesKey("downloads_root_folder_name")
+        val downloadsRootPublicPath = stringPreferencesKey("downloads_root_public_path")
+        val downloadsRootTreeUri = stringPreferencesKey("downloads_root_tree_uri")
         val videoSubfolderName = stringPreferencesKey("video_subfolder_name")
         val audioSubfolderName = stringPreferencesKey("audio_subfolder_name")
         val otherSubfolderName = stringPreferencesKey("other_subfolder_name")
@@ -102,6 +104,8 @@ class SettingsStore @Inject constructor(
                     defaultMergeContainer = prefs[Keys.mergeContainer] ?: AppSettings().defaultMergeContainer,
                     defaultAudioFormat = prefs[Keys.audioFormat] ?: "mp3",
                     downloadsRootFolderName = prefs[Keys.downloadsRootFolderName] ?: "LocalDownloader",
+                    downloadsRootPublicPath = prefs[Keys.downloadsRootPublicPath].orEmpty(),
+                    downloadsRootTreeUri = prefs[Keys.downloadsRootTreeUri].orEmpty(),
                     videoSubfolderName = prefs[Keys.videoSubfolderName] ?: "Videos",
                     audioSubfolderName = prefs[Keys.audioSubfolderName] ?: "Audio",
                     otherSubfolderName = prefs[Keys.otherSubfolderName] ?: "Files",
@@ -146,6 +150,8 @@ class SettingsStore @Inject constructor(
             prefs[Keys.mergeContainer] = settings.defaultMergeContainer
             prefs[Keys.audioFormat] = settings.defaultAudioFormat
             prefs[Keys.downloadsRootFolderName] = settings.downloadsRootFolderName
+            prefs[Keys.downloadsRootPublicPath] = settings.downloadsRootPublicPath
+            prefs[Keys.downloadsRootTreeUri] = settings.downloadsRootTreeUri
             prefs[Keys.videoSubfolderName] = settings.videoSubfolderName
             prefs[Keys.audioSubfolderName] = settings.audioSubfolderName
             prefs[Keys.otherSubfolderName] = settings.otherSubfolderName

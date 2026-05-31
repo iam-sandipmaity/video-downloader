@@ -28,6 +28,7 @@ interface DownloaderRepository {
     suspend fun pauseDownload(taskId: String)
     suspend fun resumeDownload(taskId: String): Result<String>
     suspend fun retryDownload(taskId: String): Result<String>
+    suspend fun moveQueuedDownload(taskId: String, earlier: Boolean): Result<Unit>
     suspend fun cancelDownload(taskId: String)
     suspend fun renameDownloadedFile(taskId: String, newName: String): Result<Unit>
     suspend fun deleteDownloadedFile(taskId: String): Result<Unit>

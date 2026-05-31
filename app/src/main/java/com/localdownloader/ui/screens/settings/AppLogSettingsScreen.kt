@@ -2,6 +2,7 @@ package com.localdownloader.ui.screens.settings
 
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -40,7 +41,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
+import com.localdownloader.BuildConfig
 import com.localdownloader.ui.components.InlineFeedbackCard
+import com.localdownloader.utils.SensitiveDataSanitizer
 import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.viewmodel.AppLogEntry
 import com.localdownloader.viewmodel.AppLogEntryCategory
@@ -145,6 +148,25 @@ fun AppLogSettingsScreen(
                     else -> "Not refreshed yet"
                 },
             )
+        }
+        item {
+            FilledTonalButton(
+                onClick = {
+                    exportLogText(
+                        context = context,
+                        fileName = "troubleshooting-report.txt",
+                        text = buildTroubleshootingReport(uiState.entries),
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Share,
+                    contentDescription = null,
+                    modifier = Modifier.padding(end = 8.dp),
+                )
+                Text("Share troubleshooting report")
+            }
         }
         item {
             AppLogPanel {
@@ -491,4 +513,48 @@ private fun exportLogText(
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
     context.startActivity(Intent.createChooser(shareIntent, "Export app log"))
+}
+
+private fun buildTroubleshootingReport(entries: List<AppLogEntry>): String {
+    val latestFailure = entries
+        .asReversed()
+        .firstOrNull { it.category == AppLogEntryCategory.FAILED }
+        ?.rawText
+        ?.lineSequence()
+        ?.firstOrNull { it.isNotBlank() }
+        ?.let(SensitiveDataSanitizer::sanitize)
+        ?: "No failed command has been logged yet."
+    val ytDlpStatus = latestLineMatching(entries, "yt-dlp")
+    val ffmpegStatus = latestLineMatching(entries, "ffmpeg")
+
+    return buildString {
+        appendLine("Video Downloader troubleshooting report")
+        appendLine()
+        appendLine("App")
+        appendLine("- Version: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
+        appendLine("- Channel: ${BuildConfig.APP_RELEASE_CHANNEL}")
+        appendLine("- Package: ${BuildConfig.APPLICATION_ID}")
+        appendLine()
+        appendLine("Device")
+        appendLine("- Android: ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
+        appendLine("- Manufacturer: ${Build.MANUFACTURER}")
+        appendLine("- Model: ${Build.MODEL}")
+        appendLine("- ABI: ${Build.SUPPORTED_ABIS.firstOrNull().orEmpty().ifBlank { "unknown" }}")
+        appendLine()
+        appendLine("Runtime")
+        appendLine("- yt-dlp status: ${ytDlpStatus ?: "No recent yt-dlp status line in app log."}")
+        appendLine("- FFmpeg status: ${ffmpegStatus ?: "No recent FFmpeg status line in app log."}")
+        appendLine()
+        appendLine("Last failed command summary")
+        appendLine(latestFailure)
+    }
+}
+
+private fun latestLineMatching(entries: List<AppLogEntry>, needle: String): String? {
+    return entries
+        .asReversed()
+        .flatMap { entry -> entry.rawText.lineSequence().toList().asReversed() }
+        .firstOrNull { line -> line.contains(needle, ignoreCase = true) }
+        ?.take(400)
+        ?.let(SensitiveDataSanitizer::sanitize)
 }
