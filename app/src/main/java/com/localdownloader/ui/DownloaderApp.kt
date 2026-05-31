@@ -648,8 +648,6 @@ fun DownloaderApp(
                 SettingsScreen(
                     uiState = formatState,
                     savedItemsCount = savedItemsCount,
-                    duplicateSavedItemsCount = duplicateSavedItemsCount,
-                    availableStorageBytes = availableDownloadsStorageBytes,
                     mediaInfoMessage = downloadState.infoMessage,
                     mediaErrorMessage = downloadState.errorMessage,
                     onDismissMediaLibraryMessage = downloadViewModel::dismissMessage,
@@ -694,6 +692,8 @@ fun DownloaderApp(
                 StorageSettingsScreen(
                     uiState = formatState,
                     savedItemsCount = savedItemsCount,
+                    duplicateSavedItemsCount = duplicateSavedItemsCount,
+                    availableStorageBytes = availableDownloadsStorageBytes,
                     mediaInfoMessage = downloadState.infoMessage,
                     mediaErrorMessage = downloadState.errorMessage,
                     onDismissMediaLibraryMessage = downloadViewModel::dismissMessage,
