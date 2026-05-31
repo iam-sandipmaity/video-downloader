@@ -65,10 +65,10 @@ class FileUtils @Inject constructor(
         val rootFolderName = configuredRootFolderName()
         val normalizedSubdirectory = normalizeSubfolderSetting(subDirectoryName.orEmpty())
             .ifBlank { null }
-        // Android 9 and below: direct path to public Downloads.
+        // Android 9 and below: direct path to the configured public storage root.
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-            val publicDownloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            val appDir = buildPath(publicDownloads, rootFolderName, normalizedSubdirectory)
+            val publicStorage = Environment.getExternalStorageDirectory()
+            val appDir = buildPath(publicStorage, configuredPublicRootRelativePath(), normalizedSubdirectory)
             if ((appDir.exists() || appDir.mkdirs()) && appDir.canWrite()) return appDir
         }
 
@@ -210,6 +210,21 @@ class FileUtils @Inject constructor(
         )
     }
 
+    fun normalizeExternalStoragePath(value: String): String {
+        return normalizeRelativeDownloadsPath(
+            raw = value,
+            fallback = null,
+            allowBlank = true,
+        )
+    }
+
+    fun resolveRelativeExternalStorageFolderFromTreeUri(uri: Uri): String? {
+        val documentId = runCatching { DocumentsContract.getTreeDocumentId(uri) }.getOrNull()
+            ?: runCatching { DocumentsContract.getDocumentId(uri) }.getOrNull()
+            ?: return null
+        return extractRelativeExternalStoragePath(documentId)
+    }
+
     fun resolveRelativeDownloadsFolderFromTreeUri(uri: Uri): String? {
         val documentId = runCatching { DocumentsContract.getTreeDocumentId(uri) }.getOrNull()
             ?: runCatching { DocumentsContract.getDocumentId(uri) }.getOrNull()
@@ -230,9 +245,25 @@ class FileUtils @Inject constructor(
         return normalizedSelected.removePrefix(rootedPrefix)
     }
 
+    fun deriveSubfolderSettingFromRelativePublicPath(
+        rootPublicPath: String,
+        rootFolderSetting: String,
+        selectedRelativePublicPath: String,
+    ): String? {
+        val normalizedRoot = normalizeExternalStoragePath(rootPublicPath).ifBlank {
+            buildDefaultPublicRootPath(rootFolderSetting)
+        }
+        val normalizedSelected = normalizeExternalStoragePath(selectedRelativePublicPath)
+        if (normalizedSelected.isBlank()) return null
+        if (normalizedSelected == normalizedRoot) return ""
+        val rootedPrefix = "$normalizedRoot/"
+        if (!normalizedSelected.startsWith(rootedPrefix)) return null
+        return normalizedSelected.removePrefix(rootedPrefix)
+    }
+
     /**
-     * On Android 10+ copies a file from the app-specific directory to the public
-     * Downloads folder via MediaStore so it becomes visible in file managers.
+     * On Android 10+ copies a file from the app-specific directory to the configured
+     * public storage root via MediaStore so it becomes visible in file managers.
      * Returns the public path, or null on Android 9 and below (file is already public).
      */
     fun copyToPublicDownloads(
@@ -254,8 +285,8 @@ class FileUtils @Inject constructor(
         playlistFolderName: String?,
         targetFileName: String?,
     ): String? {
-        val publicDownloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-        val rootFolderName = configuredRootFolderName()
+        val publicStorage = Environment.getExternalStorageDirectory()
+        val rootRelativePath = configuredPublicRootRelativePath()
         val relativeParent = playlistFolderName
             ?.trim()
             ?.trim('/', '\\')
@@ -264,9 +295,9 @@ class FileUtils @Inject constructor(
                 ?.substringBeforeLast('/', "")
                 .orEmpty()
         val publicDir = if (relativeParent.isBlank()) {
-            File(publicDownloads, rootFolderName)
+            File(publicStorage, rootRelativePath)
         } else {
-            File(publicDownloads, "$rootFolderName/$relativeParent")
+            File(publicStorage, "$rootRelativePath/$relativeParent")
         }
         if (!publicDir.exists()) publicDir.mkdirs()
 
@@ -284,8 +315,7 @@ class FileUtils @Inject constructor(
                 put(
                     MediaStore.MediaColumns.RELATIVE_PATH,
                     buildString {
-                        append("Download/")
-                        append(rootFolderName.trim('/'))
+                        append(rootRelativePath.trim('/'))
                         append('/')
                         if (relativeParent.isNotBlank()) {
                             append(relativeParent.trim('/'))
@@ -296,7 +326,7 @@ class FileUtils @Inject constructor(
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
             }
             val targetUri = context.contentResolver.insert(
-                externalDownloadsCollectionUri(),
+                collectionUriForRelativePath(rootRelativePath),
                 values,
             ) ?: return null
             insertedUri = targetUri
@@ -430,8 +460,8 @@ class FileUtils @Inject constructor(
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return path
 
         val relativePath = relativePathWithinDownloadsRoot(File(path)) ?: return path
-        val publicDownloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-        val publicFile = File(publicDownloads, "${configuredRootFolderName()}/$relativePath")
+        val publicStorage = Environment.getExternalStorageDirectory()
+        val publicFile = File(publicStorage, "${configuredPublicRootRelativePath()}/$relativePath")
         return if (publicFile.exists()) publicFile.absolutePath else path
     }
 
@@ -560,7 +590,7 @@ class FileUtils @Inject constructor(
 
     @RequiresApi(Build.VERSION_CODES.Q)
     private fun deleteFromMediaStoreApi29(file: File): Boolean? {
-        val downloadsRoot = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        val downloadsRoot = Environment.getExternalStorageDirectory()
             .absoluteFile
             .normalize()
         val normalizedFile = file.absoluteFile.normalize()
@@ -587,7 +617,7 @@ class FileUtils @Inject constructor(
         val projection = arrayOf(android.provider.BaseColumns._ID)
         val selection = "${MediaStore.MediaColumns.DISPLAY_NAME}=? AND ${MediaStore.MediaColumns.RELATIVE_PATH}=?"
         val selectionArgs = arrayOf(file.name, mediaStoreRelativePath)
-        val contentUri = externalDownloadsCollectionUri()
+        val contentUri = collectionUriForRelativePath(relativePath)
         val itemId = context.contentResolver.query(
             contentUri,
             projection,
@@ -605,8 +635,29 @@ class FileUtils @Inject constructor(
     @RequiresApi(Build.VERSION_CODES.Q)
     private fun externalDownloadsCollectionUri(): Uri = EXTERNAL_DOWNLOADS_CONTENT_URI.toUri()
 
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private fun collectionUriForRelativePath(relativePath: String): Uri {
+        val topLevel = relativePath
+            .trim('/')
+            .substringBefore('/')
+            .lowercase()
+        return when (topLevel) {
+            "download", "downloads" -> externalDownloadsCollectionUri()
+            "movies" -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+            "music", "audiobooks", "podcasts", "ringtones" -> MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+            "pictures", "dcim" -> MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+            else -> MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        }
+    }
+
     private fun configuredRootFolderName(): String {
         return normalizeDownloadsRootSetting(latestSettings.downloadsRootFolderName)
+    }
+
+    private fun configuredPublicRootRelativePath(): String {
+        return normalizeExternalStoragePath(latestSettings.downloadsRootPublicPath).ifBlank {
+            buildDefaultPublicRootPath(latestSettings.downloadsRootFolderName)
+        }
     }
 
     private fun resolveSubfolderForCategory(category: MediaFolderCategory): String? {
@@ -630,6 +681,10 @@ class FileUtils @Inject constructor(
         } else {
             File(rootDir, subDirectoryName)
         }
+    }
+
+    private fun buildDefaultPublicRootPath(rootFolderName: String): String {
+        return "Download/${normalizeDownloadsRootSetting(rootFolderName)}"
     }
 
     /**
@@ -766,6 +821,28 @@ private fun normalizeRelativeDownloadsPath(
                 .trim()
                 .replace(Regex("""[:*?"<>|]"""), "_")
                 .trim('.', ' ')
+        }
+
+        private fun extractRelativeExternalStoragePath(documentId: String): String? {
+            val normalized = documentId
+                .removePrefix("raw:")
+                .substringAfter(':', documentId.removePrefix("raw:"))
+                .replace('\\', '/')
+                .trim('/')
+            if (normalized.isBlank()) return null
+
+            val segments = normalized.split('/').filter { it.isNotBlank() }
+            val publicSegments = segments.dropWhile { segment ->
+                segment.equals("storage", ignoreCase = true) ||
+                    segment.equals("emulated", ignoreCase = true) ||
+                    segment == "0" ||
+                    segment.equals("primary", ignoreCase = true)
+            }
+            return normalizeRelativeDownloadsPath(
+                raw = publicSegments.joinToString("/"),
+                fallback = null,
+                allowBlank = false,
+            ).ifBlank { null }
         }
 
         private fun extractRelativeDownloadsPath(documentId: String): String? {

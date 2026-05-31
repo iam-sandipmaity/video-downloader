@@ -104,6 +104,7 @@ data class FormatUiState(
     val outputTemplate: String = "%(title)s [%(id)s].%(ext)s",
     val audioOutputTemplate: String = "%(title)s [%(id)s].%(ext)s",
     val downloadsRootFolderName: String = "LocalDownloader",
+    val downloadsRootPublicPath: String = "",
     val videoSubfolderName: String = "Videos",
     val audioSubfolderName: String = "Audio",
     val otherSubfolderName: String = "Files",

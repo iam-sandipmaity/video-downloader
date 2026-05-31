@@ -48,6 +48,7 @@ fun StorageSettingsScreen(
     mediaErrorMessage: String? = null,
     onDismissMediaLibraryMessage: () -> Unit = {},
     onDownloadsRootFolderNameChanged: (String) -> Unit,
+    onDownloadsRootPublicPathChanged: (String) -> Unit,
     onVideoSubfolderNameChanged: (String) -> Unit,
     onAudioSubfolderNameChanged: (String) -> Unit,
     onOtherSubfolderNameChanged: (String) -> Unit,
@@ -152,17 +153,23 @@ fun StorageSettingsScreen(
                 FolderPreferenceRow(
                     title = stringResource(R.string.storage_root_title),
                     subtitle = stringResource(R.string.storage_root_subtitle),
-                    value = uiState.downloadsRootFolderName.folderPreview(
-                        stringResource(R.string.storage_default_root),
+                    value = uiState.downloadsRootDisplayPath(
+                        defaultLabel = stringResource(R.string.storage_default_root),
                     ),
                     onEditClick = {
                         textDialog = SettingTextDialogState(
                             title = storageRootTitle,
-                            value = uiState.downloadsRootFolderName,
+                            value = uiState.downloadsRootPublicPath.ifBlank { uiState.downloadsRootFolderName },
                             label = storageFolderLabelRoot,
                             supporting = storageRootSupporting,
                             confirmLabel = commonSaveLabel,
-                            onConfirm = onDownloadsRootFolderNameChanged,
+                            onConfirm = { value ->
+                                if (value.isPublicStorageRootPath()) {
+                                    onDownloadsRootPublicPathChanged(value)
+                                } else {
+                                    onDownloadsRootFolderNameChanged(value)
+                                }
+                            },
                         )
                     },
                     onBrowseClick = onBrowseDownloadsRootFolder,
@@ -354,6 +361,32 @@ fun StorageSettingsScreen(
             }
         }
     }
+}
+
+private fun FormatUiState.downloadsRootDisplayPath(defaultLabel: String): String {
+    return downloadsRootPublicPath
+        .ifBlank { "Download/${downloadsRootFolderName.folderPreview(defaultLabel)}" }
+        .folderPreview(defaultLabel)
+}
+
+private fun String.isPublicStorageRootPath(): Boolean {
+    val firstSegment = trim()
+        .replace('\\', '/')
+        .trim('/')
+        .substringBefore('/')
+        .lowercase()
+    return firstSegment in setOf(
+        "download",
+        "downloads",
+        "documents",
+        "movies",
+        "music",
+        "pictures",
+        "dcim",
+        "audiobooks",
+        "podcasts",
+        "ringtones",
+    )
 }
 
 @Composable

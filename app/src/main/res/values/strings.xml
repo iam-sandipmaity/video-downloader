@@ -728,18 +728,18 @@
     <string name="notifications_music_subtitle">Shown automatically during audio playback.</string>
 
     <string name="storage_root_title">Downloads root</string>
-    <string name="storage_root_subtitle">Type a folder path under Downloads or browse to a subfolder you want the app to use as its main root.</string>
-    <string name="storage_folder_label_root">Folder path under Downloads</string>
-    <string name="storage_root_supporting">Examples: LocalDownloader or Media/LocalDownloader</string>
+    <string name="storage_root_subtitle">Browse to a shared-storage folder, including folders outside Downloads, for the app root.</string>
+    <string name="storage_folder_label_root">Storage root path</string>
+    <string name="storage_root_supporting">Examples: LocalDownloader, Download/LocalDownloader, or Movies/LocalDownloader</string>
     <string name="storage_default_root">Default root</string>
     <string name="storage_downloads_root">Downloads root</string>
     <string name="storage_video_title">Video folder</string>
-    <string name="storage_video_subtitle">Type a subfolder path or browse to a folder inside the current downloads root for videos.</string>
+    <string name="storage_video_subtitle">Type a subfolder path or browse to a folder inside the current storage root for videos.</string>
     <string name="storage_audio_title">Audio folder</string>
-    <string name="storage_audio_subtitle">Type a subfolder path or browse to a folder inside the current downloads root for audio.</string>
+    <string name="storage_audio_subtitle">Type a subfolder path or browse to a folder inside the current storage root for audio.</string>
     <string name="storage_other_title">Other files folder</string>
-    <string name="storage_other_subtitle">Type a subfolder path or browse to a folder inside the current downloads root for anything else.</string>
-    <string name="storage_folder_label_inside_root">Folder path inside the downloads root</string>
+    <string name="storage_other_subtitle">Type a subfolder path or browse to a folder inside the current storage root for anything else.</string>
+    <string name="storage_folder_label_inside_root">Folder path inside the storage root</string>
     <string name="storage_video_supporting">Examples: Videos or Media/Videos. Leave blank to save videos directly in the downloads root.</string>
     <string name="storage_audio_supporting">Examples: Audio or Music/Tracks. Leave blank to save audio directly in the downloads root.</string>
     <string name="storage_other_supporting">Examples: Files or Archives/Misc. Leave blank to save these files directly in the downloads root.</string>
