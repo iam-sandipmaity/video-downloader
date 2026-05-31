@@ -159,13 +159,36 @@ fun UpdatesScreen(
                     onClick = null,
                 )
                 DividerInset()
-                UpdateToggleRow(
-                    icon = Icons.Outlined.Settings,
-                    title = stringResource(R.string.updates_beta_releases),
-                    subtitle = stringResource(R.string.updates_app_beta_subtitle),
-                    checked = uiState.preferences.includePrereleaseAppReleases,
-                    onCheckedChange = onIncludePrereleaseAppReleasesChanged,
+                UpdateValueRow(
+                    icon = Icons.Outlined.Info,
+                    title = "App release channel",
+                    subtitle = if (BuildConfig.APP_RELEASE_CHANNEL.equals("nightly", ignoreCase = true)) {
+                        "Nightly builds only check the rolling nightly release tag."
+                    } else {
+                        "Stable builds ignore nightly APK assets even when prerelease checks are enabled."
+                    },
+                    value = BuildConfig.APP_RELEASE_CHANNEL,
+                    onClick = null,
                 )
+                if (BuildConfig.APP_RELEASE_CHANNEL.equals("nightly", ignoreCase = true)) {
+                    DividerInset()
+                    UpdateValueRow(
+                        icon = Icons.Outlined.Settings,
+                        title = "Prerelease checks",
+                        subtitle = "Locked to nightly so stable and nightly packages cannot cross-update.",
+                        value = "nightly only",
+                        onClick = null,
+                    )
+                } else {
+                    DividerInset()
+                    UpdateToggleRow(
+                        icon = Icons.Outlined.Settings,
+                        title = stringResource(R.string.updates_beta_releases),
+                        subtitle = stringResource(R.string.updates_app_beta_subtitle),
+                        checked = uiState.preferences.includePrereleaseAppReleases,
+                        onCheckedChange = onIncludePrereleaseAppReleasesChanged,
+                    )
+                }
                 DividerInset()
                 UpdateActionRow(
                     icon = Icons.Outlined.Refresh,

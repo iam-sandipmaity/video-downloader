@@ -86,6 +86,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.localdownloader.BuildConfig
 import com.localdownloader.R
 import com.localdownloader.downloader.isAutomaticContainerSelection
 import com.localdownloader.downloader.isChoiceCompatibleWithRequestedContainer
@@ -157,6 +158,8 @@ fun BrowserScreen(
     onOpenYoutubeAccess: () -> Unit,
     onOpenCookies: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenDownloadSettings: () -> Unit,
+    onOpenStorageSettings: () -> Unit,
     onOpenHelp: () -> Unit,
     onDismissDownloadSetupNotice: () -> Unit,
     onDismissMessage: () -> Unit,
@@ -483,6 +486,15 @@ fun BrowserScreen(
                     onDismissDownloadSetupNotice()
                     onOpenYoutubeAccess()
                 },
+                onOpenDownloadSettings = {
+                    onDismissDownloadSetupNotice()
+                    onOpenDownloadSettings()
+                },
+                onOpenStorageSettings = {
+                    onDismissDownloadSetupNotice()
+                    onOpenStorageSettings()
+                },
+                isNightlyBuild = BuildConfig.APP_RELEASE_CHANNEL.equals("nightly", ignoreCase = true),
                 onContinueWithoutCookies = onDismissDownloadSetupNotice,
             )
         }
@@ -975,6 +987,9 @@ private fun DownloadSetupOnboardingSheet(
     onSetUpNow: () -> Unit,
     onOpenCookies: () -> Unit,
     onOpenYoutubeAccess: () -> Unit,
+    onOpenDownloadSettings: () -> Unit,
+    onOpenStorageSettings: () -> Unit,
+    isNightlyBuild: Boolean,
     onContinueWithoutCookies: () -> Unit,
 ) {
     Column(
@@ -1035,6 +1050,13 @@ private fun DownloadSetupOnboardingSheet(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.88f),
                     )
+                    if (isNightlyBuild) {
+                        Text(
+                            text = "This nightly build checks the rolling nightly app release separately from stable.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.88f),
+                        )
+                    }
                 }
             }
         }
@@ -1058,6 +1080,36 @@ private fun DownloadSetupOnboardingSheet(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                Button(
+                    onClick = onOpenStorageSettings,
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(vertical = 14.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Settings,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text(
+                        text = "Choose download folders",
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
+                Button(
+                    onClick = onOpenDownloadSettings,
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(vertical = 14.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Settings,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text(
+                        text = "Choose default formats",
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
                 Button(
                     onClick = onOpenCookies,
                     modifier = Modifier.fillMaxWidth(),

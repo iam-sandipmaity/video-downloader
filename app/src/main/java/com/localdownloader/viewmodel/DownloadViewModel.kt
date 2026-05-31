@@ -204,6 +204,33 @@ class DownloadViewModel @Inject constructor(
         }
     }
 
+    fun moveQueuedTaskEarlier(taskId: String) {
+        moveQueuedTask(taskId = taskId, earlier = true)
+    }
+
+    fun moveQueuedTaskLater(taskId: String) {
+        moveQueuedTask(taskId = taskId, earlier = false)
+    }
+
+    private fun moveQueuedTask(taskId: String, earlier: Boolean) {
+        logger.i("DownloadViewModel", "queue reorder requested taskId=$taskId earlier=$earlier")
+        viewModelScope.launch {
+            repository.moveQueuedDownload(taskId, earlier)
+                .onSuccess {
+                    _uiState.update { state ->
+                        state.copy(
+                            infoMessage = if (earlier) "Moved item earlier in the queue." else "Moved item later in the queue.",
+                            errorMessage = null,
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    logger.e("DownloadViewModel", "queue reorder failed taskId=$taskId earlier=$earlier", error)
+                    _uiState.update { state -> state.copy(errorMessage = error.message) }
+                }
+        }
+    }
+
     fun renameDownloadedFile(taskId: String, newName: String) {
         logger.i("DownloadViewModel", "rename requested taskId=$taskId")
         viewModelScope.launch {

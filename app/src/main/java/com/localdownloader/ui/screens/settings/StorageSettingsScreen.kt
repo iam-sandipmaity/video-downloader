@@ -41,6 +41,8 @@ import com.localdownloader.viewmodel.FormatUiState
 fun StorageSettingsScreen(
     uiState: FormatUiState,
     savedItemsCount: Int,
+    duplicateSavedItemsCount: Int,
+    availableStorageBytes: Long,
     modifier: Modifier = Modifier,
     mediaInfoMessage: String? = null,
     mediaErrorMessage: String? = null,
@@ -259,6 +261,22 @@ fun StorageSettingsScreen(
                     title = stringResource(R.string.storage_saved_items_title),
                     subtitle = stringResource(R.string.storage_saved_items_subtitle),
                     value = savedItemsCount.toString(),
+                    onClick = null,
+                )
+                PreferenceDivider()
+                PreferenceRow(
+                    icon = Icons.Rounded.LibraryBooks,
+                    title = "Possible duplicates",
+                    subtitle = "Saved files with the same name or source are grouped here before cleanup.",
+                    value = duplicateSavedItemsCount.toString(),
+                    onClick = null,
+                )
+                PreferenceDivider()
+                PreferenceRow(
+                    icon = Icons.Rounded.Storage,
+                    title = "Available storage",
+                    subtitle = "Check free device storage before queueing large downloads.",
+                    value = formatFileSize(availableStorageBytes),
                     onClick = null,
                 )
                 PreferenceDivider()

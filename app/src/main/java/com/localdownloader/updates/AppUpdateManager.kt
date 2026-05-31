@@ -64,6 +64,7 @@ class AppUpdateManager @Inject constructor(
     ): PreparedAppUpdate = withContext(Dispatchers.IO) {
         val downloadUrl = check.downloadUrl ?: throw IOException("This release does not expose an installable APK asset")
         val assetName = check.assetName ?: "app-update.apk"
+        validateSelectedAssetChannel(assetName)
         val updatesDir = File(context.cacheDir, "app-updates").apply {
             mkdirs()
             listFiles()?.forEach { if (it.isFile) it.delete() }
@@ -143,6 +144,16 @@ class AppUpdateManager @Inject constructor(
 
     private fun isNightlyChannel(): Boolean {
         return BuildConfig.APP_RELEASE_CHANNEL.equals(NIGHTLY_TAG, ignoreCase = true)
+    }
+
+    private fun validateSelectedAssetChannel(assetName: String) {
+        val nightlyAsset = isNightlyAsset(assetName)
+        if (isNightlyChannel() && !nightlyAsset) {
+            throw IOException("Blocked update: nightly builds can only install APK assets from the nightly release channel.")
+        }
+        if (!isNightlyChannel() && nightlyAsset) {
+            throw IOException("Blocked update: stable builds cannot install nightly APK assets.")
+        }
     }
 
     private companion object {

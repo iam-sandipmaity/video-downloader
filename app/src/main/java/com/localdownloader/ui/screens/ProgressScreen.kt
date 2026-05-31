@@ -33,6 +33,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Cancel
 import androidx.compose.material.icons.outlined.CheckCircle
@@ -67,8 +69,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -87,6 +91,7 @@ import com.localdownloader.ui.support.shareAppLogs
 import com.localdownloader.ui.support.sourceHostLabel
 import com.localdownloader.ui.support.sourceSiteVisualForUrl
 import com.localdownloader.viewmodel.DownloadUiState
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -100,6 +105,8 @@ fun ProgressScreen(
     onResumeTasks: (List<String>) -> Unit,
     onRetryTasks: (List<String>) -> Unit,
     onCancelTasks: (List<String>) -> Unit,
+    onMoveQueuedEarlier: (String) -> Unit,
+    onMoveQueuedLater: (String) -> Unit,
     onOpenCookies: () -> Unit,
     onOpenYoutubeAccess: () -> Unit,
     onToggleDebug: (String) -> Unit,
@@ -145,7 +152,15 @@ fun ProgressScreen(
     }
     var selectedFilter by rememberSaveable { mutableStateOf(initialFilter) }
     val currentFilter = runCatching { ProgressFilter.valueOf(selectedFilter) }.getOrDefault(ProgressFilter.All)
-    val filteredTasks = allTasks.filter { currentFilter.matches(it.status) }
+    val filteredTasks = allTasks
+        .filter { currentFilter.matches(it.status) }
+        .let { tasks ->
+            if (currentFilter == ProgressFilter.Queue) {
+                tasks.sortedBy { it.createdAtEpochMs }
+            } else {
+                tasks
+            }
+        }
     var showTopMenu by remember { mutableStateOf(false) }
 
     val content: @Composable (PaddingValues) -> Unit = { innerPadding ->
@@ -327,6 +342,8 @@ fun ProgressScreen(
                                 onResume = onResume,
                                 onRetry = onRetry,
                                 onCancel = onCancel,
+                                onMoveQueuedEarlier = onMoveQueuedEarlier,
+                                onMoveQueuedLater = onMoveQueuedLater,
                                 onOpenCookies = onOpenCookies,
                                 onOpenYoutubeAccess = onOpenYoutubeAccess,
                                 expandedDebug = task.id in uiState.expandedDebugTaskIds,
@@ -340,6 +357,8 @@ fun ProgressScreen(
                                 onResume = onResume,
                                 onRetry = onRetry,
                                 onCancel = onCancel,
+                                onMoveQueuedEarlier = onMoveQueuedEarlier,
+                                onMoveQueuedLater = onMoveQueuedLater,
                                 onOpenCookies = onOpenCookies,
                                 onOpenYoutubeAccess = onOpenYoutubeAccess,
                                 expandedDebug = task.id in uiState.expandedDebugTaskIds,
@@ -456,6 +475,8 @@ fun ProgressScreen(
                         onResume = onResume,
                         onRetry = onRetry,
                         onCancel = onCancel,
+                        onMoveQueuedEarlier = onMoveQueuedEarlier,
+                        onMoveQueuedLater = onMoveQueuedLater,
                         onOpenCookies = onOpenCookies,
                         onOpenYoutubeAccess = onOpenYoutubeAccess,
                         expandedDebug = task.id in uiState.expandedDebugTaskIds,
@@ -640,6 +661,8 @@ private fun QueueTaskRow(
     onResume: (String) -> Unit,
     onRetry: (String) -> Unit,
     onCancel: (String) -> Unit,
+    onMoveQueuedEarlier: (String) -> Unit,
+    onMoveQueuedLater: (String) -> Unit,
     onOpenCookies: () -> Unit,
     onOpenYoutubeAccess: () -> Unit,
     expandedDebug: Boolean,
@@ -653,6 +676,8 @@ private fun QueueTaskRow(
         onResume = onResume,
         onRetry = onRetry,
         onCancel = onCancel,
+        onMoveQueuedEarlier = onMoveQueuedEarlier,
+        onMoveQueuedLater = onMoveQueuedLater,
         onOpenCookies = onOpenCookies,
         onOpenYoutubeAccess = onOpenYoutubeAccess,
         expandedDebug = expandedDebug,
@@ -779,6 +804,8 @@ private fun ProgressTaskCard(
     onResume: (String) -> Unit,
     onRetry: (String) -> Unit,
     onCancel: (String) -> Unit,
+    onMoveQueuedEarlier: (String) -> Unit,
+    onMoveQueuedLater: (String) -> Unit,
     onOpenCookies: () -> Unit,
     onOpenYoutubeAccess: () -> Unit,
     expandedDebug: Boolean,
@@ -792,6 +819,8 @@ private fun ProgressTaskCard(
         onResume = onResume,
         onRetry = onRetry,
         onCancel = onCancel,
+        onMoveQueuedEarlier = onMoveQueuedEarlier,
+        onMoveQueuedLater = onMoveQueuedLater,
         onOpenCookies = onOpenCookies,
         onOpenYoutubeAccess = onOpenYoutubeAccess,
         expandedDebug = expandedDebug,
@@ -815,6 +844,8 @@ private fun DownloadTaskHeroCard(
     onResume: (String) -> Unit,
     onRetry: (String) -> Unit,
     onCancel: (String) -> Unit,
+    onMoveQueuedEarlier: (String) -> Unit,
+    onMoveQueuedLater: (String) -> Unit,
     onOpenCookies: () -> Unit,
     onOpenYoutubeAccess: () -> Unit,
     expandedDebug: Boolean,
@@ -857,18 +888,40 @@ private fun DownloadTaskHeroCard(
         )
     }
     val actions = when (task.status) {
-        DownloadStatus.RUNNING, DownloadStatus.QUEUED -> listOf(
-            DownloadTaskAction(
-                icon = Icons.Outlined.PauseCircle,
-                contentDescription = pauseActionLabel,
-                onClick = { onPause(task.id) },
-            ),
-            DownloadTaskAction(
-                icon = Icons.Outlined.Cancel,
-                contentDescription = cancelActionLabel,
-                onClick = { onCancel(task.id) },
-            ),
-        )
+        DownloadStatus.RUNNING,
+        DownloadStatus.QUEUED,
+        -> buildList {
+            if (task.status == DownloadStatus.QUEUED && task.activeWorkId.isNullOrBlank()) {
+                add(
+                    DownloadTaskAction(
+                        icon = Icons.Filled.KeyboardArrowUp,
+                        contentDescription = "Move earlier",
+                        onClick = { onMoveQueuedEarlier(task.id) },
+                    ),
+                )
+                add(
+                    DownloadTaskAction(
+                        icon = Icons.Filled.KeyboardArrowDown,
+                        contentDescription = "Move later",
+                        onClick = { onMoveQueuedLater(task.id) },
+                    ),
+                )
+            }
+            add(
+                DownloadTaskAction(
+                    icon = Icons.Outlined.PauseCircle,
+                    contentDescription = pauseActionLabel,
+                    onClick = { onPause(task.id) },
+                ),
+            )
+            add(
+                DownloadTaskAction(
+                    icon = Icons.Outlined.Cancel,
+                    contentDescription = cancelActionLabel,
+                    onClick = { onCancel(task.id) },
+                ),
+            )
+        }
 
         DownloadStatus.PAUSED -> listOf(
             DownloadTaskAction(
@@ -1393,6 +1446,9 @@ private fun TaskDiagnosticsCard(
 ) {
     val diagnostics = buildDiagnosticEntries(task, currentTimeMs)
     if (diagnostics.isEmpty()) return
+    val clipboardManager = LocalClipboardManager.current
+    val outputPath = task.outputPath?.takeIf { it.isNotBlank() }
+    val folderPath = outputPath?.let { File(it).parent }
 
     Surface(
         shape = RoundedCornerShape(22.dp),
@@ -1420,6 +1476,25 @@ private fun TaskDiagnosticsCard(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
+                }
+            }
+            if (!outputPath.isNullOrBlank()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    RecoveryActionChip(
+                        label = "Copy file path",
+                        onClick = { clipboardManager.setText(AnnotatedString(outputPath)) },
+                    )
+                    if (!folderPath.isNullOrBlank()) {
+                        RecoveryActionChip(
+                            label = "Copy folder path",
+                            onClick = { clipboardManager.setText(AnnotatedString(folderPath)) },
+                        )
+                    }
                 }
             }
         }
@@ -1737,6 +1812,19 @@ internal fun buildDiagnosticEntries(
         add(TaskDiagnosticEntry(label = "Task ID", value = task.id))
         sourceHostLabel(task.url)?.let { add(TaskDiagnosticEntry(label = "Source", value = it)) }
         add(TaskDiagnosticEntry(label = "Status", value = task.status.name))
+        add(TaskDiagnosticEntry(label = "Progress", value = "${task.progressPercent.coerceIn(0, 100)}%"))
+        task.speed?.takeIf { it.isNotBlank() }?.let {
+            add(TaskDiagnosticEntry(label = "Speed", value = it))
+        }
+        task.eta?.takeIf { it.isNotBlank() }?.let {
+            add(TaskDiagnosticEntry(label = "ETA", value = it))
+        }
+        listOfNotNull(
+            task.downloadedStr?.takeIf { it.isNotBlank() },
+            task.totalSizeStr?.takeIf { it.isNotBlank() }?.let { "of $it" },
+        ).joinToString(" ").takeIf { it.isNotBlank() }?.let {
+            add(TaskDiagnosticEntry(label = "Transferred", value = it))
+        }
         add(
             TaskDiagnosticEntry(
                 label = "Last updated",
