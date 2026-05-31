@@ -16,11 +16,20 @@
   <a href="https://github.com/iam-sandipmaity/video-downloader/actions/workflows/master.yml">
     <img alt="CI" src="https://img.shields.io/github/actions/workflow/status/iam-sandipmaity/video-downloader/master.yml?label=ci&logo=github" />
   </a>
-  <a href="https://github.com/iam-sandipmaity/video-downloader/releases">
-    <img alt="Release" src="https://img.shields.io/github/v/release/iam-sandipmaity/video-downloader?include_prereleases&label=release" />
+  <a href="https://github.com/iam-sandipmaity/video-downloader/releases/latest">
+    <img alt="GitHub stable release" src="https://img.shields.io/github/v/release/iam-sandipmaity/video-downloader?color=black&label=Stable&logo=github" />
+  </a>
+  <a href="https://github.com/iam-sandipmaity/video-downloader/releases/tag/nightly">
+    <img alt="GitHub nightly release" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fiam-sandipmaity%2Fvideo-downloader%2Freleases%2Ftags%2Fnightly&query=%24.name&label=Nightly&logo=github&color=orange" />
+  </a>
+  <a href="CHANGELOG.md">
+    <img alt="Changelog" src="https://img.shields.io/badge/Changelog-lightgray?style=flat&color=gray&logo=keep-a-changelog" />
   </a>
   <a href="https://github.com/iam-sandipmaity/video-downloader/releases">
-    <img alt="Downloads" src="https://img.shields.io/github/downloads/iam-sandipmaity/video-downloader/total?label=downloads" />
+    <img alt="GitHub all releases downloads" src="https://img.shields.io/github/downloads/iam-sandipmaity/video-downloader/total?label=Downloads&logo=github" />
+  </a>
+  <a href="https://github.com/iam-sandipmaity/video-downloader/stargazers">
+    <img alt="GitHub stars" src="https://img.shields.io/github/stars/iam-sandipmaity/video-downloader?style=flat&label=Stars&logo=github&color=%23f8e444" />
   </a>
   <a href="https://hosted.weblate.org/engage/local-video-downloader/">
     <img alt="Translation status" src="https://hosted.weblate.org/widgets/local-video-downloader/-/android-app-strings/svg-badge.svg" />
@@ -51,7 +60,9 @@
 
 | Obtainium | GitHub |
 | --- | --- |
-| <a href="https://apps.obtainium.imranr.dev/redirect.html?r=obtainium://add/https://github.com/iam-sandipmaity/video-downloader"><img src="https://github.com/ImranR98/Obtainium/blob/main/assets/graphics/badge_obtainium.png?raw=true" alt="Get it on Obtainium" width="250" /></a> | <a href="https://github.com/iam-sandipmaity/video-downloader/releases"><img src="https://raw.githubusercontent.com/rubenpgrady/get-it-on-github/refs/heads/main/get-it-on-github.png" alt="Get it on GitHub" width="250" /></a> |
+| <a href="https://apps.obtainium.imranr.dev/redirect.html?r=obtainium://add/https://github.com/iam-sandipmaity/video-downloader/releases/latest"><img src="https://github.com/ImranR98/Obtainium/blob/main/assets/graphics/badge_obtainium.png?raw=true" alt="Get the latest stable release on Obtainium" width="250" /></a> | <a href="https://github.com/iam-sandipmaity/video-downloader/releases/latest"><img src="https://raw.githubusercontent.com/rubenpgrady/get-it-on-github/refs/heads/main/get-it-on-github.png" alt="Get the latest stable release on GitHub" width="250" /></a> |
+
+Stable downloads use GitHub's latest release endpoint, which tracks the newest non-prerelease release and ignores the rolling `nightly` prerelease tag. In Obtainium, keep prereleases disabled for the stable app.
 
 ### Nightly / Debug Build
 
@@ -59,13 +70,15 @@
 
 <p align="center">
   <a href="https://github.com/iam-sandipmaity/video-downloader/releases/tag/nightly">
-    <img src="https://raw.githubusercontent.com/rubenpgrady/get-it-on-github/refs/heads/main/get-it-on-github.png" alt="Get latest nightly debug build" width="250" />
+    <img src="https://raw.githubusercontent.com/rubenpgrady/get-it-on-github/refs/heads/main/get-it-on-github.png" alt="Get the latest nightly release tag on GitHub" width="250" />
   </a>
 </p>
 
 <p align="center">
-  <strong>Latest nightly debug build artifact</strong> - always points to the newest successful <code>main</code> build
+  <strong>Rolling nightly release tag</strong> - always points to the newest successful <code>main</code> debug build
 </p>
+
+Nightly downloads use the rolling `nightly` release tag, which is separate from stable releases.
 
 ### Requirements
 
