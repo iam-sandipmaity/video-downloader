@@ -578,7 +578,7 @@ class DownloadRepositoryImpl @Inject constructor(
 
             val missingTasks = completedTasks.filter { task ->
                 val outputPath = task.outputPath?.takeIf { it.isNotBlank() } ?: return@filter true
-                !File(fileUtils.normalizeLibraryOutputPath(outputPath)).exists()
+                !fileUtils.managedFileExists(fileUtils.normalizeLibraryOutputPath(outputPath))
             }
 
             if (shouldRemoveMissing && missingTasks.isNotEmpty()) {

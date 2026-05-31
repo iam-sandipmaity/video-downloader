@@ -144,7 +144,9 @@ fun DownloaderApp(
     val mediaToolsState by mediaToolsViewModel.uiState.collectAsStateWithLifecycle()
     val audioPlaybackState by audioPlaybackViewModel.uiState.collectAsStateWithLifecycle()
     val updatesState by updatesViewModel.uiState.collectAsStateWithLifecycle()
-    val savedMediaItems = remember(downloadState.tasks) { buildVideoLibraryItems(downloadState.tasks) }
+    val savedMediaItems = remember(downloadState.tasks) {
+        buildVideoLibraryItems(downloadState.tasks, fileUtils::managedFileExists)
+    }
     val savedVideoItems = remember(savedMediaItems) {
         savedMediaItems.filter { it.exists && it.mediaKind == MediaKind.VIDEO }
     }
@@ -516,6 +518,7 @@ fun DownloaderApp(
                     onDeleteCompletedFromDevice = downloadViewModel::deleteAllCompletedMedia,
                     onDismissMessage = downloadViewModel::dismissMessage,
                     onOpenQueue = { navController.navigate(Routes.DownloadQueue) },
+                    fileExists = fileUtils::managedFileExists,
                 )
             }
             composable(Routes.DownloadQueue) {
@@ -877,6 +880,7 @@ fun DownloaderApp(
                     onStopAudioPlayback = audioPlaybackViewModel::stopPlayback,
                     onDismissAudioError = audioPlaybackViewModel::dismissError,
                     onBack = { navController.popBackStack() },
+                    fileExists = fileUtils::managedFileExists,
                 )
             }
             composable(

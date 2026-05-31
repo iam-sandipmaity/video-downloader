@@ -11,13 +11,16 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
 
-fun buildVideoLibraryItems(tasks: List<DownloadTask>): List<VideoLibraryItem> {
+fun buildVideoLibraryItems(
+    tasks: List<DownloadTask>,
+    fileExistsResolver: (String) -> Boolean = { path -> File(path).exists() },
+): List<VideoLibraryItem> {
     return tasks
         .filter { it.status == DownloadStatus.COMPLETED }
         .sortedByDescending { it.updatedAtEpochMs }
         .map { task ->
             val file = task.outputPath?.let(::File)
-            val fileExists = file?.exists() == true
+            val fileExists = task.outputPath?.let(fileExistsResolver) == true
             val resolvedSize = file
                 ?.takeIf { fileExists }
                 ?.length()

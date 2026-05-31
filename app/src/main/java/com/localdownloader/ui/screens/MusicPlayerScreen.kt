@@ -92,9 +92,10 @@ fun MusicPlayerScreen(
     onDismissAudioError: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    fileExists: (String) -> Boolean = { path -> java.io.File(path).exists() },
 ) {
-    val audioItems = remember(uiState.tasks) {
-        buildVideoLibraryItems(uiState.tasks)
+    val audioItems = remember(uiState.tasks, fileExists) {
+        buildVideoLibraryItems(uiState.tasks, fileExists)
             .filter { it.exists && it.mediaKind == MediaKind.AUDIO }
     }
     val audioQueueItems = remember(audioItems) { audioItems.toAudioQueueItems() }
