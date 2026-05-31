@@ -937,12 +937,13 @@ class FormatViewModel @Inject constructor(
             state.copy(
                 downloadsRootFolderName = fileUtils.normalizeDownloadsRootSetting(value),
                 downloadsRootPublicPath = "",
+                downloadsRootTreeUri = "",
             )
         }
         persistSettingsSilently()
     }
 
-    fun onDownloadsRootPublicPathChanged(value: String) {
+    fun onDownloadsRootPublicPathChanged(value: String, treeUri: String = "") {
         val normalized = fileUtils.normalizeExternalStoragePath(value)
         _uiState.update { state ->
             state.copy(
@@ -950,6 +951,7 @@ class FormatViewModel @Inject constructor(
                     AppSettings().downloadsRootFolderName
                 },
                 downloadsRootPublicPath = normalized,
+                downloadsRootTreeUri = treeUri,
             )
         }
         persistSettingsSilently()
@@ -1428,6 +1430,7 @@ class FormatViewModel @Inject constructor(
                 contrastMode = defaults.contrastMode,
                 downloadsRootFolderName = defaults.downloadsRootFolderName,
                 downloadsRootPublicPath = defaults.downloadsRootPublicPath,
+                downloadsRootTreeUri = defaults.downloadsRootTreeUri,
                 videoSubfolderName = defaults.videoSubfolderName,
                 audioSubfolderName = defaults.audioSubfolderName,
                 otherSubfolderName = defaults.otherSubfolderName,
@@ -1479,6 +1482,7 @@ class FormatViewModel @Inject constructor(
                 defaultAudioFormat = state.selectedAudioFormat,
                 downloadsRootFolderName = state.downloadsRootFolderName,
                 downloadsRootPublicPath = state.downloadsRootPublicPath,
+                downloadsRootTreeUri = state.downloadsRootTreeUri,
                 videoSubfolderName = state.videoSubfolderName,
                 audioSubfolderName = state.audioSubfolderName,
                 otherSubfolderName = state.otherSubfolderName,
@@ -2697,6 +2701,7 @@ class FormatViewModel @Inject constructor(
                 audioOutputTemplate = settings.defaultAudioOutputTemplate,
                 downloadsRootFolderName = settings.downloadsRootFolderName,
                 downloadsRootPublicPath = settings.downloadsRootPublicPath,
+                downloadsRootTreeUri = settings.downloadsRootTreeUri,
                 videoSubfolderName = settings.videoSubfolderName,
                 audioSubfolderName = settings.audioSubfolderName,
                 otherSubfolderName = settings.otherSubfolderName,

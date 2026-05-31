@@ -179,7 +179,10 @@ fun DownloaderApp(
                         isError = true,
                     )
                 } else {
-                    formatViewModel.onDownloadsRootPublicPathChanged(relativePublicPath)
+                    formatViewModel.onDownloadsRootPublicPathChanged(
+                        value = relativePublicPath,
+                        treeUri = uri.toString(),
+                    )
                     formatViewModel.showSettingsMessage("Downloads root updated.")
                 }
             }

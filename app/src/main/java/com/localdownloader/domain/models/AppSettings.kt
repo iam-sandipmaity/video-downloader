@@ -16,6 +16,7 @@ data class AppSettings(
     val defaultAudioFormat: String = "mp3",
     val downloadsRootFolderName: String = "LocalDownloader",
     val downloadsRootPublicPath: String = "",
+    val downloadsRootTreeUri: String = "",
     val videoSubfolderName: String = "Videos",
     val audioSubfolderName: String = "Audio",
     val otherSubfolderName: String = "Files",

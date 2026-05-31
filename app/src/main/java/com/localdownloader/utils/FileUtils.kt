@@ -328,7 +328,7 @@ class FileUtils @Inject constructor(
             val targetUri = context.contentResolver.insert(
                 collectionUriForRelativePath(rootRelativePath),
                 values,
-            ) ?: return null
+            ) ?: throw IllegalStateException("Unable to create public storage item.")
             insertedUri = targetUri
             context.contentResolver.openOutputStream(targetUri)?.use { outputStream ->
                 sourceFile.inputStream().use { inputStream ->
@@ -343,6 +343,11 @@ class FileUtils @Inject constructor(
             insertedUri?.let { uri ->
                 runCatching { context.contentResolver.delete(uri, null, null) }
             }
+            copyToPersistedTreeRoot(
+                sourceFile = sourceFile,
+                relativeParent = relativeParent,
+                requestedFileName = requestedFileName,
+            )?.let { return it }
             try {
                 sourceFile.copyTo(destFile, overwrite = false)
                 triggerMediaScan(Uri.fromFile(destFile))
@@ -351,6 +356,153 @@ class FileUtils @Inject constructor(
                 null
             }
         }
+    }
+
+    private fun copyToPersistedTreeRoot(
+        sourceFile: File,
+        relativeParent: String,
+        requestedFileName: String,
+    ): String? {
+        val treeUri = latestSettings.downloadsRootTreeUri
+            .takeIf { it.isNotBlank() }
+            ?.let { runCatching { it.toUri() }.getOrNull() }
+            ?: return null
+        val rootRelativePath = configuredPublicRootRelativePath()
+        return runCatching {
+            val targetDirUri = ensureTreeSubdirectory(
+                treeUri = treeUri,
+                relativePath = relativeParent,
+            )
+            val displayName = resolveUniqueTreeFileName(
+                parentDocumentUri = targetDirUri,
+                originalName = requestedFileName,
+            )
+            val targetUri = DocumentsContract.createDocument(
+                context.contentResolver,
+                targetDirUri,
+                guessMimeType(displayName),
+                displayName,
+            ) ?: return@runCatching null
+            context.contentResolver.openOutputStream(targetUri)?.use { outputStream ->
+                sourceFile.inputStream().use { inputStream ->
+                    inputStream.copyTo(outputStream)
+                }
+            } ?: return@runCatching null
+            buildPublicFilePath(
+                rootRelativePath = rootRelativePath,
+                relativeParent = relativeParent,
+                displayName = displayName,
+            )
+        }.getOrNull()
+    }
+
+    private fun ensureTreeSubdirectory(
+        treeUri: Uri,
+        relativePath: String,
+    ): Uri {
+        var parentUri = DocumentsContract.buildDocumentUriUsingTree(
+            treeUri,
+            DocumentsContract.getTreeDocumentId(treeUri),
+        )
+        relativePath
+            .split('/', '\\')
+            .map(::sanitizeFolderSegment)
+            .filter { it.isNotBlank() }
+            .forEach { segment ->
+                parentUri = findTreeChild(
+                    treeUri = treeUri,
+                    parentDocumentUri = parentUri,
+                    displayName = segment,
+                    mimeType = DocumentsContract.Document.MIME_TYPE_DIR,
+                ) ?: DocumentsContract.createDocument(
+                    context.contentResolver,
+                    parentUri,
+                    DocumentsContract.Document.MIME_TYPE_DIR,
+                    segment,
+                ) ?: throw IllegalStateException("Unable to create storage folder $segment")
+            }
+        return parentUri
+    }
+
+    private fun resolveUniqueTreeFileName(parentDocumentUri: Uri, originalName: String): String {
+        val existingNames = queryTreeChildNames(parentDocumentUri)
+        if (originalName !in existingNames) return originalName
+
+        val dotIndex = originalName.lastIndexOf('.')
+        val baseName = if (dotIndex > 0) originalName.substring(0, dotIndex) else originalName
+        val extension = if (dotIndex > 0) originalName.substring(dotIndex) else ""
+        var counter = 2
+        while (true) {
+            val candidate = "$baseName ($counter)$extension"
+            if (candidate !in existingNames) return candidate
+            counter += 1
+        }
+    }
+
+    private fun findTreeChild(
+        treeUri: Uri,
+        parentDocumentUri: Uri,
+        displayName: String,
+        mimeType: String,
+    ): Uri? {
+        val parentDocumentId = DocumentsContract.getDocumentId(parentDocumentUri)
+        val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, parentDocumentId)
+        return context.contentResolver.query(
+            childrenUri,
+            arrayOf(
+                DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                DocumentsContract.Document.COLUMN_MIME_TYPE,
+            ),
+            null,
+            null,
+            null,
+        )?.use { cursor ->
+            val idIndex = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
+            val nameIndex = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
+            val mimeIndex = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_MIME_TYPE)
+            while (cursor.moveToNext()) {
+                if (cursor.getString(nameIndex) == displayName && cursor.getString(mimeIndex) == mimeType) {
+                    return@use DocumentsContract.buildDocumentUriUsingTree(treeUri, cursor.getString(idIndex))
+                }
+            }
+            null
+        }
+    }
+
+    private fun queryTreeChildNames(parentDocumentUri: Uri): Set<String> {
+        val treeUri = latestSettings.downloadsRootTreeUri
+            .takeIf { it.isNotBlank() }
+            ?.let { runCatching { it.toUri() }.getOrNull() }
+            ?: return emptySet()
+        val parentDocumentId = DocumentsContract.getDocumentId(parentDocumentUri)
+        val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, parentDocumentId)
+        return context.contentResolver.query(
+            childrenUri,
+            arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME),
+            null,
+            null,
+            null,
+        )?.use { cursor ->
+            val nameIndex = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
+            buildSet {
+                while (cursor.moveToNext()) {
+                    cursor.getString(nameIndex)?.let(::add)
+                }
+            }
+        }.orEmpty()
+    }
+
+    private fun buildPublicFilePath(
+        rootRelativePath: String,
+        relativeParent: String,
+        displayName: String,
+    ): String {
+        val publicStorage = Environment.getExternalStorageDirectory()
+        val relativeFilePath = listOf(rootRelativePath, relativeParent, displayName)
+            .filter { it.isNotBlank() }
+            .joinToString("/")
+        return File(publicStorage, relativeFilePath).absolutePath
     }
 
     fun resolveManagedMediaBundle(path: String): List<File> {
@@ -607,7 +759,6 @@ class FileUtils @Inject constructor(
             ?.replace(File.separatorChar, '/')
             .orEmpty()
         val mediaStoreRelativePath = buildString {
-            append("Download/")
             if (relativePath.isNotBlank()) {
                 append(relativePath.trim('/'))
                 append('/')
