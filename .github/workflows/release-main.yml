@@ -1,6 +1,10 @@
 name: Release Main
 
 on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/release-main.yml"
   workflow_call:
 
 jobs:
