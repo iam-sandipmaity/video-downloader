@@ -4,7 +4,6 @@
     <string name="nav_home">ഹോം</string>
     <string name="nav_downloads">ഡൗൺലോഡുകൾ</string>
     <string name="nav_more">കൂടുതൽ</string>
-
     <string name="common_settings">ക്രമീകരണങ്ങൾ</string>
     <string name="common_help">സഹായം</string>
     <string name="common_clear">ശൂന്യമാക്കുക</string>
@@ -20,7 +19,6 @@
     <string name="common_loading">ലോഡ് ചെയ്യുന്നു…</string>
     <string name="common_unknown_uploader">അറിയാത്ത അപ്‌ലോഡർ</string>
     <string name="common_estimated_size">ഏക. %1$s</string>
-
     <string name="browser_metered_title">Wi‑Fi മാത്രം സജീവമാണ്</string>
     <string name="browser_metered_body">നിങ്ങൾ ഇപ്പോൾ മീറ്റർ ചെയ്ത നെറ്റ്‌വർക്കിലാണ്. Wi‑Fi ലഭിക്കും വരെ ഈ ഡൗൺലോഡ് ക്യൂവിൽ വെക്കുക, അല്ലെങ്കിൽ ഇപ്പോൾ തന്നെ മൊബൈൽ ഡാറ്റ ഡൗൺലോഡുകൾ അനുവദിക്കുക.</string>
     <string name="browser_allow_cellular">മൊബൈൽ ഡാറ്റ അനുവദിക്കുക</string>
@@ -118,7 +116,6 @@
         <item quantity="other">%1$d ഫയലുകൾ തെരഞ്ഞെടുത്തു</item>
     </plurals>
     <string name="browser_selected_count_of_total">%1$d / %2$d തെരഞ്ഞെടുത്തു</string>
-
     <string name="downloads_title">ഡൗൺലോഡുകൾ</string>
     <string name="downloads_empty_help">സേവ് ചെയ്തശേഷം പൂർത്തിയായ ഡൗൺലോഡുകൾ ഇവിടെ കാണിക്കും.</string>
     <string name="downloads_open_bulk_actions">ബൾക്ക് പ്രവർത്തനങ്ങൾ തുറക്കുക</string>
@@ -189,7 +186,6 @@
         <item quantity="one">തിരഞ്ഞെടുത്ത %1$d ഇനം ആപ്പിലും ഉപകരണ സ്റ്റോറേജിലും നിന്ന് സ്ഥിരമായി ഇല്ലാതാക്കണോ?</item>
         <item quantity="other">തിരഞ്ഞെടുത്ത %1$d ഇനങ്ങൾ ആപ്പിലും ഉപകരണ സ്റ്റോറേജിലും നിന്ന് സ്ഥിരമായി ഇല്ലാതാക്കണോ?</item>
     </plurals>
-
     <string name="common_system_default">സിസ്റ്റം ഡീഫോൾട്ട്</string>
     <string name="common_interface_language">ഇന്റർഫേസ് ഭാഷ</string>
     <string name="common_open">തുറക്കുക</string>
@@ -210,7 +206,6 @@
         <item quantity="one">%1$d day</item>
         <item quantity="other">%1$d days</item>
     </plurals>
-
     <string name="more_title">കൂടുതൽ</string>
     <string name="more_queue_title">ഡൗൺലോഡ് ക്യൂ</string>
     <string name="more_queue_subtitle">എന്താണ് തയ്യാറെടുക്കുന്നത്, ഡൗൺലോഡ് ചെയ്യുന്നത്, നിർത്തിയത്, അല്ലെങ്കിൽ അടുത്തതായി കാത്തിരിക്കുന്നത് എന്ന് കാണുക.</string>
@@ -228,7 +223,6 @@
     <string name="more_converter_subtitle">ഡൗൺലോഡ് ചെയ്ത മീഡിയയെ മറ്റൊരു ഫോർമാറ്റിലാക്കുക.</string>
     <string name="more_compressor_title">കംപ്രസർ</string>
     <string name="more_compressor_subtitle">പങ്കിടുന്നതിനോ archive ചെയ്യുന്നതിനുമുമ്പ് ഫയൽ വലുപ്പം കുറയ്ക്കുക.</string>
-
     <string name="settings_title">ക്രമീകരണങ്ങൾ</string>
     <string name="settings_appearance_title">ദൃശ്യഭാവം</string>
     <string name="settings_appearance_subtitle">തീം മോഡ്, ആക്സന്റ് പാലറ്റ്, കോൺട്രാസ്റ്റ്, ഭാഷ.</string>
@@ -257,7 +251,6 @@
     <string name="common_stopped">നിർത്തി</string>
     <string name="common_advanced">അഡ്വാൻസ്ഡ്</string>
     <string name="common_hide_advanced">അഡ്വാൻസ്ഡ് മറയ്ക്കുക</string>
-
     <string name="queue_title">ഡൗൺലോഡ് ക്യൂ</string>
     <string name="queue_progress_title">പുരോഗതി</string>
     <string name="queue_progress_overview">നില അവലോകനം</string>
@@ -289,7 +282,6 @@
     <string name="queue_recovery_stuck">ഈ ഇനം %1$s ആയി അപ്‌ഡേറ്റ് ചെയ്തിട്ടില്ല. സൈറ്റ് സൈൻ-ഇൻ ചെയ്തതോ പ്രദേശത്തോട് പൊരുത്തമുള്ളതോ ആയ സെഷൻ ആവശ്യപ്പെട്ടാൽ കുക്കികൾ സഹായിക്കും.</string>
     <string name="queue_recovery_youtube">ക്രമീകരണങ്ങളിൽനിന്നോ More-ൽ നിന്നോ കുക്കികൾ ചേർത്തും PO generation പുതുക്കിയും നോക്കിയാൽ YouTube പരാജയങ്ങൾ പലപ്പോഴും മെച്ചപ്പെടും.</string>
     <string name="queue_recovery_default">റീഡയറക്ട്, rate limit, അല്ലെങ്കിൽ സംരക്ഷിത ആക്‌സസ് കാരണം ഈ ഡൗൺലോഡ് പരാജയപ്പെട്ടാൽ ആദ്യം കുക്കികൾ ശ്രമിക്കുക. ഇപ്പോഴും പരാജയപ്പെട്ടാൽ ലോഗുകൾ എക്സ്പോർട്ട് ചെയ്ത് പ്രശ്നം റിപ്പോർട്ട് ചെയ്യുക.</string>
-
     <string name="history_title">ഹിസ്റ്ററി</string>
     <string name="history_task_summary">ടാസ്‌ക് സംഗ്രഹം</string>
     <string name="history_empty_title">ഇനിയും പൊരുത്തപ്പെടുന്ന ഹിസ്റ്ററിയില്ല</string>
@@ -313,7 +305,6 @@
         <item quantity="other">%1$d subtitle files</item>
     </plurals>
     <string name="history_summary_showing">%3$s-ൽ %2$d പൂർത്തിയായ ടാസ്ക്കുകളിൽ %1$d എണ്ണം കാണിക്കുന്നു.</string>
-
     <string name="updates_title">അപ്‌ഡേറ്റുകൾ</string>
     <string name="updates_refresh_all">എല്ലാം റിഫ്രെഷ് ചെയ്യുക</string>
     <string name="updates_ytdlp_source">yt-dlp ഉറവിടം</string>
@@ -343,7 +334,6 @@
     <string name="updates_ffmpeg_current_subtitle">merge-കൾക്കും മീഡിയ പ്രോസസ്സിംഗിനുമായി ഇപ്പോൾ resolve ചെയ്യുന്ന FFmpeg runtime.</string>
     <string name="updates_ffmpeg_changelog_subtitle_fallback">FFmpegയ്ക്കായുള്ള documentation-style changelog പേജ് തുറക്കുക.</string>
     <string name="updates_ffmpeg_changelog_subtitle_ready">ഏറ്റവും പുതിയ FFmpeg runtime package-ൽ എന്ത് മാറ്റങ്ങളുണ്ടെന്നു വായിക്കുക.</string>
-
     <string name="converter_title">കൺവർട്ടർ</string>
     <string name="converter_section_source">ഉറവിടം</string>
     <string name="converter_section_preset">പ്രീസെറ്റ്</string>
@@ -358,7 +348,6 @@
     <string name="converter_converting">മാറ്റുന്നു</string>
     <string name="converter_action">മാറ്റുക</string>
     <string name="converter_pick_file">ഫയൽ തിരഞ്ഞെടുക്കുക</string>
-
     <string name="compressor_title">കംപ്രസർ</string>
     <string name="compressor_section_source">ഉറവിടം</string>
     <string name="compressor_section_goal">ലക്ഷ്യം</string>
@@ -380,7 +369,6 @@
     <string name="compressor_goal_balanced_body">ദൈനംദിന ഉപയോഗം</string>
     <string name="compressor_goal_keep_detail">വിശദാംശങ്ങൾ നിലനിർത്തുക</string>
     <string name="compressor_goal_keep_detail_body">കൂടുതൽ ഗുണമേന്മ</string>
-
     <string name="cookies_title">കുക്കികൾ</string>
     <string name="cookies_actions">കുക്കി പ്രവർത്തനങ്ങൾ</string>
     <string name="cookies_delete_all">എല്ലാ കുക്കികളും ഇല്ലാതാക്കുക</string>
@@ -413,7 +401,6 @@
     <string name="cookies_editor_get">കുക്കികൾ നേടുക</string>
     <string name="cookies_editor_url_hint">ഈ കുക്കികൾ ബന്ധപ്പെട്ടിരിക്കുന്ന സൈറ്റിന്റെ URL ഒട്ടിക്കുക.</string>
     <string name="cookies_editor_keep_one">Video Downloader അതിനെ സ്വയം വീണ്ടും ഉപയോഗിക്കാൻ ഓരോ വെബ്സൈറ്റിനും ഒരു കുക്കി പ്രൊഫൈൽ മാത്രം സൂക്ഷിക്കുക.</string>
-
     <string name="youtube_access_title">YouTube ആക്സസ്</string>
     <string name="youtube_access_use_saved">സേവ് ചെയ്ത YouTube access ഉപയോഗിക്കുക</string>
     <string name="youtube_access_use_saved_body">കഠിനമായ ഡൗൺലോഡുകളിൽ നിങ്ങളുടെ YouTube കുക്കികളും PO token-കളും data-sync session സൂചനകളും പ്രയോഗിക്കുന്നു.</string>
@@ -442,7 +429,6 @@
     <string name="youtube_access_login_body">സേവ് ചെയ്യുന്ന കുക്കിയും ജനറേറ്റ് ചെയ്യുന്ന token-ുകളും അതേ YouTube login flow-വിലേത് ആകാൻ ഈ സ്ക്രീൻ തന്റെ സ്വന്തം WebView session പുതുക്കുന്നു.</string>
     <string name="youtube_access_login_not_ready">YouTube visitor data ഇനിയും തയ്യാറായിട്ടില്ല. sample video പേജ് പൂർണ്ണമായി ലോഡ് ചെയ്യാൻ അനുവദിച്ച് ശേഷം Save Access വീണ്ടും ശ്രമിക്കുക.</string>
     <string name="youtube_access_login_error">YouTube access സൃഷ്ടിക്കാനായില്ല.</string>
-
     <string name="help_title">സഹായം</string>
     <string name="help_section_first_move">ഒരു ലിങ്ക് പ്രശ്നം കാണിക്കുമ്പോൾ ആദ്യം ചെയ്യേണ്ട മികച്ച നീക്കം</string>
     <string name="help_step_1_title">സാധാരണയായി ആരംഭിക്കുക</string>
@@ -505,7 +491,6 @@
     <string name="settings_access_summary_youtube_missing">YouTube access ഇനിയും ക്രമീകരിച്ചിട്ടില്ല.</string>
     <string name="settings_access_value_cellular">മൊബൈൽ ഡാറ്റ അനുവദിച്ചിരിക്കുന്നു</string>
     <string name="settings_access_value_wifi">Wi‑Fi മാത്രം</string>
-
     <string name="appearance_title">ദൃശ്യഭാവം</string>
     <string name="appearance_theme_title">തീം മോഡ്</string>
     <string name="appearance_theme_subtitle">ആപ്പ് ഉപകരണത്തെ പിന്തുടരണോ, ലൈറ്റ് ആയി നിലനിൽക്കണോ, ഡാർക്ക് ആയി നിലനിൽക്കണോ എന്ന് തിരഞ്ഞെടുക്കുക.</string>
@@ -562,7 +547,6 @@
     <string name="contrast_subtitle_standard">സാധാരണ theme surfaces-ക്കായി സന്തുലിത contrast.</string>
     <string name="contrast_subtitle_high">ടെക്സ്റ്റ് കൂടുതൽ sharp ആയും card/background വേർതിരിവ് കൂടുതൽ ശക്തമായും.</string>
     <string name="contrast_subtitle_ultra">ഏറ്റവും വ്യക്തമായ edges-നും ഏറ്റവും ശക്തമായ readability-നും പരമാവധി വേർതിരിവ്.</string>
-
     <string name="download_defaults_filename_video_title">ഫയൽനെയിം ടെംപ്ലേറ്റ് [വീഡിയോ]</string>
     <string name="download_defaults_filename_video_subtitle">ഭാവിയിലെ വീഡിയോയുടെയും merged ഡൗൺലോഡുകളുടെയും ആവശ്യത്തിന് ഉപയോഗിക്കും.</string>
     <string name="download_defaults_filename_audio_title">ഫയൽനെയിം ടെംപ്ലേറ്റ് [ഓഡിയോ]</string>
@@ -615,7 +599,6 @@
     <string name="preset_artist_and_title">കലാകാരനും ശീർഷകവും</string>
     <string name="preset_album_track">ആൽബം ട്രാക്ക്</string>
     <string name="preset_date_and_title">തീയതിയും ശീർഷകവും</string>
-
     <string name="access_download_cellular_title">മൊബൈൽ ഡാറ്റ ഉപയോഗിച്ച് ഡൗൺലോഡ് ചെയ്യുക</string>
     <string name="access_download_cellular_subtitle">Wi‑Fi കാത്തിരിക്കാൻ പകരം metered networks-ൽ ഡൗൺലോഡുകൾ അനുവദിക്കുക.</string>
     <string name="access_use_cookies_title">കുക്കികൾ ഉപയോഗിക്കുക</string>
@@ -630,7 +613,6 @@
     </plurals>
     <string name="access_youtube_configured">saved PO token-കൾ തയ്യാറാണ്; retries ബ്ലോക്ക് ആകുമ്പോൾ നിലവിലെ setup പുതുക്കുകയോ പരിശോധിക്കുകയോ ചെയ്യാം.</string>
     <string name="access_youtube_missing">കർശനമായ retries-ൽ ഉപയോഗിക്കുന്ന saved session ഉം PO token-ുകളും പിടികൂടാൻ YouTube access ഒരിക്കൽ സൃഷ്ടിക്കുക.</string>
-
     <string name="notifications_completed_title">പൂർത്തിയായ ഡൗൺലോഡുകൾ</string>
     <string name="notifications_completed_subtitle">ഒരു ഡൗൺലോഡ് പൂർത്തിയായാൽ അറിയിപ്പ് കാണിക്കുക.</string>
     <string name="notifications_errors_title">ഡൗൺലോഡ് പിശകുകൾ</string>
@@ -643,7 +625,6 @@
     <string name="notifications_active_subtitle">ഡൗൺലോഡ് പ്രവർത്തിക്കുമ്പോൾ സ്വമേധയാ കാണിക്കും.</string>
     <string name="notifications_music_title">മ്യൂസിക് പ്ലെയർ നിയന്ത്രണങ്ങൾ</string>
     <string name="notifications_music_subtitle">ഓഡിയോ പ്ലേബാക്കിനിടെ സ്വമേധയാ കാണിക്കും.</string>
-
     <string name="storage_root_title">ഡൗൺലോഡ്സ് റൂട്ട്</string>
     <string name="storage_root_subtitle">Downloads-ലുള്ള ഒരു folder path ടൈപ്പ് ചെയ്യുക, അല്ലെങ്കിൽ app പ്രധാന root ആയി ഉപയോഗിക്കേണ്ട subfolder browse ചെയ്യുക.</string>
     <string name="storage_folder_label_root">Downloads-ലുള്ള folder path</string>
@@ -684,7 +665,6 @@
     <string name="storage_reset_subtitle">appearance, folders, download defaults, access preferences, library behavior എന്നിവ ഡീഫോൾട്ടിലേക്ക് മടക്കുക.</string>
     <string name="storage_reset_dialog_title">ക്രമീകരണങ്ങൾ റീസെറ്റ് ചെയ്യുക</string>
     <string name="storage_reset_dialog_body">ഇത് appearance, folders, download defaults, library behavior എന്നിവ ഡീഫോൾട്ട് സജ്ജീകരണത്തിലേക്ക് തിരിച്ചുകൊണ്ടുവരും.</string>
-
     <string name="about_package_title">പാക്കേജ് പേര്</string>
     <string name="about_package_subtitle">ഇൻസ്റ്റാൾ ചെയ്ത ആപ്പിന്റെ identifier.</string>
     <string name="about_version_title">പതിപ്പ്</string>
