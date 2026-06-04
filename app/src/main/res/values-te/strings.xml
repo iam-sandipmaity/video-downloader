@@ -4,7 +4,6 @@
     <string name="nav_home">హోమ్</string>
     <string name="nav_downloads">డౌన్‌లోడ్లు</string>
     <string name="nav_more">మరిన్ని</string>
-
     <string name="common_settings">సెట్టింగులు</string>
     <string name="common_help">సహాయం</string>
     <string name="common_clear">తొలగించు</string>
@@ -20,7 +19,6 @@
     <string name="common_loading">లోడ్ అవుతోంది…</string>
     <string name="common_unknown_uploader">తెలియని అప్‌లోడర్</string>
     <string name="common_estimated_size">అంచనా %1$s</string>
-
     <string name="browser_metered_title">Wi‑Fi మాత్రమే ఆన్‌లో ఉంది</string>
     <string name="browser_metered_body">మీరు ప్రస్తుతం మీటర్ చేసిన నెట్‌వర్క్‌లో ఉన్నారు. Wi‑Fi అందుబాటులోకి వచ్చే వరకు ఈ డౌన్‌లోడ్‌ను క్యూలో ఉంచండి లేదా ఇప్పుడు సెల్యులర్ డౌన్‌లోడ్లను అనుమతించండి.</string>
     <string name="browser_allow_cellular">సెల్యులర్‌ను అనుమతించు</string>
@@ -118,7 +116,6 @@
         <item quantity="other">%1$d ఫైళ్లు ఎంపికయ్యాయి</item>
     </plurals>
     <string name="browser_selected_count_of_total">%1$d / %2$d ఎంపికయ్యాయి</string>
-
     <string name="downloads_title">డౌన్‌లోడ్లు</string>
     <string name="downloads_empty_help">పూర్తైన డౌన్‌లోడ్లు సేవ్ అయిన తర్వాత ఇక్కడ కనిపిస్తాయి.</string>
     <string name="downloads_open_bulk_actions">bulk చర్యలను తెరువు</string>
@@ -189,7 +186,6 @@
         <item quantity="one">ఎంపిక చేసిన %1$d అంశాన్ని యాప్ మరియు device storage రెండింటి నుంచి శాశ్వతంగా తొలగించాలా?</item>
         <item quantity="other">ఎంపిక చేసిన %1$d అంశాలను యాప్ మరియు device storage రెండింటి నుంచి శాశ్వతంగా తొలగించాలా?</item>
     </plurals>
-
     <string name="common_system_default">సిస్టమ్ డిఫాల్ట్</string>
     <string name="common_interface_language">ఇంటర్‌ఫేస్ భాష</string>
     <string name="common_open">తెరువు</string>
@@ -210,7 +206,6 @@
         <item quantity="one">%1$d రోజు</item>
         <item quantity="other">%1$d రోజులు</item>
     </plurals>
-
     <string name="more_title">మరిన్ని</string>
     <string name="more_queue_title">డౌన్‌లోడ్ క్యూ</string>
     <string name="more_queue_subtitle">ఏవి సిద్ధమవుతున్నాయి, డౌన్‌లోడ్ అవుతున్నాయి, pause లో ఉన్నాయి, లేదా తర్వాత వేచి ఉన్నాయో చూడండి.</string>
@@ -228,7 +223,6 @@
     <string name="more_converter_subtitle">డౌన్‌లోడ్ చేసిన media ను వేరే ఫార్మాట్‌గా మార్చండి.</string>
     <string name="more_compressor_title">కంప్రెసర్</string>
     <string name="more_compressor_subtitle">పంచుకోవడానికి లేదా archive చేయడానికి ముందు ఫైల్ పరిమాణాన్ని తగ్గించండి.</string>
-
     <string name="settings_title">సెట్టింగులు</string>
     <string name="settings_appearance_title">దృశ్యరూపం</string>
     <string name="settings_appearance_subtitle">theme mode, accent palette, contrast, మరియు భాష.</string>
@@ -257,7 +251,6 @@
     <string name="common_stopped">ఆగిపోయింది</string>
     <string name="common_advanced">అధునాతన</string>
     <string name="common_hide_advanced">అధునాతనాన్ని దాచు</string>
-
     <string name="queue_title">డౌన్‌లోడ్ క్యూ</string>
     <string name="queue_progress_title">ప్రగతి</string>
     <string name="queue_progress_overview">స్థితి అవలోకనం</string>
@@ -289,7 +282,6 @@
     <string name="queue_recovery_stuck">ఈ item %1$s నుంచి నవీకరించబడలేదు. site కి signed-in లేదా region-matched session అవసరమైతే cookies సహాయపడవచ్చు.</string>
     <string name="queue_recovery_youtube">Settings లేదా More నుంచి cookies జోడించి PO generation refresh చేసిన తర్వాత YouTube failures తరచుగా సరిచేస్తాయి.</string>
     <string name="queue_recovery_default">redirects, rate limits, లేదా protected access తర్వాత ఈ download విఫలమైతే ముందుగా cookies ప్రయత్నించండి. ఇంకా fail అయితే logs ఎగుమతి చేసి సమస్యను నివేదించండి.</string>
-
     <string name="history_title">చరిత్ర</string>
     <string name="history_task_summary">task సారాంశం</string>
     <string name="history_empty_title">ఇంకా సరిపడే history లేదు</string>
@@ -313,7 +305,6 @@
         <item quantity="other">%1$d subtitle ఫైళ్లు</item>
     </plurals>
     <string name="history_summary_showing">%3$s లో ఉన్న %2$d పూర్తయిన tasks లో %1$d చూపబడుతున్నాయి.</string>
-
     <string name="updates_title">పుదుపులు</string>
     <string name="updates_refresh_all">అన్నింటినీ refresh చేయి</string>
     <string name="updates_ytdlp_source">yt-dlp మూలం</string>
@@ -343,7 +334,6 @@
     <string name="updates_ffmpeg_current_subtitle">merge మరియు media processing కోసం ప్రస్తుతం resolve అవుతున్న FFmpeg runtime.</string>
     <string name="updates_ffmpeg_changelog_subtitle_fallback">FFmpeg కోసం documentation-style changelog page ని తెరువు.</string>
     <string name="updates_ffmpeg_changelog_subtitle_ready">తాజా FFmpeg runtime package లో ఏమి మారిందో చదవండి.</string>
-
     <string name="converter_title">కన్వర్టర్</string>
     <string name="converter_section_source">మూలం</string>
     <string name="converter_section_preset">ప్రీసెట్</string>
@@ -358,7 +348,6 @@
     <string name="converter_converting">మారుస్తోంది</string>
     <string name="converter_action">మార్చు</string>
     <string name="converter_pick_file">ఫైల్ ఎంచుకో</string>
-
     <string name="compressor_title">కంప్రెసర్</string>
     <string name="compressor_section_source">మూలం</string>
     <string name="compressor_section_goal">లక్ష్యం</string>
@@ -380,7 +369,6 @@
     <string name="compressor_goal_balanced_body">రోజువారీ వినియోగం</string>
     <string name="compressor_goal_keep_detail">వివరాన్ని కాపాడు</string>
     <string name="compressor_goal_keep_detail_body">అధిక నాణ్యత</string>
-
     <string name="cookies_title">కుకీలు</string>
     <string name="cookies_actions">cookie చర్యలు</string>
     <string name="cookies_delete_all">అన్ని కుకీలను తొలగించు</string>
@@ -413,7 +401,6 @@
     <string name="cookies_editor_get">కుకీలు పొందు</string>
     <string name="cookies_editor_url_hint">ఈ cookies చెందిన site URL ను పేస్ట్ చేయండి.</string>
     <string name="cookies_editor_keep_one">Video Downloader దానిని ఆటోమేటిగ్గా మళ్లీ వాడుకోడానికి ప్రతి website కు ఒక cookie profile ను మాత్రమే ఉంచండి.</string>
-
     <string name="youtube_access_title">YouTube యాక్సెస్</string>
     <string name="youtube_access_use_saved">సేవ్ చేసిన YouTube access ను వాడు</string>
     <string name="youtube_access_use_saved_body">కఠినమైన downloads లో మీ YouTube cookies, PO tokens, మరియు data-sync session hints ను ఉపయోగిస్తుంది.</string>
@@ -442,7 +429,6 @@
     <string name="youtube_access_login_body">ఈ screen తన WebView session ను స్వయంగా refresh చేస్తుంది, అందువల్ల saved cookie మరియు generated tokens రెండూ ఒకే YouTube login flow కు చెందినవిగా ఉంటాయి.</string>
     <string name="youtube_access_login_not_ready">YouTube visitor data ఇంకా సిద్ధంగా లేదు. sample video page పూర్తిగా లోడ్ అయ్యే వరకు వేచి ఉండి, తర్వాత Save Access మళ్లీ ప్రయత్నించండి.</string>
     <string name="youtube_access_login_error">YouTube access generate చేయలేకపోయాం.</string>
-
     <string name="help_title">సహాయం</string>
     <string name="help_section_first_move">ఒక link సమస్య చేస్తే మొదట చేయాల్సిన పని</string>
     <string name="help_step_1_title">సాధారణంగా ప్రారంభించండి</string>
@@ -505,7 +491,6 @@
     <string name="settings_access_summary_youtube_missing">YouTube access ఇంకా configure కాలేదు.</string>
     <string name="settings_access_value_cellular">సెల్యులర్ అనుమతించబడింది</string>
     <string name="settings_access_value_wifi">Wi‑Fi మాత్రమే</string>
-
     <string name="appearance_title">దృశ్యరూపం</string>
     <string name="appearance_theme_title">థీమ్ మోడ్</string>
     <string name="appearance_theme_subtitle">యాప్ device ని అనుసరించాలా, ఎప్పుడూ light గానా, లేక ఎప్పుడూ dark గానా ఉండాలా ఎంచుకోండి.</string>
@@ -562,7 +547,6 @@
     <string name="contrast_subtitle_standard">సాధారణ theme surfaces కోసం సమతుల్య contrast.</string>
     <string name="contrast_subtitle_high">text ను మరింత స్పష్టంగా చేసి cards మరియు background మధ్య విభజనను బలపరుస్తుంది.</string>
     <string name="contrast_subtitle_ultra">స్పష్టమైన అంచులు మరియు బలమైన readability కోసం గరిష్ట విభజన.</string>
-
     <string name="download_defaults_filename_video_title">ఫైల్ పేరు టెంప్లేట్ [video]</string>
     <string name="download_defaults_filename_video_subtitle">భవిష్యత్తులో video మరియు merged downloads కోసం ఉపయోగించబడుతుంది.</string>
     <string name="download_defaults_filename_audio_title">ఫైల్ పేరు టెంప్లేట్ [audio]</string>
@@ -615,7 +599,6 @@
     <string name="preset_artist_and_title">artist మరియు శీర్షిక</string>
     <string name="preset_album_track">ఆల్బమ్ ట్రాక్</string>
     <string name="preset_date_and_title">తేదీ మరియు శీర్షిక</string>
-
     <string name="access_download_cellular_title">సెల్యులర్ ద్వారా డౌన్‌లోడ్ చేయి</string>
     <string name="access_download_cellular_subtitle">Wi‑Fi కోసం వేచి ఉండకుండా metered networks లో డౌన్‌లోడ్లు అనుమతించు.</string>
     <string name="access_use_cookies_title">కుకీలు వాడు</string>
@@ -630,7 +613,6 @@
     </plurals>
     <string name="access_youtube_configured">Saved PO tokens సిద్ధంగా ఉన్నాయి, కాబట్టి retries block అయితే ప్రస్తుత setup ను refresh చేయవచ్చు లేదా inspect చేయవచ్చు.</string>
     <string name="access_youtube_missing">strict retries కోసం ఉపయోగించే saved session మరియు PO tokens ను capture చేయడానికి YouTube access ను ఒకసారి generate చేయండి.</string>
-
     <string name="notifications_completed_title">పూర్తైన డౌన్‌లోడ్లు</string>
     <string name="notifications_completed_subtitle">ఒక డౌన్‌లోడ్ పూర్తయ్యినప్పుడు notification చూపు.</string>
     <string name="notifications_errors_title">డౌన్‌లోడ్ లోపాలు</string>
@@ -643,7 +625,6 @@
     <string name="notifications_active_subtitle">డౌన్‌లోడ్ నడుస్తున్నప్పుడు ఆటోమేటిగ్గా చూపబడుతుంది.</string>
     <string name="notifications_music_title">music player నియంత్రణలు</string>
     <string name="notifications_music_subtitle">audio playback సమయంలో ఆటోమేటిగ్గా చూపబడుతుంది.</string>
-
     <string name="storage_root_title">డౌన్‌లోడ్స్ రూట్</string>
     <string name="storage_root_subtitle">Downloads కింద ఒక folder path టైప్ చేయండి లేదా app main root గా వాడాల్సిన subfolder ని browse చేయండి.</string>
     <string name="storage_folder_label_root">Downloads కింద folder path</string>
@@ -684,7 +665,6 @@
     <string name="storage_reset_subtitle">appearance, folders, download defaults, access preferences, మరియు library behavior ను డిఫాల్ట్ setup కు పునరుద్ధరించండి.</string>
     <string name="storage_reset_dialog_title">settings ను reset చేయి</string>
     <string name="storage_reset_dialog_body">ఇది appearance, folders, download defaults, మరియు library behavior ను తిరిగి డిఫాల్ట్ setup కు తీసుకెళ్తుంది.</string>
-
     <string name="about_package_title">package పేరు</string>
     <string name="about_package_subtitle">install చేసిన application identifier.</string>
     <string name="about_version_title">వెర్షన్</string>
