@@ -39,7 +39,13 @@ jobs:
           build-mode: manual
 
       - name: Build for CodeQL
-        run: ./gradlew :app:compileStandardDebugKotlin :app:testStandardDebugUnitTest --no-daemon
+        env:
+          GRADLE_OPTS: >-
+            -Dorg.gradle.daemon=false
+            -Dorg.gradle.caching=false
+            -Dkotlin.incremental=false
+            -Dkotlin.compiler.execution.strategy=in-process
+        run: ./gradlew --no-daemon --no-build-cache clean :app:compileStandardDebugKotlin :app:compileStandardDebugJavaWithJavac
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
