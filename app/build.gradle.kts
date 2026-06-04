@@ -189,7 +189,7 @@ tasks.named("preBuild") {
 }
 
 dependencies {
-    val composeBom = platform("androidx.compose:compose-bom:2026.05.00")
+    val composeBom = platform("androidx.compose:compose-bom:2026.05.01")
 
     implementation("androidx.core:core-ktx:1.19.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
@@ -233,7 +233,7 @@ dependencies {
     ksp("androidx.room:room-compiler:2.8.4")
 
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:2.3.21")
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:2.4.0")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
