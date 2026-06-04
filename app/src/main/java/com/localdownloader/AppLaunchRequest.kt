@@ -25,7 +25,7 @@ object AppLaunchRouter {
         route: String,
         taskId: String? = null,
     ): Intent {
-        return Intent(context, MainActivity::class.java).apply {
+        return Intent().setClass(context, MainActivity::class.java).apply {
             action = ACTION_OPEN_ROUTE
             setPackage(context.packageName)
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP

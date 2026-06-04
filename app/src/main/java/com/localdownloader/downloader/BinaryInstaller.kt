@@ -382,7 +382,24 @@ class BinaryInstaller @Inject constructor(
         ZipInputStream(FileInputStream(sourceZip)).use { zip ->
             var entry = zip.nextEntry
             while (entry != null) {
-                val output = safeZipEntryFile(targetRootPath, entry.name)
+                val normalizedEntryName = entry.name.replace('\\', '/')
+                val unsafeEntry = normalizedEntryName.isBlank() ||
+                    normalizedEntryName.startsWith("/") ||
+                    normalizedEntryName == "." ||
+                    normalizedEntryName == ".." ||
+                    normalizedEntryName.contains("/../") ||
+                    normalizedEntryName.startsWith("../") ||
+                    normalizedEntryName.endsWith("/..")
+                if (unsafeEntry) {
+                    throw IOException("Unsafe zip entry path: ${entry.name}")
+                }
+
+                val outputPath = targetRootPath.resolve(normalizedEntryName).normalize()
+                if (!outputPath.startsWith(targetRootPath)) {
+                    throw IOException("Unsafe zip entry path: ${entry.name}")
+                }
+                val output = outputPath.toFile()
+
                 if (entry.isDirectory) {
                     output.mkdirs()
                 } else {
@@ -393,26 +410,6 @@ class BinaryInstaller @Inject constructor(
                 entry = zip.nextEntry
             }
         }
-    }
-
-    private fun safeZipEntryFile(targetRootPath: java.nio.file.Path, rawEntryName: String): File {
-        val normalizedEntryName = rawEntryName.replace('\\', '/')
-        val unsafeEntry = normalizedEntryName.isBlank() ||
-            normalizedEntryName.startsWith("/") ||
-            normalizedEntryName == "." ||
-            normalizedEntryName == ".." ||
-            normalizedEntryName.contains("/../") ||
-            normalizedEntryName.startsWith("../") ||
-            normalizedEntryName.endsWith("/..")
-        check(!unsafeEntry) {
-            "Unsafe zip entry path: $rawEntryName"
-        }
-
-        val outputPath = targetRootPath.resolve(normalizedEntryName).normalize()
-        check(outputPath.startsWith(targetRootPath)) {
-            "Unsafe zip entry path: $rawEntryName"
-        }
-        return outputPath.toFile()
     }
 
     private fun deleteRecursively(target: File): Long {
