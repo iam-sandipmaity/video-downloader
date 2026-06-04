@@ -91,8 +91,9 @@ The Weblate component reads the base Android XML file at
 `app/src/main/res/values/strings.xml` and writes translated Android XML files
 back into the matching `values-<locale>` resource folders.
 
-Keep the old Crowdin workflow disabled in `master.yml`. Only one localization
-platform should write translation updates to the repository at a time.
+Hosted Weblate is the only translation platform that should write translation
+updates to the repository. Do not enable another automated localization writer
+for the same Android resource files.
 
 When touching translations manually:
 
@@ -115,6 +116,14 @@ Maintainers should keep the Weblate component configured with:
 - file format: Android String Resource
 - file mask: `app/src/main/res/values-*/strings.xml`
 - monolingual base language file: `app/src/main/res/values/strings.xml`
+- GitHub updates: install the Hosted Weblate GitHub App for this repository, or
+  add a GitHub webhook pointing to `https://hosted.weblate.org/hooks/github/`
+- Weblate output: create GitHub pull requests from Weblate, or give Weblate
+  explicit push access to a translation branch
+
+After changing Weblate VCS settings, use Weblate repository maintenance to
+commit pending changes, pull from GitHub, and push or create the translation
+pull request.
 
 ## Working On Update Flows
 

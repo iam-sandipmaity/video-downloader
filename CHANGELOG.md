@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 Nightly-only changes are tracked separately in [CHANGELOG-NIGHTLY.md](CHANGELOG-NIGHTLY.md).
 
+### Removed
+- **Legacy translation automation** - removed the previous translation-service workflows, generated progress assets, and helper scripts so Hosted Weblate is the single automated localization path
+
 ## [1.7.3.1] - 2026-05-29
 
 ### Added
@@ -25,16 +28,6 @@ Nightly-only changes are tracked separately in [CHANGELOG-NIGHTLY.md](CHANGELOG-
 ### Technical
 - **App version bump** - release metadata updated to `1.7.3.1`
 - **Channel version metadata** - stable and nightly builds now read separate version name/code properties so each release channel can advance independently
-
-## [1.7.3.0] - 2026-05-29
-
-### Added
-- **Crowdin translation helper** - added GitHub Actions configuration and contributor notes for syncing Android XML string resources through Crowdin while keeping manual translation PRs supported
-- **Crowdin README progress board** - added generated README translation-progress assets backed by Crowdin's API so language coverage can be shown as a badge and per-language SVG
-
-### Fixed
-- **Crowdin progress refresh** - the progress asset workflow now runs from `Master CI` after the reusable Crowdin sync job succeeds, instead of waiting on a `workflow_run` event that reusable workflows do not emit
-- **Crowdin README image cache** - generated progress updates now refresh README image URLs with an asset cache key so GitHub and Shields do not keep showing the old `pending` artwork
 
 ## [1.7.2.9] - 2026-05-28
 
