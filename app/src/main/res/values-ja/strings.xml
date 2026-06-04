@@ -4,7 +4,6 @@
     <string name="nav_home">ホーム</string>
     <string name="nav_downloads">ダウンロード</string>
     <string name="nav_more">その他</string>
-
     <string name="common_settings">設定</string>
     <string name="common_help">ヘルプ</string>
     <string name="common_clear">クリア</string>
@@ -20,7 +19,6 @@
     <string name="common_loading">読み込み中…</string>
     <string name="common_unknown_uploader">不明なアップローダー</string>
     <string name="common_estimated_size">推定 %1$s</string>
-
     <string name="browser_metered_title">Wi‑Fiのみが有効です</string>
     <string name="browser_metered_body">現在は従量制ネットワークを使用しています。Wi‑Fiが利用可能になるまでこのダウンロードをキューに残すか、今すぐモバイルデータでのダウンロードを許可してください。</string>
     <string name="browser_allow_cellular">モバイルデータを許可</string>
@@ -115,7 +113,6 @@
         <item quantity="other">%1$d 個のファイルを選択</item>
     </plurals>
     <string name="browser_selected_count_of_total">%1$d / %2$d を選択</string>
-
     <string name="downloads_title">ダウンロード</string>
     <string name="downloads_empty_help">完了したダウンロードは保存後ここに表示されます。</string>
     <string name="downloads_open_bulk_actions">一括操作を開く</string>
@@ -180,7 +177,6 @@
     <plurals name="downloads_delete_selected_body">
         <item quantity="other">選択した %1$d 件をアプリと端末ストレージの両方から完全に削除しますか？</item>
     </plurals>
-
     <string name="common_system_default">システム既定</string>
     <string name="common_interface_language">インターフェース言語</string>
     <string name="common_open">開く</string>
@@ -200,7 +196,6 @@
     <plurals name="common_days">
         <item quantity="other">%1$d 日</item>
     </plurals>
-
     <string name="more_title">その他</string>
     <string name="more_queue_title">ダウンロードキュー</string>
     <string name="more_queue_subtitle">何が準備中か、ダウンロード中か、一時停止中か、次を待っているか確認できます。</string>
@@ -218,7 +213,6 @@
     <string name="more_converter_subtitle">ダウンロードしたメディアを別の形式に変換します。</string>
     <string name="more_compressor_title">圧縮</string>
     <string name="more_compressor_subtitle">共有や保管の前にファイルサイズを減らします。</string>
-
     <string name="settings_title">設定</string>
     <string name="settings_appearance_title">外観</string>
     <string name="settings_appearance_subtitle">テーマモード、アクセントパレット、コントラスト、言語を設定します。</string>
@@ -247,7 +241,6 @@
     <string name="common_stopped">停止しました</string>
     <string name="common_advanced">詳細設定</string>
     <string name="common_hide_advanced">詳細設定を隠す</string>
-
     <string name="queue_title">ダウンロードキュー</string>
     <string name="queue_progress_title">進行状況</string>
     <string name="queue_progress_overview">状態の概要</string>
@@ -279,7 +272,6 @@
     <string name="queue_recovery_stuck">この項目は %1$s の間更新されていません。サイトにログイン済みまたは地域一致のセッションが必要な場合、Cookies が役立つことがあります。</string>
     <string name="queue_recovery_youtube">YouTube の失敗は、Settings または More から Cookies を追加し、PO 生成を更新すると改善することが多いです。</string>
     <string name="queue_recovery_default">リダイレクト、レート制限、保護アクセスの後にこのダウンロードが失敗した場合は、まず Cookies を試してください。それでも失敗するならログをエクスポートして問題を報告してください。</string>
-
     <string name="history_title">履歴</string>
     <string name="history_task_summary">タスク概要</string>
     <string name="history_empty_title">一致する履歴はまだありません</string>
@@ -302,7 +294,6 @@
         <item quantity="other">%1$d 個の字幕ファイル</item>
     </plurals>
     <string name="history_summary_showing">%3$s で完了した %2$d 件のタスクのうち %1$d 件を表示しています。</string>
-
     <string name="updates_title">更新</string>
     <string name="updates_refresh_all">すべて更新</string>
     <string name="updates_ytdlp_source">yt-dlp ソース</string>
@@ -332,7 +323,6 @@
     <string name="updates_ffmpeg_current_subtitle">結合やメディア処理に現在使われている FFmpeg ランタイムです。</string>
     <string name="updates_ffmpeg_changelog_subtitle_fallback">FFmpeg のドキュメント風変更履歴ページを開きます。</string>
     <string name="updates_ffmpeg_changelog_subtitle_ready">最新の FFmpeg ランタイムパッケージで何が変わったかを確認します。</string>
-
     <string name="converter_title">変換</string>
     <string name="converter_section_source">ソース</string>
     <string name="converter_section_preset">プリセット</string>
@@ -347,7 +337,6 @@
     <string name="converter_converting">変換中</string>
     <string name="converter_action">変換</string>
     <string name="converter_pick_file">ファイルを選ぶ</string>
-
     <string name="compressor_title">圧縮</string>
     <string name="compressor_section_source">ソース</string>
     <string name="compressor_section_goal">目標</string>
@@ -369,7 +358,6 @@
     <string name="compressor_goal_balanced_body">日常利用向け</string>
     <string name="compressor_goal_keep_detail">詳細を保持</string>
     <string name="compressor_goal_keep_detail_body">より高品質</string>
-
     <string name="cookies_title">クッキー</string>
     <string name="cookies_actions">Cookie の操作</string>
     <string name="cookies_delete_all">すべての Cookie を削除</string>
@@ -401,7 +389,6 @@
     <string name="cookies_editor_get">Cookies を取得</string>
     <string name="cookies_editor_url_hint">この Cookie が属するサイト URL を貼り付けてください。</string>
     <string name="cookies_editor_keep_one">Video Downloader が自動再利用できるよう、サイトごとに 1 つの Cookie プロファイルを保持してください。</string>
-
     <string name="youtube_access_title">YouTube アクセス</string>
     <string name="youtube_access_use_saved">保存済み YouTube access を使う</string>
     <string name="youtube_access_use_saved_body">より難しいダウンロードで YouTube の Cookie、PO トークン、データ同期セッションのヒントを適用します。</string>
@@ -430,7 +417,6 @@
     <string name="youtube_access_login_body">保存される Cookie と生成されるトークンが同じ YouTube ログインフローに属するよう、この画面は自分の WebView セッションを更新します。</string>
     <string name="youtube_access_login_not_ready">YouTube の visitor data はまだ準備できていません。サンプル動画ページの読み込みが終わってから、もう一度 Save Access を試してください。</string>
     <string name="youtube_access_login_error">YouTube access を生成できませんでした。</string>
-
     <string name="help_title">ヘルプ</string>
     <string name="help_section_first_move">リンクがうまく動かないときの最初の一手</string>
     <string name="help_step_1_title">普通に始める</string>
@@ -492,7 +478,6 @@
     <string name="settings_access_summary_youtube_missing">YouTube access はまだ設定されていません。</string>
     <string name="settings_access_value_cellular">モバイルデータ許可</string>
     <string name="settings_access_value_wifi">Wi‑Fi のみ</string>
-
     <string name="appearance_title">外観</string>
     <string name="appearance_theme_title">テーマモード</string>
     <string name="appearance_theme_subtitle">アプリが端末設定に従うか、ライトのままか、ダークのままかを選びます。</string>
@@ -549,7 +534,6 @@
     <string name="contrast_subtitle_standard">通常のテーマ画面向けのバランスの良いコントラストです。</string>
     <string name="contrast_subtitle_high">より鮮明な文字と、カードと背景の強い分離です。</string>
     <string name="contrast_subtitle_ultra">最も明瞭な輪郭と最高の可読性のための最大分離です。</string>
-
     <string name="download_defaults_filename_video_title">ファイル名テンプレート [video]</string>
     <string name="download_defaults_filename_video_subtitle">今後の動画および結合ダウンロードに使われます。</string>
     <string name="download_defaults_filename_audio_title">ファイル名テンプレート [audio]</string>
@@ -602,7 +586,6 @@
     <string name="preset_artist_and_title">アーティストとタイトル</string>
     <string name="preset_album_track">アルバムトラック</string>
     <string name="preset_date_and_title">日付とタイトル</string>
-
     <string name="access_download_cellular_title">モバイルデータでダウンロード</string>
     <string name="access_download_cellular_subtitle">Wi‑Fi を待つ代わりに、従量制ネットワークでもダウンロードを許可します。</string>
     <string name="access_use_cookies_title">Cookies を使用</string>
@@ -616,7 +599,6 @@
     </plurals>
     <string name="access_youtube_configured">保存済み PO トークンが準備できているため、再試行がブロックされたときに現在の設定を更新または確認できます。</string>
     <string name="access_youtube_missing">より厳しい再試行に使う保存済みセッションと PO トークンを取得するため、一度 YouTube access を生成してください。</string>
-
     <string name="notifications_completed_title">完了したダウンロード</string>
     <string name="notifications_completed_subtitle">ダウンロード完了時に通知を表示します。</string>
     <string name="notifications_errors_title">ダウンロードエラー</string>
@@ -629,7 +611,6 @@
     <string name="notifications_active_subtitle">ダウンロード実行中に自動表示されます。</string>
     <string name="notifications_music_title">音楽プレーヤー操作</string>
     <string name="notifications_music_subtitle">音声再生中に自動表示されます。</string>
-
     <string name="storage_root_title">ダウンロードルート</string>
     <string name="storage_root_subtitle">Downloads 配下のフォルダパスを入力するか、アプリのメインルートとして使うサブフォルダを選んでください。</string>
     <string name="storage_folder_label_root">Downloads 配下のフォルダパス</string>
@@ -670,7 +651,6 @@
     <string name="storage_reset_subtitle">外観、フォルダ、ダウンロード既定値、アクセス設定、ライブラリ動作を既定状態に戻します。</string>
     <string name="storage_reset_dialog_title">設定をリセット</string>
     <string name="storage_reset_dialog_body">これは外観、フォルダ、ダウンロード既定値、ライブラリ動作を既定設定へ戻します。</string>
-
     <string name="about_package_title">パッケージ名</string>
     <string name="about_package_subtitle">インストールされているアプリケーション識別子です。</string>
     <string name="about_version_title">バージョン</string>
