@@ -30,6 +30,7 @@ import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.GraphicEq
+import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.PauseCircle
 import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material.icons.outlined.QueueMusic
@@ -380,7 +381,7 @@ private fun NowPlayingDeck(
                     isPlaying = audioPlaybackState.isPlaying,
                     accentColor = accentColor,
                     modifier = Modifier
-                        .fillMaxWidth(0.72f)
+                        .fillMaxWidth(0.74f)
                         .aspectRatio(1f),
                 )
 
@@ -560,7 +561,7 @@ private fun VinylArtwork(
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val radius = size.minDimension / 2f
-            val center = Offset(size.width / 2f, size.height / 2f)
+            val center = Offset(size.width / 2f, size.height * 0.56f)
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
@@ -576,7 +577,8 @@ private fun VinylArtwork(
         }
         Box(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxSize(0.88f)
+                .align(Alignment.BottomCenter)
                 .rotate(recordRotation.value),
             contentAlignment = Alignment.Center,
         ) {
@@ -617,25 +619,31 @@ private fun VinylArtwork(
                     .aspectRatio(1f)
                     .border(2.dp, Color.White.copy(alpha = 0.16f), CircleShape)
                     .clip(CircleShape),
+                fallbackContent = {
+                    DefaultRecordArtwork(
+                        accentColor = accentColor,
+                        contentDescription = item?.displayTitle,
+                    )
+                },
             )
         }
 
         Canvas(modifier = Modifier.fillMaxSize()) {
             val radius = size.minDimension / 2f
-            val base = Offset(size.width * 0.88f, size.height * 0.12f)
+            val base = Offset(size.width * 0.80f, size.height * 0.13f)
             fun lerp(start: Float, end: Float): Float = start + (end - start) * tonearmProgress
 
             val elbow = Offset(
-                x = lerp(size.width * 0.94f, size.width * 0.80f),
-                y = lerp(size.height * 0.28f, size.height * 0.29f),
+                x = lerp(size.width * 0.90f, size.width * 0.72f),
+                y = lerp(size.height * 0.31f, size.height * 0.29f),
             )
             val needle = Offset(
-                x = lerp(size.width * 0.96f, size.width * 0.72f),
-                y = lerp(size.height * 0.47f, size.height * 0.38f),
+                x = lerp(size.width * 0.91f, size.width * 0.68f),
+                y = lerp(size.height * 0.54f, size.height * 0.39f),
             )
             val cartridgeEnd = Offset(
-                x = needle.x + size.width * 0.048f,
-                y = needle.y + size.height * 0.030f,
+                x = needle.x + size.width * 0.052f,
+                y = needle.y + size.height * 0.032f,
             )
             drawCircle(Color.White.copy(alpha = 0.86f), radius = radius * 0.074f, center = base)
             drawCircle(Color(0xFF6D6F73), radius = radius * 0.044f, center = base)
@@ -667,6 +675,59 @@ private fun VinylArtwork(
                 strokeWidth = 2.dp.toPx(),
                 cap = StrokeCap.Round,
             )
+        }
+    }
+}
+
+@Composable
+private fun DefaultRecordArtwork(
+    accentColor: Color,
+    contentDescription: String?,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.radialGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.18f),
+                        accentColor.copy(alpha = 0.34f),
+                        Color(0xFF241E2F),
+                    ),
+                ),
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val radius = size.minDimension / 2f
+            val center = Offset(size.width / 2f, size.height / 2f)
+            drawCircle(
+                color = Color.White.copy(alpha = 0.18f),
+                radius = radius * 0.96f,
+                center = center,
+                style = Stroke(width = 2.dp.toPx()),
+            )
+            drawCircle(
+                color = Color.Black.copy(alpha = 0.18f),
+                radius = radius * 0.30f,
+                center = center,
+                style = Stroke(width = 1.dp.toPx()),
+            )
+        }
+        Surface(
+            shape = CircleShape,
+            color = Color.White.copy(alpha = 0.12f),
+            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.34f)),
+            modifier = Modifier.size(58.dp),
+        ) {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                Icon(
+                    imageVector = Icons.Outlined.MusicNote,
+                    contentDescription = contentDescription,
+                    tint = Color.White.copy(alpha = 0.92f),
+                    modifier = Modifier.size(34.dp),
+                )
+            }
         }
     }
 }

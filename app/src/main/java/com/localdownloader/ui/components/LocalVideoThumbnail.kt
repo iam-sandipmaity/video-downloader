@@ -5,6 +5,7 @@ import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.PlayCircle
@@ -25,6 +26,7 @@ fun LocalVideoThumbnail(
     filePath: String?,
     contentDescription: String?,
     modifier: Modifier = Modifier,
+    fallbackContent: (@Composable BoxScope.() -> Unit)? = null,
 ) {
     val bitmap = produceState<Bitmap?>(initialValue = null, key1 = filePath) {
         value = withContext(Dispatchers.IO) {
@@ -59,11 +61,15 @@ fun LocalVideoThumbnail(
                 modifier = Modifier.fillMaxSize(),
             )
         } else {
-            Icon(
-                imageVector = Icons.Outlined.PlayCircle,
-                contentDescription = contentDescription,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
-            )
+            if (fallbackContent != null) {
+                fallbackContent()
+            } else {
+                Icon(
+                    imageVector = Icons.Outlined.PlayCircle,
+                    contentDescription = contentDescription,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                )
+            }
         }
     }
 }
