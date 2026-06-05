@@ -4,8 +4,30 @@ Nightly builds are rolling prereleases published from the `nightly` release tag.
 
 ## [2.0.0.1] - 2026-06-05
 
+### Added
+- **Audio player shortcut in More** - the music player is now launched from the More tools section, before Converter, instead of being promoted as a standalone Downloads-tab banner.
+- **Real audio source picker** - the music player can switch between app downloads, device audio from MediaStore, and a persisted user-selected folder.
+- **Device and folder playback support** - content URI audio from MediaStore and Android folder picker sources can now play, show thumbnails, share, and populate notification metadata without requiring a direct filesystem path.
+- **Embedded audio metadata** - app-downloaded and folder-selected audio now read embedded title, artist, album artist, album, and duration tags for player headers and details.
+- **Expanded player actions** - added dedicated detail, rename, trim, sleep timer, share, and set-as flows, while keeping app-library-only actions scoped to app-downloaded tracks.
+- **Audio trim editor** - trimming now uses its own start/end editor and exports a selected range as a new audio file instead of reusing A-B loop points.
+- **A-B loop markers** - selected A and B loop points are shown on the progress bar with the looped span highlighted.
+
 ### Changed
-- **Music player redesign** - replaced the old in-app music player surface with a full-screen deck, vinyl-style artwork, refreshed controls, and a compact playing queue.
+- **Music player redesign** - replaced the old in-app music player surface with a full-screen deck, animated vinyl-style artwork, improved tonearm layout, refreshed controls, and a compact playing queue.
+- **Premium playback visuals** - the player background now blends blurred artwork with the active accent color, and tracks without artwork use a designed default music visual.
+- **Playback controls behavior** - shuffle, repeat, favorite, queue, lyrics, A-B, and More actions now have clearer dedicated behavior instead of sharing the same generic options sheet.
+- **Progress interaction polish** - the progress bar now supports reliable tap-to-seek and drag seeking, with cleaner styling and loop-point feedback.
+- **Screenshot gallery refresh** - README media previews now include the refreshed audio player, audio options sheet, and portrait/landscape video player screenshots.
+
+### Fixed
+- **Seek tap regression** - tapping a new point on the progress bar now seeks to that position instead of snapping back to the previous playback second.
+- **Tonearm positioning** - adjusted the gramophone/tonearm geometry so the stylus sits on the record more naturally across artwork states.
+- **Music source compile issues** - fixed wiring mistakes around the More-page music shortcut and content-backed player artwork.
+- **A-B marker compile issue** - fixed the loop marker state references used by the progress bar.
+
+### Known Issues
+- **Local compile not verified here** - this development machine does not have `ANDROID_HOME` or `local.properties` configured, so Kotlin compile verification could not run locally.
 
 ## [2.0.0.0] - 2026-05-31
 

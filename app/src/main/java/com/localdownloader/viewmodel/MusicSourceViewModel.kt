@@ -14,6 +14,7 @@ import androidx.lifecycle.viewModelScope
 import com.localdownloader.domain.models.MusicLibraryTrack
 import com.localdownloader.domain.models.MusicSourceType
 import com.localdownloader.media.isLikelyAudioPath
+import com.localdownloader.media.readAudioTrackMetadata
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
@@ -326,9 +327,12 @@ class MusicSourceViewModel @Inject constructor(
 
                     mimeType?.startsWith("audio/") == true || isLikelyAudioPath(name) -> {
                         val uri = DocumentsContract.buildDocumentUriUsingTree(treeUri, childId)
+                        val metadata = readAudioTrackMetadata(context, uri.toString())
                         tracks += MusicLibraryTrack(
                             id = "folder:${uri.toString().stableShortHash()}",
-                            title = name.substringBeforeLast('.').ifBlank { name },
+                            title = metadata.title ?: name.substringBeforeLast('.').ifBlank { name },
+                            artist = metadata.artist,
+                            album = metadata.album,
                             playbackUri = uri.toString(),
                             fileName = name,
                             folderName = folderName,
@@ -336,6 +340,7 @@ class MusicSourceViewModel @Inject constructor(
                             sizeBytes = cursor.getLongOrNull(sizeIndex),
                             updatedAtEpochMs = cursor.getLongOrNull(modifiedIndex)
                                 ?: System.currentTimeMillis(),
+                            durationMs = metadata.durationMs,
                             sourceType = MusicSourceType.SELECTED_FOLDER,
                             sourceLabel = _uiState.value.folderLabel ?: MusicSourceType.SELECTED_FOLDER.label,
                             sourceUrl = uri.toString(),

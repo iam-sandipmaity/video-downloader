@@ -71,6 +71,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -96,6 +97,7 @@ import com.localdownloader.audio.AudioQueueItem
 import com.localdownloader.audio.PlaylistRepeatMode
 import com.localdownloader.domain.models.MusicLibraryTrack
 import com.localdownloader.domain.models.MusicSourceType
+import com.localdownloader.media.readAudioTrackMetadata
 import com.localdownloader.ui.components.LocalVideoThumbnail
 import com.localdownloader.ui.model.MediaKind
 import com.localdownloader.ui.model.buildVideoLibraryItems
@@ -106,6 +108,8 @@ import com.localdownloader.viewmodel.DownloadUiState
 import com.localdownloader.viewmodel.MusicSourceUiState
 import com.localdownloader.viewmodel.MusicTrimUiState
 import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -162,25 +166,36 @@ fun MusicPlayerScreen(
         onSelectMusicSource(MusicSourceType.DEVICE_AUDIO)
     }
 
-    val appDownloadTracks = remember(uiState.tasks, fileExists) {
-        buildVideoLibraryItems(uiState.tasks, fileExists)
-            .filter { it.exists && it.mediaKind == MediaKind.AUDIO }
-            .map { item ->
-                MusicLibraryTrack(
-                    id = item.task.id,
-                    title = item.displayTitle,
-                    playbackUri = item.file?.absolutePath.orEmpty(),
-                    filePath = item.file?.absolutePath,
-                    fileName = item.file?.name,
-                    folderName = item.file?.parentFile?.name,
-                    displaySize = item.displaySize,
-                    sizeBytes = item.file?.length(),
-                    updatedAtEpochMs = item.task.updatedAtEpochMs,
-                    sourceType = MusicSourceType.APP_DOWNLOADS,
-                    sourceUrl = item.task.url,
-                    appTaskId = item.task.id,
-                )
-            }
+    val appDownloadTracks by produceState<List<MusicLibraryTrack>>(
+        initialValue = emptyList(),
+        key1 = uiState.tasks,
+        key2 = fileExists,
+    ) {
+        value = withContext(Dispatchers.IO) {
+            buildVideoLibraryItems(uiState.tasks, fileExists)
+                .filter { it.exists && it.mediaKind == MediaKind.AUDIO }
+                .map { item ->
+                    val path = item.file?.absolutePath.orEmpty()
+                    val metadata = readAudioTrackMetadata(context, path)
+                    MusicLibraryTrack(
+                        id = item.task.id,
+                        title = metadata.title ?: item.displayTitle,
+                        artist = metadata.artist,
+                        album = metadata.album,
+                        playbackUri = path,
+                        filePath = item.file?.absolutePath,
+                        fileName = item.file?.name,
+                        folderName = item.file?.parentFile?.name,
+                        displaySize = item.displaySize,
+                        sizeBytes = item.file?.length(),
+                        updatedAtEpochMs = item.task.updatedAtEpochMs,
+                        durationMs = metadata.durationMs,
+                        sourceType = MusicSourceType.APP_DOWNLOADS,
+                        sourceUrl = item.task.url,
+                        appTaskId = item.task.id,
+                    )
+                }
+        }
     }
     val audioItems = remember(
         musicSourceState.sourceType,

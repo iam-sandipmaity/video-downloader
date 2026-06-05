@@ -137,10 +137,15 @@ For release-specific changes, see [CHANGELOG.md](CHANGELOG.md).
 | <img src="public/demo/download-tab.png" alt="Downloads library" width="200" /> | <img src="public/demo/downloaded-file-viewer-tab.png" alt="Saved file viewer tab" width="200" /> |
 | Local media library with file actions and browsing. | File-centric view of saved downloads. |
 
-| In-App Audio Player | In-App Video Player |
+| In-App Audio Player | Audio Player Options | In-App Video Player |
+| --- | --- | --- |
+| <img src="public/demo/downloaded-audio-inapp-player.png" alt="In-app audio player with vinyl-style artwork" width="200" /> | <img src="public/demo/audio-player-more-options.png" alt="Audio player more options sheet" width="200" /> | <img src="public/demo/in-app-video-player.png" alt="In-app video player" width="200" /> |
+| Music-style playback with artwork, queue controls, and audio-source switching. | Details, trim, sleep timer, share, and set-as actions for local tracks. | Full-screen player flow for downloaded video. |
+
+| Video Player - Portrait | Video Player - Landscape |
 | --- | --- |
-| <img src="public/demo/downloaded-audio-inapp-player.png" alt="In-app audio player" width="200" /> | <img src="public/demo/in-app-video-player.png" alt="In-app video player" width="200" /> |
-| Music-style playback for downloaded audio. | Full-screen player flow for downloaded video. |
+| <img src="public/demo/in-app-video-player-verticle.png" alt="In-app video player in portrait orientation" width="200" /> | <img src="public/demo/in-app-video-player-horizontal.png" alt="In-app video player in landscape orientation" width="320" /> |
+| Touch-first portrait playback controls. | Wide playback layout for landscape viewing. |
 
 ### Settings And Support Surfaces
 
