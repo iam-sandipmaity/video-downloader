@@ -2,6 +2,14 @@
 
 Nightly builds are rolling prereleases published from the `nightly` release tag. This file tracks changes that are available in nightly before they are promoted into the stable changelog.
 
+## [2.0.0.2] - 2026-06-06
+
+### Added
+- **Nightly launcher branding** - nightly builds now use a separate orange-purple launcher icon with a small `NIGHTLY` badge so they are easier to tell apart from stable installs.
+
+### Changed
+- **Nightly version bump** - release metadata updated to `2.0.0.2`.
+
 ## [2.0.0.1] - 2026-06-05
 
 ### Added
