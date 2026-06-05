@@ -46,7 +46,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -58,6 +57,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
@@ -198,12 +198,17 @@ fun MusicPlayerScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 16.dp),
+                .padding(bottom = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             if (audioItems.isEmpty()) {
-                EmptyMusicState(onBack = onBack, modifier = Modifier.fillMaxWidth())
+                EmptyMusicState(
+                    onBack = onBack,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 16.dp),
+                )
                 return@Column
             }
 
@@ -242,6 +247,7 @@ fun MusicPlayerScreen(
                 audioItems = audioItems,
                 audioPlaybackState = audioPlaybackState,
                 onPlayTrack = { item -> onPlayAudioQueue(audioQueueItems, item.task.id, false) },
+                modifier = Modifier.padding(horizontal = 16.dp),
             )
         }
     }
@@ -276,16 +282,15 @@ private fun NowPlayingDeck(
 
     Surface(
         modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, accentColor.copy(alpha = 0.36f), RoundedCornerShape(34.dp)),
-        shape = RoundedCornerShape(32.dp),
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(0.dp),
         color = Color.Transparent,
         tonalElevation = 8.dp,
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xC9070B0B), RoundedCornerShape(32.dp)),
+                .background(Color(0xDB070B0B)),
         ) {
             item?.let {
                 LocalVideoThumbnail(
@@ -375,7 +380,7 @@ private fun NowPlayingDeck(
                     isPlaying = audioPlaybackState.isPlaying,
                     accentColor = accentColor,
                     modifier = Modifier
-                        .fillMaxWidth(0.76f)
+                        .fillMaxWidth(0.72f)
                         .aspectRatio(1f),
                 )
 
@@ -552,6 +557,22 @@ private fun VinylArtwork(
     }
 
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val radius = size.minDimension / 2f
+            val center = Offset(size.width / 2f, size.height / 2f)
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        accentColor.copy(alpha = 0.22f),
+                        Color.Transparent,
+                    ),
+                    center = center,
+                    radius = radius * 1.15f,
+                ),
+                radius = radius * 1.05f,
+                center = center,
+            )
+        }
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -584,13 +605,6 @@ private fun VinylArtwork(
                         style = Stroke(width = 1.dp.toPx()),
                     )
                 }
-                drawLine(
-                    color = Color.White.copy(alpha = 0.12f),
-                    start = Offset(size.width * 0.28f, size.height * 0.18f),
-                    end = Offset(size.width * 0.76f, size.height * 0.78f),
-                    strokeWidth = 22.dp.toPx(),
-                    cap = StrokeCap.Round,
-                )
                 drawCircle(Color(0xFF1D2020), radius = radius * 0.2f, center = center)
             }
 
@@ -607,39 +621,50 @@ private fun VinylArtwork(
 
         Canvas(modifier = Modifier.fillMaxSize()) {
             val radius = size.minDimension / 2f
-            val base = Offset(size.width * 0.64f, size.height * 0.12f)
+            val base = Offset(size.width * 0.78f, size.height * 0.12f)
             fun lerp(start: Float, end: Float): Float = start + (end - start) * tonearmProgress
 
             val elbow = Offset(
-                x = lerp(size.width * 0.88f, size.width * 0.76f),
-                y = lerp(size.height * 0.28f, size.height * 0.36f),
+                x = lerp(size.width * 0.90f, size.width * 0.78f),
+                y = lerp(size.height * 0.30f, size.height * 0.36f),
             )
             val needle = Offset(
-                x = lerp(size.width * 0.94f, size.width * 0.80f),
-                y = lerp(size.height * 0.48f, size.height * 0.62f),
+                x = lerp(size.width * 0.93f, size.width * 0.82f),
+                y = lerp(size.height * 0.54f, size.height * 0.62f),
             )
-            drawCircle(Color.White.copy(alpha = 0.9f), radius = radius * 0.09f, center = base)
-            drawCircle(Color(0xFF6D6F73), radius = radius * 0.055f, center = base)
+            val cartridgeEnd = Offset(
+                x = needle.x + size.width * 0.048f,
+                y = needle.y + size.height * 0.034f,
+            )
+            drawCircle(Color.White.copy(alpha = 0.86f), radius = radius * 0.074f, center = base)
+            drawCircle(Color(0xFF6D6F73), radius = radius * 0.044f, center = base)
             drawLine(
-                color = Color.White.copy(alpha = 0.88f),
+                color = Color.White.copy(alpha = 0.82f),
                 start = base,
                 end = elbow,
-                strokeWidth = 6.dp.toPx(),
+                strokeWidth = 5.dp.toPx(),
                 cap = StrokeCap.Round,
             )
             drawLine(
-                color = Color.White.copy(alpha = 0.88f),
+                color = Color.White.copy(alpha = 0.82f),
                 start = elbow,
                 end = needle,
-                strokeWidth = 6.dp.toPx(),
+                strokeWidth = 5.dp.toPx(),
                 cap = StrokeCap.Round,
             )
             drawLine(
                 color = Color(0xFFE8EAEE),
                 start = needle,
-                end = Offset(needle.x + size.width * 0.06f, needle.y + size.height * 0.04f),
-                strokeWidth = 12.dp.toPx(),
+                end = cartridgeEnd,
+                strokeWidth = 9.dp.toPx(),
                 cap = StrokeCap.Square,
+            )
+            drawLine(
+                color = Color.White.copy(alpha = 0.62f),
+                start = cartridgeEnd,
+                end = Offset(cartridgeEnd.x + size.width * 0.014f, cartridgeEnd.y + size.height * 0.016f),
+                strokeWidth = 2.dp.toPx(),
+                cap = StrokeCap.Round,
             )
         }
     }
@@ -698,25 +723,66 @@ private fun PremiumProgressSlider(
     onPositionChangeFinished: () -> Unit,
 ) {
     val durationRange = durationMs.toFloat().coerceAtLeast(1f)
+    val clampedPosition = positionMs.coerceIn(0f, durationRange)
+    val progress = clampedPosition / durationRange
 
-    Slider(
-        value = positionMs.coerceIn(0f, durationRange),
-        onValueChange = onPositionChanged,
-        onValueChangeFinished = onPositionChangeFinished,
-        valueRange = 0f..durationRange,
-        enabled = durationMs > 0L,
-        colors = SliderDefaults.colors(
-            thumbColor = accentColor,
-            activeTrackColor = accentColor,
-            inactiveTrackColor = Color.White.copy(alpha = 0.18f),
-            disabledThumbColor = Color.White.copy(alpha = 0.42f),
-            disabledActiveTrackColor = Color.White.copy(alpha = 0.22f),
-            disabledInactiveTrackColor = Color.White.copy(alpha = 0.12f),
-        ),
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(34.dp),
-    )
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val centerY = size.height / 2f
+            val sidePadding = 4.dp.toPx()
+            val startX = sidePadding
+            val endX = size.width - sidePadding
+            val activeEndX = startX + (endX - startX) * progress
+
+            drawLine(
+                color = Color.White.copy(alpha = 0.20f),
+                start = Offset(startX, centerY),
+                end = Offset(endX, centerY),
+                strokeWidth = 6.dp.toPx(),
+                cap = StrokeCap.Round,
+            )
+            drawLine(
+                brush = Brush.horizontalGradient(
+                    listOf(
+                        accentColor.copy(alpha = 0.78f),
+                        accentColor,
+                    ),
+                    startX = startX,
+                    endX = activeEndX.coerceAtLeast(startX + 1f),
+                ),
+                start = Offset(startX, centerY),
+                end = Offset(activeEndX, centerY),
+                strokeWidth = 6.dp.toPx(),
+                cap = StrokeCap.Round,
+            )
+            drawCircle(
+                color = Color.White.copy(alpha = 0.24f),
+                radius = 8.dp.toPx(),
+                center = Offset(activeEndX, centerY),
+            )
+            drawCircle(
+                color = accentColor,
+                radius = 4.dp.toPx(),
+                center = Offset(activeEndX, centerY),
+            )
+        }
+
+        Slider(
+            value = clampedPosition,
+            onValueChange = onPositionChanged,
+            onValueChangeFinished = onPositionChangeFinished,
+            valueRange = 0f..durationRange,
+            enabled = durationMs > 0L,
+            modifier = Modifier
+                .fillMaxSize()
+                .alpha(0f),
+        )
+    }
 }
 
 @Composable
@@ -934,9 +1000,10 @@ private fun QueueSection(
     audioItems: List<VideoLibraryItem>,
     audioPlaybackState: AudioPlaybackState,
     onPlayTrack: (VideoLibraryItem) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(
