@@ -2,6 +2,11 @@
 
 Nightly builds are rolling prereleases published from the `nightly` release tag. This file tracks changes that are available in nightly before they are promoted into the stable changelog.
 
+## [2.0.0.1] - 2026-06-05
+
+### Changed
+- **Music player redesign** - replaced the old in-app music player surface with a full-screen deck, vinyl-style artwork, refreshed controls, and a compact playing queue.
+
 ## [2.0.0.0] - 2026-05-31
 
 ### Added
