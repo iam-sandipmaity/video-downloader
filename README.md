@@ -32,10 +32,10 @@
     <img alt="GitHub stars" src="https://img.shields.io/github/stars/iam-sandipmaity/video-downloader?style=flat&label=Stars&logo=github&color=%23f8e444" />
   </a>
   <a href="https://hosted.weblate.org/engage/local-video-downloader/">
-    <img alt="Translation status" src="https://hosted.weblate.org/widgets/local-video-downloader/-/android-app-strings/svg-badge.svg" />
+    <img alt="Translation status" src="https://hosted.weblate.org/widgets/local-video-downloader/-/android-app-strings/svg-badge.svg?cache=20260606" />
   </a>
   <a href="https://hosted.weblate.org/engage/local-video-downloader/">
-    <img alt="Translation languages" src="https://hosted.weblate.org/widget/local-video-downloader/language-badge.svg" />
+    <img alt="Translation languages" src="https://hosted.weblate.org/widget/local-video-downloader/language-badge.svg?cache=20260606" />
   </a>
   <a href="https://video.sandipmaity.me">
     <img alt="Website" src="https://img.shields.io/badge/website-video.sandipmaity.me-orange" />
@@ -201,6 +201,10 @@ Current in-app language support includes:
 - English
 - Hindi
 - Bengali
+- Dutch
+- French
+- German
+- Spanish
 - Tamil
 - Telugu
 - Kannada
@@ -213,19 +217,19 @@ Current in-app language support includes:
 
 <p align="center">
   <a href="https://hosted.weblate.org/engage/local-video-downloader/">
-    <img src="https://hosted.weblate.org/widgets/local-video-downloader/-/android-app-strings/multi-auto.svg" alt="Translation status" />
+    <img src="https://hosted.weblate.org/widgets/local-video-downloader/-/android-app-strings/multi-auto.svg?cache=20260606" alt="Translation status" />
   </a>
 </p>
 
 <p align="center">
   <a href="https://hosted.weblate.org/engage/local-video-downloader/">
-    <img src="https://hosted.weblate.org/widget/local-video-downloader/open-graph.png" alt="Translation status" width="520" />
+    <img src="https://hosted.weblate.org/widget/local-video-downloader/open-graph.png?cache=20260606" alt="Translation status" width="520" />
   </a>
 </p>
 
 <p align="center">
   <a href="https://hosted.weblate.org/engage/local-video-downloader/">
-    <img src="https://hosted.weblate.org/widget/local-video-downloader/287x66-grey.png?threshold=0" alt="Translation status" />
+    <img src="https://hosted.weblate.org/widget/local-video-downloader/287x66-grey.png?threshold=0&cache=20260606" alt="Translation status" />
   </a>
 </p>
 
