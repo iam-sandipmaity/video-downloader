@@ -1,6 +1,7 @@
 package com.localdownloader.ui.screens
 
 import android.content.Intent
+import android.provider.Settings
 import android.widget.Toast
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,15 +32,18 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.AccessTime
+import androidx.compose.material.icons.outlined.Alarm
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.GraphicEq
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.PauseCircle
 import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material.icons.outlined.QueueMusic
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.RepeatOne
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Shuffle
 import androidx.compose.material.icons.outlined.SkipNext
@@ -49,9 +54,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -110,6 +118,7 @@ fun MusicPlayerScreen(
     onDismissAudioError: () -> Unit,
     favoriteTaskIds: Set<String>,
     onToggleFavorite: (String) -> Unit,
+    onRenameAudioFile: (String, String) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     fileExists: (String) -> Boolean = { path -> java.io.File(path).exists() },
@@ -166,10 +175,14 @@ fun MusicPlayerScreen(
                 item = currentItem,
                 audioPlaybackState = audioPlaybackState,
                 onDismiss = { activeSheet = null },
-                onSetSleepTimer = { durationMs ->
-                    onSetAudioSleepTimer(durationMs)
+                onShowDetails = { activeSheet = PlayerSheet.Details },
+                onRename = { activeSheet = PlayerSheet.Rename },
+                onSleepTimer = { activeSheet = PlayerSheet.SleepTimer },
+                onShare = {
+                    currentItem.file?.let { file -> shareAudioFile(context, file) }
                     activeSheet = null
                 },
+                onSetAs = { activeSheet = PlayerSheet.SetAs },
                 onStopPlayback = {
                     onStopAudioPlayback()
                     activeSheet = null
@@ -201,6 +214,40 @@ fun MusicPlayerScreen(
                 onClearLoop = {
                     loopStartMs = null
                     loopEndMs = null
+                },
+                onDismiss = { activeSheet = null },
+            )
+            PlayerSheet.Details -> TrackDetailsSheet(
+                item = currentItem,
+                audioPlaybackState = audioPlaybackState,
+                isFavorite = currentItem.task.id in favoriteTaskIds,
+                onDismiss = { activeSheet = null },
+            )
+            PlayerSheet.Rename -> RenameTrackSheet(
+                item = currentItem,
+                onRename = { newName ->
+                    onRenameAudioFile(currentItem.task.id, newName)
+                    activeSheet = null
+                },
+                onDismiss = { activeSheet = null },
+            )
+            PlayerSheet.SleepTimer -> SleepTimerSheet(
+                sleepTimerRemainingMs = audioPlaybackState.sleepTimerRemainingMs,
+                onSetSleepTimer = { durationMs ->
+                    onSetAudioSleepTimer(durationMs)
+                    activeSheet = null
+                },
+                onDismiss = { activeSheet = null },
+            )
+            PlayerSheet.SetAs -> SetAsSheet(
+                item = currentItem,
+                onShare = {
+                    currentItem.file?.let { file -> shareAudioFile(context, file) }
+                    activeSheet = null
+                },
+                onOpenSoundSettings = {
+                    openSoundSettings(context)
+                    activeSheet = null
                 },
                 onDismiss = { activeSheet = null },
             )
@@ -520,6 +567,8 @@ private fun NowPlayingDeck(
                     positionMs = scrubPositionMs,
                     durationMs = audioPlaybackState.durationMs,
                     accentColor = accentColor,
+                    loopStartMs = loopStartMs,
+                    loopEndMs = loopEndMs,
                     onPositionChanged = { updated ->
                         onScrubbingChanged(true)
                         onScrubPositionChanged(updated)
@@ -878,6 +927,8 @@ private fun PremiumProgressSlider(
     positionMs: Float,
     durationMs: Long,
     accentColor: Color,
+    loopStartMs: Long?,
+    loopEndMs: Long?,
     onPositionChanged: (Float) -> Unit,
     onPositionChangeFinished: (Float) -> Unit,
 ) {
@@ -902,6 +953,12 @@ private fun PremiumProgressSlider(
             val startX = sidePadding
             val endX = size.width - sidePadding
             val activeEndX = startX + (endX - startX) * progress
+            val loopStartProgress = loopStartMs
+                ?.takeIf { durationMs > 0L }
+                ?.let { it.toFloat().coerceIn(0f, durationRange) / durationRange }
+            val loopEndProgress = loopEndMs
+                ?.takeIf { durationMs > 0L }
+                ?.let { it.toFloat().coerceIn(0f, durationRange) / durationRange }
 
             drawLine(
                 color = Color.White.copy(alpha = 0.20f),
@@ -910,6 +967,25 @@ private fun PremiumProgressSlider(
                 strokeWidth = 6.dp.toPx(),
                 cap = StrokeCap.Round,
             )
+            if (loopStartProgress != null && loopEndProgress != null && loopEndProgress > loopStartProgress) {
+                val loopStartX = startX + (endX - startX) * loopStartProgress
+                val loopEndX = startX + (endX - startX) * loopEndProgress
+                drawLine(
+                    brush = Brush.horizontalGradient(
+                        listOf(
+                            accentColor.copy(alpha = 0.34f),
+                            accentColor.copy(alpha = 0.92f),
+                            accentColor.copy(alpha = 0.34f),
+                        ),
+                        startX = loopStartX,
+                        endX = loopEndX,
+                    ),
+                    start = Offset(loopStartX, centerY),
+                    end = Offset(loopEndX, centerY),
+                    strokeWidth = 14.dp.toPx(),
+                    cap = StrokeCap.Round,
+                )
+            }
             drawLine(
                 brush = Brush.horizontalGradient(
                     listOf(
@@ -934,6 +1010,26 @@ private fun PremiumProgressSlider(
                 radius = 4.dp.toPx(),
                 center = Offset(activeEndX, centerY),
             )
+            listOf(loopStartProgress, loopEndProgress).forEachIndexed { index, markerProgress ->
+                if (markerProgress != null) {
+                    val markerX = startX + (endX - startX) * markerProgress
+                    drawCircle(
+                        color = Color.Black.copy(alpha = 0.48f),
+                        radius = 8.dp.toPx(),
+                        center = Offset(markerX, centerY),
+                    )
+                    drawCircle(
+                        color = accentColor,
+                        radius = 5.dp.toPx(),
+                        center = Offset(markerX, centerY),
+                    )
+                    drawCircle(
+                        color = Color.White.copy(alpha = if (index == 0) 0.86f else 0.66f),
+                        radius = 2.dp.toPx(),
+                        center = Offset(markerX, centerY),
+                    )
+                }
+            }
         }
 
         Slider(
@@ -1032,7 +1128,11 @@ private fun PlayerOptionsSheet(
     item: VideoLibraryItem,
     audioPlaybackState: AudioPlaybackState,
     onDismiss: () -> Unit,
-    onSetSleepTimer: (Long?) -> Unit,
+    onShowDetails: () -> Unit,
+    onRename: () -> Unit,
+    onSleepTimer: () -> Unit,
+    onShare: () -> Unit,
+    onSetAs: () -> Unit,
     onStopPlayback: () -> Unit,
 ) {
     ModalBottomSheet(
@@ -1081,22 +1181,38 @@ private fun PlayerOptionsSheet(
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.14f))
 
-            listOf(15, 30, 45, 60).forEach { minutes ->
-                PlayerOptionRow(
-                    icon = Icons.Outlined.AccessTime,
-                    title = "Sleep after ${minutes}m",
-                    subtitle = "Pause playback automatically after ${minutes} minutes.",
-                    onClick = { onSetSleepTimer(minutes * 60_000L) },
-                )
-            }
-            if (audioPlaybackState.sleepTimerRemainingMs != null) {
-                PlayerOptionRow(
-                    icon = Icons.Outlined.Close,
-                    title = "Sleep off",
-                    subtitle = "Current timer: ${audioPlaybackState.sleepTimerRemainingMs.toShortTimerLabel()} remaining.",
-                    onClick = { onSetSleepTimer(null) },
-                )
-            }
+            PlayerOptionRow(
+                icon = Icons.Outlined.Info,
+                title = "Details",
+                subtitle = "View file, source, download time, and playback details.",
+                onClick = onShowDetails,
+            )
+            PlayerOptionRow(
+                icon = Icons.Outlined.Edit,
+                title = "Rename",
+                subtitle = "Rename the audio file in the app and file manager.",
+                onClick = onRename,
+            )
+            PlayerOptionRow(
+                icon = Icons.Outlined.AccessTime,
+                title = "Sleep timer",
+                subtitle = audioPlaybackState.sleepTimerRemainingMs?.let {
+                    "Current timer: ${it.toShortTimerLabel()} remaining."
+                } ?: "Set a custom timer or turn it off.",
+                onClick = onSleepTimer,
+            )
+            PlayerOptionRow(
+                icon = Icons.Outlined.Share,
+                title = "Share",
+                subtitle = "Send this audio file to another app.",
+                onClick = onShare,
+            )
+            PlayerOptionRow(
+                icon = Icons.Outlined.Alarm,
+                title = "Set as",
+                subtitle = "Use this audio with ringtone or alarm tools.",
+                onClick = onSetAs,
+            )
             PlayerOptionRow(
                 icon = Icons.Outlined.PauseCircle,
                 title = "Stop playback",
@@ -1250,6 +1366,266 @@ private fun AudioToolsSheet(
             Spacer(Modifier.height(8.dp))
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TrackDetailsSheet(
+    item: VideoLibraryItem,
+    audioPlaybackState: AudioPlaybackState,
+    isFavorite: Boolean,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            SheetTrackHeader(item = item)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.14f))
+            DetailRow("Title", item.displayTitle)
+            DetailRow("File name", item.file?.name.orEmpty().ifBlank { "Unknown" })
+            DetailRow("Folder", item.file?.parentFile?.name.orEmpty().ifBlank { "Unknown" })
+            DetailRow("Path", item.file?.absolutePath.orEmpty().ifBlank { "Unknown" })
+            DetailRow("Size", item.displaySize.ifBlank { "Unknown" })
+            DetailRow("Downloaded", formatMediaDate(item.task.updatedAtEpochMs))
+            DetailRow("Source", item.task.url.ifBlank { "Unknown" })
+            DetailRow("Format", item.file?.extension?.uppercase().orEmpty().ifBlank { "Audio" })
+            DetailRow("Favorite", if (isFavorite) "Yes" else "No")
+            if (audioPlaybackState.currentTaskId == item.task.id) {
+                DetailRow(
+                    label = "Playback",
+                    value = "${formatPlaybackTime(audioPlaybackState.positionMs)} / ${formatPlaybackTime(audioPlaybackState.durationMs)}",
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RenameTrackSheet(
+    item: VideoLibraryItem,
+    onRename: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var name by remember(item.task.id) {
+        mutableStateOf(item.file?.nameWithoutExtension ?: item.displayTitle)
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            SheetTrackHeader(item = item)
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text("File name") },
+                supportingText = {
+                    Text(
+                        text = item.file?.extension?.takeIf { it.isNotBlank() }?.let { "Extension .$it will be kept." }
+                            ?: "Use a simple file name.",
+                    )
+                },
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = onDismiss) {
+                    Text("Cancel")
+                }
+                Spacer(Modifier.width(8.dp))
+                OutlinedButton(
+                    onClick = { onRename(name.trim()) },
+                    enabled = name.isNotBlank(),
+                ) {
+                    Text("Rename")
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SleepTimerSheet(
+    sleepTimerRemainingMs: Long?,
+    onSetSleepTimer: (Long?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var hours by remember { mutableStateOf("") }
+    var minutes by remember { mutableStateOf("30") }
+    var seconds by remember { mutableStateOf("") }
+
+    fun sanitizedDurationMs(): Long? {
+        val totalSeconds =
+            hours.toLongOrNull().orZero() * 3600L +
+                minutes.toLongOrNull().orZero() * 60L +
+                seconds.toLongOrNull().orZero()
+        return totalSeconds.takeIf { it > 0L }?.times(1_000L)
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Text(
+                text = "Sleep timer",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = sleepTimerRemainingMs?.let { "Current timer: ${it.toShortTimerLabel()} remaining." }
+                    ?: "Pause playback automatically after a custom duration.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                TimerField("HH", hours, { hours = it.onlyDigits(2) }, Modifier.weight(1f))
+                TimerField("MM", minutes, { minutes = it.onlyDigits(2) }, Modifier.weight(1f))
+                TimerField("SS", seconds, { seconds = it.onlyDigits(2) }, Modifier.weight(1f))
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                listOf(15, 30, 45).forEach { preset ->
+                    OutlinedButton(
+                        onClick = {
+                            hours = ""
+                            minutes = preset.toString()
+                            seconds = ""
+                        },
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text("${preset}m")
+                    }
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = { onSetSleepTimer(null) }) {
+                    Text("Never")
+                }
+                Spacer(Modifier.width(8.dp))
+                OutlinedButton(
+                    onClick = { onSetSleepTimer(sanitizedDurationMs()) },
+                    enabled = sanitizedDurationMs() != null,
+                ) {
+                    Text("Set timer")
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SetAsSheet(
+    item: VideoLibraryItem,
+    onShare: () -> Unit,
+    onOpenSoundSettings: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            SheetTrackHeader(item = item)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.14f))
+            PlayerOptionRow(
+                icon = Icons.Outlined.Share,
+                title = "Send to ringtone app",
+                subtitle = "Share this file to a ringtone, alarm, or audio editor app.",
+                onClick = onShare,
+            )
+            PlayerOptionRow(
+                icon = Icons.Outlined.Alarm,
+                title = "Open sound settings",
+                subtitle = "Choose ringtone or alarm sound from Android settings.",
+                onClick = onOpenSoundSettings,
+            )
+            PlayerOptionRow(
+                icon = Icons.Outlined.Edit,
+                title = "Trim before setting",
+                subtitle = "Use the A-B markers to choose a section, then share it to an editor for now.",
+                onClick = onShare,
+            )
+            Spacer(Modifier.height(8.dp))
+        }
+    }
+}
+
+@Composable
+private fun DetailRow(
+    label: String,
+    value: String,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+@Composable
+private fun TimerField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier,
+        singleLine = true,
+        label = { Text(label) },
+    )
 }
 
 @Composable
@@ -1500,9 +1876,19 @@ private enum class PlayerSheet {
     Lyrics,
     Queue,
     AudioTools,
+    Details,
+    Rename,
+    SleepTimer,
+    SetAs,
 }
 
 private fun Long?.orEmptyMs(): Long = this ?: 0L
+
+private fun Long?.orZero(): Long = this ?: 0L
+
+private fun String.onlyDigits(maxLength: Int): String {
+    return filter { it.isDigit() }.take(maxLength)
+}
 
 private fun shareAudioFile(context: android.content.Context, file: File) {
     runCatching {
@@ -1519,5 +1905,13 @@ private fun shareAudioFile(context: android.content.Context, file: File) {
         context.startActivity(Intent.createChooser(intent, "Share audio"))
     }.onFailure {
         Toast.makeText(context, "Unable to share this audio file.", Toast.LENGTH_SHORT).show()
+    }
+}
+
+private fun openSoundSettings(context: android.content.Context) {
+    runCatching {
+        context.startActivity(Intent(Settings.ACTION_SOUND_SETTINGS))
+    }.onFailure {
+        Toast.makeText(context, "Unable to open sound settings.", Toast.LENGTH_SHORT).show()
     }
 }

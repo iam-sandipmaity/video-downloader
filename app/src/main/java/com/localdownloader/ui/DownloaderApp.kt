@@ -884,6 +884,7 @@ fun DownloaderApp(
                     onDismissAudioError = audioPlaybackViewModel::dismissError,
                     favoriteTaskIds = favoriteMusicTaskIds,
                     onToggleFavorite = musicFavoritesViewModel::toggleFavorite,
+                    onRenameAudioFile = downloadViewModel::renameDownloadedFile,
                     onBack = { navController.popBackStack() },
                     fileExists = fileUtils::managedFileExists,
                 )
