@@ -158,7 +158,7 @@ class PlayerViewModel @Inject constructor(
     fun bindTask(task: DownloadTask?) {
         val previousSessionKey = currentSessionKey
         val playablePath = task?.outputPath?.takeIf { path ->
-            path.isNotBlank() && fileUtils.managedFileExists(path)
+            path.isPlayableMediaLocation()
         }
         val title = task?.title.orEmpty()
         val sessionKey = task?.id ?: playablePath
@@ -241,15 +241,16 @@ class PlayerViewModel @Inject constructor(
         val savedPlayWhenReady = storedSession?.playWhenReady
             ?: restoredSavedStatePlayWhenReady
             ?: true
+        val subtitlePaths = task?.subtitlePaths.orEmpty()
 
         logger.i(
             "PlayerViewModel",
-            "Loading media for playback sessionKey=$sessionKey path=$playablePath subtitles=${task.subtitlePaths.size}",
+            "Loading media for playback sessionKey=$sessionKey path=$playablePath subtitles=${subtitlePaths.size}",
         )
         player.setMediaItem(
             buildMediaItem(
-                playableFile = File(playablePath),
-                explicitSubtitlePaths = task.subtitlePaths,
+                playableLocation = playablePath,
+                explicitSubtitlePaths = subtitlePaths,
             ),
         )
         player.prepare()
@@ -593,27 +594,31 @@ class PlayerViewModel @Inject constructor(
     }
 
     private fun buildMediaItem(
-        playableFile: File,
+        playableLocation: String,
         explicitSubtitlePaths: List<String>,
     ): MediaItem {
+        val playableFile = playableLocation
+            .takeUnless { it.startsWith("content://", ignoreCase = true) }
+            ?.let(::File)
+            ?.takeIf { it.exists() }
         val subtitleConfigurations = discoverLocalSubtitleConfigurations(
             playableFile = playableFile,
             explicitSubtitlePaths = explicitSubtitlePaths,
         )
         return MediaItem.Builder()
             .apply {
-                setUri(Uri.fromFile(playableFile))
-                resolvePreferredMediaMimeType(playableFile.name)?.let(::setMimeType)
+                setUri(playableLocation.toPlaybackUri())
+                resolvePreferredMediaMimeType(playableFile?.name ?: playableLocation)?.let(::setMimeType)
                 setSubtitleConfigurations(subtitleConfigurations)
             }
             .build()
     }
 
     private fun discoverLocalSubtitleConfigurations(
-        playableFile: File,
+        playableFile: File?,
         explicitSubtitlePaths: List<String>,
     ): List<MediaItem.SubtitleConfiguration> {
-        val parentDir = playableFile.parentFile ?: return emptyList()
+        val parentDir = playableFile?.parentFile ?: return emptyList()
         val stem = playableFile.nameWithoutExtension
         val explicitFiles = explicitSubtitlePaths
             .map(::File)
@@ -684,6 +689,22 @@ class PlayerViewModel @Inject constructor(
         loudnessEnhancer?.release()
         player.release()
         super.onCleared()
+    }
+
+    private fun String.isPlayableMediaLocation(): Boolean {
+        if (isBlank()) return false
+        return startsWith("content://", ignoreCase = true) ||
+            startsWith("file://", ignoreCase = true) ||
+            fileUtils.managedFileExists(this) ||
+            File(this).exists()
+    }
+
+    private fun String.toPlaybackUri(): Uri {
+        return when {
+            startsWith("content://", ignoreCase = true) -> Uri.parse(this)
+            startsWith("file://", ignoreCase = true) -> Uri.parse(this)
+            else -> Uri.fromFile(File(this))
+        }
     }
 
     companion object {

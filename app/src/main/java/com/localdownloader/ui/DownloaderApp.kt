@@ -3,6 +3,7 @@ package com.localdownloader.ui
 import android.content.Intent
 import android.os.Environment
 import android.os.StatFs
+import android.provider.OpenableColumns
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -71,6 +72,8 @@ import com.localdownloader.ui.screens.SettingsScreen
 import com.localdownloader.ui.screens.UpdateChangelogScreen
 import com.localdownloader.ui.screens.UpdateChangelogSections
 import com.localdownloader.ui.screens.UpdatesScreen
+import com.localdownloader.ui.screens.VideoGestureGuideSheet
+import com.localdownloader.ui.screens.VideoPlayerSourceSheet
 import com.localdownloader.ui.screens.YoutubeAuthLoginScreen
 import com.localdownloader.ui.screens.YoutubeAuthScreen
 import com.localdownloader.ui.screens.settings.AboutSettingsScreen
@@ -124,6 +127,8 @@ fun DownloaderApp(
     var pendingCookieCaptureUrl by remember { mutableStateOf<String?>(null) }
     var pendingCookieCaptureProfileId by remember { mutableStateOf<String?>(null) }
     var pendingFolderBrowseTarget by remember { mutableStateOf<FolderBrowseTarget?>(null) }
+    var showVideoPlayerSourceSheet by remember { mutableStateOf(false) }
+    var showVideoGestureGuideSheet by remember { mutableStateOf(false) }
 
     val convertFilePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
@@ -142,6 +147,25 @@ fun DownloaderApp(
             val path = com.localdownloader.utils.FileUtils.getRealPathFromUri(context, it)
                 ?: it.toString()
             mediaToolsViewModel.onCompressInputPathChanged(path)
+        }
+    }
+    val videoFilePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        runCatching {
+            context.contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION,
+            )
+        }
+        activeExternalOpenRequest = ExternalOpenRequest(
+            path = uri.toString(),
+            displayName = context.resolveOpenableDisplayName(uri) ?: "Device video",
+            mimeType = context.contentResolver.getType(uri) ?: "video/*",
+        )
+        navController.navigate(Routes.ExternalOpen) {
+            launchSingleTop = true
         }
     }
 
@@ -255,6 +279,32 @@ fun DownloaderApp(
     val savedItemsCount = downloadState.tasks.count { it.status == DownloadStatus.COMPLETED }
     val duplicateSavedItemsCount = remember(downloadState.tasks) { countPossibleDuplicateSavedItems(downloadState.tasks) }
     val availableDownloadsStorageBytes = remember { queryAvailableDownloadsStorageBytes() }
+
+    if (showVideoPlayerSourceSheet) {
+        VideoPlayerSourceSheet(
+            downloadedVideos = savedVideoItems,
+            onBrowseDevice = {
+                showVideoPlayerSourceSheet = false
+                videoFilePicker.launch(arrayOf("video/*"))
+            },
+            onOpenGestureGuide = {
+                showVideoPlayerSourceSheet = false
+                showVideoGestureGuideSheet = true
+            },
+            onOpenDownloadedVideo = { item ->
+                showVideoPlayerSourceSheet = false
+                navController.navigate("${Routes.Player}/${item.task.id}") {
+                    launchSingleTop = true
+                }
+            },
+            onDismiss = { showVideoPlayerSourceSheet = false },
+        )
+    }
+    if (showVideoGestureGuideSheet) {
+        VideoGestureGuideSheet(
+            onDismiss = { showVideoGestureGuideSheet = false },
+        )
+    }
 
     LaunchedEffect(formatState.themeMode, formatState.accentPreset, formatState.contrastMode) {
         onAppearanceUpdated?.invoke(
@@ -555,6 +605,7 @@ fun DownloaderApp(
                     onOpenHistory = { navController.navigate(Routes.History) },
                     onOpenCompress = { navController.navigate(Routes.Compress) },
                     onOpenConvert = { navController.navigate(Routes.Convert) },
+                    onOpenVideo = { showVideoPlayerSourceSheet = true },
                     onOpenMusic = { navController.navigate(Routes.Music) },
                     onOpenYoutubeAccess = { navController.navigate(Routes.YoutubeAuth) },
                     onOpenCookies = { navController.navigate(Routes.Cookies) },
@@ -1066,6 +1117,22 @@ private fun queryAvailableDownloadsStorageBytes(): Long {
         val stats = StatFs(downloadsDir.absolutePath)
         stats.availableBytes
     }.getOrDefault(0L)
+}
+
+private fun android.content.Context.resolveOpenableDisplayName(uri: android.net.Uri): String? {
+    return contentResolver.query(
+        uri,
+        arrayOf(OpenableColumns.DISPLAY_NAME),
+        null,
+        null,
+        null,
+    )?.use { cursor ->
+        if (cursor.moveToFirst()) {
+            cursor.getString(cursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME))
+        } else {
+            null
+        }
+    }?.takeIf { it.isNotBlank() }
 }
 
 private val primaryRouteOrder = listOf(

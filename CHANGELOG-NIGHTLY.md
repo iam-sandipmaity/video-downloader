@@ -12,6 +12,8 @@ Nightly builds are rolling prereleases published from the `nightly` release tag.
 - **Expanded player actions** - added dedicated detail, rename, trim, sleep timer, share, and set-as flows, while keeping app-library-only actions scoped to app-downloaded tracks.
 - **Audio trim editor** - trimming now uses its own start/end editor and exports a selected range as a new audio file instead of reusing A-B loop points.
 - **A-B loop markers** - selected A and B loop points are shown on the progress bar with the looped span highlighted.
+- **Video player shortcut in More** - added a Video player entry before Audio player with downloaded-video playback, device video browsing, and a gesture guide.
+- **Video gesture guide** - first video playback now introduces brightness, volume, seek, zoom, and pan gestures, and the same guide can be reopened from More.
 
 ### Changed
 - **Music player redesign** - replaced the old in-app music player surface with a full-screen deck, animated vinyl-style artwork, improved tonearm layout, refreshed controls, and a compact playing queue.

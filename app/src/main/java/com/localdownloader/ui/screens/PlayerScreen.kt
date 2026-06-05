@@ -137,12 +137,22 @@ fun PlayerScreen(
     val view = LocalView.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val activity = context.findActivity()
-    val playablePath = task?.outputPath?.takeIf { path -> path.isNotBlank() && File(path).exists() }
-    val allowBackgroundPlayback = remember(playablePath) {
-        isLikelyAudioFile(playablePath)
+    val playablePath = task?.outputPath?.takeIf { path -> path.isPlayablePlayerLocation() }
+    val isVideoContent = remember(playablePath, task?.title) {
+        isLikelyVideoFile(playablePath) ||
+            isLikelyVideoFile(task?.title) ||
+            playablePath?.startsWith("content://", ignoreCase = true) == true
+    }
+    val allowBackgroundPlayback = remember(playablePath, task?.title) {
+        isLikelyAudioFile(playablePath) || isLikelyAudioFile(task?.title)
     }
     val playbackCompatibilityLabel = remember(playablePath) {
-        builtInPlaybackCompatibilityLabel(playablePath)
+        playablePath
+            ?.takeUnless { it.startsWith("content://", ignoreCase = true) }
+            ?.let(::builtInPlaybackCompatibilityLabel)
+    }
+    val gestureGuidePrefs = remember(context) {
+        context.getSharedPreferences(VIDEO_PLAYER_HINT_PREFS, Context.MODE_PRIVATE)
     }
     val uiState by playerViewModel.uiState.collectAsStateWithLifecycle()
     val selectedAudioTrack = uiState.audioTracks.firstOrNull { it.isSelected }
@@ -155,6 +165,7 @@ fun PlayerScreen(
     var controlsVisible by rememberSaveable { mutableStateOf(true) }
     var gestureFeedback by rememberSaveable { mutableStateOf<String?>(null) }
     var swipeHintVisible by rememberSaveable { mutableStateOf(true) }
+    var gestureGuideVisible by rememberSaveable(playablePath) { mutableStateOf(false) }
     var compatibilityNoticeVisible by rememberSaveable(playablePath) {
         mutableStateOf(playbackCompatibilityLabel != null)
     }
@@ -217,10 +228,10 @@ fun PlayerScreen(
         }
     }
 
-    DisposableEffect(activity, playablePath, uiState.isAvailable) {
+    DisposableEffect(activity, playablePath, uiState.isAvailable, isVideoContent) {
         val mainActivity = activity as? MainActivity
         mainActivity?.updatePictureInPictureAllowed(
-            enabled = uiState.isAvailable && isLikelyVideoFile(playablePath),
+            enabled = uiState.isAvailable && isVideoContent,
         )
         onDispose {
             mainActivity?.updatePictureInPictureAllowed(false)
@@ -239,6 +250,18 @@ fun PlayerScreen(
         if (playablePath != null) {
             delay(SWIPE_HINT_MS)
             swipeHintVisible = false
+        }
+    }
+
+    LaunchedEffect(playablePath, isVideoContent) {
+        if (
+            playablePath != null &&
+            isVideoContent &&
+            !gestureGuidePrefs.getBoolean(VIDEO_PLAYER_HINT_SEEN_KEY, false)
+        ) {
+            controlsVisible = false
+            swipeHintVisible = false
+            gestureGuideVisible = true
         }
     }
 
@@ -325,6 +348,15 @@ fun PlayerScreen(
             .fillMaxSize()
             .background(Color.Black),
     ) {
+        if (gestureGuideVisible) {
+            VideoGestureGuideSheet(
+                onDismiss = {
+                    gestureGuidePrefs.edit().putBoolean(VIDEO_PLAYER_HINT_SEEN_KEY, true).apply()
+                    gestureGuideVisible = false
+                    controlsVisible = true
+                },
+            )
+        }
         if (playablePath != null) {
             AndroidView(
                 factory = { viewContext ->
@@ -1689,6 +1721,13 @@ private fun isLikelyAudioFile(path: String?): Boolean {
     return isLikelyAudioPath(path)
 }
 
+private fun String.isPlayablePlayerLocation(): Boolean {
+    if (isBlank()) return false
+    return startsWith("content://", ignoreCase = true) ||
+        startsWith("file://", ignoreCase = true) ||
+        File(this).exists()
+}
+
 private fun openMediaExternally(
     context: Context,
     path: String?,
@@ -1997,6 +2036,8 @@ private const val CONTROLS_AUTO_HIDE_MS = 3_000L
 private const val GESTURE_FEEDBACK_MS = 900L
 private const val SWIPE_HINT_MS = 5_000L
 private const val COMPATIBILITY_NOTICE_MS = 2_000L
+private const val VIDEO_PLAYER_HINT_PREFS = "video_player_hints"
+private const val VIDEO_PLAYER_HINT_SEEN_KEY = "gesture_guide_seen"
 private const val MIN_PINCH_SCALE = 1f
 private const val MAX_PINCH_SCALE = 3f
 private const val DEFAULT_GESTURE_LEVEL = 0.5f
