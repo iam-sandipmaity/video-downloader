@@ -82,7 +82,7 @@ class AudioPlaybackManager @Inject constructor(
     ) {
         scope.launch {
             val sanitizedItems = items
-                .filter { it.filePath.isNotBlank() && File(it.filePath).exists() }
+                .filter { it.filePath.isPlayableAudioLocation() }
                 .distinctBy { it.taskId }
 
             if (sanitizedItems.isEmpty()) {
@@ -365,13 +365,28 @@ class AudioPlaybackManager @Inject constructor(
     private fun AudioQueueItem.toMediaItem(): MediaItem {
         return MediaItem.Builder()
             .setMediaId(taskId)
-            .setUri(Uri.fromFile(File(filePath)))
+            .setUri(filePath.toPlaybackUri())
             .setMediaMetadata(
                 MediaMetadata.Builder()
                     .setTitle(title)
                     .build(),
             )
             .build()
+    }
+
+    private fun String.isPlayableAudioLocation(): Boolean {
+        if (isBlank()) return false
+        return startsWith("content://", ignoreCase = true) ||
+            startsWith("file://", ignoreCase = true) ||
+            File(this).exists()
+    }
+
+    private fun String.toPlaybackUri(): Uri {
+        return when {
+            startsWith("content://", ignoreCase = true) -> Uri.parse(this)
+            startsWith("file://", ignoreCase = true) -> Uri.parse(this)
+            else -> Uri.fromFile(File(this))
+        }
     }
 
     private fun shuffledQueueKeepingStart(

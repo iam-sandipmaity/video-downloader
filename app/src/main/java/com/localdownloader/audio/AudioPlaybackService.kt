@@ -9,6 +9,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
+import android.net.Uri
 import android.os.IBinder
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
@@ -346,7 +347,11 @@ class AudioPlaybackService : Hilt_AudioPlaybackService() {
     ): NotificationMediaInfo {
         val retriever = MediaMetadataRetriever()
         return runCatching {
-            retriever.setDataSource(filePath)
+            if (filePath.startsWith("content://", ignoreCase = true)) {
+                retriever.setDataSource(this, Uri.parse(filePath))
+            } else {
+                retriever.setDataSource(filePath)
+            }
             NotificationMediaInfo(
                 title = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
                     ?.takeIf { it.isNotBlank() }

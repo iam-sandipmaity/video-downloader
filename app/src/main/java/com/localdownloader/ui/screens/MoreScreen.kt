@@ -4,6 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CloudDownload
 import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.SwapHoriz
@@ -25,6 +26,7 @@ fun MoreScreen(
     onOpenHistory: () -> Unit,
     onOpenCompress: () -> Unit,
     onOpenConvert: () -> Unit,
+    onOpenMusic: () -> Unit,
     onOpenYoutubeAccess: () -> Unit,
     onOpenCookies: () -> Unit,
     onOpenUpdates: () -> Unit,
@@ -94,6 +96,13 @@ fun MoreScreen(
         }
         item {
             PreferenceGroup {
+                PreferenceRow(
+                    icon = Icons.Rounded.MusicNote,
+                    title = stringResource(R.string.more_music_player_title),
+                    subtitle = stringResource(R.string.more_music_player_subtitle),
+                    onClick = onOpenMusic,
+                )
+                PreferenceDivider()
                 PreferenceRow(
                     icon = Icons.Rounded.SwapHoriz,
                     title = stringResource(R.string.more_converter_title),

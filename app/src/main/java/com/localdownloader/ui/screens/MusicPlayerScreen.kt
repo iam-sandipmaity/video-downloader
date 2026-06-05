@@ -1,8 +1,13 @@
 package com.localdownloader.ui.screens
 
+import android.Manifest
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
 import android.provider.Settings
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -89,16 +94,16 @@ import androidx.core.content.FileProvider
 import com.localdownloader.audio.AudioPlaybackState
 import com.localdownloader.audio.AudioQueueItem
 import com.localdownloader.audio.PlaylistRepeatMode
+import com.localdownloader.domain.models.MusicLibraryTrack
+import com.localdownloader.domain.models.MusicSourceType
 import com.localdownloader.ui.components.LocalVideoThumbnail
 import com.localdownloader.ui.model.MediaKind
-import com.localdownloader.ui.model.VideoLibraryItem
 import com.localdownloader.ui.model.buildVideoLibraryItems
 import com.localdownloader.ui.model.formatMediaDate
 import com.localdownloader.ui.model.formatPlaybackTime
-import com.localdownloader.ui.model.label
-import com.localdownloader.ui.model.toAudioQueueItems
 import com.localdownloader.ui.model.toShortTimerLabel
 import com.localdownloader.viewmodel.DownloadUiState
+import com.localdownloader.viewmodel.MusicSourceUiState
 import com.localdownloader.viewmodel.MusicTrimUiState
 import java.io.File
 
@@ -107,6 +112,11 @@ import java.io.File
 fun MusicPlayerScreen(
     uiState: DownloadUiState,
     audioPlaybackState: AudioPlaybackState,
+    musicSourceState: MusicSourceUiState,
+    onSelectMusicSource: (MusicSourceType) -> Unit,
+    onMusicFolderSelected: (Uri) -> Unit,
+    onRefreshMusicSource: () -> Unit,
+    onDismissMusicSourceMessage: () -> Unit,
     onPlayAudioQueue: (List<AudioQueueItem>, String?, Boolean) -> Unit,
     onToggleAudioPlayback: () -> Unit,
     onSeekAudioBy: (Long) -> Unit,
@@ -128,12 +138,63 @@ fun MusicPlayerScreen(
     modifier: Modifier = Modifier,
     fileExists: (String) -> Boolean = { path -> java.io.File(path).exists() },
 ) {
-    val audioItems = remember(uiState.tasks, fileExists) {
+    val context = LocalContext.current
+    val folderPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree(),
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        runCatching {
+            context.contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+            )
+        }
+        onMusicFolderSelected(uri)
+    }
+    val deviceAudioPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        Manifest.permission.READ_MEDIA_AUDIO
+    } else {
+        Manifest.permission.READ_EXTERNAL_STORAGE
+    }
+    val deviceAudioPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) {
+        onSelectMusicSource(MusicSourceType.DEVICE_AUDIO)
+    }
+
+    val appDownloadTracks = remember(uiState.tasks, fileExists) {
         buildVideoLibraryItems(uiState.tasks, fileExists)
             .filter { it.exists && it.mediaKind == MediaKind.AUDIO }
+            .map { item ->
+                MusicLibraryTrack(
+                    id = item.task.id,
+                    title = item.displayTitle,
+                    playbackUri = item.file?.absolutePath.orEmpty(),
+                    filePath = item.file?.absolutePath,
+                    fileName = item.file?.name,
+                    folderName = item.file?.parentFile?.name,
+                    displaySize = item.displaySize,
+                    sizeBytes = item.file?.length(),
+                    updatedAtEpochMs = item.task.updatedAtEpochMs,
+                    sourceType = MusicSourceType.APP_DOWNLOADS,
+                    sourceUrl = item.task.url,
+                    appTaskId = item.task.id,
+                )
+            }
+    }
+    val audioItems = remember(
+        musicSourceState.sourceType,
+        appDownloadTracks,
+        musicSourceState.externalTracks,
+    ) {
+        when (musicSourceState.sourceType) {
+            MusicSourceType.APP_DOWNLOADS -> appDownloadTracks
+            MusicSourceType.DEVICE_AUDIO,
+            MusicSourceType.SELECTED_FOLDER -> musicSourceState.externalTracks
+        }
     }
     val audioQueueItems = remember(audioItems) { audioItems.toAudioQueueItems() }
-    val currentItem = audioItems.firstOrNull { it.task.id == audioPlaybackState.currentTaskId }
+    val currentItem = audioItems.firstOrNull { it.id == audioPlaybackState.currentTaskId }
         ?: audioItems.firstOrNull()
 
     var isScrubbing by remember(audioPlaybackState.currentTaskId) { mutableStateOf(false) }
@@ -143,8 +204,6 @@ fun MusicPlayerScreen(
     var activeSheet by remember { mutableStateOf<PlayerSheet?>(null) }
     var loopStartMs by remember(audioPlaybackState.currentTaskId) { mutableStateOf<Long?>(null) }
     var loopEndMs by remember(audioPlaybackState.currentTaskId) { mutableStateOf<Long?>(null) }
-    val context = LocalContext.current
-
     LaunchedEffect(
         audioPlaybackState.currentTaskId,
         audioPlaybackState.positionMs,
@@ -168,14 +227,45 @@ fun MusicPlayerScreen(
         if (audioPlaybackState.queue.isEmpty()) {
             audioItems
         } else {
-            val byTaskId = audioItems.associateBy { it.task.id }
+            val byTaskId = audioItems.associateBy { it.id }
             audioPlaybackState.queue.mapNotNull { queueItem -> byTaskId[queueItem.taskId] }
         }
     }
     val queueDisplayAudioItems = remember(queueDisplayItems) { queueDisplayItems.toAudioQueueItems() }
 
+    if (activeSheet == PlayerSheet.Source) {
+        MusicSourceSheet(
+            musicSourceState = musicSourceState,
+            appTrackCount = appDownloadTracks.size,
+            onSelectSource = { sourceType ->
+                when (sourceType) {
+                    MusicSourceType.APP_DOWNLOADS -> onSelectMusicSource(sourceType)
+                    MusicSourceType.DEVICE_AUDIO -> {
+                        if (musicSourceState.devicePermissionGranted || Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+                            onSelectMusicSource(sourceType)
+                        } else {
+                            deviceAudioPermissionLauncher.launch(deviceAudioPermission)
+                        }
+                    }
+                    MusicSourceType.SELECTED_FOLDER -> {
+                        if (musicSourceState.folderUri.isNullOrBlank()) {
+                            folderPicker.launch(null)
+                        } else {
+                            onSelectMusicSource(sourceType)
+                        }
+                    }
+                }
+            },
+            onPickFolder = { folderPicker.launch(null) },
+            onRefresh = onRefreshMusicSource,
+            onDismissMessage = onDismissMusicSourceMessage,
+            onDismiss = { activeSheet = null },
+        )
+    }
+
     if (activeSheet != null && currentItem != null) {
         when (activeSheet) {
+            PlayerSheet.Source -> Unit
             PlayerSheet.More -> PlayerOptionsSheet(
                 item = currentItem,
                 audioPlaybackState = audioPlaybackState,
@@ -185,7 +275,7 @@ fun MusicPlayerScreen(
                 onTrim = { activeSheet = PlayerSheet.Trim },
                 onSleepTimer = { activeSheet = PlayerSheet.SleepTimer },
                 onShare = {
-                    currentItem.file?.let { file -> shareAudioFile(context, file) }
+                    shareAudioTrack(context, currentItem)
                     activeSheet = null
                 },
                 onSetAs = { activeSheet = PlayerSheet.SetAs },
@@ -202,7 +292,7 @@ fun MusicPlayerScreen(
                 audioItems = queueDisplayItems,
                 audioPlaybackState = audioPlaybackState,
                 onPlayTrack = { item ->
-                    onPlayAudioQueue(queueDisplayAudioItems, item.task.id, audioPlaybackState.shuffleEnabled)
+                    onPlayAudioQueue(queueDisplayAudioItems, item.id, audioPlaybackState.shuffleEnabled)
                     activeSheet = null
                 },
                 onDismiss = { activeSheet = null },
@@ -226,13 +316,13 @@ fun MusicPlayerScreen(
             PlayerSheet.Details -> TrackDetailsSheet(
                 item = currentItem,
                 audioPlaybackState = audioPlaybackState,
-                isFavorite = currentItem.task.id in favoriteTaskIds,
+                isFavorite = currentItem.appTaskId?.let { it in favoriteTaskIds } == true,
                 onDismiss = { activeSheet = null },
             )
             PlayerSheet.Rename -> RenameTrackSheet(
                 item = currentItem,
                 onRename = { newName ->
-                    onRenameAudioFile(currentItem.task.id, newName)
+                    currentItem.appTaskId?.let { onRenameAudioFile(it, newName) }
                     activeSheet = null
                 },
                 onDismiss = { activeSheet = null },
@@ -242,11 +332,11 @@ fun MusicPlayerScreen(
                 audioPlaybackState = audioPlaybackState,
                 trimUiState = trimUiState,
                 onTrim = { startMs, endMs ->
-                    currentItem.file?.absolutePath?.let { sourcePath ->
+                    currentItem.filePath?.let { sourcePath ->
                         onTrimAudio(
-                            currentItem.task.id,
-                            currentItem.displayTitle,
-                            currentItem.task.url,
+                            currentItem.appTaskId.orEmpty(),
+                            currentItem.title,
+                            currentItem.sourceUrl,
                             sourcePath,
                             startMs,
                             endMs,
@@ -270,7 +360,7 @@ fun MusicPlayerScreen(
             PlayerSheet.SetAs -> SetAsSheet(
                 item = currentItem,
                 onShare = {
-                    currentItem.file?.let { file -> shareAudioFile(context, file) }
+                    shareAudioTrack(context, currentItem)
                     activeSheet = null
                 },
                 onOpenSoundSettings = {
@@ -290,7 +380,7 @@ fun MusicPlayerScreen(
     ) {
         currentItem?.let { item ->
             LocalVideoThumbnail(
-                filePath = item.file?.absolutePath,
+                filePath = item.playbackUri,
                 contentDescription = null,
                 modifier = Modifier
                     .fillMaxSize()
@@ -333,6 +423,8 @@ fun MusicPlayerScreen(
         ) {
             if (audioItems.isEmpty()) {
                 EmptyMusicState(
+                    musicSourceState = musicSourceState,
+                    onOpenSourcePicker = { activeSheet = PlayerSheet.Source },
                     onBack = onBack,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -344,6 +436,7 @@ fun MusicPlayerScreen(
             NowPlayingDeck(
                 item = currentItem,
                 trackCount = audioItems.size,
+                sourceLabel = musicSourceState.sourceType.label,
                 audioPlaybackState = audioPlaybackState,
                 accentColor = MaterialTheme.colorScheme.primary,
                 scrubPositionMs = scrubPositionMs,
@@ -356,7 +449,7 @@ fun MusicPlayerScreen(
                     if (audioPlaybackState.hasQueue) {
                         onToggleAudioPlayback()
                     } else {
-                        onPlayAudioQueue(audioQueueItems, currentItem?.task?.id, false)
+                        onPlayAudioQueue(audioQueueItems, currentItem?.id, false)
                     }
                 },
                 onSkipToPreviousAudio = onSkipToPreviousAudio,
@@ -369,13 +462,13 @@ fun MusicPlayerScreen(
                     }
                 },
                 onCycleAudioRepeatMode = onCycleAudioRepeatMode,
-                isFavorite = currentItem?.task?.id?.let { it in favoriteTaskIds } == true,
+                isFavorite = currentItem?.appTaskId?.let { it in favoriteTaskIds } == true,
                 isAbLoopActive = loopStartMs != null && loopEndMs != null,
                 onToggleFavorite = {
-                    currentItem?.task?.id?.let(onToggleFavorite)
+                    currentItem?.appTaskId?.let(onToggleFavorite)
                 },
                 onShare = {
-                    currentItem?.file?.let { file -> shareAudioFile(context, file) }
+                    currentItem?.let { shareAudioTrack(context, it) }
                 },
                 onSetAbLoopPoint = {
                     if (loopStartMs == null) {
@@ -390,6 +483,7 @@ fun MusicPlayerScreen(
                 onOpenAudioTools = { activeSheet = PlayerSheet.AudioTools },
                 onOpenLyrics = { activeSheet = PlayerSheet.Lyrics },
                 onOpenQueue = { activeSheet = PlayerSheet.Queue },
+                onOpenSourcePicker = { activeSheet = PlayerSheet.Source },
                 onOptions = { activeSheet = PlayerSheet.More },
                 onBack = onBack,
                 onDismissAudioError = onDismissAudioError,
@@ -399,7 +493,7 @@ fun MusicPlayerScreen(
                 audioItems = queueDisplayItems,
                 audioPlaybackState = audioPlaybackState,
                 onPlayTrack = { item ->
-                    onPlayAudioQueue(queueDisplayAudioItems, item.task.id, audioPlaybackState.shuffleEnabled)
+                    onPlayAudioQueue(queueDisplayAudioItems, item.id, audioPlaybackState.shuffleEnabled)
                 },
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
@@ -409,8 +503,9 @@ fun MusicPlayerScreen(
 
 @Composable
 private fun NowPlayingDeck(
-    item: VideoLibraryItem?,
+    item: MusicLibraryTrack?,
     trackCount: Int,
+    sourceLabel: String,
     audioPlaybackState: AudioPlaybackState,
     accentColor: Color,
     scrubPositionMs: Float,
@@ -432,17 +527,19 @@ private fun NowPlayingDeck(
     onOpenAudioTools: () -> Unit,
     onOpenLyrics: () -> Unit,
     onOpenQueue: () -> Unit,
+    onOpenSourcePicker: () -> Unit,
     onOptions: () -> Unit,
     onBack: () -> Unit,
     onDismissAudioError: () -> Unit,
 ) {
-    val title = item?.displayTitle ?: "Downloaded music"
-    val artist = item?.file?.parentFile?.name?.ifBlank { null }
-        ?: item?.mediaKind?.label
+    val title = item?.title ?: "Music player"
+    val artist = item?.artist?.ifBlank { null }
+        ?: item?.folderName?.ifBlank { null }
+        ?: item?.sourceLabel
         ?: "Audio library"
     val trackLabel = audioPlaybackState.currentTaskId?.let {
         "Track ${audioPlaybackState.currentTrackNumber}/${audioPlaybackState.queueCount.coerceAtLeast(trackCount)}"
-    } ?: "$trackCount downloaded tracks"
+    } ?: "$trackCount tracks"
 
     Surface(
         modifier = Modifier
@@ -553,6 +650,15 @@ private fun NowPlayingDeck(
                     style = MaterialTheme.typography.labelLarge,
                     color = Color.White.copy(alpha = 0.68f),
                 )
+                TextButton(onClick = onOpenSourcePicker) {
+                    Icon(
+                        imageVector = Icons.Outlined.QueueMusic,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Source: $sourceLabel")
+                }
 
                 PlayerUtilityRow(
                     repeatMode = audioPlaybackState.repeatMode,
@@ -703,7 +809,7 @@ private fun NowPlayingDeck(
 
 @Composable
 private fun VinylArtwork(
-    item: VideoLibraryItem?,
+    item: MusicLibraryTrack?,
     isPlaying: Boolean,
     accentColor: Color,
     modifier: Modifier = Modifier,
@@ -781,8 +887,8 @@ private fun VinylArtwork(
             }
 
             LocalVideoThumbnail(
-                filePath = item?.file?.absolutePath,
-                contentDescription = item?.displayTitle,
+                filePath = item?.playbackUri,
+                contentDescription = item?.title,
                 modifier = Modifier
                     .fillMaxWidth(0.52f)
                     .aspectRatio(1f)
@@ -791,7 +897,7 @@ private fun VinylArtwork(
                 fallbackContent = {
                     DefaultRecordArtwork(
                         accentColor = accentColor,
-                        contentDescription = item?.displayTitle,
+                        contentDescription = item?.title,
                     )
                 },
             )
@@ -1156,8 +1262,148 @@ private fun FooterAction(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+private fun MusicSourceSheet(
+    musicSourceState: MusicSourceUiState,
+    appTrackCount: Int,
+    onSelectSource: (MusicSourceType) -> Unit,
+    onPickFolder: () -> Unit,
+    onRefresh: () -> Unit,
+    onDismissMessage: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Text(
+                text = "Audio source",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = "Choose where the music player builds its queue from.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.14f))
+            PlayerOptionRow(
+                icon = Icons.Outlined.QueueMusic,
+                title = sourceOptionTitle(
+                    sourceType = MusicSourceType.APP_DOWNLOADS,
+                    selectedSourceType = musicSourceState.sourceType,
+                ),
+                subtitle = "$appTrackCount audio downloads tracked by the app.",
+                onClick = { onSelectSource(MusicSourceType.APP_DOWNLOADS) },
+            )
+            PlayerOptionRow(
+                icon = Icons.Outlined.MusicNote,
+                title = sourceOptionTitle(
+                    sourceType = MusicSourceType.DEVICE_AUDIO,
+                    selectedSourceType = musicSourceState.sourceType,
+                ),
+                subtitle = if (musicSourceState.devicePermissionGranted) {
+                    "${musicSourceState.externalTracks.size} device tracks available."
+                } else {
+                    "Requires audio permission to read your device music library."
+                },
+                onClick = { onSelectSource(MusicSourceType.DEVICE_AUDIO) },
+            )
+            PlayerOptionRow(
+                icon = Icons.Outlined.GraphicEq,
+                title = sourceOptionTitle(
+                    sourceType = MusicSourceType.SELECTED_FOLDER,
+                    selectedSourceType = musicSourceState.sourceType,
+                ),
+                subtitle = musicSourceState.folderLabel?.let { label ->
+                    "$label folder, ${musicSourceState.externalTracks.size} tracks loaded."
+                } ?: "Pick one folder and keep its access for later.",
+                onClick = { onSelectSource(MusicSourceType.SELECTED_FOLDER) },
+            )
+            OutlinedButton(
+                onClick = onPickFolder,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(if (musicSourceState.folderUri.isNullOrBlank()) "Pick music folder" else "Change music folder")
+            }
+            if (musicSourceState.isLoading) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+            musicSourceState.message?.let { message ->
+                SourceMessage(
+                    message = message,
+                    color = MaterialTheme.colorScheme.primary,
+                    onDismiss = onDismissMessage,
+                )
+            }
+            musicSourceState.errorMessage?.let { message ->
+                SourceMessage(
+                    message = message,
+                    color = MaterialTheme.colorScheme.error,
+                    onDismiss = onDismissMessage,
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = onRefresh) {
+                    Text("Refresh")
+                }
+                Spacer(Modifier.width(8.dp))
+                TextButton(onClick = onDismiss) {
+                    Text("Close")
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+        }
+    }
+}
+
+@Composable
+private fun SourceMessage(
+    message: String,
+    color: Color,
+    onDismiss: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = color,
+            modifier = Modifier.weight(1f),
+        )
+        TextButton(onClick = onDismiss) {
+            Text("Dismiss")
+        }
+    }
+}
+
+private fun sourceOptionTitle(
+    sourceType: MusicSourceType,
+    selectedSourceType: MusicSourceType,
+): String {
+    return if (sourceType == selectedSourceType) {
+        "${sourceType.label} - selected"
+    } else {
+        sourceType.label
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 private fun PlayerOptionsSheet(
-    item: VideoLibraryItem,
+    item: MusicLibraryTrack,
     audioPlaybackState: AudioPlaybackState,
     onDismiss: () -> Unit,
     onShowDetails: () -> Unit,
@@ -1184,8 +1430,8 @@ private fun PlayerOptionsSheet(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 LocalVideoThumbnail(
-                    filePath = item.file?.absolutePath,
-                    contentDescription = item.displayTitle,
+                    filePath = item.playbackUri,
+                    contentDescription = item.title,
                     modifier = Modifier
                         .size(72.dp)
                         .clip(CircleShape),
@@ -1195,15 +1441,16 @@ private fun PlayerOptionsSheet(
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Text(
-                        text = item.displayTitle,
+                        text = item.title,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = item.file?.parentFile?.name?.ifBlank { null }
-                            ?: item.mediaKind.label,
+                        text = item.artist?.ifBlank { null }
+                            ?: item.folderName?.ifBlank { null }
+                            ?: item.sourceLabel,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -1220,18 +1467,22 @@ private fun PlayerOptionsSheet(
                 subtitle = "View file, source, download time, and playback details.",
                 onClick = onShowDetails,
             )
-            PlayerOptionRow(
-                icon = Icons.Outlined.Edit,
-                title = "Rename",
-                subtitle = "Rename the audio file in the app and file manager.",
-                onClick = onRename,
-            )
-            PlayerOptionRow(
-                icon = Icons.Outlined.GraphicEq,
-                title = "Trim audio",
-                subtitle = "Export a selected part as a new audio file.",
-                onClick = onTrim,
-            )
+            if (item.canRename) {
+                PlayerOptionRow(
+                    icon = Icons.Outlined.Edit,
+                    title = "Rename",
+                    subtitle = "Rename the audio file in the app and file manager.",
+                    onClick = onRename,
+                )
+            }
+            if (item.canTrim) {
+                PlayerOptionRow(
+                    icon = Icons.Outlined.GraphicEq,
+                    title = "Trim audio",
+                    subtitle = "Export a selected part as a new audio file.",
+                    onClick = onTrim,
+                )
+            }
             PlayerOptionRow(
                 icon = Icons.Outlined.AccessTime,
                 title = "Sleep timer",
@@ -1267,7 +1518,7 @@ private fun PlayerOptionsSheet(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LyricsSheet(
-    item: VideoLibraryItem,
+    item: MusicLibraryTrack,
     onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(
@@ -1300,9 +1551,9 @@ private fun LyricsSheet(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PlayingQueueSheet(
-    audioItems: List<VideoLibraryItem>,
+    audioItems: List<MusicLibraryTrack>,
     audioPlaybackState: AudioPlaybackState,
-    onPlayTrack: (VideoLibraryItem) -> Unit,
+    onPlayTrack: (MusicLibraryTrack) -> Unit,
     onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(
@@ -1334,8 +1585,8 @@ private fun PlayingQueueSheet(
             audioItems.forEach { item ->
                 QueueTrackRow(
                     item = item,
-                    isActive = item.task.id == audioPlaybackState.currentTaskId,
-                    isPlaying = item.task.id == audioPlaybackState.currentTaskId && audioPlaybackState.isPlaying,
+                    isActive = item.id == audioPlaybackState.currentTaskId,
+                    isPlaying = item.id == audioPlaybackState.currentTaskId && audioPlaybackState.isPlaying,
                     onClick = { onPlayTrack(item) },
                 )
             }
@@ -1410,7 +1661,7 @@ private fun AudioToolsSheet(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TrackDetailsSheet(
-    item: VideoLibraryItem,
+    item: MusicLibraryTrack,
     audioPlaybackState: AudioPlaybackState,
     isFavorite: Boolean,
     onDismiss: () -> Unit,
@@ -1427,16 +1678,18 @@ private fun TrackDetailsSheet(
         ) {
             SheetTrackHeader(item = item)
             HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.14f))
-            DetailRow("Title", item.displayTitle)
-            DetailRow("File name", item.file?.name.orEmpty().ifBlank { "Unknown" })
-            DetailRow("Folder", item.file?.parentFile?.name.orEmpty().ifBlank { "Unknown" })
-            DetailRow("Path", item.file?.absolutePath.orEmpty().ifBlank { "Unknown" })
+            DetailRow("Title", item.title)
+            DetailRow("Artist", item.artist.orEmpty().ifBlank { "Unknown" })
+            DetailRow("Album", item.album.orEmpty().ifBlank { "Unknown" })
+            DetailRow("File name", item.fileName.orEmpty().ifBlank { "Unknown" })
+            DetailRow("Folder", item.folderName.orEmpty().ifBlank { "Unknown" })
+            DetailRow("Location", item.filePath ?: item.playbackUri)
             DetailRow("Size", item.displaySize.ifBlank { "Unknown" })
-            DetailRow("Downloaded", formatMediaDate(item.task.updatedAtEpochMs))
-            DetailRow("Source", item.task.url.ifBlank { "Unknown" })
-            DetailRow("Format", item.file?.extension?.uppercase().orEmpty().ifBlank { "Audio" })
+            DetailRow("Added", formatMediaDate(item.updatedAtEpochMs))
+            DetailRow("Source", item.sourceLabel)
+            DetailRow("Format", item.extension.ifBlank { "Audio" })
             DetailRow("Favorite", if (isFavorite) "Yes" else "No")
-            if (audioPlaybackState.currentTaskId == item.task.id) {
+            if (audioPlaybackState.currentTaskId == item.id) {
                 DetailRow(
                     label = "Playback",
                     value = "${formatPlaybackTime(audioPlaybackState.positionMs)} / ${formatPlaybackTime(audioPlaybackState.durationMs)}",
@@ -1450,12 +1703,12 @@ private fun TrackDetailsSheet(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun RenameTrackSheet(
-    item: VideoLibraryItem,
+    item: MusicLibraryTrack,
     onRename: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var name by remember(item.task.id) {
-        mutableStateOf(item.file?.nameWithoutExtension ?: item.displayTitle)
+    var name by remember(item.id) {
+        mutableStateOf(item.fileName?.substringBeforeLast('.') ?: item.title)
     }
 
     ModalBottomSheet(
@@ -1477,7 +1730,10 @@ private fun RenameTrackSheet(
                 label = { Text("File name") },
                 supportingText = {
                     Text(
-                        text = item.file?.extension?.takeIf { it.isNotBlank() }?.let { "Extension .$it will be kept." }
+                        text = item.fileName
+                            ?.substringAfterLast('.', missingDelimiterValue = "")
+                            ?.takeIf { it.isNotBlank() }
+                            ?.let { "Extension .$it will be kept." }
                             ?: "Use a simple file name.",
                     )
                 },
@@ -1506,15 +1762,15 @@ private fun RenameTrackSheet(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TrimTrackSheet(
-    item: VideoLibraryItem,
+    item: MusicLibraryTrack,
     audioPlaybackState: AudioPlaybackState,
     trimUiState: MusicTrimUiState,
     onTrim: (Long, Long) -> Unit,
     onDismissResult: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var startText by remember(item.task.id) { mutableStateOf("00:00") }
-    var endText by remember(item.task.id, audioPlaybackState.durationMs) {
+    var startText by remember(item.id) { mutableStateOf("00:00") }
+    var endText by remember(item.id, audioPlaybackState.durationMs) {
         mutableStateOf(
             audioPlaybackState.durationMs
                 .takeIf { it > 0L }
@@ -1756,7 +2012,7 @@ private fun SleepTimerSheet(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SetAsSheet(
-    item: VideoLibraryItem,
+    item: MusicLibraryTrack,
     onShare: () -> Unit,
     onOpenSoundSettings: () -> Unit,
     onDismiss: () -> Unit,
@@ -1826,15 +2082,15 @@ private fun TimerField(
 }
 
 @Composable
-private fun SheetTrackHeader(item: VideoLibraryItem) {
+private fun SheetTrackHeader(item: MusicLibraryTrack) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         LocalVideoThumbnail(
-            filePath = item.file?.absolutePath,
-            contentDescription = item.displayTitle,
+            filePath = item.playbackUri,
+            contentDescription = item.title,
             modifier = Modifier
                 .size(72.dp)
                 .clip(CircleShape),
@@ -1844,15 +2100,16 @@ private fun SheetTrackHeader(item: VideoLibraryItem) {
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(
-                text = item.displayTitle,
+                text = item.title,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = item.file?.parentFile?.name?.ifBlank { null }
-                    ?: item.mediaKind.label,
+                text = item.artist?.ifBlank { null }
+                    ?: item.folderName?.ifBlank { null }
+                    ?: item.sourceLabel,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
@@ -1903,9 +2160,9 @@ private fun PlayerOptionRow(
 
 @Composable
 private fun QueueSection(
-    audioItems: List<VideoLibraryItem>,
+    audioItems: List<MusicLibraryTrack>,
     audioPlaybackState: AudioPlaybackState,
-    onPlayTrack: (VideoLibraryItem) -> Unit,
+    onPlayTrack: (MusicLibraryTrack) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -1932,8 +2189,8 @@ private fun QueueSection(
         audioItems.forEach { item ->
             QueueTrackRow(
                 item = item,
-                isActive = item.task.id == audioPlaybackState.currentTaskId,
-                isPlaying = item.task.id == audioPlaybackState.currentTaskId && audioPlaybackState.isPlaying,
+                isActive = item.id == audioPlaybackState.currentTaskId,
+                isPlaying = item.id == audioPlaybackState.currentTaskId && audioPlaybackState.isPlaying,
                 onClick = { onPlayTrack(item) },
             )
         }
@@ -1942,7 +2199,7 @@ private fun QueueSection(
 
 @Composable
 private fun QueueTrackRow(
-    item: VideoLibraryItem,
+    item: MusicLibraryTrack,
     isActive: Boolean,
     isPlaying: Boolean,
     onClick: () -> Unit,
@@ -1964,8 +2221,8 @@ private fun QueueTrackRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             LocalVideoThumbnail(
-                filePath = item.file?.absolutePath,
-                contentDescription = item.displayTitle,
+                filePath = item.playbackUri,
+                contentDescription = item.title,
                 modifier = Modifier
                     .size(56.dp)
                     .clip(CircleShape),
@@ -1975,7 +2232,7 @@ private fun QueueTrackRow(
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(
-                    text = item.displayTitle,
+                    text = item.title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Medium,
                     maxLines = 1,
@@ -1983,7 +2240,7 @@ private fun QueueTrackRow(
                     color = if (isActive) Color.White else MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
-                    text = listOf(item.displaySize.ifBlank { "--" }, formatMediaDate(item.task.updatedAtEpochMs))
+                    text = listOf(item.displaySize.ifBlank { "--" }, formatMediaDate(item.updatedAtEpochMs))
                         .joinToString(" | "),
                     style = MaterialTheme.typography.bodySmall,
                     color = if (isActive) {
@@ -2007,6 +2264,8 @@ private fun QueueTrackRow(
 
 @Composable
 private fun EmptyMusicState(
+    musicSourceState: MusicSourceUiState,
+    onOpenSourcePicker: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -2038,16 +2297,23 @@ private fun EmptyMusicState(
                     tint = MaterialTheme.colorScheme.primary,
                 )
                 Text(
-                    text = "No downloaded songs yet",
+                    text = "No songs in ${musicSourceState.sourceType.label}",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = "Download audio from Home first, then this player will show your local queue.",
+                    text = when (musicSourceState.sourceType) {
+                        MusicSourceType.APP_DOWNLOADS -> "Download audio from Home or choose another audio source."
+                        MusicSourceType.DEVICE_AUDIO -> "Allow audio permission or refresh after adding music to your device."
+                        MusicSourceType.SELECTED_FOLDER -> "Pick a folder with audio files or refresh this source."
+                    },
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                 )
+                OutlinedButton(onClick = onOpenSourcePicker) {
+                    Text("Choose audio source")
+                }
             }
         }
     }
@@ -2070,6 +2336,7 @@ private fun repeatModeIcon(mode: PlaylistRepeatMode): ImageVector {
 
 private enum class PlayerSheet {
     More,
+    Source,
     Lyrics,
     Queue,
     AudioTools,
@@ -2108,13 +2375,30 @@ private fun parseFlexibleTimestamp(rawValue: String): Long? {
     return seconds.takeIf { it >= 0L }?.times(1_000L)
 }
 
-private fun shareAudioFile(context: android.content.Context, file: File) {
+private fun List<MusicLibraryTrack>.toAudioQueueItems(): List<AudioQueueItem> {
+    return filter { it.playbackUri.isNotBlank() }
+        .map { track ->
+            AudioQueueItem(
+                taskId = track.id,
+                title = track.title,
+                filePath = track.playbackUri,
+            )
+        }
+}
+
+private fun shareAudioTrack(context: android.content.Context, track: MusicLibraryTrack) {
     runCatching {
-        val uri = FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.fileprovider",
-            file,
-        )
+        val uri = track.filePath
+            ?.let(::File)
+            ?.takeIf { it.exists() }
+            ?.let { file ->
+                FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    file,
+                )
+            }
+            ?: Uri.parse(track.playbackUri)
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = "audio/*"
             putExtra(Intent.EXTRA_STREAM, uri)

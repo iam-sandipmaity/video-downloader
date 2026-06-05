@@ -90,6 +90,7 @@ import com.localdownloader.viewmodel.FormatViewModel
 import com.localdownloader.viewmodel.MediaToolsViewModel
 import com.localdownloader.viewmodel.AudioPlaybackViewModel
 import com.localdownloader.viewmodel.MusicFavoritesViewModel
+import com.localdownloader.viewmodel.MusicSourceViewModel
 import com.localdownloader.viewmodel.MusicTrimViewModel
 import com.localdownloader.viewmodel.PlayerViewModel
 import com.localdownloader.viewmodel.UpdatesViewModel
@@ -112,6 +113,7 @@ fun DownloaderApp(
     val mediaToolsViewModel: MediaToolsViewModel = hiltViewModel()
     val audioPlaybackViewModel: AudioPlaybackViewModel = hiltViewModel()
     val musicFavoritesViewModel: MusicFavoritesViewModel = hiltViewModel()
+    val musicSourceViewModel: MusicSourceViewModel = hiltViewModel()
     val musicTrimViewModel: MusicTrimViewModel = hiltViewModel()
     val updatesViewModel: UpdatesViewModel = hiltViewModel()
     val context = LocalContext.current
@@ -148,6 +150,7 @@ fun DownloaderApp(
     val mediaToolsState by mediaToolsViewModel.uiState.collectAsStateWithLifecycle()
     val audioPlaybackState by audioPlaybackViewModel.uiState.collectAsStateWithLifecycle()
     val favoriteMusicTaskIds by musicFavoritesViewModel.favoriteTaskIds.collectAsStateWithLifecycle()
+    val musicSourceState by musicSourceViewModel.uiState.collectAsStateWithLifecycle()
     val musicTrimState by musicTrimViewModel.uiState.collectAsStateWithLifecycle()
     val updatesState by updatesViewModel.uiState.collectAsStateWithLifecycle()
     val savedMediaItems = remember(downloadState.tasks) {
@@ -481,6 +484,7 @@ fun DownloaderApp(
                     onOpenHistory = { navController.navigate(Routes.History) },
                     onOpenCompress = { navController.navigate(Routes.Compress) },
                     onOpenConvert = { navController.navigate(Routes.Convert) },
+                    onOpenMusic = { navController.navigate(Routes.Music) },
                     onOpenYoutubeAccess = { navController.navigate(Routes.YoutubeAuth) },
                     onOpenCookies = { navController.navigate(Routes.Cookies) },
                     onOpenSettings = { navController.navigate(Routes.Settings) },
@@ -874,6 +878,11 @@ fun DownloaderApp(
                 MusicPlayerScreen(
                     uiState = downloadState,
                     audioPlaybackState = audioPlaybackState,
+                    musicSourceState = musicSourceState,
+                    onSelectMusicSource = musicSourceViewModel::selectSource,
+                    onMusicFolderSelected = musicSourceViewModel::setSelectedFolder,
+                    onRefreshMusicSource = musicSourceViewModel::refresh,
+                    onDismissMusicSourceMessage = musicSourceViewModel::dismissMessage,
                     onPlayAudioQueue = audioPlaybackViewModel::playQueue,
                     onToggleAudioPlayback = audioPlaybackViewModel::togglePlayback,
                     onSeekAudioBy = audioPlaybackViewModel::seekBy,
