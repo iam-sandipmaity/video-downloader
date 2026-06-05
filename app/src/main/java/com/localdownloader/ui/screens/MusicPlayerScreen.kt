@@ -352,9 +352,9 @@ fun MusicPlayerScreen(
                 audioPlaybackState = audioPlaybackState,
                 trimUiState = trimUiState,
                 onTrim = { startMs, endMs ->
-                    currentItem.filePath?.let { sourcePath ->
+                    currentItem.trimSourceLocation()?.let { sourcePath ->
                         onTrimAudio(
-                            currentItem.appTaskId.orEmpty(),
+                            currentItem.appTaskId ?: currentItem.id,
                             currentItem.title,
                             currentItem.sourceUrl,
                             sourcePath,
@@ -2430,6 +2430,10 @@ private fun shareAudioTrack(context: android.content.Context, track: MusicLibrar
     }.onFailure {
         Toast.makeText(context, "Unable to share this audio file.", Toast.LENGTH_SHORT).show()
     }
+}
+
+private fun MusicLibraryTrack.trimSourceLocation(): String? {
+    return filePath?.takeIf { it.isNotBlank() } ?: playbackUri.takeIf { it.isNotBlank() }
 }
 
 private fun openSoundSettings(context: android.content.Context) {

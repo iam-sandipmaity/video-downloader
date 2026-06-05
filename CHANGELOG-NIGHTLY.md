@@ -11,6 +11,7 @@ Nightly builds are rolling prereleases published from the `nightly` release tag.
 - **Embedded audio metadata** - app-downloaded and folder-selected audio now read embedded title, artist, album artist, album, and duration tags for player headers and details.
 - **Expanded player actions** - added dedicated detail, rename, trim, sleep timer, share, and set-as flows, while keeping app-library-only actions scoped to app-downloaded tracks.
 - **Audio trim editor** - trimming now uses its own start/end editor and exports a selected range as a new audio file instead of reusing A-B loop points.
+- **External audio trimming** - device-audio and selected-folder tracks can now use the trim editor, including content URI sources.
 - **A-B loop markers** - selected A and B loop points are shown on the progress bar with the looped span highlighted.
 - **Video player shortcut in More** - added a Video player entry before Audio player with downloaded-video playback, device video browsing, and a gesture guide.
 - **Video gesture guide** - first video playback now introduces brightness, volume, seek, zoom, and pan gestures, and the same guide can be reopened from More.
@@ -23,6 +24,7 @@ Nightly builds are rolling prereleases published from the `nightly` release tag.
 - **Playback controls behavior** - shuffle, repeat, favorite, queue, lyrics, A-B, and More actions now have clearer dedicated behavior instead of sharing the same generic options sheet.
 - **Progress interaction polish** - the progress bar now supports reliable tap-to-seek and drag seeking, with cleaner styling and loop-point feedback.
 - **Screenshot gallery refresh** - README media previews now include the refreshed audio player, audio options sheet, and portrait/landscape video player screenshots.
+- **Weblate README widgets** - added Weblate language and status widgets, and refreshed the contributors image cache key.
 
 ### Fixed
 - **Seek tap regression** - tapping a new point on the progress bar now seeks to that position instead of snapping back to the previous playback second.

@@ -34,6 +34,9 @@
   <a href="https://hosted.weblate.org/engage/local-video-downloader/">
     <img alt="Translation status" src="https://hosted.weblate.org/widgets/local-video-downloader/-/android-app-strings/svg-badge.svg" />
   </a>
+  <a href="https://hosted.weblate.org/engage/local-video-downloader/">
+    <img alt="Translation languages" src="https://hosted.weblate.org/widget/local-video-downloader/language-badge.svg" />
+  </a>
   <a href="https://video.sandipmaity.me">
     <img alt="Website" src="https://img.shields.io/badge/website-video.sandipmaity.me-orange" />
   </a>
@@ -214,6 +217,18 @@ Current in-app language support includes:
   </a>
 </p>
 
+<p align="center">
+  <a href="https://hosted.weblate.org/engage/local-video-downloader/">
+    <img src="https://hosted.weblate.org/widget/local-video-downloader/open-graph.png" alt="Translation status" width="520" />
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://hosted.weblate.org/engage/local-video-downloader/">
+    <img src="https://hosted.weblate.org/widget/local-video-downloader/287x66-grey.png?threshold=0" alt="Translation status" />
+  </a>
+</p>
+
 Want to improve a translation? Use
 [Hosted Weblate](https://hosted.weblate.org/projects/local-video-downloader/android-app-strings/)
 or send a direct pull request against the Android resource files.
@@ -331,6 +346,6 @@ The in-app About section also lists upstream credits and linked sources.
 
 <p align="center">
   <a href="https://github.com/iam-sandipmaity/video-downloader/graphs/contributors">
-    <img src="https://contrib.rocks/image?repo=iam-sandipmaity/video-downloader" width="85%"/>
+    <img src="https://contrib.rocks/image?repo=iam-sandipmaity/video-downloader&v=20260606" width="85%"/>
   </a>
 </p>

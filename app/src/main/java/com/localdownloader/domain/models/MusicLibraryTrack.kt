@@ -37,7 +37,7 @@ data class MusicLibraryTrack(
         get() = appTaskId != null && filePath != null
 
     val canTrim: Boolean
-        get() = appTaskId != null && filePath != null
+        get() = playbackUri.isNotBlank()
 
     val extension: String
         get() = fileName
