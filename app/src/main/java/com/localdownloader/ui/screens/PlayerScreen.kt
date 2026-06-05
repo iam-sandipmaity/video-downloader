@@ -16,9 +16,13 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateCentroid
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -85,6 +89,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
@@ -373,22 +378,6 @@ fun PlayerScreen(
                         playerWidthPx = it.width
                         playerHeightPx = it.height
                     }
-                    .pointerInput(playerWidthPx, playerHeightPx) {
-                        detectTransformGestures { _, pan, zoom, _ ->
-                            val nextScale = (zoomScale * zoom).coerceIn(MIN_PINCH_SCALE, MAX_PINCH_SCALE)
-                            val maxPanX = ((playerWidthPx * (nextScale - 1f)) / 2f).coerceAtLeast(0f)
-                            val maxPanY = ((playerHeightPx * (nextScale - 1f)) / 2f).coerceAtLeast(0f)
-                            zoomScale = nextScale
-                            if (nextScale <= 1.02f) {
-                                panOffsetX = 0f
-                                panOffsetY = 0f
-                            } else {
-                                panOffsetX = (panOffsetX + pan.x).coerceIn(-maxPanX, maxPanX)
-                                panOffsetY = (panOffsetY + pan.y).coerceIn(-maxPanY, maxPanY)
-                            }
-                            controlsVisible = true
-                        }
-                    }
                     .graphicsLayer {
                         scaleX = zoomScale
                         scaleY = zoomScale
@@ -497,6 +486,39 @@ fun PlayerScreen(
                 },
                 onSeekSwipeCancel = {
                     swipeSeekOverlay = null
+                },
+                onTransformGesture = { centroid, pan, zoom ->
+                    if (playerWidthPx > 0 && playerHeightPx > 0) {
+                        val oldScale = zoomScale.coerceAtLeast(MIN_PINCH_SCALE)
+                        val nextScale = (oldScale * zoom).coerceIn(MIN_PINCH_SCALE, MAX_PINCH_SCALE)
+                        val maxPanX = ((playerWidthPx * (nextScale - 1f)) / 2f).coerceAtLeast(0f)
+                        val maxPanY = ((playerHeightPx * (nextScale - 1f)) / 2f).coerceAtLeast(0f)
+                        zoomScale = nextScale
+                        if (nextScale <= 1.02f) {
+                            panOffsetX = 0f
+                            panOffsetY = 0f
+                        } else {
+                            val scaleChange = nextScale / oldScale
+                            val centerX = playerWidthPx / 2f
+                            val centerY = playerHeightPx / 2f
+                            panOffsetX = (
+                                panOffsetX * scaleChange +
+                                    pan.x +
+                                    (centroid.x - centerX) * (1f - scaleChange)
+                                ).coerceIn(-maxPanX, maxPanX)
+                            panOffsetY = (
+                                panOffsetY * scaleChange +
+                                    pan.y +
+                                    (centroid.y - centerY) * (1f - scaleChange)
+                                ).coerceIn(-maxPanY, maxPanY)
+                        }
+                        swipeHintVisible = false
+                        gestureFeedback = null
+                        swipeAdjustmentOverlay = null
+                        swipeSeekOverlay = null
+                        activePanelName = PlayerPanel.NONE.name
+                        controlsVisible = true
+                    }
                 },
             )
 
@@ -782,10 +804,34 @@ private fun BoxScope.GestureLayer(
     onSeekSwipeChange: (Float) -> Unit,
     onSeekSwipeEnd: () -> Unit,
     onSeekSwipeCancel: () -> Unit,
+    onTransformGesture: (Offset, Offset, Float) -> Unit,
 ) {
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .pointerInput(playerWidthPx, playerHeightPx) {
+                if (playerWidthPx == 0 || playerHeightPx == 0) return@pointerInput
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    do {
+                        val event = awaitPointerEvent()
+                        val activePointers = event.changes.count { it.pressed }
+                        if (activePointers >= 2) {
+                            val zoom = event.calculateZoom()
+                            val pan = event.calculatePan()
+                            val centroid = event.calculateCentroid()
+                            if (zoom.isFinite() && (zoom != 1f || pan != Offset.Zero)) {
+                                onTransformGesture(centroid, pan, zoom)
+                            }
+                            event.changes.forEach { change ->
+                                if (change.positionChanged()) {
+                                    change.consume()
+                                }
+                            }
+                        }
+                    } while (event.changes.any { it.pressed })
+                }
+            }
             .pointerInput(playerWidthPx, playerHeightPx) {
                 if (playerWidthPx == 0 || playerHeightPx == 0) return@pointerInput
                 var activeMode = SwipeGestureMode.NONE
