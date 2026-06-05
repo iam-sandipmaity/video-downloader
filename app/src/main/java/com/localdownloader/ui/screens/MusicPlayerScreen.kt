@@ -435,9 +435,10 @@ private fun NowPlayingDeck(
                         onScrubbingChanged(true)
                         onScrubPositionChanged(updated)
                     },
-                    onPositionChangeFinished = {
+                    onPositionChangeFinished = { targetPositionMs ->
                         onScrubbingChanged(false)
-                        onSeekAudioTo(scrubPositionMs.toLong())
+                        onScrubPositionChanged(targetPositionMs)
+                        onSeekAudioTo(targetPositionMs.toLong())
                     },
                 )
 
@@ -621,20 +622,20 @@ private fun VinylArtwork(
 
         Canvas(modifier = Modifier.fillMaxSize()) {
             val radius = size.minDimension / 2f
-            val base = Offset(size.width * 0.78f, size.height * 0.12f)
+            val base = Offset(size.width * 0.88f, size.height * 0.12f)
             fun lerp(start: Float, end: Float): Float = start + (end - start) * tonearmProgress
 
             val elbow = Offset(
-                x = lerp(size.width * 0.90f, size.width * 0.78f),
-                y = lerp(size.height * 0.30f, size.height * 0.36f),
+                x = lerp(size.width * 0.94f, size.width * 0.80f),
+                y = lerp(size.height * 0.28f, size.height * 0.29f),
             )
             val needle = Offset(
-                x = lerp(size.width * 0.93f, size.width * 0.82f),
-                y = lerp(size.height * 0.54f, size.height * 0.62f),
+                x = lerp(size.width * 0.96f, size.width * 0.72f),
+                y = lerp(size.height * 0.47f, size.height * 0.38f),
             )
             val cartridgeEnd = Offset(
                 x = needle.x + size.width * 0.048f,
-                y = needle.y + size.height * 0.034f,
+                y = needle.y + size.height * 0.030f,
             )
             drawCircle(Color.White.copy(alpha = 0.86f), radius = radius * 0.074f, center = base)
             drawCircle(Color(0xFF6D6F73), radius = radius * 0.044f, center = base)
@@ -720,11 +721,16 @@ private fun PremiumProgressSlider(
     durationMs: Long,
     accentColor: Color,
     onPositionChanged: (Float) -> Unit,
-    onPositionChangeFinished: () -> Unit,
+    onPositionChangeFinished: (Float) -> Unit,
 ) {
     val durationRange = durationMs.toFloat().coerceAtLeast(1f)
     val clampedPosition = positionMs.coerceIn(0f, durationRange)
+    var latestSeekPosition by remember(durationMs) { mutableFloatStateOf(clampedPosition) }
     val progress = clampedPosition / durationRange
+
+    LaunchedEffect(clampedPosition) {
+        latestSeekPosition = clampedPosition
+    }
 
     Box(
         modifier = Modifier
@@ -774,8 +780,13 @@ private fun PremiumProgressSlider(
 
         Slider(
             value = clampedPosition,
-            onValueChange = onPositionChanged,
-            onValueChangeFinished = onPositionChangeFinished,
+            onValueChange = { updated ->
+                latestSeekPosition = updated
+                onPositionChanged(updated)
+            },
+            onValueChangeFinished = {
+                onPositionChangeFinished(latestSeekPosition)
+            },
             valueRange = 0f..durationRange,
             enabled = durationMs > 0L,
             modifier = Modifier
