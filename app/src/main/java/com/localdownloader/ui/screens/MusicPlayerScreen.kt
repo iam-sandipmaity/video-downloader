@@ -555,7 +555,7 @@ private fun NowPlayingDeck(
         ) {
             item?.let {
                 LocalVideoThumbnail(
-                    filePath = it.file?.absolutePath,
+                    filePath = it.playbackUri,
                     contentDescription = null,
                     modifier = Modifier
                         .matchParentSize()
