@@ -245,6 +245,10 @@
     <string name="more_updates_title">Updates</string>
     <string name="more_updates_subtitle">Check app, yt-dlp, and FFmpeg versions from one update center.</string>
     <string name="more_help_subtitle">Open guides, support notes, and troubleshooting tips.</string>
+    <string name="more_video_player_title">Video player</string>
+    <string name="more_video_player_subtitle">Open downloaded videos, browse device videos, and review gestures.</string>
+    <string name="more_music_player_title">Audio player</string>
+    <string name="more_music_player_subtitle">Play downloads, manage the queue, trim tracks, and control playback.</string>
     <string name="more_converter_title">Converter</string>
     <string name="more_converter_subtitle">Turn downloaded media into a different format.</string>
     <string name="more_compressor_title">Compressor</string>

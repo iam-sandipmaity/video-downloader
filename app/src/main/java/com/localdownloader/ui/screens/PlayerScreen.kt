@@ -16,9 +16,13 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateCentroid
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -81,10 +85,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
@@ -137,12 +143,22 @@ fun PlayerScreen(
     val view = LocalView.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val activity = context.findActivity()
-    val playablePath = task?.outputPath?.takeIf { path -> path.isNotBlank() && File(path).exists() }
-    val allowBackgroundPlayback = remember(playablePath) {
-        isLikelyAudioFile(playablePath)
+    val playablePath = task?.outputPath?.takeIf { path -> path.isPlayablePlayerLocation() }
+    val isVideoContent = remember(playablePath, task?.title) {
+        isLikelyVideoFile(playablePath) ||
+            isLikelyVideoFile(task?.title) ||
+            playablePath?.startsWith("content://", ignoreCase = true) == true
+    }
+    val allowBackgroundPlayback = remember(playablePath, task?.title) {
+        isLikelyAudioFile(playablePath) || isLikelyAudioFile(task?.title)
     }
     val playbackCompatibilityLabel = remember(playablePath) {
-        builtInPlaybackCompatibilityLabel(playablePath)
+        playablePath
+            ?.takeUnless { it.startsWith("content://", ignoreCase = true) }
+            ?.let(::builtInPlaybackCompatibilityLabel)
+    }
+    val gestureGuidePrefs = remember(context) {
+        context.getSharedPreferences(VIDEO_PLAYER_HINT_PREFS, Context.MODE_PRIVATE)
     }
     val uiState by playerViewModel.uiState.collectAsStateWithLifecycle()
     val selectedAudioTrack = uiState.audioTracks.firstOrNull { it.isSelected }
@@ -155,6 +171,7 @@ fun PlayerScreen(
     var controlsVisible by rememberSaveable { mutableStateOf(true) }
     var gestureFeedback by rememberSaveable { mutableStateOf<String?>(null) }
     var swipeHintVisible by rememberSaveable { mutableStateOf(true) }
+    var gestureGuideVisible by rememberSaveable(playablePath) { mutableStateOf(false) }
     var compatibilityNoticeVisible by rememberSaveable(playablePath) {
         mutableStateOf(playbackCompatibilityLabel != null)
     }
@@ -217,10 +234,10 @@ fun PlayerScreen(
         }
     }
 
-    DisposableEffect(activity, playablePath, uiState.isAvailable) {
+    DisposableEffect(activity, playablePath, uiState.isAvailable, isVideoContent) {
         val mainActivity = activity as? MainActivity
         mainActivity?.updatePictureInPictureAllowed(
-            enabled = uiState.isAvailable && isLikelyVideoFile(playablePath),
+            enabled = uiState.isAvailable && isVideoContent,
         )
         onDispose {
             mainActivity?.updatePictureInPictureAllowed(false)
@@ -239,6 +256,18 @@ fun PlayerScreen(
         if (playablePath != null) {
             delay(SWIPE_HINT_MS)
             swipeHintVisible = false
+        }
+    }
+
+    LaunchedEffect(playablePath, isVideoContent) {
+        if (
+            playablePath != null &&
+            isVideoContent &&
+            !gestureGuidePrefs.getBoolean(VIDEO_PLAYER_HINT_SEEN_KEY, false)
+        ) {
+            controlsVisible = false
+            swipeHintVisible = false
+            gestureGuideVisible = true
         }
     }
 
@@ -325,6 +354,15 @@ fun PlayerScreen(
             .fillMaxSize()
             .background(Color.Black),
     ) {
+        if (gestureGuideVisible) {
+            VideoGestureGuideSheet(
+                onDismiss = {
+                    gestureGuidePrefs.edit().putBoolean(VIDEO_PLAYER_HINT_SEEN_KEY, true).apply()
+                    gestureGuideVisible = false
+                    controlsVisible = true
+                },
+            )
+        }
         if (playablePath != null) {
             AndroidView(
                 factory = { viewContext ->
@@ -340,22 +378,6 @@ fun PlayerScreen(
                     .onSizeChanged {
                         playerWidthPx = it.width
                         playerHeightPx = it.height
-                    }
-                    .pointerInput(playerWidthPx, playerHeightPx) {
-                        detectTransformGestures { _, pan, zoom, _ ->
-                            val nextScale = (zoomScale * zoom).coerceIn(MIN_PINCH_SCALE, MAX_PINCH_SCALE)
-                            val maxPanX = ((playerWidthPx * (nextScale - 1f)) / 2f).coerceAtLeast(0f)
-                            val maxPanY = ((playerHeightPx * (nextScale - 1f)) / 2f).coerceAtLeast(0f)
-                            zoomScale = nextScale
-                            if (nextScale <= 1.02f) {
-                                panOffsetX = 0f
-                                panOffsetY = 0f
-                            } else {
-                                panOffsetX = (panOffsetX + pan.x).coerceIn(-maxPanX, maxPanX)
-                                panOffsetY = (panOffsetY + pan.y).coerceIn(-maxPanY, maxPanY)
-                            }
-                            controlsVisible = true
-                        }
                     }
                     .graphicsLayer {
                         scaleX = zoomScale
@@ -465,6 +487,39 @@ fun PlayerScreen(
                 },
                 onSeekSwipeCancel = {
                     swipeSeekOverlay = null
+                },
+                onTransformGesture = { centroid, pan, zoom ->
+                    if (playerWidthPx > 0 && playerHeightPx > 0) {
+                        val oldScale = zoomScale.coerceAtLeast(MIN_PINCH_SCALE)
+                        val nextScale = (oldScale * zoom).coerceIn(MIN_PINCH_SCALE, MAX_PINCH_SCALE)
+                        val maxPanX = ((playerWidthPx * (nextScale - 1f)) / 2f).coerceAtLeast(0f)
+                        val maxPanY = ((playerHeightPx * (nextScale - 1f)) / 2f).coerceAtLeast(0f)
+                        zoomScale = nextScale
+                        if (nextScale <= 1.02f) {
+                            panOffsetX = 0f
+                            panOffsetY = 0f
+                        } else {
+                            val scaleChange = nextScale / oldScale
+                            val centerX = playerWidthPx / 2f
+                            val centerY = playerHeightPx / 2f
+                            panOffsetX = (
+                                panOffsetX * scaleChange +
+                                    pan.x +
+                                    (centroid.x - centerX) * (1f - scaleChange)
+                                ).coerceIn(-maxPanX, maxPanX)
+                            panOffsetY = (
+                                panOffsetY * scaleChange +
+                                    pan.y +
+                                    (centroid.y - centerY) * (1f - scaleChange)
+                                ).coerceIn(-maxPanY, maxPanY)
+                        }
+                        swipeHintVisible = false
+                        gestureFeedback = null
+                        swipeAdjustmentOverlay = null
+                        swipeSeekOverlay = null
+                        activePanelName = PlayerPanel.NONE.name
+                        controlsVisible = true
+                    }
                 },
             )
 
@@ -750,10 +805,34 @@ private fun BoxScope.GestureLayer(
     onSeekSwipeChange: (Float) -> Unit,
     onSeekSwipeEnd: () -> Unit,
     onSeekSwipeCancel: () -> Unit,
+    onTransformGesture: (Offset, Offset, Float) -> Unit,
 ) {
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .pointerInput(playerWidthPx, playerHeightPx) {
+                if (playerWidthPx == 0 || playerHeightPx == 0) return@pointerInput
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    do {
+                        val event = awaitPointerEvent()
+                        val activePointers = event.changes.count { it.pressed }
+                        if (activePointers >= 2) {
+                            val zoom = event.calculateZoom()
+                            val pan = event.calculatePan()
+                            val centroid = event.calculateCentroid()
+                            if (zoom.isFinite() && (zoom != 1f || pan != Offset.Zero)) {
+                                onTransformGesture(centroid, pan, zoom)
+                            }
+                            event.changes.forEach { change ->
+                                if (change.positionChanged()) {
+                                    change.consume()
+                                }
+                            }
+                        }
+                    } while (event.changes.any { it.pressed })
+                }
+            }
             .pointerInput(playerWidthPx, playerHeightPx) {
                 if (playerWidthPx == 0 || playerHeightPx == 0) return@pointerInput
                 var activeMode = SwipeGestureMode.NONE
@@ -1689,6 +1768,13 @@ private fun isLikelyAudioFile(path: String?): Boolean {
     return isLikelyAudioPath(path)
 }
 
+private fun String.isPlayablePlayerLocation(): Boolean {
+    if (isBlank()) return false
+    return startsWith("content://", ignoreCase = true) ||
+        startsWith("file://", ignoreCase = true) ||
+        File(this).exists()
+}
+
 private fun openMediaExternally(
     context: Context,
     path: String?,
@@ -1997,6 +2083,8 @@ private const val CONTROLS_AUTO_HIDE_MS = 3_000L
 private const val GESTURE_FEEDBACK_MS = 900L
 private const val SWIPE_HINT_MS = 5_000L
 private const val COMPATIBILITY_NOTICE_MS = 2_000L
+private const val VIDEO_PLAYER_HINT_PREFS = "video_player_hints"
+private const val VIDEO_PLAYER_HINT_SEEN_KEY = "gesture_guide_seen"
 private const val MIN_PINCH_SCALE = 1f
 private const val MAX_PINCH_SCALE = 3f
 private const val DEFAULT_GESTURE_LEVEL = 0.5f

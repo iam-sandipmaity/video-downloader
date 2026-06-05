@@ -34,6 +34,9 @@
   <a href="https://hosted.weblate.org/engage/local-video-downloader/">
     <img alt="Translation status" src="https://hosted.weblate.org/widgets/local-video-downloader/-/android-app-strings/svg-badge.svg" />
   </a>
+  <a href="https://hosted.weblate.org/engage/local-video-downloader/">
+    <img alt="Translation languages" src="https://hosted.weblate.org/widget/local-video-downloader/language-badge.svg" />
+  </a>
   <a href="https://video.sandipmaity.me">
     <img alt="Website" src="https://img.shields.io/badge/website-video.sandipmaity.me-orange" />
   </a>
@@ -137,10 +140,15 @@ For release-specific changes, see [CHANGELOG.md](CHANGELOG.md).
 | <img src="public/demo/download-tab.png" alt="Downloads library" width="200" /> | <img src="public/demo/downloaded-file-viewer-tab.png" alt="Saved file viewer tab" width="200" /> |
 | Local media library with file actions and browsing. | File-centric view of saved downloads. |
 
-| In-App Audio Player | In-App Video Player |
+| In-App Audio Player | Audio Player Options | In-App Video Player |
+| --- | --- | --- |
+| <img src="public/demo/downloaded-audio-inapp-player.png" alt="In-app audio player with vinyl-style artwork" width="200" /> | <img src="public/demo/audio-player-more-options.png" alt="Audio player more options sheet" width="200" /> | <img src="public/demo/in-app-video-player.png" alt="In-app video player" width="200" /> |
+| Music-style playback with artwork, queue controls, and audio-source switching. | Details, trim, sleep timer, share, and set-as actions for local tracks. | Full-screen player flow for downloaded video. |
+
+| Video Player - Portrait | Video Player - Landscape |
 | --- | --- |
-| <img src="public/demo/downloaded-audio-inapp-player.png" alt="In-app audio player" width="200" /> | <img src="public/demo/in-app-video-player.png" alt="In-app video player" width="200" /> |
-| Music-style playback for downloaded audio. | Full-screen player flow for downloaded video. |
+| <img src="public/demo/in-app-video-player-verticle.png" alt="In-app video player in portrait orientation" width="200" /> | <img src="public/demo/in-app-video-player-horizontal.png" alt="In-app video player in landscape orientation" width="320" /> |
+| Touch-first portrait playback controls. | Wide playback layout for landscape viewing. |
 
 ### Settings And Support Surfaces
 
@@ -206,6 +214,18 @@ Current in-app language support includes:
 <p align="center">
   <a href="https://hosted.weblate.org/engage/local-video-downloader/">
     <img src="https://hosted.weblate.org/widgets/local-video-downloader/-/android-app-strings/multi-auto.svg" alt="Translation status" />
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://hosted.weblate.org/engage/local-video-downloader/">
+    <img src="https://hosted.weblate.org/widget/local-video-downloader/open-graph.png" alt="Translation status" width="520" />
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://hosted.weblate.org/engage/local-video-downloader/">
+    <img src="https://hosted.weblate.org/widget/local-video-downloader/287x66-grey.png?threshold=0" alt="Translation status" />
   </a>
 </p>
 
@@ -326,6 +346,6 @@ The in-app About section also lists upstream credits and linked sources.
 
 <p align="center">
   <a href="https://github.com/iam-sandipmaity/video-downloader/graphs/contributors">
-    <img src="https://contrib.rocks/image?repo=iam-sandipmaity/video-downloader" width="85%"/>
+    <img src="https://contrib.rocks/image?repo=iam-sandipmaity/video-downloader&v=20260606" width="85%"/>
   </a>
 </p>

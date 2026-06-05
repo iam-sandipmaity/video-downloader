@@ -53,7 +53,6 @@ import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -130,7 +129,6 @@ fun DownloadsScreen(
     val context = LocalContext.current
 
     val items = remember(uiState.tasks, fileExists) { buildVideoLibraryItems(uiState.tasks, fileExists) }
-    val audioItems = remember(items) { items.filter { it.exists && it.mediaKind == MediaKind.AUDIO } }
     val currentFilter = runCatching { DownloadsFilter.valueOf(selectedFilter) }
         .getOrDefault(DownloadsFilter.All)
     val normalizedSearchQuery = searchQuery.trim()
@@ -594,21 +592,6 @@ fun DownloadsScreen(
             }
         }
 
-        if (audioItems.isNotEmpty()) {
-            MusicLaunchButton(
-                trackCount = audioItems.size,
-                currentTitle = audioPlaybackState.currentTitle.takeIf { audioPlaybackState.hasQueue },
-                isPlaying = audioPlaybackState.isPlaying,
-                onClick = {
-                    if (audioPlaybackState.hasQueue) {
-                        onOpenMusic()
-                    } else {
-                        onPlayMusic(audioItems.firstOrNull()?.task?.id, false)
-                    }
-                },
-            )
-        }
-
         AnimatedVisibility(
             visible = !uiState.infoMessage.isNullOrBlank(),
             enter = fadeIn(animationSpec = tween(durationMillis = 180)) +
@@ -838,34 +821,6 @@ private fun SelectionToolbarAction(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-    }
-}
-
-@Composable
-private fun MusicLaunchButton(
-    trackCount: Int,
-    currentTitle: String?,
-    isPlaying: Boolean,
-    onClick: () -> Unit,
-) {
-    FilledTonalButton(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Icon(
-            imageVector = if (isPlaying) Icons.Outlined.PauseCircle else Icons.Outlined.PlayCircle,
-            contentDescription = null,
-        )
-        Spacer(Modifier.width(8.dp))
-        Text(
-            currentTitle?.let {
-                if (isPlaying) {
-                    stringResource(R.string.downloads_open_music_player)
-                } else {
-                    stringResource(R.string.downloads_resume_music_player)
-                }
-            } ?: pluralStringResource(R.plurals.downloads_play_music_count, trackCount, trackCount),
-        )
     }
 }
 

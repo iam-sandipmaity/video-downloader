@@ -47,10 +47,18 @@ val requestedReleaseChannel = stringProperty(
 val isNightlyBuild = requestedReleaseChannel.equals("nightly", ignoreCase = true)
 val selectedVersionCode = if (isNightlyBuild) nightlyVersionCode else stableVersionCode
 val selectedVersionName = if (isNightlyBuild) nightlyVersionName else stableVersionName
+val androidxCoreVersion = "1.18.0"
+
+configurations.configureEach {
+    resolutionStrategy.force(
+        "androidx.core:core:$androidxCoreVersion",
+        "androidx.core:core-ktx:$androidxCoreVersion",
+    )
+}
 
 android {
     namespace = "com.localdownloader"
-    compileSdk = 37
+    compileSdk = 36
 
     val internalDebugStoreFile = signingValue("INTERNAL_DEBUG_STORE_FILE")
     val internalDebugStorePassword = signingValue("INTERNAL_DEBUG_STORE_PASSWORD")
@@ -77,7 +85,7 @@ android {
     defaultConfig {
         applicationId = "com.localdownloader"
         minSdk = 26
-        targetSdk = 37
+        targetSdk = 36
         versionCode = selectedVersionCode
         versionName = selectedVersionName
         buildConfigField("String", "APP_RELEASE_CHANNEL", "\"stable\"")
@@ -191,7 +199,7 @@ tasks.named("preBuild") {
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2026.05.00")
 
-    implementation("androidx.core:core-ktx:1.19.0")
+    implementation("androidx.core:core-ktx:$androidxCoreVersion")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
     implementation("androidx.activity:activity-compose:1.13.0")

@@ -50,6 +50,8 @@ class AudioPlaybackManager @Inject constructor(
     val state: StateFlow<AudioPlaybackState> = _state.asStateFlow()
 
     private var currentQueue: List<AudioQueueItem> = emptyList()
+    private var originalQueue: List<AudioQueueItem> = emptyList()
+    private var shuffleEnabled: Boolean = false
     private var progressJob: Job? = null
     private var sleepTimerJob: Job? = null
     private var lastErrorMessage: String? = null
@@ -80,7 +82,7 @@ class AudioPlaybackManager @Inject constructor(
     ) {
         scope.launch {
             val sanitizedItems = items
-                .filter { it.filePath.isNotBlank() && File(it.filePath).exists() }
+                .filter { it.filePath.isPlayableAudioLocation() }
                 .distinctBy { it.taskId }
 
             if (sanitizedItems.isEmpty()) {
@@ -88,23 +90,28 @@ class AudioPlaybackManager @Inject constructor(
                 return@launch
             }
 
-            val requestedIndex = startTaskId
-                ?.let { taskId -> sanitizedItems.indexOfFirst { it.taskId == taskId } }
+            val orderedQueue = if (shuffleRequested && sanitizedItems.size > 1) {
+                shuffledQueueKeepingStart(
+                    items = sanitizedItems,
+                    startTaskId = startTaskId,
+                )
+            } else {
+                sanitizedItems
+            }
+            val startIndex = startTaskId
+                ?.let { taskId -> orderedQueue.indexOfFirst { it.taskId == taskId } }
                 ?.takeIf { it >= 0 }
                 ?: 0
-            val startIndex = if (shuffleRequested && sanitizedItems.size > 1) {
-                sanitizedItems.indices.random()
-            } else {
-                requestedIndex
-            }
 
-            currentQueue = sanitizedItems
+            originalQueue = sanitizedItems
+            currentQueue = orderedQueue
+            shuffleEnabled = shuffleRequested
             lastErrorMessage = null
             playbackConflictManager.onAudioPlaybackStarting()
             player.repeatMode = state.value.repeatMode.asPlayerRepeatMode()
-            player.shuffleModeEnabled = shuffleRequested
+            player.shuffleModeEnabled = false
             player.setMediaItems(
-                sanitizedItems.map { queueItem -> queueItem.toMediaItem() },
+                orderedQueue.map { queueItem -> queueItem.toMediaItem() },
                 startIndex,
                 0L,
             )
@@ -194,7 +201,32 @@ class AudioPlaybackManager @Inject constructor(
     fun toggleShuffle() {
         scope.launch {
             if (currentQueue.isEmpty()) return@launch
-            player.shuffleModeEnabled = !player.shuffleModeEnabled
+            val currentTaskId = state.value.currentTaskId
+            val currentPosition = player.currentPosition.coerceAtLeast(0L)
+            val repeatMode = player.repeatMode
+            val shouldShuffle = !shuffleEnabled
+            currentQueue = if (shouldShuffle) {
+                shuffledQueueKeepingStart(
+                    items = originalQueue.ifEmpty { currentQueue },
+                    startTaskId = currentTaskId,
+                )
+            } else {
+                originalQueue.ifEmpty { currentQueue }
+            }
+            shuffleEnabled = shouldShuffle
+            val startIndex = currentTaskId
+                ?.let { taskId -> currentQueue.indexOfFirst { it.taskId == taskId } }
+                ?.takeIf { it >= 0 }
+                ?: 0
+            player.shuffleModeEnabled = false
+            player.setMediaItems(
+                currentQueue.map { queueItem -> queueItem.toMediaItem() },
+                startIndex,
+                currentPosition,
+            )
+            player.repeatMode = repeatMode
+            player.prepare()
+            player.playWhenReady = true
             updateState()
         }
     }
@@ -261,6 +293,8 @@ class AudioPlaybackManager @Inject constructor(
         sleepTimerJob?.cancel()
         sleepTimerJob = null
         currentQueue = emptyList()
+        originalQueue = emptyList()
+        shuffleEnabled = false
         lastErrorMessage = null
         player.pause()
         player.clearMediaItems()
@@ -302,7 +336,7 @@ class AudioPlaybackManager @Inject constructor(
             durationMs = durationMs,
             positionMs = positionMs.coerceAtMost(durationMs.takeIf { it > 0 } ?: positionMs),
             repeatMode = player.repeatMode.asPlaylistRepeatMode(),
-            shuffleEnabled = player.shuffleModeEnabled,
+            shuffleEnabled = shuffleEnabled,
             sleepTimerEndsAtEpochMs = sleepEndsAt?.takeIf { currentQueue.isNotEmpty() },
             sleepTimerRemainingMs = sleepRemaining,
             errorMessage = lastErrorMessage,
@@ -331,13 +365,42 @@ class AudioPlaybackManager @Inject constructor(
     private fun AudioQueueItem.toMediaItem(): MediaItem {
         return MediaItem.Builder()
             .setMediaId(taskId)
-            .setUri(Uri.fromFile(File(filePath)))
+            .setUri(filePath.toPlaybackUri())
             .setMediaMetadata(
                 MediaMetadata.Builder()
                     .setTitle(title)
                     .build(),
             )
             .build()
+    }
+
+    private fun String.isPlayableAudioLocation(): Boolean {
+        if (isBlank()) return false
+        return startsWith("content://", ignoreCase = true) ||
+            startsWith("file://", ignoreCase = true) ||
+            File(this).exists()
+    }
+
+    private fun String.toPlaybackUri(): Uri {
+        return when {
+            startsWith("content://", ignoreCase = true) -> Uri.parse(this)
+            startsWith("file://", ignoreCase = true) -> Uri.parse(this)
+            else -> Uri.fromFile(File(this))
+        }
+    }
+
+    private fun shuffledQueueKeepingStart(
+        items: List<AudioQueueItem>,
+        startTaskId: String?,
+    ): List<AudioQueueItem> {
+        val startItem = startTaskId
+            ?.let { taskId -> items.firstOrNull { it.taskId == taskId } }
+            ?: items.randomOrNull()
+            ?: return emptyList()
+        val shuffledTail = items
+            .filterNot { it.taskId == startItem.taskId }
+            .shuffled()
+        return listOf(startItem) + shuffledTail
     }
 
     private fun PlaylistRepeatMode.asPlayerRepeatMode(): Int {
