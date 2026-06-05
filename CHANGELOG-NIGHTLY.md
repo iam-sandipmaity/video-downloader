@@ -15,6 +15,7 @@ Nightly builds are rolling prereleases published from the `nightly` release tag.
 - **Video player shortcut in More** - added a Video player entry before Audio player with downloaded-video playback, device video browsing, and a gesture guide.
 - **Video gesture guide** - first video playback now introduces brightness, volume, seek, zoom, and pan gestures, and the same guide can be reopened from More.
 - **Two-finger video zoom** - the in-app video player now supports standard pinch-to-zoom and two-finger pan gestures without blocking single-finger seek, brightness, or volume gestures.
+- **Cleaner gesture hint** - refreshed the video gesture guide with a cinematic preview card, clearer labels, and drawn touch markers.
 
 ### Changed
 - **Music player redesign** - replaced the old in-app music player surface with a full-screen deck, animated vinyl-style artwork, improved tonearm layout, refreshed controls, and a compact playing queue.
