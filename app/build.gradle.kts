@@ -50,7 +50,7 @@ val selectedVersionName = if (isNightlyBuild) nightlyVersionName else stableVers
 
 android {
     namespace = "com.localdownloader"
-    compileSdk = 37
+    compileSdk = 36
 
     val internalDebugStoreFile = signingValue("INTERNAL_DEBUG_STORE_FILE")
     val internalDebugStorePassword = signingValue("INTERNAL_DEBUG_STORE_PASSWORD")
@@ -77,7 +77,7 @@ android {
     defaultConfig {
         applicationId = "com.localdownloader"
         minSdk = 26
-        targetSdk = 37
+        targetSdk = 36
         versionCode = selectedVersionCode
         versionName = selectedVersionName
         buildConfigField("String", "APP_RELEASE_CHANNEL", "\"stable\"")
