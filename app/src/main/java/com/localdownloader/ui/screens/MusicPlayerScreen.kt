@@ -1,5 +1,7 @@
 package com.localdownloader.ui.screens
 
+import android.content.Intent
+import android.widget.Toast
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -25,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material.icons.outlined.Close
@@ -58,6 +61,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
@@ -72,6 +76,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import com.localdownloader.audio.AudioPlaybackState
 import com.localdownloader.audio.AudioQueueItem
 import com.localdownloader.audio.PlaylistRepeatMode
@@ -85,6 +90,7 @@ import com.localdownloader.ui.model.label
 import com.localdownloader.ui.model.toAudioQueueItems
 import com.localdownloader.ui.model.toShortTimerLabel
 import com.localdownloader.viewmodel.DownloadUiState
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -102,6 +108,8 @@ fun MusicPlayerScreen(
     onSetAudioSleepTimer: (Long?) -> Unit,
     onStopAudioPlayback: () -> Unit,
     onDismissAudioError: () -> Unit,
+    favoriteTaskIds: Set<String>,
+    onToggleFavorite: (String) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     fileExists: (String) -> Boolean = { path -> java.io.File(path).exists() },
@@ -118,7 +126,10 @@ fun MusicPlayerScreen(
     var scrubPositionMs by remember(audioPlaybackState.currentTaskId) {
         mutableFloatStateOf(audioPlaybackState.positionMs.toFloat())
     }
-    var showOptionsSheet by remember { mutableStateOf(false) }
+    var activeSheet by remember { mutableStateOf<PlayerSheet?>(null) }
+    var loopStartMs by remember(audioPlaybackState.currentTaskId) { mutableStateOf<Long?>(null) }
+    var loopEndMs by remember(audioPlaybackState.currentTaskId) { mutableStateOf<Long?>(null) }
+    val context = LocalContext.current
 
     LaunchedEffect(
         audioPlaybackState.currentTaskId,
@@ -131,28 +142,70 @@ fun MusicPlayerScreen(
         }
     }
 
-    if (showOptionsSheet && currentItem != null) {
-        PlayerOptionsSheet(
-            item = currentItem,
-            audioPlaybackState = audioPlaybackState,
-            onDismiss = { showOptionsSheet = false },
-            onToggleShuffle = {
-                onToggleAudioShuffle()
-                showOptionsSheet = false
-            },
-            onCycleRepeat = {
-                onCycleAudioRepeatMode()
-                showOptionsSheet = false
-            },
-            onSetSleepTimer = { durationMs ->
-                onSetAudioSleepTimer(durationMs)
-                showOptionsSheet = false
-            },
-            onStopPlayback = {
-                onStopAudioPlayback()
-                showOptionsSheet = false
-            },
-        )
+    LaunchedEffect(loopStartMs, loopEndMs, audioPlaybackState.positionMs, audioPlaybackState.isPlaying) {
+        val startMs = loopStartMs
+        val endMs = loopEndMs
+        if (audioPlaybackState.isPlaying && startMs != null && endMs != null && audioPlaybackState.positionMs >= endMs) {
+            onSeekAudioTo(startMs)
+        }
+    }
+
+    val queueDisplayItems = remember(audioPlaybackState.queue, audioItems) {
+        if (audioPlaybackState.queue.isEmpty()) {
+            audioItems
+        } else {
+            val byTaskId = audioItems.associateBy { it.task.id }
+            audioPlaybackState.queue.mapNotNull { queueItem -> byTaskId[queueItem.taskId] }
+        }
+    }
+    val queueDisplayAudioItems = remember(queueDisplayItems) { queueDisplayItems.toAudioQueueItems() }
+
+    if (activeSheet != null && currentItem != null) {
+        when (activeSheet) {
+            PlayerSheet.More -> PlayerOptionsSheet(
+                item = currentItem,
+                audioPlaybackState = audioPlaybackState,
+                onDismiss = { activeSheet = null },
+                onSetSleepTimer = { durationMs ->
+                    onSetAudioSleepTimer(durationMs)
+                    activeSheet = null
+                },
+                onStopPlayback = {
+                    onStopAudioPlayback()
+                    activeSheet = null
+                },
+            )
+            PlayerSheet.Lyrics -> LyricsSheet(
+                item = currentItem,
+                onDismiss = { activeSheet = null },
+            )
+            PlayerSheet.Queue -> PlayingQueueSheet(
+                audioItems = queueDisplayItems,
+                audioPlaybackState = audioPlaybackState,
+                onPlayTrack = { item ->
+                    onPlayAudioQueue(queueDisplayAudioItems, item.task.id, audioPlaybackState.shuffleEnabled)
+                    activeSheet = null
+                },
+                onDismiss = { activeSheet = null },
+            )
+            PlayerSheet.AudioTools -> AudioToolsSheet(
+                audioPlaybackState = audioPlaybackState,
+                loopStartMs = loopStartMs,
+                loopEndMs = loopEndMs,
+                onSetLoopStart = { loopStartMs = audioPlaybackState.positionMs },
+                onSetLoopEnd = {
+                    audioPlaybackState.positionMs
+                        .takeIf { position -> loopStartMs?.let { position > it + 1_000L } == true }
+                        ?.let { loopEndMs = it }
+                },
+                onClearLoop = {
+                    loopStartMs = null
+                    loopEndMs = null
+                },
+                onDismiss = { activeSheet = null },
+            )
+            null -> Unit
+        }
     }
 
     Box(
@@ -239,15 +292,38 @@ fun MusicPlayerScreen(
                     }
                 },
                 onCycleAudioRepeatMode = onCycleAudioRepeatMode,
-                onOptions = { showOptionsSheet = true },
+                isFavorite = currentItem?.task?.id?.let { it in favoriteTaskIds } == true,
+                isAbLoopActive = loopStartMs != null && loopEndMs != null,
+                onToggleFavorite = {
+                    currentItem?.task?.id?.let(onToggleFavorite)
+                },
+                onShare = {
+                    currentItem?.file?.let { file -> shareAudioFile(context, file) }
+                },
+                onSetAbLoopPoint = {
+                    if (loopStartMs == null) {
+                        loopStartMs = audioPlaybackState.positionMs
+                    } else if (loopEndMs == null && audioPlaybackState.positionMs > loopStartMs.orEmptyMs() + 1_000L) {
+                        loopEndMs = audioPlaybackState.positionMs
+                    } else {
+                        loopStartMs = null
+                        loopEndMs = null
+                    }
+                },
+                onOpenAudioTools = { activeSheet = PlayerSheet.AudioTools },
+                onOpenLyrics = { activeSheet = PlayerSheet.Lyrics },
+                onOpenQueue = { activeSheet = PlayerSheet.Queue },
+                onOptions = { activeSheet = PlayerSheet.More },
                 onBack = onBack,
                 onDismissAudioError = onDismissAudioError,
             )
 
             QueueSection(
-                audioItems = audioItems,
+                audioItems = queueDisplayItems,
                 audioPlaybackState = audioPlaybackState,
-                onPlayTrack = { item -> onPlayAudioQueue(audioQueueItems, item.task.id, false) },
+                onPlayTrack = { item ->
+                    onPlayAudioQueue(queueDisplayAudioItems, item.task.id, audioPlaybackState.shuffleEnabled)
+                },
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
         }
@@ -269,6 +345,14 @@ private fun NowPlayingDeck(
     onSkipToNextAudio: () -> Unit,
     onToggleAudioShuffle: () -> Unit,
     onCycleAudioRepeatMode: () -> Unit,
+    isFavorite: Boolean,
+    isAbLoopActive: Boolean,
+    onToggleFavorite: () -> Unit,
+    onShare: () -> Unit,
+    onSetAbLoopPoint: () -> Unit,
+    onOpenAudioTools: () -> Unit,
+    onOpenLyrics: () -> Unit,
+    onOpenQueue: () -> Unit,
     onOptions: () -> Unit,
     onBack: () -> Unit,
     onDismissAudioError: () -> Unit,
@@ -367,10 +451,10 @@ private fun NowPlayingDeck(
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
-                    IconButton(onClick = onOptions) {
+                    IconButton(onClick = onShare) {
                         Icon(
                             imageVector = Icons.Outlined.Share,
-                            contentDescription = "Playback options",
+                            contentDescription = "Share current track",
                             tint = Color.White,
                         )
                     }
@@ -392,11 +476,15 @@ private fun NowPlayingDeck(
                 )
 
                 PlayerUtilityRow(
-                    shuffleEnabled = audioPlaybackState.shuffleEnabled,
                     repeatMode = audioPlaybackState.repeatMode,
                     accentColor = accentColor,
+                    isFavorite = isFavorite,
+                    isAbLoopActive = isAbLoopActive,
                     onShuffle = onToggleAudioShuffle,
                     onRepeat = onCycleAudioRepeatMode,
+                    onFavorite = onToggleFavorite,
+                    onAbLoop = onSetAbLoopPoint,
+                    onAudioTools = onOpenAudioTools,
                     onOptions = onOptions,
                 )
 
@@ -519,12 +607,12 @@ private fun NowPlayingDeck(
                     FooterAction(
                         icon = Icons.Outlined.GraphicEq,
                         label = "Lyrics",
-                        onClick = onOptions,
+                        onClick = onOpenLyrics,
                     )
                     FooterAction(
                         icon = Icons.Outlined.QueueMusic,
                         label = "Playing queue",
-                        onClick = onOptions,
+                        onClick = onOpenQueue,
                     )
                 }
             }
@@ -734,11 +822,15 @@ private fun DefaultRecordArtwork(
 
 @Composable
 private fun PlayerUtilityRow(
-    shuffleEnabled: Boolean,
     repeatMode: PlaylistRepeatMode,
     accentColor: Color,
+    isFavorite: Boolean,
+    isAbLoopActive: Boolean,
     onShuffle: () -> Unit,
     onRepeat: () -> Unit,
+    onFavorite: () -> Unit,
+    onAbLoop: () -> Unit,
+    onAudioTools: () -> Unit,
     onOptions: () -> Unit,
 ) {
     Row(
@@ -750,9 +842,14 @@ private fun PlayerUtilityRow(
             icon = Icons.Outlined.GraphicEq,
             contentDescription = "Equalizer",
             accentColor = accentColor,
-            onClick = onOptions,
+            onClick = onAudioTools,
         )
-        UtilityTextButton(label = "A-B", onClick = onOptions)
+        UtilityTextButton(
+            label = "A-B",
+            selected = isAbLoopActive,
+            accentColor = accentColor,
+            onClick = onAbLoop,
+        )
         PlayerIconButton(
             icon = repeatModeIcon(repeatMode),
             contentDescription = repeatModeLabel(repeatMode),
@@ -761,11 +858,11 @@ private fun PlayerUtilityRow(
             onClick = onRepeat,
         )
         PlayerIconButton(
-            icon = Icons.Outlined.FavoriteBorder,
-            contentDescription = if (shuffleEnabled) "Shuffle on" else "Shuffle",
-            selected = shuffleEnabled,
+            icon = if (isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+            contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
+            selected = isFavorite,
             accentColor = accentColor,
-            onClick = onShuffle,
+            onClick = onFavorite,
         )
         PlayerIconButton(
             icon = Icons.Default.MoreVert,
@@ -878,6 +975,8 @@ private fun PlayerIconButton(
 @Composable
 private fun UtilityTextButton(
     label: String,
+    selected: Boolean = false,
+    accentColor: Color = Color(0xFF56A9FF),
     onClick: () -> Unit,
 ) {
     Box(
@@ -891,7 +990,7 @@ private fun UtilityTextButton(
             text = label,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
-            color = Color.White,
+            color = if (selected) accentColor else Color.White,
         )
     }
 }
@@ -933,8 +1032,6 @@ private fun PlayerOptionsSheet(
     item: VideoLibraryItem,
     audioPlaybackState: AudioPlaybackState,
     onDismiss: () -> Unit,
-    onToggleShuffle: () -> Unit,
-    onCycleRepeat: () -> Unit,
     onSetSleepTimer: (Long?) -> Unit,
     onStopPlayback: () -> Unit,
 ) {
@@ -984,22 +1081,6 @@ private fun PlayerOptionsSheet(
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.14f))
 
-            PlayerOptionRow(
-                icon = Icons.Outlined.Shuffle,
-                title = if (audioPlaybackState.shuffleEnabled) "Turn shuffle off" else "Turn shuffle on",
-                subtitle = if (audioPlaybackState.shuffleEnabled) {
-                    "Play tracks in their normal order."
-                } else {
-                    "Mix the queue into a less predictable order."
-                },
-                onClick = onToggleShuffle,
-            )
-            PlayerOptionRow(
-                icon = repeatModeIcon(audioPlaybackState.repeatMode),
-                title = repeatModeLabel(audioPlaybackState.repeatMode),
-                subtitle = "Tap to cycle between off, repeat all, and repeat one.",
-                onClick = onCycleRepeat,
-            )
             listOf(15, 30, 45, 60).forEach { minutes ->
                 PlayerOptionRow(
                     icon = Icons.Outlined.AccessTime,
@@ -1024,6 +1105,186 @@ private fun PlayerOptionsSheet(
             )
 
             Spacer(Modifier.height(8.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LyricsSheet(
+    item: VideoLibraryItem,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            SheetTrackHeader(item = item)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.14f))
+            Text(
+                text = "Lyrics",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = "No synced lyrics are attached to this local audio yet.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(12.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PlayingQueueSheet(
+    audioItems: List<VideoLibraryItem>,
+    audioPlaybackState: AudioPlaybackState,
+    onPlayTrack: (VideoLibraryItem) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Playing queue",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = if (audioPlaybackState.shuffleEnabled) "Shuffled" else "${audioItems.size} tracks",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            audioItems.forEach { item ->
+                QueueTrackRow(
+                    item = item,
+                    isActive = item.task.id == audioPlaybackState.currentTaskId,
+                    isPlaying = item.task.id == audioPlaybackState.currentTaskId && audioPlaybackState.isPlaying,
+                    onClick = { onPlayTrack(item) },
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AudioToolsSheet(
+    audioPlaybackState: AudioPlaybackState,
+    loopStartMs: Long?,
+    loopEndMs: Long?,
+    onSetLoopStart: () -> Unit,
+    onSetLoopEnd: () -> Unit,
+    onClearLoop: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Text(
+                text = "Audio tools",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+            PlayerOptionRow(
+                icon = Icons.Outlined.GraphicEq,
+                title = "Playback status",
+                subtitle = listOf(
+                    if (audioPlaybackState.shuffleEnabled) "Shuffle on" else "Shuffle off",
+                    repeatModeLabel(audioPlaybackState.repeatMode),
+                    "${formatPlaybackTime(audioPlaybackState.positionMs)} / ${formatPlaybackTime(audioPlaybackState.durationMs)}",
+                ).joinToString(" | "),
+                onClick = {},
+            )
+            PlayerOptionRow(
+                icon = Icons.Outlined.AccessTime,
+                title = "Set A point",
+                subtitle = loopStartMs?.let { "A is ${formatPlaybackTime(it)}." }
+                    ?: "Use the current playback time as loop start.",
+                onClick = onSetLoopStart,
+            )
+            PlayerOptionRow(
+                icon = Icons.Outlined.AccessTime,
+                title = "Set B point",
+                subtitle = loopEndMs?.let { "B is ${formatPlaybackTime(it)}." }
+                    ?: "Use the current playback time as loop end after A.",
+                onClick = onSetLoopEnd,
+            )
+            if (loopStartMs != null || loopEndMs != null) {
+                PlayerOptionRow(
+                    icon = Icons.Outlined.Close,
+                    title = "Clear A-B loop",
+                    subtitle = "Return to normal playback.",
+                    onClick = onClearLoop,
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+        }
+    }
+}
+
+@Composable
+private fun SheetTrackHeader(item: VideoLibraryItem) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        LocalVideoThumbnail(
+            filePath = item.file?.absolutePath,
+            contentDescription = item.displayTitle,
+            modifier = Modifier
+                .size(72.dp)
+                .clip(CircleShape),
+        )
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = item.displayTitle,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = item.file?.parentFile?.name?.ifBlank { null }
+                    ?: item.mediaKind.label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
@@ -1231,5 +1492,32 @@ private fun repeatModeIcon(mode: PlaylistRepeatMode): ImageVector {
     return when (mode) {
         PlaylistRepeatMode.ONE -> Icons.Outlined.RepeatOne
         PlaylistRepeatMode.ALL, PlaylistRepeatMode.OFF -> Icons.Outlined.Repeat
+    }
+}
+
+private enum class PlayerSheet {
+    More,
+    Lyrics,
+    Queue,
+    AudioTools,
+}
+
+private fun Long?.orEmptyMs(): Long = this ?: 0L
+
+private fun shareAudioFile(context: android.content.Context, file: File) {
+    runCatching {
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file,
+        )
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "audio/*"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(intent, "Share audio"))
+    }.onFailure {
+        Toast.makeText(context, "Unable to share this audio file.", Toast.LENGTH_SHORT).show()
     }
 }
