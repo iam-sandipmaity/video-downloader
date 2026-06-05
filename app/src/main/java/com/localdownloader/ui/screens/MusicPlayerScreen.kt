@@ -52,6 +52,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -98,6 +99,7 @@ import com.localdownloader.ui.model.label
 import com.localdownloader.ui.model.toAudioQueueItems
 import com.localdownloader.ui.model.toShortTimerLabel
 import com.localdownloader.viewmodel.DownloadUiState
+import com.localdownloader.viewmodel.MusicTrimUiState
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -119,6 +121,9 @@ fun MusicPlayerScreen(
     favoriteTaskIds: Set<String>,
     onToggleFavorite: (String) -> Unit,
     onRenameAudioFile: (String, String) -> Unit,
+    trimUiState: MusicTrimUiState,
+    onTrimAudio: (String, String, String, String, Long, Long) -> Unit,
+    onDismissTrimResult: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     fileExists: (String) -> Boolean = { path -> java.io.File(path).exists() },
@@ -177,6 +182,7 @@ fun MusicPlayerScreen(
                 onDismiss = { activeSheet = null },
                 onShowDetails = { activeSheet = PlayerSheet.Details },
                 onRename = { activeSheet = PlayerSheet.Rename },
+                onTrim = { activeSheet = PlayerSheet.Trim },
                 onSleepTimer = { activeSheet = PlayerSheet.SleepTimer },
                 onShare = {
                     currentItem.file?.let { file -> shareAudioFile(context, file) }
@@ -230,6 +236,28 @@ fun MusicPlayerScreen(
                     activeSheet = null
                 },
                 onDismiss = { activeSheet = null },
+            )
+            PlayerSheet.Trim -> TrimTrackSheet(
+                item = currentItem,
+                audioPlaybackState = audioPlaybackState,
+                trimUiState = trimUiState,
+                onTrim = { startMs, endMs ->
+                    currentItem.file?.absolutePath?.let { sourcePath ->
+                        onTrimAudio(
+                            currentItem.task.id,
+                            currentItem.displayTitle,
+                            currentItem.task.url,
+                            sourcePath,
+                            startMs,
+                            endMs,
+                        )
+                    }
+                },
+                onDismissResult = onDismissTrimResult,
+                onDismiss = {
+                    onDismissTrimResult()
+                    activeSheet = null
+                },
             )
             PlayerSheet.SleepTimer -> SleepTimerSheet(
                 sleepTimerRemainingMs = audioPlaybackState.sleepTimerRemainingMs,
@@ -1134,6 +1162,7 @@ private fun PlayerOptionsSheet(
     onDismiss: () -> Unit,
     onShowDetails: () -> Unit,
     onRename: () -> Unit,
+    onTrim: () -> Unit,
     onSleepTimer: () -> Unit,
     onShare: () -> Unit,
     onSetAs: () -> Unit,
@@ -1196,6 +1225,12 @@ private fun PlayerOptionsSheet(
                 title = "Rename",
                 subtitle = "Rename the audio file in the app and file manager.",
                 onClick = onRename,
+            )
+            PlayerOptionRow(
+                icon = Icons.Outlined.GraphicEq,
+                title = "Trim audio",
+                subtitle = "Export a selected part as a new audio file.",
+                onClick = onTrim,
             )
             PlayerOptionRow(
                 icon = Icons.Outlined.AccessTime,
@@ -1470,6 +1505,170 @@ private fun RenameTrackSheet(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+private fun TrimTrackSheet(
+    item: VideoLibraryItem,
+    audioPlaybackState: AudioPlaybackState,
+    trimUiState: MusicTrimUiState,
+    onTrim: (Long, Long) -> Unit,
+    onDismissResult: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var startText by remember(item.task.id) { mutableStateOf("00:00") }
+    var endText by remember(item.task.id, audioPlaybackState.durationMs) {
+        mutableStateOf(
+            audioPlaybackState.durationMs
+                .takeIf { it > 0L }
+                ?.let(::formatPlaybackTime)
+                ?: "",
+        )
+    }
+    val startMs = remember(startText) { parseFlexibleTimestamp(startText) }
+    val endMs = remember(endText) { parseFlexibleTimestamp(endText) }
+    val validationMessage = when {
+        startMs == null -> "Enter a valid start time."
+        endMs == null -> "Enter a valid end time."
+        endMs < startMs + 1_000L -> "End time must be at least 1 second after start."
+        audioPlaybackState.durationMs > 0L && endMs > audioPlaybackState.durationMs + 1_000L -> {
+            "End time is beyond the track duration."
+        }
+        else -> null
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            SheetTrackHeader(item = item)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.14f))
+            Text(
+                text = "Trim audio",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = "Choose an exact range. This exports a new audio file and keeps the original untouched.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                OutlinedTextField(
+                    value = startText,
+                    onValueChange = {
+                        startText = it
+                        onDismissResult()
+                    },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    label = { Text("Start") },
+                    supportingText = { Text("MM:SS") },
+                )
+                OutlinedTextField(
+                    value = endText,
+                    onValueChange = {
+                        endText = it
+                        onDismissResult()
+                    },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    label = { Text("End") },
+                    supportingText = { Text("HH:MM:SS") },
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        startText = formatPlaybackTime(audioPlaybackState.positionMs)
+                        onDismissResult()
+                    },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Use current start")
+                }
+                OutlinedButton(
+                    onClick = {
+                        endText = formatPlaybackTime(audioPlaybackState.positionMs)
+                        onDismissResult()
+                    },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Use current end")
+                }
+            }
+
+            validationMessage?.let { message ->
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            if (trimUiState.isTrimming) {
+                LinearProgressIndicator(
+                    progress = { trimUiState.progress.coerceIn(0f, 1f) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    text = "Exporting trimmed audio...",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            trimUiState.message?.let { message ->
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            trimUiState.errorMessage?.let { message ->
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = onDismiss) {
+                    Text("Close")
+                }
+                Spacer(Modifier.width(8.dp))
+                OutlinedButton(
+                    onClick = {
+                        val resolvedStart = startMs
+                        val resolvedEnd = endMs
+                        if (resolvedStart != null && resolvedEnd != null) {
+                            onTrim(resolvedStart, resolvedEnd)
+                        }
+                    },
+                    enabled = validationMessage == null && !trimUiState.isTrimming,
+                ) {
+                    Text("Export trim")
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 private fun SleepTimerSheet(
     sleepTimerRemainingMs: Long?,
     onSetSleepTimer: (Long?) -> Unit,
@@ -1585,12 +1784,6 @@ private fun SetAsSheet(
                 title = "Open sound settings",
                 subtitle = "Choose ringtone or alarm sound from Android settings.",
                 onClick = onOpenSoundSettings,
-            )
-            PlayerOptionRow(
-                icon = Icons.Outlined.Edit,
-                title = "Trim before setting",
-                subtitle = "Use the A-B markers to choose a section, then share it to an editor for now.",
-                onClick = onShare,
             )
             Spacer(Modifier.height(8.dp))
         }
@@ -1882,6 +2075,7 @@ private enum class PlayerSheet {
     AudioTools,
     Details,
     Rename,
+    Trim,
     SleepTimer,
     SetAs,
 }
@@ -1892,6 +2086,26 @@ private fun Long?.orZero(): Long = this ?: 0L
 
 private fun String.onlyDigits(maxLength: Int): String {
     return filter { it.isDigit() }.take(maxLength)
+}
+
+private fun parseFlexibleTimestamp(rawValue: String): Long? {
+    val parts = rawValue
+        .trim()
+        .split(":")
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+
+    if (parts.isEmpty() || parts.size > 3) return null
+    if (parts.any { part -> part.any { !it.isDigit() } }) return null
+
+    val values = parts.map { it.toLongOrNull() ?: return null }
+    val seconds = when (values.size) {
+        1 -> values[0]
+        2 -> values[0] * 60L + values[1]
+        3 -> values[0] * 3_600L + values[1] * 60L + values[2]
+        else -> return null
+    }
+    return seconds.takeIf { it >= 0L }?.times(1_000L)
 }
 
 private fun shareAudioFile(context: android.content.Context, file: File) {

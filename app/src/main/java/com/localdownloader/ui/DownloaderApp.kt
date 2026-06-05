@@ -90,6 +90,7 @@ import com.localdownloader.viewmodel.FormatViewModel
 import com.localdownloader.viewmodel.MediaToolsViewModel
 import com.localdownloader.viewmodel.AudioPlaybackViewModel
 import com.localdownloader.viewmodel.MusicFavoritesViewModel
+import com.localdownloader.viewmodel.MusicTrimViewModel
 import com.localdownloader.viewmodel.PlayerViewModel
 import com.localdownloader.viewmodel.UpdatesViewModel
 
@@ -111,6 +112,7 @@ fun DownloaderApp(
     val mediaToolsViewModel: MediaToolsViewModel = hiltViewModel()
     val audioPlaybackViewModel: AudioPlaybackViewModel = hiltViewModel()
     val musicFavoritesViewModel: MusicFavoritesViewModel = hiltViewModel()
+    val musicTrimViewModel: MusicTrimViewModel = hiltViewModel()
     val updatesViewModel: UpdatesViewModel = hiltViewModel()
     val context = LocalContext.current
     // Use the DI-provided FileUtils from mediaToolsViewModel instead of creating a new instance.
@@ -146,6 +148,7 @@ fun DownloaderApp(
     val mediaToolsState by mediaToolsViewModel.uiState.collectAsStateWithLifecycle()
     val audioPlaybackState by audioPlaybackViewModel.uiState.collectAsStateWithLifecycle()
     val favoriteMusicTaskIds by musicFavoritesViewModel.favoriteTaskIds.collectAsStateWithLifecycle()
+    val musicTrimState by musicTrimViewModel.uiState.collectAsStateWithLifecycle()
     val updatesState by updatesViewModel.uiState.collectAsStateWithLifecycle()
     val savedMediaItems = remember(downloadState.tasks) {
         buildVideoLibraryItems(downloadState.tasks, fileUtils::managedFileExists)
@@ -885,6 +888,9 @@ fun DownloaderApp(
                     favoriteTaskIds = favoriteMusicTaskIds,
                     onToggleFavorite = musicFavoritesViewModel::toggleFavorite,
                     onRenameAudioFile = downloadViewModel::renameDownloadedFile,
+                    trimUiState = musicTrimState,
+                    onTrimAudio = musicTrimViewModel::trimAudio,
+                    onDismissTrimResult = musicTrimViewModel::dismissResult,
                     onBack = { navController.popBackStack() },
                     fileExists = fileUtils::managedFileExists,
                 )
