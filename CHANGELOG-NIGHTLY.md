@@ -26,6 +26,7 @@ Nightly builds are rolling prereleases published from the `nightly` release tag.
 
 ### Fixed
 - **Seek tap regression** - tapping a new point on the progress bar now seeks to that position instead of snapping back to the previous playback second.
+- **Device audio source display** - switching to device audio now shows and plays the loaded device tracks even when an older app-download queue is still active.
 - **Tonearm positioning** - adjusted the gramophone/tonearm geometry so the stylus sits on the record more naturally across artwork states.
 - **Music source compile issues** - fixed wiring mistakes around the More-page music shortcut and content-backed player artwork.
 - **A-B marker compile issue** - fixed the loop marker state references used by the progress bar.

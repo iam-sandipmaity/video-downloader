@@ -238,12 +238,17 @@ fun MusicPlayerScreen(
         }
     }
 
+    val queueItemsForSelectedSource = remember(audioPlaybackState.queue, audioItems) {
+        val byTaskId = audioItems.associateBy { it.id }
+        audioPlaybackState.queue.mapNotNull { queueItem -> byTaskId[queueItem.taskId] }
+    }
+    val isPlaybackQueueForSelectedSource = audioPlaybackState.queue.isEmpty() ||
+        queueItemsForSelectedSource.isNotEmpty()
     val queueDisplayItems = remember(audioPlaybackState.queue, audioItems) {
         if (audioPlaybackState.queue.isEmpty()) {
             audioItems
         } else {
-            val byTaskId = audioItems.associateBy { it.id }
-            audioPlaybackState.queue.mapNotNull { queueItem -> byTaskId[queueItem.taskId] }
+            queueItemsForSelectedSource.ifEmpty { audioItems }
         }
     }
     val queueDisplayAudioItems = remember(queueDisplayItems) { queueDisplayItems.toAudioQueueItems() }
@@ -461,7 +466,7 @@ fun MusicPlayerScreen(
                 onScrubPositionChanged = { scrubPositionMs = it },
                 onSeekAudioTo = onSeekAudioTo,
                 onToggleAudioPlayback = {
-                    if (audioPlaybackState.hasQueue) {
+                    if (audioPlaybackState.hasQueue && isPlaybackQueueForSelectedSource) {
                         onToggleAudioPlayback()
                     } else {
                         onPlayAudioQueue(audioQueueItems, currentItem?.id, false)
@@ -470,7 +475,7 @@ fun MusicPlayerScreen(
                 onSkipToPreviousAudio = onSkipToPreviousAudio,
                 onSkipToNextAudio = onSkipToNextAudio,
                 onToggleAudioShuffle = {
-                    if (audioPlaybackState.hasQueue) {
+                    if (audioPlaybackState.hasQueue && isPlaybackQueueForSelectedSource) {
                         onToggleAudioShuffle()
                     } else {
                         onPlayAudioQueue(audioQueueItems, null, true)
@@ -552,9 +557,11 @@ private fun NowPlayingDeck(
         ?: item?.folderName?.ifBlank { null }
         ?: item?.sourceLabel
         ?: "Audio library"
-    val trackLabel = audioPlaybackState.currentTaskId?.let {
-        "Track ${audioPlaybackState.currentTrackNumber}/${audioPlaybackState.queueCount.coerceAtLeast(trackCount)}"
-    } ?: "$trackCount tracks"
+    val trackLabel = audioPlaybackState.currentTaskId
+        ?.takeIf { item?.id == it }
+        ?.let {
+            "Track ${audioPlaybackState.currentTrackNumber}/${audioPlaybackState.queueCount.coerceAtLeast(trackCount)}"
+        } ?: "$trackCount tracks"
 
     Surface(
         modifier = Modifier
