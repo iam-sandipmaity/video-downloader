@@ -8,8 +8,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 Nightly-only changes are tracked separately in [CHANGELOG-NIGHTLY.md](CHANGELOG-NIGHTLY.md).
 
+## [1.7.4] - 2026-06-06
+
+### Added
+- **Audio player in More** - added the music player to the More tools section with a real source picker for app downloads, device audio from MediaStore, and persisted selected folders
+- **Expanded audio playback tools** - added dedicated details, rename, trim, sleep timer, share, set-as, A-B loop marker, and queue actions instead of routing controls through one generic sheet
+- **External audio support** - device and selected-folder audio can now play through the in-app player, show artwork and metadata, share, and use the trim editor even when backed by content URIs
+- **Video player in More** - added a video player entry with downloaded-video playback, device browsing, first-run gesture guidance, and reopenable gesture help
+- **Video gesture upgrades** - added pinch-to-zoom and two-finger pan support while keeping single-finger seek, brightness, and volume gestures usable
+- **Queue and diagnostics tools** - added waiting-queue reordering, richer task diagnostics, sanitized troubleshooting exports, storage visibility, setup shortcuts, and copy actions for exposed paths
+- **Weblate status widgets** - added Hosted Weblate translation badges and status panels to the README
+
+### Changed
+- **Music player redesign** - replaced the old in-app player with a full-screen vinyl-style experience, animated artwork, improved tonearm layout, blurred accent-aware backgrounds, refreshed controls, and a compact playing queue
+- **Player interaction polish** - improved progress tap-to-seek, drag seeking, loop-span highlighting, shuffle/repeat/favorite behavior, default no-artwork visuals, and audio metadata display
+- **Audio trim workflow** - moved trimming into a dedicated start/end editor that exports a selected range instead of reusing A-B loop points
+- **Video gesture guide** - refreshed the guide into a cleaner preview card with clearer labels for seek, brightness, volume, zoom, and pan gestures
+- **Updates and diagnostics clarity** - update screens now show the active release channel, and task detail panels show progress, speed, ETA, transferred size, source, output path, and recent logs together
+- **Documentation refresh** - updated README screenshots to show the refreshed audio player, audio action sheet, and video player improvements
+
+### Fixed
+- **Audio source switching** - switching to device audio now shows and plays loaded device tracks instead of leaving the older app-download queue visible
+- **Progress seek regression** - tapping the progress bar now seeks to the tapped position instead of snapping back to the previous playback second
+- **Music player layout bugs** - adjusted tonearm geometry, artwork fallback handling, A-B marker state, and More-page music shortcut wiring
+- **Audio metadata reading** - app-downloaded and folder-selected tracks now read embedded title, artist, album artist, album, duration, and artwork more reliably
+- **Update channel safety** - stable builds reject nightly APK assets, while nightly builds accept only nightly APK assets
+- **Failure history clarity** - final failure and cancel reasons remain visible in task debug history
+
 ### Removed
 - **Legacy translation automation** - removed the previous translation-service workflows, generated progress assets, and helper scripts so Hosted Weblate is the single automated localization path
+
+### Technical
+- **App version bump** - release metadata updated to `1.7.4`
+- **CI SDK compatibility** - CI now uses a local Android SDK setup action, installs the available SDK 36 platform, and pins AndroidX Core to the SDK-compatible `1.18.0`
+- **Nightly promotion** - summarized and promoted the `2.0.0.0` and `2.0.0.1` nightly changes into the stable changelog
 
 ## [1.7.3.1] - 2026-05-29
 

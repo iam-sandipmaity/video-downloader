@@ -46,6 +46,9 @@ Nightly builds are rolling prereleases published from the `nightly` release tag.
 - **Local compile not verified here** - this development machine does not have `ANDROID_HOME` or `local.properties` configured, so Kotlin compile verification could not run locally.
 - **PR release publishing** - pull request builds validate the nightly code path, but the rolling `nightly` release is only published after the branch lands on `main`.
 
+### Promoted To Stable
+- Summarized in stable `1.7.4`.
+
 ## [2.0.0.0] - 2026-05-31
 
 ### Added
@@ -68,4 +71,4 @@ Nightly builds are rolling prereleases published from the `nightly` release tag.
 - **PR release publishing** - pull request builds validate the nightly code path, but the rolling `nightly` release is only published after the branch lands on `main`.
 
 ### Promoted To Stable
-- None yet.
+- Included in the stable `1.7.4` promotion through the `2.0.0.1` nightly summary.
