@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <path
+        android:fillColor="#33000000"
+        android:pathData="M16,72 Q16,64 24,64 L84,64 Q92,64 92,72 L92,82 Q92,90 84,90 L24,90 Q16,90 16,82 Z" />
+
+    <path
+        android:fillColor="#F8FAFC"
+        android:fillAlpha="0.18"
+        android:pathData="M54,14 C76,14 94,32 94,54 C94,76 76,94 54,94 C67,84 75,69 75,54 C75,39 67,24 54,14 Z" />
+
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M54,25 L54,53"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round"
+        android:strokeWidth="6" />
+
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M54,53 L42,41"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="6" />
+
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M54,53 L66,41"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="6" />
+
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M36,59 L36,64 Q36,70 42,70 L66,70 Q72,70 72,64 L72,59"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="6" />
+
+    <path
+        android:fillColor="#F97316"
+        android:pathData="M18,72 Q18,66 24,66 L84,66 Q90,66 90,72 L90,81 Q90,87 84,87 L24,87 Q18,87 18,81 Z" />
+
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M24,82 L24,72 L30,82 L30,72 M34,72 L34,82 M38,72 L44,72 L38,82 L44,82 L44,77 L41,77 M48,82 L48,72 M48,77 L54,77 M54,72 L54,82 M58,72 L64,72 M61,72 L61,82 M68,72 L68,82 L73,82 M77,72 L80,77 L83,72 M80,77 L80,82"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="1.6" />
+</vector>
