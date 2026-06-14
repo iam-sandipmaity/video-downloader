@@ -89,7 +89,7 @@ class BinaryInstaller @Inject constructor(
                 add(
                     FfmpegCandidate(
                         sourceBinary = nativeBinary,
-                        supportDir = null,
+                        supportDir = supportDir,
                         label = nativeBinary.name,
                     ),
                 )

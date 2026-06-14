@@ -185,6 +185,10 @@ android {
         }
         jniLibs {
             useLegacyPackaging = true
+            pickFirsts += setOf(
+                "lib/arm64-v8a/libffmpeg.so",
+                "lib/arm64-v8a/libffmpeg.zip.so",
+            )
         }
     }
 
