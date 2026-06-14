@@ -65,19 +65,26 @@ class BinaryInstaller @Inject constructor(
                 add(overlayCandidate)
             }
             bundledLinkedNativeBinary?.let { nativeBinary ->
-                if (!bundledLinkedRuntimeHasExplicitSupport) {
+                if (nativeBinary.length() > 1_000_000) {
                     logger.i(
                         "BinaryInstaller",
-                        "Bundled linked libffmpeg.so has no explicit libc++_shared.so marker; attempting runtime verification before falling back",
+                        "Skipping bundled linked libffmpeg.so (${nativeBinary.length()} bytes) as it is an old statically-linked build; using fallback libffmpeg_exec.so instead",
+                    )
+                } else {
+                    if (!bundledLinkedRuntimeHasExplicitSupport) {
+                        logger.i(
+                            "BinaryInstaller",
+                            "Bundled linked libffmpeg.so has no explicit libc++_shared.so marker; attempting runtime verification before falling back",
+                        )
+                    }
+                    add(
+                        FfmpegCandidate(
+                            sourceBinary = nativeBinary,
+                            supportDir = supportDir,
+                            label = nativeBinary.name,
+                        ),
                     )
                 }
-                add(
-                    FfmpegCandidate(
-                        sourceBinary = nativeBinary,
-                        supportDir = supportDir,
-                        label = nativeBinary.name,
-                    ),
-                )
             }
             if (bundledLinkedNativeBinary == null && !bundledLinkedRuntimeHasExplicitSupport) {
                 logger.i(

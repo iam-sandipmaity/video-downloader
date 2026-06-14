@@ -93,7 +93,11 @@ class YtDlpExecutor @Inject constructor(
             if (isInitialized) return
             logger.i("YtDlpExecutor", "Initializing embedded yt-dlp runtime")
             YoutubeDL.getInstance().init(context)
-            FFmpeg.getInstance().init(context)
+            runCatching {
+                FFmpeg.getInstance().init(context)
+            }.onFailure { error ->
+                logger.w("YtDlpExecutor", "AAR FFmpeg init failed (non-fatal; yt-dlp receives the FFmpeg path via --ffmpeg-location)", error)
+            }
             isInitialized = true
             logger.i("YtDlpExecutor", "Embedded yt-dlp runtime initialized")
         }
