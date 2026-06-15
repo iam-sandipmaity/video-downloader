@@ -54,7 +54,6 @@ import com.localdownloader.R
 import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.viewmodel.UpdateSectionUiState
 import com.localdownloader.viewmodel.UpdatesUiState
-import com.localdownloader.updates.FfmpegReleaseChannel
 import com.localdownloader.updates.PreparedAppUpdate
 import com.localdownloader.updates.YtDlpReleaseChannel
 import java.io.File
@@ -69,9 +68,7 @@ fun UpdatesScreen(
     onRefreshFfmpeg: () -> Unit,
     onInstallAppUpdate: () -> Unit,
     onInstallYtDlpUpdate: () -> Unit,
-    onInstallFfmpegUpdate: () -> Unit,
     onYtDlpChannelChanged: (YtDlpReleaseChannel) -> Unit,
-    onFfmpegChannelChanged: (FfmpegReleaseChannel) -> Unit,
     onAutoUpdateYtDlpChanged: (Boolean) -> Unit,
     onIncludePrereleaseAppReleasesChanged: (Boolean) -> Unit,
     onOpenChangelog: (String) -> Unit,
@@ -81,7 +78,6 @@ fun UpdatesScreen(
 ) {
     val context = LocalContext.current
     var ytDlpChannelDialog by remember { mutableStateOf(false) }
-    var ffmpegChannelDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.pendingAppInstallRequestId) {
         val pendingInstall = uiState.pendingAppInstall ?: return@LaunchedEffect
@@ -109,21 +105,6 @@ fun UpdatesScreen(
                 )
             },
             onDismiss = { ytDlpChannelDialog = false },
-        )
-    }
-
-    if (ffmpegChannelDialog) {
-        ChoiceDialog(
-            title = stringResource(R.string.updates_ffmpeg_source),
-            selected = uiState.preferences.ffmpegChannel.title,
-            options = FfmpegReleaseChannel.entries.map { channel ->
-                UpdateChoiceOption(
-                    title = channel.title,
-                    subtitle = channel.description,
-                    onSelect = { onFfmpegChannelChanged(channel) },
-                )
-            },
-            onDismiss = { ffmpegChannelDialog = false },
         )
     }
 
@@ -294,9 +275,9 @@ fun UpdatesScreen(
                 UpdateValueRow(
                     icon = Icons.Outlined.Settings,
                     title = stringResource(R.string.updates_ffmpeg_source),
-                    subtitle = uiState.preferences.ffmpegChannel.description,
-                    value = uiState.preferences.ffmpegChannel.id,
-                    onClick = { ffmpegChannelDialog = true },
+                    subtitle = "Built into this app from the packaged runtime.",
+                    value = "bundled",
+                    onClick = null,
                 )
                 DividerInset()
                 UpdateActionRow(
@@ -305,22 +286,6 @@ fun UpdatesScreen(
                     subtitle = buildCheckSubtitle(uiState.ffmpeg),
                     onClick = onRefreshFfmpeg,
                 )
-                if (shouldShowFfmpegInstallRow(uiState.ffmpeg)) {
-                    DividerInset()
-                    UpdateActionRow(
-                        icon = Icons.Outlined.FileDownload,
-                        title = if (uiState.ffmpeg.latestCheck?.requiresInitialInstall == true) {
-                            stringResource(R.string.updates_install_ffmpeg)
-                        } else {
-                            stringResource(R.string.updates_update_ffmpeg)
-                        },
-                        subtitle = buildInstallSubtitle(
-                            section = uiState.ffmpeg,
-                            isInitialInstall = uiState.ffmpeg.latestCheck?.requiresInitialInstall == true,
-                        ),
-                        onClick = onInstallFfmpegUpdate,
-                    )
-                }
                 DividerInset()
                 UpdateActionRow(
                     icon = Icons.Outlined.Description,
@@ -615,16 +580,10 @@ private fun buildInstallSubtitle(
     return when {
         section.isInstalling && section.progressPercent != null -> "Downloading... ${section.progressPercent}%"
         hasPreparedInstall -> "The update APK is already downloaded and ready to install."
-        isInitialInstall -> "Install the optional managed runtime so FFmpeg can be updated directly in the app."
+        isInitialInstall -> section.summary
         section.updateAvailable -> "Install ${section.latestVersion ?: "the latest version"}"
         else -> section.summary
     }
-}
-
-private fun shouldShowFfmpegInstallRow(section: UpdateSectionUiState): Boolean {
-    return section.isInstalling ||
-        section.updateAvailable ||
-        section.latestCheck?.requiresInitialInstall == true
 }
 
 private fun launchApkInstaller(

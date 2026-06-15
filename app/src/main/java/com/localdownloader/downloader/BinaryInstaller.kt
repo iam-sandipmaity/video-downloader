@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import android.system.Os
 import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
@@ -50,20 +51,10 @@ class BinaryInstaller @Inject constructor(
 
     suspend fun ensureFfmpegRuntime(preferNative: Boolean = true): FfmpegRuntime = withContext(Dispatchers.IO) {
         val supportDir = ensureBundledFfmpegSupportDir()
-        val overlayCandidate = resolveDownloadedOverlayFfmpegCandidate()
         val bundledLinkedRuntimeHasExplicitSupport = hasExplicitLinkedFfmpegRuntimeSupport(supportDir)
         val bundledLinkedNativeBinary = resolveNativeLibraryBinary(listOf("libffmpeg.so"))
         val bundledFallbackNativeBinary = resolveNativeLibraryBinary(listOf("libffmpeg_exec.so"))
         val candidates = buildList {
-            if (overlayCandidate != null) {
-                if (!hasExplicitLinkedFfmpegRuntimeSupport(overlayCandidate.supportDir)) {
-                    logger.i(
-                        "BinaryInstaller",
-                        "Downloaded overlay libffmpeg.so has no explicit libc++_shared.so marker; attempting runtime verification before falling back",
-                    )
-                }
-                add(overlayCandidate)
-            }
             bundledLinkedNativeBinary?.let { nativeBinary ->
                 if (nativeBinary.length() > 1_000_000) {
                     logger.i(
@@ -175,6 +166,7 @@ class BinaryInstaller @Inject constructor(
 
             freedBytes += deleteRecursively(File(File(context.filesDir, "bin"), "yt-dlp"))
             freedBytes += deleteRecursively(File(File(context.filesDir, "bin"), "ffmpeg"))
+            freedBytes += deleteRecursively(File(context.noBackupFilesDir, "localdownloader_runtime/downloaded_packages/ffmpeg"))
             val runtimeBaseDir = File(context.noBackupFilesDir, YoutubeDL.baseName)
             val packagesDir = File(runtimeBaseDir, "packages")
             freedBytes += deleteRecursively(File(packagesDir, "aria2c"))
@@ -186,10 +178,6 @@ class BinaryInstaller @Inject constructor(
                 )
             }
         }
-    }
-
-    fun ffmpegOverlayDir(): File {
-        return File(context.noBackupFilesDir, "localdownloader_runtime/downloaded_packages/ffmpeg")
     }
 
     private fun resolveNativeLibraryBinary(candidates: List<String>): File? {
@@ -209,23 +197,6 @@ class BinaryInstaller @Inject constructor(
             }
         }
         return null
-    }
-
-    private fun resolveDownloadedOverlayFfmpegCandidate(): FfmpegCandidate? {
-        val overlayDir = ffmpegOverlayDir()
-        val overlayBinary = File(overlayDir, "libffmpeg.so")
-        if (!overlayBinary.exists() || !overlayBinary.isFile) return null
-        val overlaySupportDir = ensureSupportDirFromZip(
-            zipBinary = File(overlayDir, "libffmpeg.zip.so"),
-            supportDir = File(overlayDir, "support/ffmpeg"),
-            markerFile = File(overlayDir, ".support-marker"),
-        )
-        logger.i("BinaryInstaller", "Using downloaded FFmpeg overlay: ${overlayBinary.absolutePath}")
-        return FfmpegCandidate(
-            sourceBinary = overlayBinary,
-            supportDir = overlaySupportDir,
-            label = "downloaded overlay",
-        )
     }
 
     private fun hasExplicitLinkedFfmpegRuntimeSupport(supportDir: File?): Boolean {
@@ -274,6 +245,7 @@ class BinaryInstaller @Inject constructor(
         val embeddedRuntimeDir = File(File(context.noBackupFilesDir, YoutubeDL.baseName), "packages/ffmpeg")
         val embeddedUsrLib = File(embeddedRuntimeDir, "usr/lib")
         if (embeddedUsrLib.exists()) {
+            prepareFfmpegSupportCompatLibraries(embeddedRuntimeDir)
             logger.i("BinaryInstaller", "Using embedded ffmpeg support dir: ${embeddedRuntimeDir.absolutePath}")
             return embeddedRuntimeDir
         }
@@ -372,15 +344,53 @@ class BinaryInstaller @Inject constructor(
         if (!zipBinary.exists() || !zipBinary.isFile) return null
         val expectedMarker = "${zipBinary.length()}|${zipBinary.lastModified()}"
         if (supportDir.exists() && markerFile.readTextOrNull() == expectedMarker) {
+            prepareFfmpegSupportCompatLibraries(supportDir)
             return supportDir
         }
         deleteRecursively(supportDir)
         supportDir.mkdirs()
         unzipSafely(zipBinary, supportDir)
+        prepareFfmpegSupportCompatLibraries(supportDir)
         markerFile.parentFile?.mkdirs()
         markerFile.writeText(expectedMarker)
         logger.i("BinaryInstaller", "Prepared ffmpeg support dir: ${supportDir.absolutePath}")
         return supportDir
+    }
+
+    private fun prepareFfmpegSupportCompatLibraries(supportDir: File) {
+        val usrLib = File(supportDir, "usr/lib")
+        if (!usrLib.exists() && !usrLib.mkdirs()) return
+
+        val bundledFontconfig = File(usrLib, "libfontconfig.so")
+        val expectedExpat = File(usrLib, "libexpat.so.1")
+        if (!bundledFontconfig.exists() || expectedExpat.exists()) return
+
+        val platformExpat = listOf(
+            "/system/lib64/libexpat.so",
+            "/apex/com.android.runtime/lib64/bionic/libexpat.so",
+            "/system/lib/libexpat.so",
+            "/apex/com.android.runtime/lib/bionic/libexpat.so",
+        )
+            .map(::File)
+            .firstOrNull { it.exists() && it.isFile }
+            ?: return
+
+        runCatching {
+            Os.symlink(platformExpat.absolutePath, expectedExpat.absolutePath)
+        }.recoverCatching {
+            platformExpat.copyTo(expectedExpat, overwrite = true)
+        }.onSuccess {
+            logger.i(
+                "BinaryInstaller",
+                "Prepared FFmpeg libexpat.so.1 compatibility shim from ${platformExpat.absolutePath}",
+            )
+        }.onFailure { error ->
+            logger.w(
+                "BinaryInstaller",
+                "Unable to prepare FFmpeg libexpat.so.1 compatibility shim",
+                error,
+            )
+        }
     }
 
     private fun unzipSafely(sourceZip: File, targetDir: File) {

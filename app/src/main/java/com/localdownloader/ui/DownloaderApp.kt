@@ -866,9 +866,7 @@ fun DownloaderApp(
                     onRefreshFfmpeg = updatesViewModel::refreshFfmpeg,
                     onInstallAppUpdate = updatesViewModel::installAppUpdate,
                     onInstallYtDlpUpdate = updatesViewModel::installYtDlpUpdate,
-                    onInstallFfmpegUpdate = updatesViewModel::installFfmpegUpdate,
                     onYtDlpChannelChanged = updatesViewModel::setYtDlpChannel,
-                    onFfmpegChannelChanged = updatesViewModel::setFfmpegChannel,
                     onAutoUpdateYtDlpChanged = updatesViewModel::setAutoUpdateYtDlp,
                     onIncludePrereleaseAppReleasesChanged = updatesViewModel::setIncludePrereleaseAppReleases,
                     onOpenChangelog = { section ->

@@ -6,7 +6,6 @@ import com.localdownloader.data.DownloadTaskStore
 import com.localdownloader.domain.models.blocksRuntimeUpdates
 import com.localdownloader.updates.AppUpdateManager
 import com.localdownloader.updates.ComponentUpdateCheck
-import com.localdownloader.updates.FfmpegReleaseChannel
 import com.localdownloader.updates.FfmpegUpdateManager
 import com.localdownloader.updates.PreparedAppUpdate
 import com.localdownloader.updates.UpdatePreferences
@@ -98,14 +97,6 @@ class UpdatesViewModel @Inject constructor(
             ytDlpUpdateScheduler.scheduleIfDue()
         }
         refreshYtDlp()
-    }
-
-    fun setFfmpegChannel(channel: FfmpegReleaseChannel) {
-        updatePreferencesStore.setFfmpegChannel(channel)
-        _uiState.value = _uiState.value.copy(
-            preferences = _uiState.value.preferences.copy(ffmpegChannel = channel),
-        )
-        refreshFfmpeg()
     }
 
     fun installAppUpdate() {
@@ -204,42 +195,6 @@ class UpdatesViewModel @Inject constructor(
         }
     }
 
-    fun installFfmpegUpdate() {
-        val channel = _uiState.value.preferences.ffmpegChannel
-        viewModelScope.launch {
-            if (hasBlockingDownloads()) {
-                _uiState.value = _uiState.value.copy(
-                    errorMessage = "Finish, cancel, or resume queued downloads before updating FFmpeg.",
-                    infoMessage = null,
-                )
-                return@launch
-            }
-            _uiState.value = _uiState.value.copy(
-                ffmpeg = _uiState.value.ffmpeg.copy(isInstalling = true, progressPercent = 0),
-                infoMessage = null,
-                errorMessage = null,
-            )
-            runCatching {
-                ffmpegUpdateManager.installUpdate(channel) { progress ->
-                    _uiState.value = _uiState.value.copy(
-                        ffmpeg = _uiState.value.ffmpeg.copy(progressPercent = progress),
-                    )
-                }
-            }.onSuccess { result ->
-                _uiState.value = _uiState.value.copy(
-                    ffmpeg = _uiState.value.ffmpeg.copy(isInstalling = false, progressPercent = null),
-                    infoMessage = result.message,
-                )
-                refreshFfmpeg()
-            }.onFailure { error ->
-                _uiState.value = _uiState.value.copy(
-                    ffmpeg = _uiState.value.ffmpeg.copy(isInstalling = false, progressPercent = null),
-                    errorMessage = error.message ?: "Failed to update FFmpeg.",
-                )
-            }
-        }
-    }
-
     fun consumePendingAppInstall() {
         _uiState.value = _uiState.value.copy(pendingAppInstall = null)
     }
@@ -295,7 +250,7 @@ class UpdatesViewModel @Inject constructor(
     private suspend fun refreshFfmpegInternal() {
         _uiState.value = _uiState.value.copy(ffmpeg = _uiState.value.ffmpeg.copy(isChecking = true))
         runCatching {
-            ffmpegUpdateManager.check(_uiState.value.preferences.ffmpegChannel)
+            ffmpegUpdateManager.check()
         }.onSuccess { check ->
             _uiState.value = _uiState.value.copy(
                 ffmpeg = _uiState.value.ffmpeg.fromCheck(check).copy(isChecking = false),
@@ -328,8 +283,8 @@ data class UpdatesUiState(
         subtitle = "Switch sources and install newer downloader builds when extractor changes are needed.",
     ),
     val ffmpeg: UpdateSectionUiState = UpdateSectionUiState(
-        title = "FFmpeg update",
-        subtitle = "Install a stronger app-owned FFmpeg runtime overlay for newer media processing support.",
+        title = "FFmpeg runtime",
+        subtitle = "Check the bundled FFmpeg runtime shipped with this app build.",
     ),
     val pendingAppInstall: PreparedAppUpdate? = null,
     val pendingAppInstallRequestId: Long = 0L,

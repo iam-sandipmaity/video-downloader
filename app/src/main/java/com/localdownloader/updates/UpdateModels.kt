@@ -37,30 +37,10 @@ enum class YtDlpReleaseChannel(
     }
 }
 
-enum class FfmpegReleaseChannel(
-    val id: String,
-    val title: String,
-    val description: String,
-) {
-    STABLE(
-        id = "stable",
-        title = "Stable Runtime Feed",
-        description = "Downloads the latest Android-compatible FFmpeg runtime package.",
-    ),
-    ;
-
-    companion object {
-        fun fromId(raw: String?): FfmpegReleaseChannel {
-            return entries.firstOrNull { it.id.equals(raw, ignoreCase = true) } ?: STABLE
-        }
-    }
-}
-
 data class UpdatePreferences(
     val includePrereleaseAppReleases: Boolean = false,
     val autoUpdateYtDlp: Boolean = BuildConfig.YTDLP_AUTO_UPDATE_DEFAULT,
     val ytDlpChannel: YtDlpReleaseChannel = YtDlpReleaseChannel.STABLE,
-    val ffmpegChannel: FfmpegReleaseChannel = FfmpegReleaseChannel.STABLE,
 )
 
 @Serializable

@@ -26,9 +26,6 @@ class UpdatePreferencesStore @Inject constructor(
             ytDlpChannel = YtDlpReleaseChannel.fromId(
                 prefs.getString(KEY_YTDLP_CHANNEL, YtDlpReleaseChannel.STABLE.id),
             ),
-            ffmpegChannel = FfmpegReleaseChannel.fromId(
-                prefs.getString(KEY_FFMPEG_CHANNEL, FfmpegReleaseChannel.STABLE.id),
-            ),
         )
     }
 
@@ -44,15 +41,10 @@ class UpdatePreferencesStore @Inject constructor(
         prefs.edit { putString(KEY_YTDLP_CHANNEL, channel.id) }
     }
 
-    fun setFfmpegChannel(channel: FfmpegReleaseChannel) {
-        prefs.edit { putString(KEY_FFMPEG_CHANNEL, channel.id) }
-    }
-
     private companion object {
         private const val PREFS_NAME = "update_preferences"
         private const val KEY_INCLUDE_PRERELEASE_APP_RELEASES = "include_prerelease_app_releases"
         private const val KEY_AUTO_UPDATE_YTDLP = "auto_update_ytdlp"
         private const val KEY_YTDLP_CHANNEL = "ytdlp_channel"
-        private const val KEY_FFMPEG_CHANNEL = "ffmpeg_channel"
     }
 }
