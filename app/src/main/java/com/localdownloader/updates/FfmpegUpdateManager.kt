@@ -254,11 +254,16 @@ class FfmpegUpdateManager @Inject constructor(
     )
 
     private companion object {
-        private const val PACKAGE_REPOSITORY = "deniscerri/ytdlnis-packages"
+        // Change this repository to your own (e.g. "your-username/video-downloader-packages")
+        // if you want the app to check for updates from your own custom package repository.
+        private const val PACKAGE_REPOSITORY = "YOUR_GITHUB_USERNAME/video-downloader-packages"
         private const val PACKAGE_NAME = "ffmpeg"
-        // Trusted YTDLnis signer fingerprint documented by the upstream project.
+
+        // Trusted package signing fingerprints. The app will verify that the downloaded update APK
+        // is signed by one of these cert digests.
+        // If you are using your own package repository, add your own SHA-256 cert fingerprint here.
         private val TRUSTED_RUNTIME_SIGNER_SHA256_DIGESTS = setOf(
-            "263645cb5272eb290759fe1f59149ae24df6ce171e9f6666eead981d3fc64c95",
+            "263645cb5272eb290759fe1f59149ae24df6ce171e9f6666eead981d3fc64c95", // Default upstream key
         )
         private val FFMPEG_VERSION_REGEX = Regex("ffmpeg version\\s+n?([0-9]+(?:\\.[0-9]+)+)", RegexOption.IGNORE_CASE)
     }
