@@ -256,7 +256,7 @@ class FfmpegUpdateManager @Inject constructor(
     private companion object {
         // Change this repository to your own (e.g. "your-username/video-downloader-packages")
         // if you want the app to check for updates from your own custom package repository.
-        private const val PACKAGE_REPOSITORY = "YOUR_GITHUB_USERNAME/video-downloader-packages"
+        private const val PACKAGE_REPOSITORY = "iam-sandipmaity/video-downloader-packages"
         private const val PACKAGE_NAME = "ffmpeg"
 
         // Trusted package signing fingerprints. The app will verify that the downloaded update APK
@@ -264,6 +264,7 @@ class FfmpegUpdateManager @Inject constructor(
         // If you are using your own package repository, add your own SHA-256 cert fingerprint here.
         private val TRUSTED_RUNTIME_SIGNER_SHA256_DIGESTS = setOf(
             "263645cb5272eb290759fe1f59149ae24df6ce171e9f6666eead981d3fc64c95", // Default upstream key
+            "d6bf9cc61ceae55ef7e3c981f5b0034d147f8b2b7d73e7bee3033f4c02fa7c6a", // iam-sandipmaity key
         )
         private val FFMPEG_VERSION_REGEX = Regex("ffmpeg version\\s+n?([0-9]+(?:\\.[0-9]+)+)", RegexOption.IGNORE_CASE)
     }
