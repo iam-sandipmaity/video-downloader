@@ -293,7 +293,23 @@ class UpdatesViewModel @Inject constructor(
     }
 
     private suspend fun refreshFfmpegInternal() {
-        _uiState.value = _uiState.value.copy(ffmpeg = _uiState.value.ffmpeg.copy(isChecking = true))
+        val currentVersion = runCatching {
+            ffmpegUpdateManager.currentVersion()?.let { runtimeVersion ->
+                val packageVersion = ffmpegUpdateManager.installedPackageVersion()
+                if (packageVersion != null) {
+                    "$runtimeVersion (package $packageVersion)"
+                } else {
+                    "$runtimeVersion (bundled)"
+                }
+            }
+        }.getOrNull()
+
+        _uiState.value = _uiState.value.copy(
+            ffmpeg = _uiState.value.ffmpeg.copy(
+                isChecking = true,
+                currentVersion = currentVersion ?: _uiState.value.ffmpeg.currentVersion
+            )
+        )
         runCatching {
             ffmpegUpdateManager.check(_uiState.value.preferences.ffmpegChannel)
         }.onSuccess { check ->
