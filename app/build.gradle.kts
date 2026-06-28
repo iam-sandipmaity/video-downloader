@@ -1,5 +1,9 @@
 import org.gradle.api.tasks.Copy
 import java.util.Properties
+import java.io.File
+import java.net.URL
+import java.net.HttpURLConnection
+import java.util.zip.ZipInputStream
 
 plugins {
     id("com.android.application")
@@ -192,8 +196,66 @@ android {
         generatedChangelogAssetsDir.get().asFile.absolutePath,
     )
 }
+
+val downloadFfmpegRuntimeTask by tasks.registering {
+    val outputDir = file("src/main/jniLibs/arm64-v8a")
+    val targetSo = File(outputDir, "libffmpeg.so")
+    val targetZipSo = File(outputDir, "libffmpeg.zip.so")
+
+    inputs.property("repo", "iam-sandipmaity/video-downloader-packages")
+    outputs.file(targetSo)
+
+    doLast {
+        if (targetSo.exists()) {
+            println("FFmpeg binaries already exist in jniLibs. Skipping download.")
+            return@doLast
+        }
+        val repo = "iam-sandipmaity/video-downloader-packages"
+        val abi = "arm64-v8a"
+        println("Fetching latest FFmpeg release from $repo...")
+        
+        val connection = URL("https://api.github.com/repos/$repo/releases").openConnection() as HttpURLConnection
+        connection.setRequestProperty("User-Agent", "gradle-build")
+        val responseText = connection.inputStream.bufferedReader().readText()
+        
+        val regex = Regex("""https://github\.com/[^"]+?ffmpeg-signed-$abi\.apk""")
+        val downloadUrl = regex.find(responseText)?.value
+            ?: throw GradleException("Could not find signed FFmpeg APK download URL in releases JSON")
+            
+        println("Downloading FFmpeg APK from $downloadUrl...")
+        val tempApk = File(temporaryDir, "ffmpeg-temp.apk")
+        URL(downloadUrl).openStream().use { input ->
+            tempApk.outputStream().use { output ->
+                input.copyTo(output)
+            }
+        }
+        
+        println("Extracting libffmpeg.so and libffmpeg.zip.so...")
+        outputDir.mkdirs()
+        
+        ZipInputStream(tempApk.inputStream()).use { zip ->
+            var entry = zip.nextEntry
+            while (entry != null) {
+                if (entry.name == "lib/$abi/libffmpeg.so") {
+                    targetSo.outputStream().use { zip.copyTo(it) }
+                } else if (entry.name == "lib/$abi/libffmpeg.zip.so") {
+                    targetZipSo.outputStream().use { zip.copyTo(it) }
+                }
+                zip.closeEntry()
+                entry = zip.nextEntry
+            }
+        }
+        
+        if (!targetSo.exists()) {
+            throw GradleException("Failed to extract libffmpeg.so from downloaded APK")
+        }
+        println("Successfully extracted and placed FFmpeg binaries to $outputDir")
+    }
+}
+
 tasks.named("preBuild") {
     dependsOn(syncBundledChangelog)
+    dependsOn(downloadFfmpegRuntimeTask)
 }
 
 dependencies {
