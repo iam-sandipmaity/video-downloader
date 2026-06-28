@@ -2,6 +2,12 @@
 
 Nightly builds are rolling prereleases published from the `nightly` release tag. This file tracks changes that are available in nightly before they are promoted into the stable changelog.
 
+## [2.0.1.0] - 2026-06-28
+
+### Changed
+- **FFmpeg Custom Package Repository** - Updated the update manager to fetch from `iam-sandipmaity/video-downloader-packages` instead of the placeholder repository.
+- **Custom Signature Fingerprint** - Added the custom release signature certificate fingerprint to trusted digests so in-app FFmpeg updates can verify and install correctly.
+
 ## [2.0.0.2] - 2026-06-06
 
 ### Added
