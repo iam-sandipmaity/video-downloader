@@ -122,10 +122,12 @@ class YtDlpExecutor @Inject constructor(
         }
         val ldLibraryPath = ldLibraryEntries.distinct().joinToString(":")
 
+        val pythonZip = File(nativeLibraryDir, "libpython.zip.so")
         val environment = mutableMapOf(
             "LD_LIBRARY_PATH" to ldLibraryPath,
             "SSL_CERT_FILE" to File(pythonUsrDir, "etc/tls/cert.pem").absolutePath,
             "PYTHONHOME" to pythonUsrDir.absolutePath,
+            "PYTHONPATH" to pythonZip.absolutePath,
             "HOME" to pythonUsrDir.absolutePath,
             "TMPDIR" to context.cacheDir.absolutePath,
             "PATH" to listOfNotNull(
