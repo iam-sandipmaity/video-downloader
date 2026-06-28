@@ -7,7 +7,9 @@ Nightly builds are rolling prereleases published from the `nightly` release tag.
 ### Added
 - **Custom Python Runtime Integration** - Integrated custom precompiled Python 3.11.9 runtime binaries to replace the default wrapper's interpreter.
 - **Python Build Automation** - Configured the Gradle build process to dynamically download, extract, and bundle our custom-compiled Python JNI shared library (`libpython.so` and `libpython.zip.so`) from the packages repository during build time, overriding the external wrapper's bundled assets.
-- **Dynamic Binary Packaging** - Ignored the downloaded Python binaries in Git and automated local packaging to ensure a clean codebase.
+- **Custom QuickJS Engine Integration** - Integrated custom precompiled QuickJS runtime binaries to override the external wrapper's embedded engine.
+- **QuickJS Build Automation** - Configured the Gradle build process to dynamically download and bundle our custom-compiled QuickJS shared library (`libqjs.so`) from the packages repository during compilation.
+- **Dynamic Binary Packaging** - Ignored the downloaded Python and QuickJS binaries in Git and automated local packaging to ensure a clean codebase.
 
 ## [2.0.1.1] - 2026-06-28
 
