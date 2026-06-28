@@ -2,6 +2,16 @@
 
 Nightly builds are rolling prereleases published from the `nightly` release tag. This file tracks changes that are available in nightly before they are promoted into the stable changelog.
 
+## [2.0.1.1] - 2026-06-28
+
+### Changed
+- **FFmpeg Update Path Resolution** - Relaxed release tag verification to search for the `"ffmpeg"` keyword inside the release APK asset names. This allows standard version-only release tags (e.g. `v7.0.1`) to resolve correctly on all devices.
+- **Dynamic Version Display** - Resolved a bug where failed update checks caused the Updates screen to report the current version as `"unknown"`. The screen now dynamically displays the actual running bundled or installed FFmpeg version even when the network check fails.
+- **Master CI Workflow Toggles** - Enabled CodeQL scanning and Android build compilation checks in CI/CD pipeline triggers.
+- **FFmpeg Build Automation** - Configured the Gradle build process to automatically fetch, extract, and bundle the latest precompiled FFmpeg binaries from the release repository during compilation, removing the need to track large binaries in the codebase.
+- **FFmpeg Dependency Refactoring** - Shifted from using an external precompiled FFmpeg dependency to our own precompiled FFmpeg binaries, optimizing the build and ensuring full control over the compiled binary.
+- **Workflow & Installer Migration** - Updated CI/CD validation steps and BinaryInstaller background cleanup logic to transition fully to the new binary format (`libffmpeg.so` replacing the legacy `libffmpeg_exec.so`).
+
 ## [2.0.1.0] - 2026-06-28
 
 ### Changed

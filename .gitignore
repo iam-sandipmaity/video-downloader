@@ -17,3 +17,8 @@ Thumbs.db
 tools/youtube-auth-helper/node_modules/
 tools/youtube-auth-helper/output/
 tools/youtube-auth-helper/.profile/
+
+# Extracted JNI binaries
+app/src/main/jniLibs/arm64-v8a/libffmpeg.so
+app/src/main/jniLibs/arm64-v8a/libffmpeg.zip.so
+

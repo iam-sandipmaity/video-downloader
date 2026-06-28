@@ -154,10 +154,10 @@ class FfmpegUpdateManager @Inject constructor(
     private suspend fun resolveLatestRelease(channel: FfmpegReleaseChannel): ResolvedFfmpegRelease {
         val releases = gitHubReleaseClient.fetchReleases(PACKAGE_REPOSITORY)
         val filtered = releases.asSequence()
-            .filter { it.tag_name.contains(PACKAGE_NAME, ignoreCase = true) }
             .mapNotNull { release ->
                 val asset = release.assets.firstOrNull { asset ->
                     asset.name.endsWith(".apk", ignoreCase = true) &&
+                        asset.name.contains(PACKAGE_NAME, ignoreCase = true) &&
                         asset.name.contains(supportedAbiSuffix(), ignoreCase = true)
                 } ?: return@mapNotNull null
                 ResolvedFfmpegRelease(

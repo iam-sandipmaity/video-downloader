@@ -158,7 +158,7 @@ class BinaryInstaller @Inject constructor(
 
     private suspend fun cleanupRedundantArtifacts() {
         withContext(Dispatchers.IO) {
-            val ffmpegNative = resolveNativeLibraryBinary(listOf("libffmpeg_exec.so"))
+            val ffmpegNative = resolveNativeLibraryBinary(listOf("libffmpeg.so", "libffmpeg_exec.so"))
             if (ffmpegNative == null) {
                 logger.i("BinaryInstaller", "Skipping runtime cleanup because packaged native binaries are unavailable")
                 return@withContext

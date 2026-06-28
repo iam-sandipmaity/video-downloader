@@ -2,7 +2,6 @@ package com.localdownloader.downloader
 
 import android.content.Context
 import com.localdownloader.utils.Logger
-import com.yausername.ffmpeg.FFmpeg
 import com.yausername.youtubedl_android.YoutubeDL
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -93,7 +92,6 @@ class YtDlpExecutor @Inject constructor(
             if (isInitialized) return
             logger.i("YtDlpExecutor", "Initializing embedded yt-dlp runtime")
             YoutubeDL.getInstance().init(context)
-            FFmpeg.getInstance().init(context)
             isInitialized = true
             logger.i("YtDlpExecutor", "Embedded yt-dlp runtime initialized")
         }
