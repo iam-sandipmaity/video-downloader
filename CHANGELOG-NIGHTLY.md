@@ -2,6 +2,13 @@
 
 Nightly builds are rolling prereleases published from the `nightly` release tag. This file tracks changes that are available in nightly before they are promoted into the stable changelog.
 
+## [2.0.1.2] - 2026-06-29
+
+### Added
+- **Custom Python Runtime Integration** - Integrated custom precompiled Python 3.11.9 runtime binaries to replace the default wrapper's interpreter.
+- **Python Build Automation** - Configured the Gradle build process to dynamically download, extract, and bundle our custom-compiled Python JNI shared library (`libpython.so` and `libpython.zip.so`) from the packages repository during build time, overriding the external wrapper's bundled assets.
+- **Dynamic Binary Packaging** - Ignored the downloaded Python binaries in Git and automated local packaging to ensure a clean codebase.
+
 ## [2.0.1.1] - 2026-06-28
 
 ### Changed

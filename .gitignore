@@ -21,4 +21,6 @@ tools/youtube-auth-helper/.profile/
 # Extracted JNI binaries
 app/src/main/jniLibs/arm64-v8a/libffmpeg.so
 app/src/main/jniLibs/arm64-v8a/libffmpeg.zip.so
+app/src/main/jniLibs/arm64-v8a/libpython.so
+app/src/main/jniLibs/arm64-v8a/libpython.zip.so
 
