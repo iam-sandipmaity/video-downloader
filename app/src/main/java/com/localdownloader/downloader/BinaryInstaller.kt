@@ -2,8 +2,11 @@ package com.localdownloader.downloader
 
 import android.content.Context
 import com.localdownloader.utils.Logger
-import com.yausername.youtubedl_android.YoutubeDL
 import kotlinx.coroutines.CoroutineScope
+
+const val YTDLP_BASE_NAME = "youtubedl-android"
+const val YTDLP_DIR_NAME = "ytdlp"
+const val YTDLP_BIN = "yt-dlp"
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -168,7 +171,7 @@ class BinaryInstaller @Inject constructor(
 
             freedBytes += deleteRecursively(File(File(context.filesDir, "bin"), "yt-dlp"))
             freedBytes += deleteRecursively(File(File(context.filesDir, "bin"), "ffmpeg"))
-            val runtimeBaseDir = File(context.noBackupFilesDir, YoutubeDL.baseName)
+            val runtimeBaseDir = File(context.noBackupFilesDir, YTDLP_BASE_NAME)
             val packagesDir = File(runtimeBaseDir, "packages")
             freedBytes += deleteRecursively(File(packagesDir, "aria2c"))
 
@@ -264,7 +267,7 @@ class BinaryInstaller @Inject constructor(
     }
 
     private fun ensureBundledFfmpegSupportDir(): File? {
-        val embeddedRuntimeDir = File(File(context.noBackupFilesDir, YoutubeDL.baseName), "packages/ffmpeg")
+        val embeddedRuntimeDir = File(File(context.noBackupFilesDir, YTDLP_BASE_NAME), "packages/ffmpeg")
         val embeddedUsrLib = File(embeddedRuntimeDir, "usr/lib")
         if (embeddedUsrLib.exists()) {
             logger.i("BinaryInstaller", "Using embedded ffmpeg support dir: ${embeddedRuntimeDir.absolutePath}")
@@ -426,5 +429,47 @@ class BinaryInstaller @Inject constructor(
 
     private fun File.readTextOrNull(): String? {
         return runCatching { readText() }.getOrNull()
+    }
+
+    fun ensureYtDlpScript(): File {
+        val baseDir = File(context.noBackupFilesDir, YTDLP_BASE_NAME)
+        val ytdlpDir = File(baseDir, YTDLP_DIR_NAME)
+        val targetFile = File(ytdlpDir, YTDLP_BIN)
+        val targetCert = File(ytdlpDir, "cert.pem")
+
+        ytdlpDir.mkdirs()
+        
+        if (!targetFile.exists()) {
+            logger.i("BinaryInstaller", "Extracting yt-dlp script from assets...")
+            try {
+                context.assets.open("ytdlp/$YTDLP_BIN").use { input ->
+                    targetFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                targetFile.setExecutable(true)
+                logger.i("BinaryInstaller", "yt-dlp script extracted successfully")
+            } catch (e: Exception) {
+                logger.e("BinaryInstaller", "Failed to extract yt-dlp script: ${e.message}", e)
+                throw IOException("Failed to extract yt-dlp script from assets", e)
+            }
+        }
+        
+        if (!targetCert.exists()) {
+            logger.i("BinaryInstaller", "Extracting cert.pem from assets...")
+            try {
+                context.assets.open("ytdlp/cert.pem").use { input ->
+                    targetCert.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                logger.i("BinaryInstaller", "cert.pem extracted successfully")
+            } catch (e: Exception) {
+                logger.e("BinaryInstaller", "Failed to extract cert.pem: ${e.message}", e)
+                throw IOException("Failed to extract cert.pem from assets", e)
+            }
+        }
+        
+        return targetFile
     }
 }

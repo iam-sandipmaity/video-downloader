@@ -2,7 +2,6 @@ package com.localdownloader.downloader
 
 import android.content.Context
 import com.localdownloader.utils.Logger
-import com.yausername.youtubedl_android.YoutubeDL
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -91,7 +90,7 @@ class YtDlpExecutor @Inject constructor(
         synchronized(this) {
             if (isInitialized) return
             logger.i("YtDlpExecutor", "Initializing embedded yt-dlp runtime")
-            YoutubeDL.getInstance().init(context)
+            binaryInstaller.ensureYtDlpScript()
             isInitialized = true
             logger.i("YtDlpExecutor", "Embedded yt-dlp runtime initialized")
         }
@@ -99,19 +98,16 @@ class YtDlpExecutor @Inject constructor(
 
     private fun resolveRuntime(ffmpegRuntime: FfmpegRuntime): YtDlpRuntime {
         val nativeLibraryDir = File(context.applicationInfo.nativeLibraryDir)
-        val baseDir = File(context.noBackupFilesDir, YoutubeDL.baseName)
-        val packagesDir = File(baseDir, "packages")
-        val pythonUsrDir = File(packagesDir, "python/usr")
+        val baseDir = File(context.noBackupFilesDir, YTDLP_BASE_NAME)
+        val ytdlpDir = File(baseDir, YTDLP_DIR_NAME)
+        val certFile = File(ytdlpDir, "cert.pem")
 
         val pythonBinary = File(nativeLibraryDir, "libpython.so")
         val quickJsBinary = File(nativeLibraryDir, "libqjs.so")
-        val ytDlpScript = File(
-            File(baseDir, YoutubeDL.ytdlpDirName),
-            YoutubeDL.ytdlpBin,
-        )
+        val ytDlpScript = File(ytdlpDir, YTDLP_BIN)
 
         val ldLibraryEntries = mutableListOf<String>()
-        ldLibraryEntries += File(pythonUsrDir, "lib").absolutePath
+        ldLibraryEntries += nativeLibraryDir.absolutePath
         ffmpegRuntime.supportDir?.let { supportDir ->
             val usrLib = File(supportDir, "usr/lib")
             if (usrLib.exists()) {
@@ -125,10 +121,10 @@ class YtDlpExecutor @Inject constructor(
         val pythonZip = File(nativeLibraryDir, "libpython.zip.so")
         val environment = mutableMapOf(
             "LD_LIBRARY_PATH" to ldLibraryPath,
-            "SSL_CERT_FILE" to File(pythonUsrDir, "etc/tls/cert.pem").absolutePath,
-            "PYTHONHOME" to pythonUsrDir.absolutePath,
+            "SSL_CERT_FILE" to certFile.absolutePath,
+            "PYTHONHOME" to baseDir.absolutePath,
             "PYTHONPATH" to pythonZip.absolutePath,
-            "HOME" to pythonUsrDir.absolutePath,
+            "HOME" to baseDir.absolutePath,
             "TMPDIR" to context.cacheDir.absolutePath,
             "PATH" to listOfNotNull(
                 System.getenv("PATH")?.takeIf { it.isNotBlank() },

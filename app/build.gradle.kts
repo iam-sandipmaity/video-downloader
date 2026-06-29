@@ -256,13 +256,14 @@ val downloadFfmpegRuntimeTask by tasks.registering {
 val downloadPythonRuntimeTask by tasks.registering {
     val outputDir = file("src/main/jniLibs/arm64-v8a")
     val targetSo = File(outputDir, "libpython.so")
+    val targetSharedSo = File(outputDir, "libpython3.11.so")
     val targetZipSo = File(outputDir, "libpython.zip.so")
 
     inputs.property("repo", "iam-sandipmaity/video-downloader-packages")
-    outputs.files(targetSo, targetZipSo)
+    outputs.files(targetSo, targetSharedSo, targetZipSo)
 
     doLast {
-        if (targetSo.exists() && targetZipSo.exists()) {
+        if (targetSo.exists() && targetSharedSo.exists() && targetZipSo.exists()) {
             println("Python binaries already exist in jniLibs. Skipping download.")
             return@doLast
         }
@@ -286,7 +287,7 @@ val downloadPythonRuntimeTask by tasks.registering {
             }
         }
         
-        println("Extracting libpython.so and libpython.zip.so...")
+        println("Extracting libpython.so, libpython3.11.so and libpython.zip.so...")
         outputDir.mkdirs()
         
         ZipInputStream(tempApk.inputStream()).use { zip ->
@@ -294,6 +295,8 @@ val downloadPythonRuntimeTask by tasks.registering {
             while (entry != null) {
                 if (entry.name == "lib/$abi/libpython.so") {
                     targetSo.outputStream().use { zip.copyTo(it) }
+                } else if (entry.name == "lib/$abi/libpython3.11.so") {
+                    targetSharedSo.outputStream().use { zip.copyTo(it) }
                 } else if (entry.name == "lib/$abi/libpython.zip.so") {
                     targetZipSo.outputStream().use { zip.copyTo(it) }
                 }
@@ -302,7 +305,7 @@ val downloadPythonRuntimeTask by tasks.registering {
             }
         }
         
-        if (!targetSo.exists() || !targetZipSo.exists()) {
+        if (!targetSo.exists() || !targetSharedSo.exists() || !targetZipSo.exists()) {
             throw GradleException("Failed to extract libpython binaries from downloaded APK")
         }
         println("Successfully extracted and placed Python binaries to $outputDir")
@@ -362,11 +365,46 @@ val downloadQuickJsRuntimeTask by tasks.registering {
     }
 }
 
+val downloadYtDlpTask by tasks.registering {
+    val outputDir = file("src/main/assets/ytdlp")
+    val targetScript = File(outputDir, "yt-dlp")
+    val targetCert = File(outputDir, "cert.pem")
+
+    inputs.property("url", "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp")
+    inputs.property("certUrl", "https://curl.se/ca/cacert.pem")
+    outputs.files(targetScript, targetCert)
+
+    doLast {
+        outputDir.mkdirs()
+        if (!targetScript.exists()) {
+            val urlString = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp"
+            println("Downloading latest yt-dlp script from $urlString...")
+            URL(urlString).openStream().use { input ->
+                targetScript.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+            println("Successfully downloaded yt-dlp script to $targetScript")
+        }
+        if (!targetCert.exists()) {
+            val certUrlString = "https://curl.se/ca/cacert.pem"
+            println("Downloading latest cert.pem from $certUrlString...")
+            URL(certUrlString).openStream().use { input ->
+                targetCert.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+            println("Successfully downloaded cert.pem to $targetCert")
+        }
+    }
+}
+
 tasks.named("preBuild") {
     dependsOn(syncBundledChangelog)
     dependsOn(downloadFfmpegRuntimeTask)
     dependsOn(downloadPythonRuntimeTask)
     dependsOn(downloadQuickJsRuntimeTask)
+    dependsOn(downloadYtDlpTask)
 }
 
 dependencies {
@@ -396,7 +434,6 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("io.coil-kt:coil-gif:2.7.0")
     implementation("io.coil-kt:coil-svg:2.7.0")
-    implementation("io.github.junkfood02.youtubedl-android:library:0.18.1")
     implementation("org.tukaani:xz:1.12")
     implementation("androidx.work:work-runtime-ktx:2.11.2")
     implementation("androidx.hilt:hilt-work:1.3.0")
