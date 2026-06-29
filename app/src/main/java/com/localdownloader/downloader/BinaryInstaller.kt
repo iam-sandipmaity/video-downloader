@@ -4,9 +4,6 @@ import android.content.Context
 import com.localdownloader.utils.Logger
 import kotlinx.coroutines.CoroutineScope
 
-const val YTDLP_BASE_NAME = "youtubedl-android"
-const val YTDLP_DIR_NAME = "ytdlp"
-const val YTDLP_BIN = "yt-dlp"
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -20,6 +17,10 @@ import java.io.IOException
 import java.util.zip.ZipInputStream
 import javax.inject.Inject
 import javax.inject.Singleton
+
+const val YTDLP_BASE_NAME = "youtubedl-android"
+const val YTDLP_DIR_NAME = "ytdlp"
+const val YTDLP_BIN = "yt-dlp"
 
 data class FfmpegRuntime(
     val executable: File,
