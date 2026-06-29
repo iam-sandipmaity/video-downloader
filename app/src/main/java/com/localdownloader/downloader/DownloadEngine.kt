@@ -112,15 +112,36 @@ class DownloadEngine @Inject constructor(
         )
         logger.d("DownloadEngine", "yt-dlp args: ${args.joinToString(" ")}")
 
+        val lastUpdateMs = java.util.concurrent.atomic.AtomicLong(0L)
+        val minIntervalMs = 250L
+
         val result = ytDlpExecutor.execute(
             args = args,
             onStdoutLine = { line ->
                 onOutputLine(line)
-                ProgressParser.parse(line)?.let(onProgress)
+                ProgressParser.parse(line)?.let { progress ->
+                    val now = System.currentTimeMillis()
+                    val percent = progress.percent
+                    val isEdgeState = percent == 0 || percent == 100
+                    val last = lastUpdateMs.get()
+                    if (isEdgeState || now - last >= minIntervalMs) {
+                        lastUpdateMs.set(now)
+                        onProgress(progress)
+                    }
+                }
             },
             onStderrLine = { line ->
                 onOutputLine(line)
-                ProgressParser.parse(line)?.let(onProgress)
+                ProgressParser.parse(line)?.let { progress ->
+                    val now = System.currentTimeMillis()
+                    val percent = progress.percent
+                    val isEdgeState = percent == 0 || percent == 100
+                    val last = lastUpdateMs.get()
+                    if (isEdgeState || now - last >= minIntervalMs) {
+                        lastUpdateMs.set(now)
+                        onProgress(progress)
+                    }
+                }
             },
         )
         logger.i(

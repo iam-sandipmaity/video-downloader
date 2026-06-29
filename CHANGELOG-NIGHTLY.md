@@ -2,6 +2,12 @@
 
 Nightly builds are rolling prereleases published from the `nightly` release tag. This file tracks changes that are available in nightly before they are promoted into the stable changelog.
 
+## [2.0.1.3] - 2026-06-29
+
+### Fixed
+- **Python Hashing/Cryptography Modules** - Compiled standard hashing modules (`_md5`, `_sha1`, `_sha256`, `_sha512`, `_sha3`, and `_blake2`) statically into the Python runtime. This resolves `ValueError: unsupported hash type blake2b` errors during startup and restores YouTube signature deciphering functionality.
+- **UI Performance and Lag** - Added a time-based throttle (250ms interval) to download progress updates in `DownloadEngine`. This prevents rapid terminal output (e.g. during HLS fragment downloads) from flooding the Main thread with excessive Jetpack Compose recompositions, eliminating UI freezes and progress bar hangs.
+
 ## [2.0.1.2] - 2026-06-29
 
 ### Added
