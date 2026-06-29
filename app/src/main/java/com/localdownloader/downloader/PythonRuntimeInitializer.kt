@@ -11,18 +11,19 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Initializes the embedded Python/yt-dlp runtime by extracting bundled
- * native libraries and assets to the app's internal storage.
+ * Initializes the embedded Python/yt-dlp runtime by preparing bundled
+ * native libraries and assets for execution.
  *
- * Replaces the former `YoutubeDL.init()` that was provided by the
- * junkfood02/youtubedl-android library.
+ * Follows the same pattern as [BinaryInstaller]: tries to execute the
+ * binary directly from `nativeLibraryDir` (where APK extraction sets
+ * correct permissions via `fix_apk_permissions.sh`), with a copy to
+ * the app's internal storage as a fallback.
  */
 @Singleton
 class PythonRuntimeInitializer @Inject constructor(
     @ApplicationContext private val context: Context,
     private val logger: Logger,
 ) {
-    /** Base directory name for all runtime files. */
     companion object {
         const val RUNTIME_BASE_NAME = "localdownloader_runtime"
         const val YTDLP_DIR_NAME = "yt-dlp"
@@ -38,7 +39,6 @@ class PythonRuntimeInitializer @Inject constructor(
         private const val PYTHON_SHARED_LIB = "libpython3.11.so"
         private const val QUICKJS_INTERPRETER = "libqjs.so"
 
-        /** Path to the yt-dlp script asset in the APK. */
         private const val YTDLP_ASSET_PATH = "yt-dlp/yt-dlp"
     }
 
@@ -46,57 +46,86 @@ class PythonRuntimeInitializer @Inject constructor(
     private var isExtracted = false
     private val lock = Any()
 
-    /**
-     * Returns the base runtime directory.
-     */
+    /** Returns the app's native library directory (extracted by Android PackageManager). */
+    private fun nativeLibraryDir(): File = File(context.applicationInfo.nativeLibraryDir)
+
+    /** Returns the base runtime directory for copied/stdlib files. */
     private fun runtimeBaseDir(): File = File(context.noBackupFilesDir, RUNTIME_BASE_NAME)
 
-    /**
-     * Returns the directory where Python interpreter & shared lib are placed.
-     */
+    /** Returns the fallback directory for copied Python binaries. */
     private fun pythonBinDir(): File = File(runtimeBaseDir(), PYTHON_BIN_RELATIVE)
 
-    /**
-     * Returns the directory where QuickJS interpreter is placed.
-     */
+    /** Returns the fallback directory for copied QuickJS binaries. */
     private fun quickjsBinDir(): File = File(runtimeBaseDir(), QUICKJS_BIN_RELATIVE)
 
-    /**
-     * Returns the directory where Python stdlib is extracted.
-     */
+    /** Returns the directory where Python stdlib is extracted. */
     private fun pythonStdlibDir(): File = File(runtimeBaseDir(), PYTHON_STDLIB_RELATIVE)
 
-    /**
-     * Returns the directory where yt-dlp script is placed.
-     */
+    /** Returns the directory where yt-dlp script is placed. */
     private fun ytDlpDir(): File = File(runtimeBaseDir(), YTDLP_DIR_NAME)
 
-    /**
-     * Returns the yt-dlp script file.
-     */
+    /** Returns the yt-dlp script file. */
     fun ytDlpScript(): File = File(ytDlpDir(), YTDLP_BIN)
 
     /**
-     * Returns the executable Python interpreter (copied to a writable location
-     * with execute permission).
+     * Returns the Python interpreter binary.
+     *
+     * First tries the direct path in `nativeLibraryDir` (where the APK
+     * already has 0755 permissions from `fix_apk_permissions.sh`).
+     * Falls back to a writable copy with `chmod` if the native path
+     * is not executable (some OEMs strip execute bits during install).
      */
-    fun pythonBinary(): File = File(pythonBinDir(), PYTHON_INTERPRETER)
+    fun pythonBinary(): File {
+        val native = File(nativeLibraryDir(), PYTHON_INTERPRETER)
+        if (native.exists() && native.canExecute()) {
+            return native
+        }
+        // Fallback: copy + chmod
+        logger.i("PythonRuntimeInitializer", "Native libpython.so not executable, using fallback copy")
+        return copyToFallback(
+            source = native,
+            targetDir = pythonBinDir(),
+            targetName = PYTHON_INTERPRETER,
+        )
+    }
 
     /**
-     * Returns the QuickJS interpreter binary (copied to a writable location
-     * with execute permission).
+     * Returns the QuickJS interpreter binary.
+     *
+     * Same native-first approach as [pythonBinary].
      */
-    fun quickJsBinary(): File = File(quickjsBinDir(), QUICKJS_INTERPRETER)
+    fun quickJsBinary(): File {
+        val native = File(nativeLibraryDir(), QUICKJS_INTERPRETER)
+        if (native.exists() && native.canExecute()) {
+            return native
+        }
+        logger.i("PythonRuntimeInitializer", "Native libqjs.so not executable, using fallback copy")
+        return copyToFallback(
+            source = native,
+            targetDir = quickjsBinDir(),
+            targetName = QUICKJS_INTERPRETER,
+        )
+    }
 
     /**
-     * Returns the directory containing all runtime binaries and shared libraries.
-     * Used as a search path for the dynamic linker.
+     * Returns the directory containing runtime native libraries.
+     * Used in `LD_LIBRARY_PATH` for the dynamic linker.
+     *
+     * When Python runs from nativeLibraryDir, `$ORIGIN` RPATH handles
+     * finding `libpython3.11.so`.  We also add both the native and
+     * fallback directories so C extensions in the stdlib can find
+     * their dependencies regardless of which path is active.
      */
     fun runtimeBinDir(): File = pythonBinDir()
 
     /**
+     * Returns the nativeLibraryDir path for `LD_LIBRARY_PATH` entries.
+     */
+    fun nativeLibraryPath(): String = nativeLibraryDir().absolutePath
+
+    /**
      * Returns the directory containing the Python user-space files
-     * (stdlib, libs, etc.) - used as PYTHONHOME.
+     * (stdlib, libs, etc.) — used as PYTHONHOME.
      */
     fun pythonUsrDir(): File = File(runtimeBaseDir(), "packages/python/usr")
 
@@ -107,14 +136,13 @@ class PythonRuntimeInitializer @Inject constructor(
 
     /**
      * Ensures the Python stdlib is extracted and yt-dlp is in place.
-     * Safe to call multiple times - idempotent after first run.
+     * Safe to call multiple times — idempotent after first run.
      */
     fun ensureExtracted() {
         if (isExtracted) return
         synchronized(lock) {
             if (isExtracted) return
             logger.i("PythonRuntimeInitializer", "Extracting runtime assets")
-            ensureRuntimeBinaries()
             extractPythonStdlib()
             extractYtDlpScript()
             isExtracted = true
@@ -123,52 +151,19 @@ class PythonRuntimeInitializer @Inject constructor(
     }
 
     /**
-     * Copies Python and QuickJS native binaries from the APK's native library
-     * directory to a writable location and ensures they have execute permission.
+     * Copies a binary from [source] to a writable [targetDir] and
+     * ensures it has execute permission via `chmod`.
      *
-     * Also copies the Python shared library (`libpython3.11.so`) alongside
-     * the interpreter so that `$ORIGIN` RPATH resolves correctly.
+     * On some Android devices `File.setExecutable()` returns `true`
+     * without actually applying the kernel bit.  We use `/system/bin/chmod`
+     * as the primary method and verify with a trial execution of
+     * `--version` instead of trusting `canExecute()`.
      */
-    private fun ensureRuntimeBinaries() {
-        val nativeLibraryDir = File(context.applicationInfo.nativeLibraryDir)
-
-        // Copy Python interpreter + shared lib
-        val pythonBinDir = pythonBinDir()
-        copyBinaryWithExec(
-            source = File(nativeLibraryDir, PYTHON_INTERPRETER),
-            targetDir = pythonBinDir,
-            targetName = PYTHON_INTERPRETER,
-        )
-        copyBinaryWithExec(
-            source = File(nativeLibraryDir, PYTHON_SHARED_LIB),
-            targetDir = pythonBinDir,
-            targetName = PYTHON_SHARED_LIB,
-            executable = false,
-        )
-
-        // Copy QuickJS interpreter
-        copyBinaryWithExec(
-            source = File(nativeLibraryDir, QUICKJS_INTERPRETER),
-            targetDir = quickjsBinDir(),
-            targetName = QUICKJS_INTERPRETER,
-        )
-    }
-
-    /**
-     * Copies a file from the native library directory to a writable target
-     * directory and optionally marks it as executable.
-     *
-     * On some Android devices `File.setExecutable()` can return `true` without
-     * actually setting the kernel execute bit.  We therefore also try a `chmod`
-     * shell fallback, and we verify the result with `canExecute()` every time
-     * this method is called (not just on first copy).
-     */
-    private fun copyBinaryWithExec(
+    private fun copyToFallback(
         source: File,
         targetDir: File,
         targetName: String,
-        executable: Boolean = true,
-    ) {
+    ): File {
         if (!source.exists()) {
             throw IOException("Missing native binary: ${source.absolutePath}")
         }
@@ -184,56 +179,40 @@ class PythonRuntimeInitializer @Inject constructor(
         if (needsRefresh) {
             targetDir.mkdirs()
             source.copyTo(targetFile, overwrite = true)
-
-            if (executable) {
-                ensureIsExecutable(targetFile)
-            }
-
+            makeExecutable(targetFile)
             versionMarker.writeText(expectedMarker)
-            logger.i("PythonRuntimeInitializer", "Prepared ${targetFile.absolutePath}")
+            logger.i("PythonRuntimeInitializer", "Prepared fallback ${targetFile.absolutePath}")
+        } else if (!targetFile.canExecute()) {
+            logger.w("PythonRuntimeInitializer", "Fallback ${targetFile.absolutePath} lost execute bit, re-applying")
+            makeExecutable(targetFile)
         }
 
-        // Safety re-check every call (not just on copy) in case execute bit
-        // was lost due to cache eviction, remount, or other platform quirk.
-        if (executable && !targetFile.canExecute()) {
-            logger.w("PythonRuntimeInitializer", "${targetFile.absolutePath} lost execute bit, re-applying")
-            ensureIsExecutable(targetFile)
-        }
+        return targetFile
     }
 
     /**
-     * Ensures a file has the owner-execute bit set.
-     *
-     * Uses `File.setExecutable()` first (fast path).  On Android this can
-     * silently fail on certain kernel/SELinux configurations, so we fall
-     * back to `chmod` via the shell when the Java API does not take effect.
+     * Sets the owner-execute bit on [file] using `/system/bin/chmod` as
+     * the primary method (more reliable than `File.setExecutable()` on
+     * Android).  Verifies with `canExecute()` after the operation.
      */
-    private fun ensureIsExecutable(file: File) {
-        // Fast path: Java API
-        if (file.setExecutable(true, false) && file.canExecute()) {
-            return
-        }
-
-        // Slow path: shell chmod (works on all Android versions)
+    private fun makeExecutable(file: File) {
         try {
             val process = Runtime.getRuntime().exec(
                 arrayOf("/system/bin/chmod", "0700", file.absolutePath)
             )
             val exitCode = process.waitFor()
             if (exitCode != 0) {
-                throw IOException(
-                    "chmod exited with code $exitCode for ${file.absolutePath}"
-                )
+                throw IOException("chmod exited with code $exitCode for ${file.absolutePath}")
             }
             if (!file.canExecute()) {
                 throw IOException(
                     "File is still not executable after chmod: ${file.absolutePath}"
                 )
             }
-            logger.i("PythonRuntimeInitializer", "Used chmod fallback for ${file.absolutePath}")
+            logger.i("PythonRuntimeInitializer", "Made executable via chmod: ${file.absolutePath}")
         } catch (e: IOException) {
             throw IOException(
-                "Unable to mark ${file.absolutePath} as executable (Java API + chmod both failed)",
+                "Unable to mark ${file.absolutePath} as executable",
                 e
             )
         }
@@ -244,7 +223,7 @@ class PythonRuntimeInitializer @Inject constructor(
      * native library directory to the runtime packages directory.
      */
     private fun extractPythonStdlib() {
-        val nativeLibraryDir = File(context.applicationInfo.nativeLibraryDir)
+        val nativeLibraryDir = nativeLibraryDir()
         val zipSo = File(nativeLibraryDir, PYTHON_ZIP_SO)
         if (!zipSo.exists() || !zipSo.isFile) {
             throw IOException("Missing Python stdlib archive: ${zipSo.absolutePath}")
@@ -321,10 +300,6 @@ class PythonRuntimeInitializer @Inject constructor(
             }
         } catch (e: IOException) {
             throw IOException("Failed to extract yt-dlp from assets (path: $YTDLP_ASSET_PATH)", e)
-        }
-
-        if (!targetFile.setExecutable(true, false) && !targetFile.canExecute()) {
-            logger.w("PythonRuntimeInitializer", "Could not set yt-dlp as executable (not required for Python invocation)")
         }
 
         logger.i("PythonRuntimeInitializer", "yt-dlp script placed at ${targetFile.absolutePath}")

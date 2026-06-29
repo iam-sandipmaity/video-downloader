@@ -106,7 +106,11 @@ class YtDlpExecutor @Inject constructor(
         val runtimeBinDir = runtimeInitializer.runtimeBinDir()
 
         val ldLibraryEntries = mutableListOf<String>()
+        // nativeLibraryDir first (where Python runs from when native exec works)
+        ldLibraryEntries += runtimeInitializer.nativeLibraryPath()
+        // fallback bin dir (where copied binaries live when native exec fails)
         ldLibraryEntries += runtimeBinDir.absolutePath
+        // Python stdlib dir (C extensions need to find their libs)
         ldLibraryEntries += File(pythonUsrDir, "lib").absolutePath
         ffmpegRuntime.supportDir?.let { supportDir ->
             val usrLib = File(supportDir, "usr/lib")
