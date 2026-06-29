@@ -256,14 +256,13 @@ val downloadFfmpegRuntimeTask by tasks.registering {
 val downloadPythonRuntimeTask by tasks.registering {
     val outputDir = file("src/main/jniLibs/arm64-v8a")
     val targetSo = File(outputDir, "libpython.so")
-    val targetSharedSo = File(outputDir, "libpython3.11.so")
     val targetZipSo = File(outputDir, "libpython.zip.so")
 
     inputs.property("repo", "iam-sandipmaity/video-downloader-packages")
-    outputs.files(targetSo, targetSharedSo, targetZipSo)
+    outputs.files(targetSo, targetZipSo)
 
     doLast {
-        if (targetSo.exists() && targetSharedSo.exists() && targetZipSo.exists()) {
+        if (targetSo.exists() && targetZipSo.exists()) {
             println("Python binaries already exist in jniLibs. Skipping download.")
             return@doLast
         }
@@ -287,7 +286,7 @@ val downloadPythonRuntimeTask by tasks.registering {
             }
         }
         
-        println("Extracting libpython.so, libpython3.11.so and libpython.zip.so...")
+        println("Extracting libpython.so and libpython.zip.so...")
         outputDir.mkdirs()
         
         ZipInputStream(tempApk.inputStream()).use { zip ->
@@ -295,8 +294,6 @@ val downloadPythonRuntimeTask by tasks.registering {
             while (entry != null) {
                 if (entry.name == "lib/$abi/libpython.so") {
                     targetSo.outputStream().use { zip.copyTo(it) }
-                } else if (entry.name == "lib/$abi/libpython3.11.so") {
-                    targetSharedSo.outputStream().use { zip.copyTo(it) }
                 } else if (entry.name == "lib/$abi/libpython.zip.so") {
                     targetZipSo.outputStream().use { zip.copyTo(it) }
                 }
@@ -305,7 +302,7 @@ val downloadPythonRuntimeTask by tasks.registering {
             }
         }
         
-        if (!targetSo.exists() || !targetSharedSo.exists() || !targetZipSo.exists()) {
+        if (!targetSo.exists() || !targetZipSo.exists()) {
             throw GradleException("Failed to extract libpython binaries from downloaded APK")
         }
         println("Successfully extracted and placed Python binaries to $outputDir")

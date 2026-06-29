@@ -5,8 +5,8 @@ Nightly builds are rolling prereleases published from the `nightly` release tag.
 ## [2.0.1.2] - 2026-06-29
 
 ### Added
-- **Custom Python Runtime Integration** - Integrated custom precompiled Python 3.11.9 runtime binaries (with essential C extensions like `_ssl` and `_socket` compiled statically into `libpython3.11.so` to resolve loading failures on Android) to replace the default wrapper's interpreter.
-- **Python Build Automation** - Configured the Gradle build process to dynamically download, extract, and bundle our custom-compiled Python JNI shared library (`libpython.so` and `libpython.zip.so` with optimized dynamic modules removed) from the packages repository during build time, overriding the external wrapper's bundled assets.
+- **Custom Python Runtime Integration** - Integrated a custom precompiled Python 3.11.9 runtime binary. To prevent dynamic linker namespace crashes on Android 10+, the entire CPython engine (including standard C extensions such as `_ssl`, `_socket`, `_ctypes`, and `zlib`) is compiled into a completely static, standalone executable (`libpython.so`).
+- **Python Build Automation** - Configured the Gradle build process to dynamically download, extract, and bundle our custom-compiled static Python executable (`libpython.so` and standard library ZIP `libpython.zip.so`) from the packages repository during build time, eliminating the `libpython3.11.so` dependency.
 - **Python Standard Library Redirection** - Added `PYTHONPATH` redirection in `YtDlpExecutor` pointing directly to our `libpython.zip.so` to force the runtime to load Python 3.11.9 standard library bytecode, preventing `ImportError` magic number mismatches.
 - **Custom QuickJS Engine Integration** - Integrated custom precompiled QuickJS runtime binaries to override the external wrapper's embedded engine.
 - **QuickJS Build Automation** - Configured the Gradle build process to dynamically download and bundle our custom-compiled QuickJS shared library (`libqjs.so`) from the packages repository during compilation.
