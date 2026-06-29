@@ -214,9 +214,14 @@ val downloadFfmpegRuntimeTask by tasks.registering {
         val abi = "arm64-v8a"
         println("Fetching latest FFmpeg release from $repo...")
         
-        val connection = URL("https://api.github.com/repos/$repo/releases").openConnection() as HttpURLConnection
-        connection.setRequestProperty("User-Agent", "gradle-build")
-        val responseText = connection.inputStream.bufferedReader().readText()
+        val releasesUrl = URL("https://api.github.com/repos/$repo/releases")
+        val releasesConn = releasesUrl.openConnection() as HttpURLConnection
+        releasesConn.setRequestProperty("User-Agent", "gradle-build")
+        val githubToken = System.getenv("GITHUB_TOKEN") ?: System.getenv("GH_TOKEN")
+        if (githubToken != null) {
+            releasesConn.setRequestProperty("Authorization", "Bearer $githubToken")
+        }
+        val responseText = releasesConn.inputStream.bufferedReader().readText()
         
         val regex = Regex("""https://github\.com/[^"]+?ffmpeg-signed-$abi\.apk""")
         val downloadUrl = regex.find(responseText)?.value
@@ -276,9 +281,14 @@ val downloadPythonRuntimeTask by tasks.registering {
         val abi = "arm64-v8a"
         println("Fetching latest Python runtime release from $repo...")
         
-        val connection = URL("https://api.github.com/repos/$repo/releases").openConnection() as HttpURLConnection
-        connection.setRequestProperty("User-Agent", "gradle-build")
-        val responseText = connection.inputStream.bufferedReader().readText()
+        val releasesUrl = URL("https://api.github.com/repos/$repo/releases")
+        val releasesConn = releasesUrl.openConnection() as HttpURLConnection
+        releasesConn.setRequestProperty("User-Agent", "gradle-build")
+        val githubToken = System.getenv("GITHUB_TOKEN") ?: System.getenv("GH_TOKEN")
+        if (githubToken != null) {
+            releasesConn.setRequestProperty("Authorization", "Bearer $githubToken")
+        }
+        val responseText = releasesConn.inputStream.bufferedReader().readText()
         
         val regex = Regex("""https://github\.com/[^"]+?python-signed-$abi\.apk""")
         val downloadUrl = regex.find(responseText)?.value
@@ -346,9 +356,14 @@ val downloadQuickJsRuntimeTask by tasks.registering {
         val abi = "arm64-v8a"
         println("Fetching latest QuickJS release from $repo...")
         
-        val connection = URL("https://api.github.com/repos/$repo/releases").openConnection() as HttpURLConnection
-        connection.setRequestProperty("User-Agent", "gradle-build")
-        val responseText = connection.inputStream.bufferedReader().readText()
+        val releasesUrl = URL("https://api.github.com/repos/$repo/releases")
+        val releasesConn = releasesUrl.openConnection() as HttpURLConnection
+        releasesConn.setRequestProperty("User-Agent", "gradle-build")
+        val githubToken = System.getenv("GITHUB_TOKEN") ?: System.getenv("GH_TOKEN")
+        if (githubToken != null) {
+            releasesConn.setRequestProperty("Authorization", "Bearer $githubToken")
+        }
+        val responseText = releasesConn.inputStream.bufferedReader().readText()
         
         val regex = Regex("""https://github\.com/[^"]+?quickjs-signed-$abi\.apk""")
         val downloadUrl = regex.find(responseText)?.value
@@ -405,6 +420,10 @@ val downloadYtDlpAssetTask by tasks.registering {
         val jsonUrl = URL("https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest")
         val connection = jsonUrl.openConnection() as HttpURLConnection
         connection.setRequestProperty("User-Agent", "gradle-build")
+        val githubToken = System.getenv("GITHUB_TOKEN") ?: System.getenv("GH_TOKEN")
+        if (githubToken != null) {
+            connection.setRequestProperty("Authorization", "Bearer $githubToken")
+        }
         val responseText = connection.inputStream.bufferedReader().readText()
         
         val downloadUrl = Regex("\"browser_download_url\"\\s*:\\s*\"([^\"]+/yt-dlp)\"(?!\\.)")

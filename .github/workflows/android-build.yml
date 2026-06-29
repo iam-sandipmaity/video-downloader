@@ -103,6 +103,8 @@ jobs:
 
       - name: Build nightly APK
         run: ./gradlew -PAPP_RELEASE_CHANNEL=nightly :app:assembleStandardNightly
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Rename nightly APK
         run: |
