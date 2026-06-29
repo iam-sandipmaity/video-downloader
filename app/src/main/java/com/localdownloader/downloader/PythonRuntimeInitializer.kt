@@ -157,6 +157,11 @@ class PythonRuntimeInitializer @Inject constructor(
     /**
      * Copies a file from the native library directory to a writable target
      * directory and optionally marks it as executable.
+     *
+     * On some Android devices `File.setExecutable()` can return `true` without
+     * actually setting the kernel execute bit.  We therefore also try a `chmod`
+     * shell fallback, and we verify the result with `canExecute()` every time
+     * this method is called (not just on first copy).
      */
     private fun copyBinaryWithExec(
         source: File,
@@ -172,22 +177,66 @@ class PythonRuntimeInitializer @Inject constructor(
         val versionMarker = File(targetDir, ".$targetName.source-size")
         val expectedMarker = "${source.length()}|${source.lastModified()}"
 
-        // Skip copy if already up to date
-        if (targetFile.exists() && versionMarker.readTextOrNull() == expectedMarker) {
+        val needsRefresh = !targetFile.exists() ||
+            !targetFile.isFile ||
+            versionMarker.readTextOrNull() != expectedMarker
+
+        if (needsRefresh) {
+            targetDir.mkdirs()
+            source.copyTo(targetFile, overwrite = true)
+
+            if (executable) {
+                ensureIsExecutable(targetFile)
+            }
+
+            versionMarker.writeText(expectedMarker)
+            logger.i("PythonRuntimeInitializer", "Prepared ${targetFile.absolutePath}")
+        }
+
+        // Safety re-check every call (not just on copy) in case execute bit
+        // was lost due to cache eviction, remount, or other platform quirk.
+        if (executable && !targetFile.canExecute()) {
+            logger.w("PythonRuntimeInitializer", "${targetFile.absolutePath} lost execute bit, re-applying")
+            ensureIsExecutable(targetFile)
+        }
+    }
+
+    /**
+     * Ensures a file has the owner-execute bit set.
+     *
+     * Uses `File.setExecutable()` first (fast path).  On Android this can
+     * silently fail on certain kernel/SELinux configurations, so we fall
+     * back to `chmod` via the shell when the Java API does not take effect.
+     */
+    private fun ensureIsExecutable(file: File) {
+        // Fast path: Java API
+        if (file.setExecutable(true, false) && file.canExecute()) {
             return
         }
 
-        targetDir.mkdirs()
-        source.copyTo(targetFile, overwrite = true)
-
-        if (executable) {
-            if (!targetFile.setExecutable(true, false) && !targetFile.canExecute()) {
-                throw IOException("Unable to mark ${targetFile.absolutePath} as executable")
+        // Slow path: shell chmod (works on all Android versions)
+        try {
+            val process = Runtime.getRuntime().exec(
+                arrayOf("/system/bin/chmod", "0700", file.absolutePath)
+            )
+            val exitCode = process.waitFor()
+            if (exitCode != 0) {
+                throw IOException(
+                    "chmod exited with code $exitCode for ${file.absolutePath}"
+                )
             }
+            if (!file.canExecute()) {
+                throw IOException(
+                    "File is still not executable after chmod: ${file.absolutePath}"
+                )
+            }
+            logger.i("PythonRuntimeInitializer", "Used chmod fallback for ${file.absolutePath}")
+        } catch (e: IOException) {
+            throw IOException(
+                "Unable to mark ${file.absolutePath} as executable (Java API + chmod both failed)",
+                e
+            )
         }
-
-        versionMarker.writeText(expectedMarker)
-        logger.i("PythonRuntimeInitializer", "Prepared ${targetFile.absolutePath}")
     }
 
     /**
