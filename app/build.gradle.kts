@@ -249,6 +249,11 @@ val downloadFfmpegRuntimeTask by tasks.registering {
         if (!targetSo.exists()) {
             throw GradleException("Failed to extract libffmpeg.so from downloaded APK")
         }
+
+        // Set executable permission so Android extracts with correct mode
+        targetSo.setExecutable(true, false)
+        println("Set executable permission on libffmpeg.so")
+
         println("Successfully extracted and placed FFmpeg binaries to $outputDir")
     }
 }
@@ -315,6 +320,12 @@ val downloadPythonRuntimeTask by tasks.registering {
         if (!targetPythonSo.exists()) {
             throw GradleException("Failed to extract libpython.so from downloaded Python APK")
         }
+
+        // Set executable permission so Android extracts with correct mode
+        targetPythonSo.setExecutable(true, false)
+        targetPython311So.setExecutable(true, false)
+        println("Set executable permission on libpython.so and libpython3.11.so")
+
         println("Successfully extracted and placed Python runtime binaries to $outputDir")
     }
 }
@@ -369,6 +380,11 @@ val downloadQuickJsRuntimeTask by tasks.registering {
         if (!targetQjsSo.exists()) {
             throw GradleException("Failed to extract libqjs.so from downloaded QuickJS APK")
         }
+
+        // Set executable permission so Android extracts with correct mode
+        targetQjsSo.setExecutable(true, false)
+        println("Set executable permission on libqjs.so")
+
         println("Successfully extracted and placed QuickJS binary to $outputDir")
     }
 }
