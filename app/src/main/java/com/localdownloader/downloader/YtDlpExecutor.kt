@@ -98,15 +98,15 @@ class YtDlpExecutor @Inject constructor(
     }
 
     private fun resolveRuntime(ffmpegRuntime: FfmpegRuntime): YtDlpRuntime {
-        val nativeLibraryDir = File(context.applicationInfo.nativeLibraryDir)
-
-        val pythonBinary = File(nativeLibraryDir, "libpython.so")
-        val quickJsBinary = File(nativeLibraryDir, "libqjs.so")
+        val pythonBinary = runtimeInitializer.pythonBinary()
+        val quickJsBinary = runtimeInitializer.quickJsBinary()
         val ytDlpScript = runtimeInitializer.ytDlpScript()
         val pythonUsrDir = runtimeInitializer.pythonUsrDir()
         val sslCertFile = runtimeInitializer.sslCertFile()
+        val runtimeBinDir = runtimeInitializer.runtimeBinDir()
 
         val ldLibraryEntries = mutableListOf<String>()
+        ldLibraryEntries += runtimeBinDir.absolutePath
         ldLibraryEntries += File(pythonUsrDir, "lib").absolutePath
         ffmpegRuntime.supportDir?.let { supportDir ->
             val usrLib = File(supportDir, "usr/lib")
@@ -126,7 +126,6 @@ class YtDlpExecutor @Inject constructor(
             "PATH" to listOfNotNull(
                 System.getenv("PATH")?.takeIf { it.isNotBlank() },
                 ffmpegRuntime.executable.parentFile?.absolutePath,
-                nativeLibraryDir.absolutePath,
             ).joinToString(":"),
         )
 

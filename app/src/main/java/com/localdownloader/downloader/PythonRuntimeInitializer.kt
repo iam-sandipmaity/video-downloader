@@ -32,6 +32,11 @@ class PythonRuntimeInitializer @Inject constructor(
         private const val PYTHON_STDLIB_RELATIVE = "packages/python/usr/lib/python3.11"
         private const val CERT_TARGET_RELATIVE = "packages/python/usr/etc/tls/cert.pem"
         private const val MARKER_FILE_NAME = ".python-stdlib-extracted"
+        private const val PYTHON_BIN_RELATIVE = "bin/python"
+        private const val QUICKJS_BIN_RELATIVE = "bin/quickjs"
+        private const val PYTHON_INTERPRETER = "libpython.so"
+        private const val PYTHON_SHARED_LIB = "libpython3.11.so"
+        private const val QUICKJS_INTERPRETER = "libqjs.so"
 
         /** Path to the yt-dlp script asset in the APK. */
         private const val YTDLP_ASSET_PATH = "yt-dlp/yt-dlp"
@@ -47,6 +52,16 @@ class PythonRuntimeInitializer @Inject constructor(
     private fun runtimeBaseDir(): File = File(context.noBackupFilesDir, RUNTIME_BASE_NAME)
 
     /**
+     * Returns the directory where Python interpreter & shared lib are placed.
+     */
+    private fun pythonBinDir(): File = File(runtimeBaseDir(), PYTHON_BIN_RELATIVE)
+
+    /**
+     * Returns the directory where QuickJS interpreter is placed.
+     */
+    private fun quickjsBinDir(): File = File(runtimeBaseDir(), QUICKJS_BIN_RELATIVE)
+
+    /**
      * Returns the directory where Python stdlib is extracted.
      */
     private fun pythonStdlibDir(): File = File(runtimeBaseDir(), PYTHON_STDLIB_RELATIVE)
@@ -60,6 +75,24 @@ class PythonRuntimeInitializer @Inject constructor(
      * Returns the yt-dlp script file.
      */
     fun ytDlpScript(): File = File(ytDlpDir(), YTDLP_BIN)
+
+    /**
+     * Returns the executable Python interpreter (copied to a writable location
+     * with execute permission).
+     */
+    fun pythonBinary(): File = File(pythonBinDir(), PYTHON_INTERPRETER)
+
+    /**
+     * Returns the QuickJS interpreter binary (copied to a writable location
+     * with execute permission).
+     */
+    fun quickJsBinary(): File = File(quickjsBinDir(), QUICKJS_INTERPRETER)
+
+    /**
+     * Returns the directory containing all runtime binaries and shared libraries.
+     * Used as a search path for the dynamic linker.
+     */
+    fun runtimeBinDir(): File = pythonBinDir()
 
     /**
      * Returns the directory containing the Python user-space files
@@ -81,11 +114,80 @@ class PythonRuntimeInitializer @Inject constructor(
         synchronized(lock) {
             if (isExtracted) return
             logger.i("PythonRuntimeInitializer", "Extracting runtime assets")
+            ensureRuntimeBinaries()
             extractPythonStdlib()
             extractYtDlpScript()
             isExtracted = true
             logger.i("PythonRuntimeInitializer", "Runtime assets extracted successfully")
         }
+    }
+
+    /**
+     * Copies Python and QuickJS native binaries from the APK's native library
+     * directory to a writable location and ensures they have execute permission.
+     *
+     * Also copies the Python shared library (`libpython3.11.so`) alongside
+     * the interpreter so that `$ORIGIN` RPATH resolves correctly.
+     */
+    private fun ensureRuntimeBinaries() {
+        val nativeLibraryDir = File(context.applicationInfo.nativeLibraryDir)
+
+        // Copy Python interpreter + shared lib
+        val pythonBinDir = pythonBinDir()
+        copyBinaryWithExec(
+            source = File(nativeLibraryDir, PYTHON_INTERPRETER),
+            targetDir = pythonBinDir,
+            targetName = PYTHON_INTERPRETER,
+        )
+        copyBinaryWithExec(
+            source = File(nativeLibraryDir, PYTHON_SHARED_LIB),
+            targetDir = pythonBinDir,
+            targetName = PYTHON_SHARED_LIB,
+            executable = false,
+        )
+
+        // Copy QuickJS interpreter
+        copyBinaryWithExec(
+            source = File(nativeLibraryDir, QUICKJS_INTERPRETER),
+            targetDir = quickjsBinDir(),
+            targetName = QUICKJS_INTERPRETER,
+        )
+    }
+
+    /**
+     * Copies a file from the native library directory to a writable target
+     * directory and optionally marks it as executable.
+     */
+    private fun copyBinaryWithExec(
+        source: File,
+        targetDir: File,
+        targetName: String,
+        executable: Boolean = true,
+    ) {
+        if (!source.exists()) {
+            throw IOException("Missing native binary: ${source.absolutePath}")
+        }
+
+        val targetFile = File(targetDir, targetName)
+        val versionMarker = File(targetDir, ".$targetName.source-size")
+        val expectedMarker = "${source.length()}|${source.lastModified()}"
+
+        // Skip copy if already up to date
+        if (targetFile.exists() && versionMarker.readTextOrNull() == expectedMarker) {
+            return
+        }
+
+        targetDir.mkdirs()
+        source.copyTo(targetFile, overwrite = true)
+
+        if (executable) {
+            if (!targetFile.setExecutable(true, false) && !targetFile.canExecute()) {
+                throw IOException("Unable to mark ${targetFile.absolutePath} as executable")
+            }
+        }
+
+        versionMarker.writeText(expectedMarker)
+        logger.i("PythonRuntimeInitializer", "Prepared ${targetFile.absolutePath}")
     }
 
     /**
