@@ -2,7 +2,6 @@ package com.localdownloader.downloader
 
 import android.content.Context
 import com.localdownloader.utils.Logger
-import com.yausername.youtubedl_android.YoutubeDL
 import kotlinx.coroutines.CoroutineScope
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -168,7 +167,7 @@ class BinaryInstaller @Inject constructor(
 
             freedBytes += deleteRecursively(File(File(context.filesDir, "bin"), "yt-dlp"))
             freedBytes += deleteRecursively(File(File(context.filesDir, "bin"), "ffmpeg"))
-            val runtimeBaseDir = File(context.noBackupFilesDir, YoutubeDL.baseName)
+            val runtimeBaseDir = File(context.noBackupFilesDir, PythonRuntimeInitializer.RUNTIME_BASE_NAME)
             val packagesDir = File(runtimeBaseDir, "packages")
             freedBytes += deleteRecursively(File(packagesDir, "aria2c"))
 
@@ -264,7 +263,7 @@ class BinaryInstaller @Inject constructor(
     }
 
     private fun ensureBundledFfmpegSupportDir(): File? {
-        val embeddedRuntimeDir = File(File(context.noBackupFilesDir, YoutubeDL.baseName), "packages/ffmpeg")
+        val embeddedRuntimeDir = File(File(context.noBackupFilesDir, PythonRuntimeInitializer.RUNTIME_BASE_NAME), "packages/ffmpeg")
         val embeddedUsrLib = File(embeddedRuntimeDir, "usr/lib")
         if (embeddedUsrLib.exists()) {
             logger.i("BinaryInstaller", "Using embedded ffmpeg support dir: ${embeddedRuntimeDir.absolutePath}")

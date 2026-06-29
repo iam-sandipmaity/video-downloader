@@ -92,9 +92,14 @@ fun AboutSettingsScreen(
             url = "https://coil-kt.github.io/coil/",
         ),
         OpenSourceCredit(
-            title = "yt-dlp Android Runtime",
-            subtitle = "v0.18.1 | Embedded downloader runtime via youtubedl-android.",
-            url = "https://github.com/yausername/youtubedl-android",
+            title = "Python 3.11 Android Runtime",
+            subtitle = "v3.11.9 | Custom Python interpreter for embedded yt-dlp execution.",
+            url = "https://github.com/iam-sandipmaity/video-downloader-packages",
+        ),
+        OpenSourceCredit(
+            title = "QuickJS Android Runtime",
+            subtitle = "v1.0.0 | Custom QuickJS interpreter for yt-dlp JavaScript execution.",
+            url = "https://github.com/iam-sandipmaity/video-downloader-packages",
         ),
         OpenSourceCredit(
             title = "yt-dlp",

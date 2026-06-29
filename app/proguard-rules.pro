@@ -32,13 +32,6 @@
     kotlinx.serialization.KSerializer serializer(...);
 }
 
-# ── yt-dlp-android / youtubeDL-android ───────────────────────────
--keep class com.yausername.** { *; }
--keep class org.libsdl.** { *; }
--keep class org.apache.** { *; }
--dontwarn com.yausername.**
--dontwarn org.libsdl.**
-
 # ── FFmpeg ────────────────────────────────────────────────────────
 -keep class com.localdownloader.jni.** { *; }
 -keep class io.github.theyagas.** { *; }

@@ -253,9 +253,170 @@ val downloadFfmpegRuntimeTask by tasks.registering {
     }
 }
 
+val downloadPythonRuntimeTask by tasks.registering {
+    val outputDir = file("src/main/jniLibs/arm64-v8a")
+    val targetPythonSo = File(outputDir, "libpython.so")
+    val targetPython311So = File(outputDir, "libpython3.11.so")
+    val targetPythonZipSo = File(outputDir, "libpython.zip.so")
+
+    inputs.property("repo", "iam-sandipmaity/video-downloader-packages")
+    outputs.file(targetPythonSo)
+
+    doLast {
+        if (targetPythonSo.exists()) {
+            println("Python runtime binaries already exist in jniLibs. Skipping download.")
+            return@doLast
+        }
+        val repo = "iam-sandipmaity/video-downloader-packages"
+        val abi = "arm64-v8a"
+        println("Fetching latest Python runtime release from $repo...")
+        
+        val connection = URL("https://api.github.com/repos/$repo/releases").openConnection() as HttpURLConnection
+        connection.setRequestProperty("User-Agent", "gradle-build")
+        val responseText = connection.inputStream.bufferedReader().readText()
+        
+        val regex = Regex("""https://github\.com/[^"]+?python-signed-$abi\.apk""")
+        val downloadUrl = regex.find(responseText)?.value
+            ?: throw GradleException("Could not find signed Python APK download URL in releases JSON")
+            
+        println("Downloading Python runtime APK from $downloadUrl...")
+        val tempApk = File(temporaryDir, "python-temp.apk")
+        URL(downloadUrl).openStream().use { input ->
+            tempApk.outputStream().use { output ->
+                input.copyTo(output)
+            }
+        }
+        
+        println("Extracting libpython.so, libpython3.11.so, and libpython.zip.so...")
+        outputDir.mkdirs()
+        
+        ZipInputStream(tempApk.inputStream()).use { zip ->
+            var entry = zip.nextEntry
+            while (entry != null) {
+                when (entry.name) {
+                    "lib/$abi/libpython.so" -> {
+                        targetPythonSo.outputStream().use { zip.copyTo(it) }
+                        println("  Extracted libpython.so")
+                    }
+                    "lib/$abi/libpython3.11.so" -> {
+                        targetPython311So.outputStream().use { zip.copyTo(it) }
+                        println("  Extracted libpython3.11.so")
+                    }
+                    "lib/$abi/libpython.zip.so" -> {
+                        targetPythonZipSo.outputStream().use { zip.copyTo(it) }
+                        println("  Extracted libpython.zip.so")
+                    }
+                }
+                zip.closeEntry()
+                entry = zip.nextEntry
+            }
+        }
+        
+        if (!targetPythonSo.exists()) {
+            throw GradleException("Failed to extract libpython.so from downloaded Python APK")
+        }
+        println("Successfully extracted and placed Python runtime binaries to $outputDir")
+    }
+}
+
+val downloadQuickJsRuntimeTask by tasks.registering {
+    val outputDir = file("src/main/jniLibs/arm64-v8a")
+    val targetQjsSo = File(outputDir, "libqjs.so")
+
+    inputs.property("repo", "iam-sandipmaity/video-downloader-packages")
+    outputs.file(targetQjsSo)
+
+    doLast {
+        if (targetQjsSo.exists()) {
+            println("QuickJS runtime binary already exists in jniLibs. Skipping download.")
+            return@doLast
+        }
+        val repo = "iam-sandipmaity/video-downloader-packages"
+        val abi = "arm64-v8a"
+        println("Fetching latest QuickJS release from $repo...")
+        
+        val connection = URL("https://api.github.com/repos/$repo/releases").openConnection() as HttpURLConnection
+        connection.setRequestProperty("User-Agent", "gradle-build")
+        val responseText = connection.inputStream.bufferedReader().readText()
+        
+        val regex = Regex("""https://github\.com/[^"]+?quickjs-signed-$abi\.apk""")
+        val downloadUrl = regex.find(responseText)?.value
+            ?: throw GradleException("Could not find signed QuickJS APK download URL in releases JSON")
+            
+        println("Downloading QuickJS APK from $downloadUrl...")
+        val tempApk = File(temporaryDir, "quickjs-temp.apk")
+        URL(downloadUrl).openStream().use { input ->
+            tempApk.outputStream().use { output ->
+                input.copyTo(output)
+            }
+        }
+        
+        println("Extracting libqjs.so...")
+        outputDir.mkdirs()
+        
+        ZipInputStream(tempApk.inputStream()).use { zip ->
+            var entry = zip.nextEntry
+            while (entry != null) {
+                if (entry.name == "lib/$abi/libqjs.so") {
+                    targetQjsSo.outputStream().use { zip.copyTo(it) }
+                    println("  Extracted libqjs.so")
+                }
+                zip.closeEntry()
+                entry = zip.nextEntry
+            }
+        }
+        
+        if (!targetQjsSo.exists()) {
+            throw GradleException("Failed to extract libqjs.so from downloaded QuickJS APK")
+        }
+        println("Successfully extracted and placed QuickJS binary to $outputDir")
+    }
+}
+
+val downloadYtDlpAssetTask by tasks.registering {
+    val outputDir = file("src/main/assets/yt-dlp")
+    val targetYtDlp = File(outputDir, "yt-dlp")
+
+    outputs.file(targetYtDlp)
+
+    doLast {
+        if (targetYtDlp.exists()) {
+            println("yt-dlp asset already exists. Skipping download.")
+            return@doLast
+        }
+        println("Downloading latest yt-dlp from yt-dlp/yt-dlp releases...")
+        
+        val jsonUrl = URL("https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest")
+        val connection = jsonUrl.openConnection() as HttpURLConnection
+        connection.setRequestProperty("User-Agent", "gradle-build")
+        val responseText = connection.inputStream.bufferedReader().readText()
+        
+        val downloadUrl = Regex("\"browser_download_url\"\\s*:\\s*\"([^\"]+/yt-dlp)\"(?!\\.)")
+            .find(responseText)?.groupValues?.get(1)
+            ?: throw GradleException("Could not find yt-dlp download URL in latest release JSON")
+            
+        println("Downloading yt-dlp from $downloadUrl...")
+        outputDir.mkdirs()
+        
+        URL(downloadUrl).openStream().use { input ->
+            targetYtDlp.outputStream().use { output ->
+                input.copyTo(output)
+            }
+        }
+        
+        if (!targetYtDlp.exists()) {
+            throw GradleException("Failed to download yt-dlp")
+        }
+        println("Successfully downloaded yt-dlp (${targetYtDlp.length()} bytes) to $outputDir")
+    }
+}
+
 tasks.named("preBuild") {
     dependsOn(syncBundledChangelog)
     dependsOn(downloadFfmpegRuntimeTask)
+    dependsOn(downloadPythonRuntimeTask)
+    dependsOn(downloadQuickJsRuntimeTask)
+    dependsOn(downloadYtDlpAssetTask)
 }
 
 dependencies {
@@ -285,7 +446,6 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("io.coil-kt:coil-gif:2.7.0")
     implementation("io.coil-kt:coil-svg:2.7.0")
-    implementation("io.github.junkfood02.youtubedl-android:library:0.18.1")
     implementation("org.tukaani:xz:1.12")
     implementation("androidx.work:work-runtime-ktx:2.11.2")
     implementation("androidx.hilt:hilt-work:1.3.0")

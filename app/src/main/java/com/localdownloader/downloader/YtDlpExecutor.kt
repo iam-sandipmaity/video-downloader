@@ -2,7 +2,6 @@ package com.localdownloader.downloader
 
 import android.content.Context
 import com.localdownloader.utils.Logger
-import com.yausername.youtubedl_android.YoutubeDL
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -14,6 +13,7 @@ import javax.inject.Singleton
 class YtDlpExecutor @Inject constructor(
     @ApplicationContext private val context: Context,
     private val binaryInstaller: BinaryInstaller,
+    private val runtimeInitializer: PythonRuntimeInitializer,
     private val processRunner: ProcessRunner,
     private val logger: Logger,
 ) {
@@ -91,7 +91,7 @@ class YtDlpExecutor @Inject constructor(
         synchronized(this) {
             if (isInitialized) return
             logger.i("YtDlpExecutor", "Initializing embedded yt-dlp runtime")
-            YoutubeDL.getInstance().init(context)
+            runtimeInitializer.ensureExtracted()
             isInitialized = true
             logger.i("YtDlpExecutor", "Embedded yt-dlp runtime initialized")
         }
@@ -99,16 +99,12 @@ class YtDlpExecutor @Inject constructor(
 
     private fun resolveRuntime(ffmpegRuntime: FfmpegRuntime): YtDlpRuntime {
         val nativeLibraryDir = File(context.applicationInfo.nativeLibraryDir)
-        val baseDir = File(context.noBackupFilesDir, YoutubeDL.baseName)
-        val packagesDir = File(baseDir, "packages")
-        val pythonUsrDir = File(packagesDir, "python/usr")
 
         val pythonBinary = File(nativeLibraryDir, "libpython.so")
         val quickJsBinary = File(nativeLibraryDir, "libqjs.so")
-        val ytDlpScript = File(
-            File(baseDir, YoutubeDL.ytdlpDirName),
-            YoutubeDL.ytdlpBin,
-        )
+        val ytDlpScript = runtimeInitializer.ytDlpScript()
+        val pythonUsrDir = runtimeInitializer.pythonUsrDir()
+        val sslCertFile = runtimeInitializer.sslCertFile()
 
         val ldLibraryEntries = mutableListOf<String>()
         ldLibraryEntries += File(pythonUsrDir, "lib").absolutePath
@@ -124,7 +120,6 @@ class YtDlpExecutor @Inject constructor(
 
         val environment = mutableMapOf(
             "LD_LIBRARY_PATH" to ldLibraryPath,
-            "SSL_CERT_FILE" to File(pythonUsrDir, "etc/tls/cert.pem").absolutePath,
             "PYTHONHOME" to pythonUsrDir.absolutePath,
             "HOME" to pythonUsrDir.absolutePath,
             "TMPDIR" to context.cacheDir.absolutePath,
@@ -134,6 +129,11 @@ class YtDlpExecutor @Inject constructor(
                 nativeLibraryDir.absolutePath,
             ).joinToString(":"),
         )
+
+        // Only set SSL_CERT_FILE if the cert file exists
+        if (sslCertFile.exists()) {
+            environment["SSL_CERT_FILE"] = sslCertFile.absolutePath
+        }
 
         check(pythonBinary.exists()) { "Missing runtime binary: ${pythonBinary.absolutePath}" }
         check(quickJsBinary.exists()) { "Missing runtime binary: ${quickJsBinary.absolutePath}" }
