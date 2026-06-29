@@ -34,7 +34,8 @@ class YtDlpExecutor @Inject constructor(
             ffmpegRuntime = ffmpegRuntime,
         )
         val normalizedArgs = normalizeArgs(args = args, runtime = runtime)
-        val command = listOf(runtime.pythonBinary.absolutePath, runtime.ytDlpScript.absolutePath) + normalizedArgs
+        val pythonPrefix = runtimeInitializer.pythonCommandPrefix()
+        val command = pythonPrefix + listOf(runtime.ytDlpScript.absolutePath) + normalizedArgs
         logger.d("YtDlpExecutor", "Executing embedded yt-dlp runtime: ${command.joinToString(" ")}")
         logger.d(
             "YtDlpExecutor",
@@ -106,9 +107,9 @@ class YtDlpExecutor @Inject constructor(
         val runtimeBinDir = runtimeInitializer.runtimeBinDir()
 
         val ldLibraryEntries = mutableListOf<String>()
-        // nativeLibraryDir first (where Python runs from when native exec works)
+        // nativeLibraryDir (where binaries live, and where linker finds libpython3.11.so)
         ldLibraryEntries += runtimeInitializer.nativeLibraryPath()
-        // fallback bin dir (where copied binaries live when native exec fails)
+        // fallback bin dir (copied binaries, redundant with native path but safe)
         ldLibraryEntries += runtimeBinDir.absolutePath
         // Python stdlib dir (C extensions need to find their libs)
         ldLibraryEntries += File(pythonUsrDir, "lib").absolutePath
@@ -164,9 +165,15 @@ class YtDlpExecutor @Inject constructor(
             insertionIndex += 1
         }
 
+        // Use linker-based wrapper if direct QuickJS execution isn't available
         if (!normalized.contains("--js-runtimes")) {
-            normalized.addAll(insertionIndex, listOf("--js-runtimes", "quickjs:${runtime.quickJsBinary.absolutePath}"))
-            insertionIndex += 2
+            val jsRuntimeArg = runtimeInitializer.quickJsRuntimeArg()
+            if (jsRuntimeArg != null) {
+                normalized.addAll(insertionIndex, listOf("--js-runtimes", jsRuntimeArg))
+                insertionIndex += 2
+            } else {
+                logger.w("YtDlpExecutor", "QuickJS binary not found; JS extraction disabled")
+            }
         }
 
         if (!normalized.contains("--ffmpeg-location")) {

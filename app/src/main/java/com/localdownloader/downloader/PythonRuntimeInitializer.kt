@@ -14,10 +14,16 @@ import javax.inject.Singleton
  * Initializes the embedded Python/yt-dlp runtime by preparing bundled
  * native libraries and assets for execution.
  *
- * Follows the same pattern as [BinaryInstaller]: tries to execute the
- * binary directly from `nativeLibraryDir` (where APK extraction sets
- * correct permissions via `fix_apk_permissions.sh`), with a copy to
- * the app's internal storage as a fallback.
+ * On Android, the kernel's `execve()` requires the execute permission
+ * bit on the binary file.  Some OEMs strip execute bits from `.so`
+ * files during APK installation, and `chmod` + `File.canExecute()`
+ * can silently lie on certain SELinux configurations.
+ *
+ * To work around this we use the **system dynamic linker** to invoke
+ * our PIE binaries: instead of `execve("/path/to/libpython.so", ...)`
+ * we run `/system/bin/linker64 /path/to/libpython.so ...`.  The
+ * linker uses `mmap()` (like `dlopen()`) to load the binary, so the
+ * file does not need execute permission.
  */
 @Singleton
 class PythonRuntimeInitializer @Inject constructor(
@@ -68,53 +74,88 @@ class PythonRuntimeInitializer @Inject constructor(
     fun ytDlpScript(): File = File(ytDlpDir(), YTDLP_BIN)
 
     /**
-     * Returns the Python interpreter binary.
-     *
-     * First tries the direct path in `nativeLibraryDir` (where the APK
-     * already has 0755 permissions from `fix_apk_permissions.sh`).
-     * Falls back to a writable copy with `chmod` if the native path
-     * is not executable (some OEMs strip execute bits during install).
+     * Returns the Python interpreter binary (may not have execute perms).
      */
-    fun pythonBinary(): File {
-        val native = File(nativeLibraryDir(), PYTHON_INTERPRETER)
-        if (native.exists() && native.canExecute()) {
-            return native
-        }
-        // Fallback: copy + chmod
-        logger.i("PythonRuntimeInitializer", "Native libpython.so not executable, using fallback copy")
-        return copyToFallback(
-            source = native,
-            targetDir = pythonBinDir(),
-            targetName = PYTHON_INTERPRETER,
-        )
+    fun pythonBinary(): File = File(nativeLibraryDir(), PYTHON_INTERPRETER).takeIf { it.exists() }
+        ?: throw IOException("Missing libpython.so in nativeLibraryDir")
+
+    /**
+     * Returns the QuickJS interpreter binary (may not have execute perms).
+     */
+    fun quickJsBinary(): File = File(nativeLibraryDir(), QUICKJS_INTERPRETER).takeIf { it.exists() }
+        ?: throw IOException("Missing libqjs.so in nativeLibraryDir")
+
+    /**
+     * Detects the system dynamic linker path.
+     *
+     * On 64-bit Android the linker is at `/system/bin/linker64`;
+     * on 32-bit it is at `/system/bin/linker`.  The linker can
+     * load and run a PIE ELF binary via `mmap()`, bypassing the
+     * kernel's `execve()` permission check.
+     */
+    private val linkerPath: String by lazy {
+        val candidates = listOf("/system/bin/linker64", "/system/bin/linker")
+        candidates.firstOrNull { File(it).exists() }
+            ?: throw IOException("No system linker found (tried: $candidates)")
     }
 
     /**
-     * Returns the QuickJS interpreter binary.
+     * Returns `true` if the native binary at [path] can be executed
+     * directly by the kernel (i.e. has the execute permission bit).
      *
-     * Same native-first approach as [pythonBinary].
+     * On some devices `File.canExecute()` can return `true` even when
+     * the kernel will still deny `execve()` (SELinux policy mismatch),
+     * so we treat this as advisory only.
      */
-    fun quickJsBinary(): File {
-        val native = File(nativeLibraryDir(), QUICKJS_INTERPRETER)
-        if (native.exists() && native.canExecute()) {
-            return native
+    private fun canExecDirectly(path: File): Boolean {
+        return path.exists() && path.canExecute()
+    }
+
+    /**
+     * Returns the command prefix for running a native binary.
+     *
+     * If the binary has execute permission, runs it directly.
+     * Otherwise uses the system linker to bypass the permission check.
+     *
+     * Example return values:
+     * - `["/system/bin/linker64", "/path/to/libpython.so"]` (no exec perms)
+     * - `["/path/to/libpython.so"]` (has exec perms)
+     */
+    fun pythonCommandPrefix(): List<String> {
+        val binary = pythonBinary()
+        return if (canExecDirectly(binary)) {
+            listOf(binary.absolutePath)
+        } else {
+            listOf(linkerPath, binary.absolutePath)
         }
-        logger.i("PythonRuntimeInitializer", "Native libqjs.so not executable, using fallback copy")
-        return copyToFallback(
-            source = native,
-            targetDir = quickjsBinDir(),
-            targetName = QUICKJS_INTERPRETER,
-        )
+    }
+
+    /**
+     * Returns the `--js-runtimes` argument value for QuickJS.
+     *
+     * Returns the binary path directly if QuickJS has execute permission.
+     * Returns `null` if the binary is inaccessible or not executable,
+     * because yt-dlp's `--js-runtimes` option passes the path directly
+     * to `subprocess.run()` and does not support a linker prefix.
+     *
+     * When `null` is returned yt-dlp runs without JavaScript extraction
+     * support (core YouTube downloading is unaffected; some niche
+     * sites that require JS extraction will fail gracefully).
+     */
+    fun quickJsRuntimeArg(): String? {
+        val binary = quickJsBinary()
+        if (!binary.exists()) return null
+        return if (canExecDirectly(binary)) {
+            "quickjs:${binary.absolutePath}"
+        } else {
+            logger.w("PythonRuntimeInitializer", "QuickJS not executable; JS extraction disabled")
+            null
+        }
     }
 
     /**
      * Returns the directory containing runtime native libraries.
      * Used in `LD_LIBRARY_PATH` for the dynamic linker.
-     *
-     * When Python runs from nativeLibraryDir, `$ORIGIN` RPATH handles
-     * finding `libpython3.11.so`.  We also add both the native and
-     * fallback directories so C extensions in the stdlib can find
-     * their dependencies regardless of which path is active.
      */
     fun runtimeBinDir(): File = pythonBinDir()
 
@@ -147,74 +188,6 @@ class PythonRuntimeInitializer @Inject constructor(
             extractYtDlpScript()
             isExtracted = true
             logger.i("PythonRuntimeInitializer", "Runtime assets extracted successfully")
-        }
-    }
-
-    /**
-     * Copies a binary from [source] to a writable [targetDir] and
-     * ensures it has execute permission via `chmod`.
-     *
-     * On some Android devices `File.setExecutable()` returns `true`
-     * without actually applying the kernel bit.  We use `/system/bin/chmod`
-     * as the primary method and verify with a trial execution of
-     * `--version` instead of trusting `canExecute()`.
-     */
-    private fun copyToFallback(
-        source: File,
-        targetDir: File,
-        targetName: String,
-    ): File {
-        if (!source.exists()) {
-            throw IOException("Missing native binary: ${source.absolutePath}")
-        }
-
-        val targetFile = File(targetDir, targetName)
-        val versionMarker = File(targetDir, ".$targetName.source-size")
-        val expectedMarker = "${source.length()}|${source.lastModified()}"
-
-        val needsRefresh = !targetFile.exists() ||
-            !targetFile.isFile ||
-            versionMarker.readTextOrNull() != expectedMarker
-
-        if (needsRefresh) {
-            targetDir.mkdirs()
-            source.copyTo(targetFile, overwrite = true)
-            makeExecutable(targetFile)
-            versionMarker.writeText(expectedMarker)
-            logger.i("PythonRuntimeInitializer", "Prepared fallback ${targetFile.absolutePath}")
-        } else if (!targetFile.canExecute()) {
-            logger.w("PythonRuntimeInitializer", "Fallback ${targetFile.absolutePath} lost execute bit, re-applying")
-            makeExecutable(targetFile)
-        }
-
-        return targetFile
-    }
-
-    /**
-     * Sets the owner-execute bit on [file] using `/system/bin/chmod` as
-     * the primary method (more reliable than `File.setExecutable()` on
-     * Android).  Verifies with `canExecute()` after the operation.
-     */
-    private fun makeExecutable(file: File) {
-        try {
-            val process = Runtime.getRuntime().exec(
-                arrayOf("/system/bin/chmod", "0700", file.absolutePath)
-            )
-            val exitCode = process.waitFor()
-            if (exitCode != 0) {
-                throw IOException("chmod exited with code $exitCode for ${file.absolutePath}")
-            }
-            if (!file.canExecute()) {
-                throw IOException(
-                    "File is still not executable after chmod: ${file.absolutePath}"
-                )
-            }
-            logger.i("PythonRuntimeInitializer", "Made executable via chmod: ${file.absolutePath}")
-        } catch (e: IOException) {
-            throw IOException(
-                "Unable to mark ${file.absolutePath} as executable",
-                e
-            )
         }
     }
 
