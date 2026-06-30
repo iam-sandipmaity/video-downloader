@@ -50,6 +50,7 @@ Focus areas:
 - scheduling consistency
 - retry and resume correctness
 - runtime-update safety
+- maintaining compile pipelines and NDK configurations in the custom Packages Builder repository
 - clearer recovery signals when tasks fail
 - stronger diagnostics without noisy logs
 

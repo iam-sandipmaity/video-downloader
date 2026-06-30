@@ -189,6 +189,8 @@ android {
         }
         jniLibs {
             useLegacyPackaging = true
+            keepDebugSymbols.add("**/libpython.zip.so")
+            keepDebugSymbols.add("**/libffmpeg.zip.so")
         }
     }
 
@@ -202,7 +204,7 @@ val downloadFfmpegRuntimeTask by tasks.registering {
     val targetSo = File(outputDir, "libffmpeg.so")
     val targetZipSo = File(outputDir, "libffmpeg.zip.so")
 
-    inputs.property("repo", "iam-sandipmaity/video-downloader-packages")
+    inputs.property("url", "https://github.com/iam-sandipmaity/video-downloader-packages/releases/download/ffmpeg-v7.1.2/ffmpeg-signed-arm64-v8a.apk")
     outputs.file(targetSo)
 
     doLast {
@@ -210,18 +212,8 @@ val downloadFfmpegRuntimeTask by tasks.registering {
             println("FFmpeg binaries already exist in jniLibs. Skipping download.")
             return@doLast
         }
-        val repo = "iam-sandipmaity/video-downloader-packages"
         val abi = "arm64-v8a"
-        println("Fetching latest FFmpeg release from $repo...")
-        
-        val connection = URL("https://api.github.com/repos/$repo/releases").openConnection() as HttpURLConnection
-        connection.setRequestProperty("User-Agent", "gradle-build")
-        val responseText = connection.inputStream.bufferedReader().readText()
-        
-        val regex = Regex("""https://github\.com/[^"]+?ffmpeg-signed-$abi\.apk""")
-        val downloadUrl = regex.find(responseText)?.value
-            ?: throw GradleException("Could not find signed FFmpeg APK download URL in releases JSON")
-            
+        val downloadUrl = "https://github.com/iam-sandipmaity/video-downloader-packages/releases/download/ffmpeg-v7.1.2/ffmpeg-signed-$abi.apk"
         println("Downloading FFmpeg APK from $downloadUrl...")
         val tempApk = File(temporaryDir, "ffmpeg-temp.apk")
         URL(downloadUrl).openStream().use { input ->
@@ -253,9 +245,44 @@ val downloadFfmpegRuntimeTask by tasks.registering {
     }
 }
 
+val downloadYtDlpTask by tasks.registering {
+    val outputDir = file("src/main/assets/ytdlp")
+    val targetScript = File(outputDir, "yt-dlp")
+    val targetCert = File(outputDir, "cert.pem")
+
+    inputs.property("url", "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp")
+    inputs.property("certUrl", "https://curl.se/ca/cacert.pem")
+    outputs.files(targetScript, targetCert)
+
+    doLast {
+        outputDir.mkdirs()
+        if (!targetScript.exists()) {
+            val urlString = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp"
+            println("Downloading latest yt-dlp script from $urlString...")
+            URL(urlString).openStream().use { input ->
+                targetScript.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+            println("Successfully downloaded yt-dlp script to $targetScript")
+        }
+        if (!targetCert.exists()) {
+            val certUrlString = "https://curl.se/ca/cacert.pem"
+            println("Downloading latest cert.pem from $certUrlString...")
+            URL(certUrlString).openStream().use { input ->
+                targetCert.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+            println("Successfully downloaded cert.pem to $targetCert")
+        }
+    }
+}
+
 tasks.named("preBuild") {
     dependsOn(syncBundledChangelog)
     dependsOn(downloadFfmpegRuntimeTask)
+    dependsOn(downloadYtDlpTask)
 }
 
 dependencies {

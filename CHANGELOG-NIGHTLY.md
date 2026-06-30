@@ -2,6 +2,30 @@
 
 Nightly builds are rolling prereleases published from the `nightly` release tag. This file tracks changes that are available in nightly before they are promoted into the stable changelog.
 
+## [2.0.1.4] - 2026-07-01
+
+### Fixed
+- **Restored Official youtubedl-android Dependency** - Replaced the custom Python and QuickJS executable runtime pipeline with the official `io.github.junkfood02.youtubedl-android:library:0.18.1` dependency wrapper. This successfully resolves all startup tracebacks, platform execution permissions, and architecture mismatches while restoring the stable performance of version `2.0.1.1`.
+- **FFmpeg package updates** - Updated custom FFmpeg package compilation configuration to enable WebP/GIF demuxers, muxers, and decoders, as well as subtitle encoders and handlers. This fixes missing/incorrect video/audio thumbnails and subtitle embedding failures.
+- **Fail-Fast Extractor Loop** - Added fatal system error checks inside `FormatExtractor` to immediately abort the candidate extractor loop on subprocess crashes or linker errors, preventing the main thread from hanging on broken runtimes.
+- **CI Build Pipeline Rate-Limiting** - Replaced dynamic GitHub REST API calls in gradle config tasks with a static release asset download URL to avoid unauthenticated HTTP 403 rate-limit blocks on CI environments.
+
+## [2.0.1.3] - 2026-06-29
+
+### Fixed
+- **Python Hashing/Cryptography Modules** - Compiled standard hashing modules (`_md5`, `_sha1`, `_sha256`, `_sha512`, `_sha3`, and `_blake2`) statically into the Python runtime. This resolves `ValueError: unsupported hash type blake2b` errors during startup and restores YouTube signature deciphering functionality.
+- **UI Performance and Lag** - Added a time-based throttle (250ms interval) to download progress updates in `DownloadEngine`. This prevents rapid terminal output (e.g. during HLS fragment downloads) from flooding the Main thread with excessive Jetpack Compose recompositions, eliminating UI freezes and progress bar hangs.
+
+## [2.0.1.2] - 2026-06-29
+
+### Added
+- **Custom Python Runtime Integration** - Integrated a custom precompiled Python 3.11.9 runtime binary. To prevent dynamic linker namespace crashes on Android 10+, the entire CPython engine (including standard C extensions such as `_ssl`, `_socket`, `_ctypes`, and `zlib`) is compiled into a completely static, standalone executable (`libpython.so`).
+- **Python Build Automation** - Configured the Gradle build process to dynamically download, extract, and bundle our custom-compiled static Python executable (`libpython.so` and standard library ZIP `libpython.zip.so`) from the packages repository during build time, eliminating the `libpython3.11.so` dependency.
+- **Python Standard Library Redirection** - Added `PYTHONPATH` redirection in `YtDlpExecutor` pointing directly to our `libpython.zip.so` to force the runtime to load Python 3.11.9 standard library bytecode, preventing `ImportError` magic number mismatches.
+- **Custom QuickJS Engine Integration** - Integrated custom precompiled QuickJS runtime binaries to override the external wrapper's embedded engine.
+- **QuickJS Build Automation** - Configured the Gradle build process to dynamically download and bundle our custom-compiled QuickJS shared library (`libqjs.so`) from the packages repository during compilation.
+- **Dynamic Binary Packaging** - Ignored the downloaded Python and QuickJS binaries in Git and automated local packaging to ensure a clean codebase.
+
 ## [2.0.1.1] - 2026-06-28
 
 ### Changed

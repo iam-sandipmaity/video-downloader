@@ -31,6 +31,7 @@ class DownloadTaskStore @Inject constructor(
     private val writerScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val writeOperations = Channel<suspend () -> Unit>(Channel.UNLIMITED)
     private val pendingTaskWrites = ConcurrentHashMap<String, Long>()
+    private val lastDbWriteTimeMap = ConcurrentHashMap<String, Long>()
     private val pendingTaskRemovals = ConcurrentHashMap.newKeySet<String>()
     private val pendingOptionWrites = ConcurrentHashMap<String, String>()
     private val pendingOptionClears = ConcurrentHashMap.newKeySet<String>()
@@ -97,6 +98,7 @@ class DownloadTaskStore @Inject constructor(
         clearAllPending = false
         pendingTaskRemovals.remove(task.id)
         pendingTaskWrites[task.id] = task.updatedAtEpochMs
+        lastDbWriteTimeMap[task.id] = task.updatedAtEpochMs
         tasks.update { taskMap -> taskMap + (task.id to task) }
         if (optionsJson != null) {
             pendingOptionClears.remove(task.id)
@@ -115,9 +117,33 @@ class DownloadTaskStore @Inject constructor(
             clearAllPending = false
             pendingTaskRemovals.remove(taskId)
             pendingTaskWrites[taskId] = updated.updatedAtEpochMs
-            enqueueWrite {
-                val existingOptionsJson = cachedOptions.value[taskId] ?: dao.getById(taskId)?.optionsJson
-                dao.upsert(updated.toEntity(json = json, optionsJson = existingOptionsJson))
+
+            val statusChanged = current.status != updated.status
+            val outputPathChanged = current.outputPath != updated.outputPath
+            val errorMessageChanged = current.errorMessage != updated.errorMessage
+            val progressPercentChangedSignificantly = current.progressPercent != updated.progressPercent &&
+                kotlin.math.abs((updated.progressPercent ?: 0) - (current.progressPercent ?: 0)) >= 2
+            val lastDbWrite = lastDbWriteTimeMap[taskId] ?: 0L
+            val timeSinceLastWrite = updated.updatedAtEpochMs - lastDbWrite
+            val timeThrottleElapsed = timeSinceLastWrite >= 3000L
+
+            val shouldWriteToDb = statusChanged ||
+                outputPathChanged ||
+                errorMessageChanged ||
+                progressPercentChangedSignificantly ||
+                timeThrottleElapsed ||
+                updated.status != DownloadStatus.RUNNING
+
+            if (shouldWriteToDb) {
+                lastDbWriteTimeMap[taskId] = updated.updatedAtEpochMs
+                enqueueWrite {
+                    val existingOptionsJson = if (tasks.value.containsKey(taskId)) {
+                        cachedOptions.value[taskId]
+                    } else {
+                        dao.getById(taskId)?.optionsJson
+                    }
+                    dao.upsert(updated.toEntity(json = json, optionsJson = existingOptionsJson))
+                }
             }
             taskMap + (taskId to updated)
         }
@@ -131,8 +157,13 @@ class DownloadTaskStore @Inject constructor(
         pendingOptionWrites[taskId] = optionsJson
         cachedOptions.update { options -> options + (taskId to optionsJson) }
         enqueueWrite {
-            dao.getById(taskId)?.let { entity ->
-                dao.upsert(entity.copy(optionsJson = optionsJson))
+            val task = tasks.value[taskId]
+            if (task != null) {
+                dao.upsert(task.toEntity(json = json, optionsJson = optionsJson))
+            } else {
+                dao.getById(taskId)?.let { entity ->
+                    dao.upsert(entity.copy(optionsJson = optionsJson))
+                }
             }
         }
     }
@@ -142,14 +173,20 @@ class DownloadTaskStore @Inject constructor(
         pendingOptionClears.add(taskId)
         cachedOptions.update { options -> options - taskId }
         enqueueWrite {
-            dao.getById(taskId)?.let { entity ->
-                dao.upsert(entity.copy(optionsJson = null))
+            val task = tasks.value[taskId]
+            if (task != null) {
+                dao.upsert(task.toEntity(json = json, optionsJson = null))
+            } else {
+                dao.getById(taskId)?.let { entity ->
+                    dao.upsert(entity.copy(optionsJson = null))
+                }
             }
         }
     }
 
     fun remove(taskId: String) {
         pendingTaskWrites.remove(taskId)
+        lastDbWriteTimeMap.remove(taskId)
         pendingTaskRemovals.add(taskId)
         pendingOptionWrites.remove(taskId)
         pendingOptionClears.remove(taskId)
@@ -163,6 +200,7 @@ class DownloadTaskStore @Inject constructor(
         val ids = taskIds.toSet()
         ids.forEach { taskId ->
             pendingTaskWrites.remove(taskId)
+            lastDbWriteTimeMap.remove(taskId)
             pendingTaskRemovals.add(taskId)
             pendingOptionWrites.remove(taskId)
             pendingOptionClears.remove(taskId)
@@ -177,6 +215,7 @@ class DownloadTaskStore @Inject constructor(
     fun clearAll() {
         clearAllPending = true
         pendingTaskWrites.clear()
+        lastDbWriteTimeMap.clear()
         pendingTaskRemovals.clear()
         pendingOptionWrites.clear()
         pendingOptionClears.clear()
@@ -186,7 +225,10 @@ class DownloadTaskStore @Inject constructor(
     }
 
     suspend fun getCachedOptions(taskId: String): String? {
-        return cachedOptions.value[taskId] ?: dao.getById(taskId)?.optionsJson
+        if (tasks.value.containsKey(taskId)) {
+            return cachedOptions.value[taskId]
+        }
+        return dao.getById(taskId)?.optionsJson
     }
 
     suspend fun awaitInitialLoad() {

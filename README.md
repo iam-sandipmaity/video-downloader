@@ -243,7 +243,8 @@ or send a direct pull request against the Android resource files.
 - Primary shipped ABI: `arm64-v8a`
 - Public downloads root: `Download/LocalDownloader/`
 
-For custom ABI builds or deeper runtime details, see [COMPATIBILITY.md](COMPATIBILITY.md).
+> [!NOTE]
+> If you experience runtime crashes, extractor tracebacks, or execution failures on a specific Android version or CPU architecture, it is likely due to binary compatibility limits. Please refer to the [Compatibility Guide](COMPATIBILITY.md) for detailed troubleshooting steps, architecture details, and fallback builds.
 
 ## Architecture Summary
 
