@@ -2,6 +2,14 @@
 
 Nightly builds are rolling prereleases published from the `nightly` release tag. This file tracks changes that are available in nightly before they are promoted into the stable changelog.
 
+## [2.0.1.4] - 2026-07-01
+
+### Fixed
+- **Restored Official youtubedl-android Dependency** - Replaced the custom Python and QuickJS executable runtime pipeline with the official `io.github.junkfood02.youtubedl-android:library:0.18.1` dependency wrapper. This successfully resolves all startup tracebacks, platform execution permissions, and architecture mismatches while restoring the stable performance of version `2.0.1.1`.
+- **FFmpeg package updates** - Updated custom FFmpeg package compilation configuration to enable WebP/GIF demuxers, muxers, and decoders, as well as subtitle encoders and handlers. This fixes missing/incorrect video/audio thumbnails and subtitle embedding failures.
+- **Fail-Fast Extractor Loop** - Added fatal system error checks inside `FormatExtractor` to immediately abort the candidate extractor loop on subprocess crashes or linker errors, preventing the main thread from hanging on broken runtimes.
+- **CI Build Pipeline Rate-Limiting** - Replaced dynamic GitHub REST API calls in gradle config tasks with a static release asset download URL to avoid unauthenticated HTTP 403 rate-limit blocks on CI environments.
+
 ## [2.0.1.3] - 2026-06-29
 
 ### Fixed
