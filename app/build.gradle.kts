@@ -189,6 +189,8 @@ android {
         }
         jniLibs {
             useLegacyPackaging = true
+            keepDebugSymbols.add("**/libpython.zip.so")
+            keepDebugSymbols.add("**/libffmpeg.zip.so")
         }
     }
 
