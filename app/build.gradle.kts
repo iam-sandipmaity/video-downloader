@@ -245,51 +245,6 @@ val downloadFfmpegRuntimeTask by tasks.registering {
     }
 }
 
-val downloadPythonAndQuickJsRuntimeTask by tasks.registering {
-    val outputDir = file("src/main/jniLibs/arm64-v8a")
-    val targetPythonSo = File(outputDir, "libpython.so")
-    val targetPythonZipSo = File(outputDir, "libpython.zip.so")
-    val targetQjsSo = File(outputDir, "libqjs.so")
-
-    inputs.property("url", "https://repo1.maven.org/maven2/io/github/junkfood02/youtubedl-android/library/0.18.1/library-0.18.1.aar")
-    outputs.files(targetPythonSo, targetPythonZipSo, targetQjsSo)
-
-    doLast {
-        if (targetPythonSo.exists() && targetPythonZipSo.exists() && targetQjsSo.exists()) {
-            println("Python and QuickJS binaries already exist in jniLibs. Skipping download.")
-            return@doLast
-        }
-        val urlString = "https://repo1.maven.org/maven2/io/github/junkfood02/youtubedl-android/library/0.18.1/library-0.18.1.aar"
-        println("Downloading youtubedl-android AAR from $urlString...")
-        val tempAar = File(temporaryDir, "library-0.18.1.aar")
-        URL(urlString).openStream().use { input ->
-            tempAar.outputStream().use { output ->
-                input.copyTo(output)
-            }
-        }
-
-        println("Extracting Python and QuickJS binaries for arm64-v8a...")
-        outputDir.mkdirs()
-        ZipInputStream(tempAar.inputStream()).use { zip ->
-            var entry = zip.nextEntry
-            while (entry != null) {
-                when (entry.name) {
-                    "jni/arm64-v8a/libpython.so" -> targetPythonSo.outputStream().use { zip.copyTo(it) }
-                    "jni/arm64-v8a/libpython.zip.so" -> targetPythonZipSo.outputStream().use { zip.copyTo(it) }
-                    "jni/arm64-v8a/libqjs.so" -> targetQjsSo.outputStream().use { zip.copyTo(it) }
-                }
-                zip.closeEntry()
-                entry = zip.nextEntry
-            }
-        }
-
-        if (!targetPythonSo.exists() || !targetPythonZipSo.exists() || !targetQjsSo.exists()) {
-            throw GradleException("Failed to extract Python or QuickJS binaries from downloaded AAR")
-        }
-        println("Successfully extracted and placed Python and QuickJS binaries to $outputDir")
-    }
-}
-
 val downloadYtDlpTask by tasks.registering {
     val outputDir = file("src/main/assets/ytdlp")
     val targetScript = File(outputDir, "yt-dlp")
@@ -327,7 +282,6 @@ val downloadYtDlpTask by tasks.registering {
 tasks.named("preBuild") {
     dependsOn(syncBundledChangelog)
     dependsOn(downloadFfmpegRuntimeTask)
-    dependsOn(downloadPythonAndQuickJsRuntimeTask)
     dependsOn(downloadYtDlpTask)
 }
 
@@ -358,6 +312,7 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("io.coil-kt:coil-gif:2.7.0")
     implementation("io.coil-kt:coil-svg:2.7.0")
+    implementation("io.github.junkfood02.youtubedl-android:library:0.18.1")
     implementation("org.tukaani:xz:1.12")
     implementation("androidx.work:work-runtime-ktx:2.11.2")
     implementation("androidx.hilt:hilt-work:1.3.0")

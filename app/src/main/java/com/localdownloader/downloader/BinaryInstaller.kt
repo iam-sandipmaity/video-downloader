@@ -380,19 +380,7 @@ class BinaryInstaller @Inject constructor(
         return supportDir
     }
 
-    fun ensurePythonSupportDir(): File? {
-        val nativeLibraryDir = context.applicationInfo.nativeLibraryDir?.let(::File) ?: return null
-        val zipBinary = File(nativeLibraryDir, "libpython.zip.so")
-        if (!zipBinary.exists()) {
-            logger.w("BinaryInstaller", "Missing libpython.zip.so at ${zipBinary.absolutePath}")
-            return null
-        }
-        return ensureSupportDirFromZip(
-            zipBinary = zipBinary,
-            supportDir = File(context.noBackupFilesDir, "localdownloader_runtime/packages/python"),
-            markerFile = File(context.noBackupFilesDir, "localdownloader_runtime/packages/python/.python-size"),
-        )
-    }
+
 
 
     private fun unzipSafely(sourceZip: File, targetDir: File) {

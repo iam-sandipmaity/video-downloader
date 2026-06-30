@@ -2,6 +2,7 @@ package com.localdownloader.downloader
 
 import android.content.Context
 import com.localdownloader.utils.Logger
+import com.yausername.youtubedl_android.YoutubeDL
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -33,7 +34,7 @@ class YtDlpExecutor @Inject constructor(
             ffmpegRuntime = ffmpegRuntime,
         )
         val normalizedArgs = normalizeArgs(args = args, runtime = runtime)
-        val command = listOf(runtime.pythonBinary.absolutePath, "-O", runtime.ytDlpScript.absolutePath) + normalizedArgs
+        val command = listOf(runtime.pythonBinary.absolutePath, runtime.ytDlpScript.absolutePath) + normalizedArgs
         logger.d("YtDlpExecutor", "Executing embedded yt-dlp runtime: ${command.joinToString(" ")}")
         logger.d(
             "YtDlpExecutor",
@@ -90,8 +91,7 @@ class YtDlpExecutor @Inject constructor(
         synchronized(this) {
             if (isInitialized) return
             logger.i("YtDlpExecutor", "Initializing embedded yt-dlp runtime")
-            binaryInstaller.ensureYtDlpScript()
-            binaryInstaller.ensurePythonSupportDir()
+            YoutubeDL.getInstance().init(context)
             isInitialized = true
             logger.i("YtDlpExecutor", "Embedded yt-dlp runtime initialized")
         }
@@ -99,24 +99,19 @@ class YtDlpExecutor @Inject constructor(
 
     private fun resolveRuntime(ffmpegRuntime: FfmpegRuntime): YtDlpRuntime {
         val nativeLibraryDir = File(context.applicationInfo.nativeLibraryDir)
-        val baseDir = File(context.noBackupFilesDir, YTDLP_BASE_NAME)
-        val ytdlpDir = File(baseDir, YTDLP_DIR_NAME)
-        val certFile = File(ytdlpDir, "cert.pem")
+        val baseDir = File(context.noBackupFilesDir, YoutubeDL.baseName)
+        val packagesDir = File(baseDir, "packages")
+        val pythonUsrDir = File(packagesDir, "python/usr")
 
         val pythonBinary = File(nativeLibraryDir, "libpython.so")
         val quickJsBinary = File(nativeLibraryDir, "libqjs.so")
-        val ytDlpScript = File(ytdlpDir, YTDLP_BIN)
-
-        val pythonSupportDir = binaryInstaller.ensurePythonSupportDir()
+        val ytDlpScript = File(
+            File(baseDir, YoutubeDL.ytdlpDirName),
+            YoutubeDL.ytdlpBin,
+        )
 
         val ldLibraryEntries = mutableListOf<String>()
-        ldLibraryEntries += nativeLibraryDir.absolutePath
-        pythonSupportDir?.let { dir ->
-            val usrLib = File(dir, "usr/lib")
-            if (usrLib.exists()) {
-                ldLibraryEntries += usrLib.absolutePath
-            }
-        }
+        ldLibraryEntries += File(pythonUsrDir, "lib").absolutePath
         ffmpegRuntime.supportDir?.let { supportDir ->
             val usrLib = File(supportDir, "usr/lib")
             if (usrLib.exists()) {
@@ -127,19 +122,12 @@ class YtDlpExecutor @Inject constructor(
         }
         val ldLibraryPath = ldLibraryEntries.distinct().joinToString(":")
 
-        val pythonHomeDir = pythonSupportDir?.let { File(it, "usr") } ?: baseDir
-        val pythonZip = File(nativeLibraryDir, "libpython.zip.so")
-
         val environment = mutableMapOf(
             "LD_LIBRARY_PATH" to ldLibraryPath,
-            "SSL_CERT_FILE" to certFile.absolutePath,
-            "PYTHONHOME" to pythonHomeDir.absolutePath,
-            "PYTHONPATH" to pythonZip.absolutePath,
-            "HOME" to baseDir.absolutePath,
+            "SSL_CERT_FILE" to File(pythonUsrDir, "etc/tls/cert.pem").absolutePath,
+            "PYTHONHOME" to pythonUsrDir.absolutePath,
+            "HOME" to pythonUsrDir.absolutePath,
             "TMPDIR" to context.cacheDir.absolutePath,
-            "PYTHONDONTWRITEBYTECODE" to "1",
-            "PYTHONWARNINGS" to "ignore",
-            "PYTHONNOUSERSITE" to "1",
             "PATH" to listOfNotNull(
                 System.getenv("PATH")?.takeIf { it.isNotBlank() },
                 ffmpegRuntime.executable.parentFile?.absolutePath,
