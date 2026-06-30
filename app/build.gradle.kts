@@ -204,7 +204,7 @@ val downloadFfmpegRuntimeTask by tasks.registering {
     val targetSo = File(outputDir, "libffmpeg.so")
     val targetZipSo = File(outputDir, "libffmpeg.zip.so")
 
-    inputs.property("url", "https://github.com/iam-sandipmaity/video-downloader-packages/releases/download/ffmpeg-v7.1.1/ffmpeg-signed-arm64-v8a.apk")
+    inputs.property("url", "https://github.com/iam-sandipmaity/video-downloader-packages/releases/download/ffmpeg-v7.1.2/ffmpeg-signed-arm64-v8a.apk")
     outputs.file(targetSo)
 
     doLast {
@@ -213,7 +213,7 @@ val downloadFfmpegRuntimeTask by tasks.registering {
             return@doLast
         }
         val abi = "arm64-v8a"
-        val downloadUrl = "https://github.com/iam-sandipmaity/video-downloader-packages/releases/download/ffmpeg-v7.1.1/ffmpeg-signed-$abi.apk"
+        val downloadUrl = "https://github.com/iam-sandipmaity/video-downloader-packages/releases/download/ffmpeg-v7.1.2/ffmpeg-signed-$abi.apk"
         println("Downloading FFmpeg APK from $downloadUrl...")
         val tempApk = File(temporaryDir, "ffmpeg-temp.apk")
         URL(downloadUrl).openStream().use { input ->
