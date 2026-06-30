@@ -24,42 +24,36 @@ custom build for a non-default ABI.
 
 ## CPU Architecture Support
 
-Default shipped target:
+Our runtimes are split into two categories:
 
-- `arm64-v8a`
+### 1. Python & QuickJS Runtimes
+- **Support**: **Multi-architecture (`arm64-v8a`, `armeabi-v7a`, `x86`, `x86_64`)**
+- **Details**: Since the app utilizes the official `youtubedl-android` dependency wrapper, CPython 3.12 and QuickJS standard libraries/executables (`libpython.so`, `libpython.zip.so`, and `libqjs.so`) are pre-compiled and native-bundled for all architectures out-of-the-box. This ensures zero tracebacks or environment crashes across emulators and 32-bit devices.
 
-This covers the large majority of modern Android phones and tablets.
+### 2. FFmpeg Runtime
+- **Primary Shipped Target**: `arm64-v8a`
+- **Details**: The custom-compiled FFmpeg binary is fetched automatically from our [Packages Repository](https://github.com/iam-sandipmaity/video-downloader-packages) during build time. For non-arm64 devices, custom builds are required or alternate ABIs can be fetched from the package builder release history.
 
-Other ABIs are possible through custom builds, but are not packaged by default
-in the normal release flow.
-
-| ABI | Typical use | Shipped by default |
-| --- | --- | --- |
-| `arm64-v8a` | modern phones and tablets | Yes |
-| `armeabi-v7a` | older 32-bit ARM devices | No |
-| `x86_64` | emulators and some Intel devices | No |
-| `x86` | older emulators | No |
+| Component | `arm64-v8a` | `armeabi-v7a` | `x86_64` | `x86` |
+| --- | --- | --- | --- | --- |
+| **Python / QuickJS** | Yes (Built-in) | Yes (Built-in) | Yes (Built-in) | Yes (Built-in) |
+| **FFmpeg** | Yes (Default) | No (Custom Build) | No (Custom Build) | No (Custom Build) |
 
 ---
 
 ## How Runtime Resolution Works
 
-### yt-dlp
-
-`yt-dlp` runs through the embedded `youtubedl-android` runtime and can be
-updated in-app through the Updates screen.
+### yt-dlp & Python
+`yt-dlp` runs using the Python bytecode interpreter provided by the `youtubedl-android` library. On app startup:
+- The library initializes Python and sets up standard module mappings.
+- The app can safely update the `yt-dlp` script dynamically in-app through the **Updates** screen.
 
 ### FFmpeg
-
 FFmpeg is resolved in this order:
-
-1. managed overlay package downloaded by the app
-2. embedded runtime package if available
-3. bundled `libffmpeg_exec.so`
-4. copied executable fallback from `assets/ffmpeg/<abi>/ffmpeg`
-
-This layered approach exists because device/runtime behavior differs across
-vendors, Android versions, and ABI packaging styles.
+1. Local app-packaged native binary (`libffmpeg.so` located inside the APK's `jniLibs/<abi>/` directory)
+2. In-app downloaded overlay/updates runtime package
+3. Bundled legacy executables (e.g. `libffmpeg_exec.so`)
+4. Copied executable fallback from `assets/ffmpeg/<abi>/ffmpeg`
 
 ---
 
@@ -80,26 +74,20 @@ permission, the app may fall back to an app-owned external directory.
 
 ## Building For Another ABI
 
-If you need support for an ABI that is not packaged by default:
+If you need support for a custom CPU architecture (such as an Intel emulator `x86_64` or older `armeabi-v7a` phone):
 
-1. clone the repository
-2. add compatible FFmpeg artifacts for that ABI
-3. place the raw fallback binary under `assets/ffmpeg/<abi>/ffmpeg`
-4. place the packaged native fallback under `jniLibs/<abi>/libffmpeg_exec.so`
-5. build the APK normally
+1. Compile the custom `libffmpeg.so` for your target ABI using the compiler scripts in the [Packages Builder Repository](https://github.com/iam-sandipmaity/video-downloader-packages).
+2. Place the compiled `libffmpeg.so` under `app/src/main/jniLibs/<abi>/libffmpeg.so`.
+3. Build the APK normally. The Gradle builder will pack the native library into the APK.
 
 Example layout for `x86_64`:
-
 ```text
-app/src/main/assets/ffmpeg/x86_64/ffmpeg
-app/src/main/jniLibs/x86_64/libffmpeg_exec.so
+app/src/main/jniLibs/x86_64/libffmpeg.so
 ```
 
 Example layout for `armeabi-v7a`:
-
 ```text
-app/src/main/assets/ffmpeg/armeabi-v7a/ffmpeg
-app/src/main/jniLibs/armeabi-v7a/libffmpeg_exec.so
+app/src/main/jniLibs/armeabi-v7a/libffmpeg.so
 ```
 
 If you are packaging a fuller embedded runtime instead of a single fallback

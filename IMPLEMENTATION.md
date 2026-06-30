@@ -39,25 +39,18 @@ Relevant files:
 
 ## 2. Runtime Resolution
 
-### yt-dlp
-
-The app uses the embedded `youtubedl-android` runtime and can replace that
-runtime through the Updates flow.
+### yt-dlp & Python
+The app relies on the official `io.github.junkfood02.youtubedl-android:library:0.18.1` AAR dependency wrapper. It handles loading CPython and QuickJS native environments on startup. The `yt-dlp` Python script itself is loaded from the app's `noBackupFilesDir` and can be dynamically updated via the **Updates** flow.
 
 ### FFmpeg
+FFmpeg resolution follows a layered path:
+1. Local app-packaged native binary (`libffmpeg.so` located under `src/main/jniLibs/<abi>/`)
+2. In-app downloaded overlay/updates runtime package from our Packages Repository
+3. Legacy fallback executable copied from assets when present
 
-FFmpeg resolution now follows a layered path:
-
-1. managed overlay package downloaded by the app
-2. embedded runtime package when present
-3. bundled `libffmpeg_exec.so`
-4. copied executable fallback from assets
-
-This layered strategy is important because device/runtime behavior is not
-perfectly uniform across Android versions and ABI layouts.
+This layered strategy guarantees that FFmpeg is resolved correctly while allowing custom overlay updates.
 
 Relevant files:
-
 - `app/src/main/java/com/localdownloader/downloader/BinaryInstaller.kt`
 - `app/src/main/java/com/localdownloader/downloader/YtDlpExecutor.kt`
 - `app/src/main/java/com/localdownloader/ffmpeg/FfmpegExecutor.kt`
