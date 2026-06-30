@@ -33,7 +33,7 @@ class YtDlpExecutor @Inject constructor(
             ffmpegRuntime = ffmpegRuntime,
         )
         val normalizedArgs = normalizeArgs(args = args, runtime = runtime)
-        val command = listOf(runtime.pythonBinary.absolutePath, runtime.ytDlpScript.absolutePath) + normalizedArgs
+        val command = listOf(runtime.pythonBinary.absolutePath, "-O", runtime.ytDlpScript.absolutePath) + normalizedArgs
         logger.d("YtDlpExecutor", "Executing embedded yt-dlp runtime: ${command.joinToString(" ")}")
         logger.d(
             "YtDlpExecutor",
@@ -91,6 +91,7 @@ class YtDlpExecutor @Inject constructor(
             if (isInitialized) return
             logger.i("YtDlpExecutor", "Initializing embedded yt-dlp runtime")
             binaryInstaller.ensureYtDlpScript()
+            binaryInstaller.ensurePythonSupportDir()
             isInitialized = true
             logger.i("YtDlpExecutor", "Embedded yt-dlp runtime initialized")
         }
@@ -106,8 +107,16 @@ class YtDlpExecutor @Inject constructor(
         val quickJsBinary = File(nativeLibraryDir, "libqjs.so")
         val ytDlpScript = File(ytdlpDir, YTDLP_BIN)
 
+        val pythonSupportDir = binaryInstaller.ensurePythonSupportDir()
+
         val ldLibraryEntries = mutableListOf<String>()
         ldLibraryEntries += nativeLibraryDir.absolutePath
+        pythonSupportDir?.let { dir ->
+            val usrLib = File(dir, "usr/lib")
+            if (usrLib.exists()) {
+                ldLibraryEntries += usrLib.absolutePath
+            }
+        }
         ffmpegRuntime.supportDir?.let { supportDir ->
             val usrLib = File(supportDir, "usr/lib")
             if (usrLib.exists()) {
@@ -118,14 +127,20 @@ class YtDlpExecutor @Inject constructor(
         }
         val ldLibraryPath = ldLibraryEntries.distinct().joinToString(":")
 
-        val pythonZip = File(nativeLibraryDir, "libpython.zip.so")
+        val pythonHomeDir = pythonSupportDir?.let { File(it, "usr") } ?: baseDir
+        val pythonPathDir = pythonSupportDir?.let { File(it, "usr/lib/python3.12") }
+        val pythonPathString = pythonPathDir?.absolutePath ?: File(nativeLibraryDir, "libpython.zip.so").absolutePath
+
         val environment = mutableMapOf(
             "LD_LIBRARY_PATH" to ldLibraryPath,
             "SSL_CERT_FILE" to certFile.absolutePath,
-            "PYTHONHOME" to baseDir.absolutePath,
-            "PYTHONPATH" to pythonZip.absolutePath,
+            "PYTHONHOME" to pythonHomeDir.absolutePath,
+            "PYTHONPATH" to pythonPathString,
             "HOME" to baseDir.absolutePath,
             "TMPDIR" to context.cacheDir.absolutePath,
+            "PYTHONDONTWRITEBYTECODE" to "1",
+            "PYTHONWARNINGS" to "ignore",
+            "PYTHONNOUSERSITE" to "1",
             "PATH" to listOfNotNull(
                 System.getenv("PATH")?.takeIf { it.isNotBlank() },
                 ffmpegRuntime.executable.parentFile?.absolutePath,

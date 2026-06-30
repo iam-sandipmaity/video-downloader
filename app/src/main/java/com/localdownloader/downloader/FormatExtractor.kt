@@ -58,7 +58,9 @@ class FormatExtractor @Inject constructor(
                 null
             }
             var lastFailureMessage: String? = null
+            var isFatalSystem = false
             extractorCandidates.forEachIndexed { index, extractorArgs ->
+                if (isFatalSystem) return@forEachIndexed
                 if (analyzeMode == AnalyzeRequestMode.YOUTUBE_PLAYLIST_FAST &&
                     best?.isPlaylistResult == true &&
                     (best?.playlistEntryCount ?: 0) > 0
@@ -115,6 +117,10 @@ class FormatExtractor @Inject constructor(
                     if (stats.hasAdaptiveVideo) return@forEachIndexed
                 } else if (!attempt.errorMessage.isNullOrBlank()) {
                     lastFailureMessage = attempt.errorMessage
+                    if (isFatalSystemError(attempt.errorMessage)) {
+                        isFatalSystem = true
+                        logger.w("FormatExtractor", "Aborting candidate execution loop due to fatal system error: ${attempt.errorMessage}")
+                    }
                 }
             }
 
@@ -716,6 +722,16 @@ class FormatExtractor @Inject constructor(
             detail.contains("stream closed") ||
             detail.contains("interrupted by close") ||
             detail == "closed"
+    }
+
+    private fun isFatalSystemError(message: String): Boolean {
+        val detail = message.lowercase()
+        return detail.contains("exec format error") ||
+            detail.contains("dlopen failed") ||
+            detail.contains("cannot locate symbol") ||
+            detail.contains("linker") ||
+            detail.contains("permission denied") ||
+            detail.contains("no such file or directory")
     }
 
     private fun parseFormats(elements: JsonArray): List<MediaFormat> {
