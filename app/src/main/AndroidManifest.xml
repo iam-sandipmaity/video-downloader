@@ -29,6 +29,7 @@
         android:usesCleartextTraffic="false"
         android:supportsRtl="true"
         android:theme="@style/Theme.LocalDownloader"
+        android:extractNativeLibs="true"
         tools:targetApi="tiramisu">
 
         <!-- Required on Android 14+ for WorkManager foreground workers -->
