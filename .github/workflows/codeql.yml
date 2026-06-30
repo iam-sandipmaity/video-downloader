@@ -45,6 +45,7 @@ jobs:
             -Dorg.gradle.caching=false
             -Dkotlin.incremental=false
             -Dkotlin.compiler.execution.strategy=in-process
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./gradlew --no-daemon --no-build-cache clean :app:compileStandardDebugKotlin :app:compileStandardDebugJavaWithJavac
 
       - name: Perform CodeQL Analysis
