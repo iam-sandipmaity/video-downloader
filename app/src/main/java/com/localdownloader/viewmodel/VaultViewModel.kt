@@ -34,14 +34,23 @@ class VaultViewModel @Inject constructor(
     fun updatePin(newPin: String) {
         viewModelScope.launch {
             runCatching {
+                val pinHash = hashPin(newPin)
                 val currentSettings = repository.getVaultSettings()
                 repository.updateSettings(
                     repository.observeSettings().first().copy(
                         vaultSettings = currentSettings.copy(
                             isEnabled = true,
-                            pinHash = hashPin(newPin),
+                            pinHash = pinHash,
                         )
                     )
+                )
+                // Update local state immediately
+                _uiState.value = _uiState.value.copy(
+                    vaultSettings = currentSettings.copy(
+                        isEnabled = true,
+                        pinHash = pinHash,
+                    ),
+                    isUnlocked = true,
                 )
             }.onFailure { error ->
                 logger.e("VaultViewModel", "updatePin failed", error)
@@ -54,7 +63,10 @@ class VaultViewModel @Inject constructor(
             val settings = repository.getVaultSettings()
             val isValid = settings.isEnabled && hashPin(pin) == settings.pinHash
             if (isValid) {
-                _uiState.value = _uiState.value.copy(isUnlocked = true)
+                _uiState.value = _uiState.value.copy(
+                    vaultSettings = settings,
+                    isUnlocked = true,
+                )
             }
             onResult(isValid)
         }
