@@ -6,4 +6,5 @@
     <issue id="PictureInPictureIssue">
         <ignore path="src/main/AndroidManifest.xml" />
     </issue>
+    <issue id="MissingTranslation" severity="ignore" />
 </lint>

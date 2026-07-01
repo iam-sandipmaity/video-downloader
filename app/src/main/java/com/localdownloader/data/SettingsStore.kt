@@ -15,6 +15,7 @@ import com.localdownloader.domain.models.ContrastMode
 import com.localdownloader.domain.models.CookieProfile
 import com.localdownloader.domain.models.SYSTEM_LANGUAGE_TAG
 import com.localdownloader.domain.models.ThemeMode
+import com.localdownloader.domain.models.VaultSettings
 import com.localdownloader.domain.models.YoutubeAuthConfig
 import com.localdownloader.utils.SensitiveDataSanitizer
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -33,6 +34,11 @@ private val Context.settingsDataStore: DataStore<Preferences> by preferencesData
     name = "app_settings",
 )
 
+private const val VAULT_PIN_HASH_KEY = "vault_pin_hash"
+private const val VAULT_BIOMETRIC_ENABLED_KEY = "vault_biometric_enabled"
+private const val VAULT_NAME_KEY = "vault_name"
+private const val VAULT_ENABLED_KEY = "vault_enabled"
+
 @Singleton
 class SettingsStore @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -42,6 +48,8 @@ class SettingsStore @Inject constructor(
         get() = File(context.noBackupFilesDir, "cookies")
     private val secureYoutubeAuthFile: File
         get() = File(File(context.noBackupFilesDir, "auth"), "youtube-auth-config.json")
+    private val vaultSettingsFile: File
+        get() = File(context.noBackupFilesDir, "vault/vault-settings.json")
 
     private object Keys {
         val languageTag = stringPreferencesKey("language_tag")
@@ -133,6 +141,7 @@ class SettingsStore @Inject constructor(
                     maxConcurrentDownloads = prefs[Keys.maxConcurrent] ?: 2,
                     allowMeteredDownloads = prefs[Keys.allowMeteredDownloads] ?: false,
                     darkTheme = prefs[Keys.darkTheme] ?: false,
+                    vaultSettings = readVaultSettings(),
                 )
             }
     }
@@ -140,6 +149,7 @@ class SettingsStore @Inject constructor(
     suspend fun updateSettings(settings: AppSettings) {
         val persistedCookieProfiles = prepareCookieProfilesForPersistence(settings.cookieProfiles)
         persistYoutubeAuthConfig(settings.youtubeAuthConfig)
+        persistVaultSettings(settings.vaultSettings)
         context.settingsDataStore.edit { prefs ->
             prefs[Keys.languageTag] = settings.languageTag
             prefs[Keys.themeMode] = settings.themeMode.name
@@ -180,6 +190,62 @@ class SettingsStore @Inject constructor(
             prefs[Keys.allowMeteredDownloads] = settings.allowMeteredDownloads
             prefs[Keys.darkTheme] = settings.darkTheme
         }
+    }
+
+    private fun readVaultSettings(): VaultSettings {
+        return runCatching {
+            if (!vaultSettingsFile.exists()) return VaultSettings()
+            json.decodeFromString<VaultSettings>(vaultSettingsFile.readText())
+        }.getOrNull() ?: VaultSettings()
+    }
+
+    private fun persistVaultSettings(settings: VaultSettings) {
+        vaultSettingsFile.parentFile?.mkdirs()
+        val serialized = json.encodeToString(settings)
+        vaultSettingsFile.writeText(serialized)
+    }
+
+    fun updateVaultPin(newPin: String): String {
+        val newHash = hashPin(newPin)
+        val updated = VaultSettings(
+            isEnabled = true,
+            pinHash = newHash,
+            isBiometricEnabled = readVaultSettings().isBiometricEnabled,
+            vaultName = readVaultSettings().vaultName,
+        )
+        persistVaultSettings(updated)
+        return newHash
+    }
+
+    fun verifyVaultPin(pin: String): Boolean {
+        val currentSettings = readVaultSettings()
+        if (!currentSettings.isEnabled) return false
+        return hashPin(pin) == currentSettings.pinHash
+    }
+
+    fun setVaultBiometricEnabled(enabled: Boolean) {
+        val current = readVaultSettings()
+        persistVaultSettings(current.copy(isBiometricEnabled = enabled))
+    }
+
+    fun setVaultName(name: String) {
+        val current = readVaultSettings()
+        persistVaultSettings(current.copy(vaultName = name))
+    }
+
+    fun disableVault() {
+        val current = readVaultSettings()
+        persistVaultSettings(current.copy(isEnabled = false, pinHash = ""))
+    }
+
+    fun getVaultSettings(): VaultSettings {
+        return readVaultSettings()
+    }
+
+    private fun hashPin(pin: String): String {
+        return runCatching {
+            java.security.MessageDigest.getInstance("SHA-256").digest(pin.toByteArray()).joinToString("") { "%02x".format(it) }
+        }.getOrNull() ?: ""
     }
 
     private fun decodeCookieProfiles(raw: String?): List<CookieProfile> {

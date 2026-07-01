@@ -217,6 +217,7 @@
     <string name="common_enabled">Enabled</string>
     <string name="common_ready">Ready</string>
     <string name="common_set_up">Set up</string>
+    <string name="common_unlock">Unlock</string>
     <string name="common_browse">Browse</string>
     <string name="common_keep_current">Keep current</string>
     <string name="common_unknown">Unknown</string>
@@ -788,4 +789,30 @@
     <string name="about_credits_subtitle">Tap any project to open its official website or upstream source.</string>
     <string name="about_reset_title">Reset all settings</string>
     <string name="about_reset_subtitle">Restore appearance, folders, download defaults, access preferences, and library behavior back to the default setup.</string>
+
+    <string name="vault_title">Private Vault</string>
+    <string name="vault_subtitle">Secure storage for sensitive downloads.</string>
+    <string name="vault_setup_title">Set up Private Vault</string>
+    <string name="vault_setup_subtitle">Create a secure PIN-protected area for private downloads.</string>
+    <string name="vault_pin_title">Vault PIN</string>
+    <string name="vault_pin_hint">Enter a 4-digit PIN</string>
+    <string name="vault_confirm_pin_title">Confirm PIN</string>
+    <string name="vault_confirm_pin_hint">Re-enter the PIN</string>
+    <string name="vault_enable_title">Enable Private Vault</string>
+    <string name="vault_enable_subtitle">Protect your private downloads with a PIN.</string>
+    <string name="vault_disable_title">Disable Private Vault</string>
+    <string name="vault_disable_subtitle">Remove vault protection and move files back to downloads.</string>
+    <string name="vault_biometric_title">Use biometric authentication</string>
+    <string name="vault_biometric_subtitle">Use fingerprint or face unlock to access the vault.</string>
+    <string name="vault_name_title">Vault name</string>
+    <string name="vault_name_hint">Enter a name for your vault</string>
+    <string name="vault_files_title">Vault Files</string>
+    <string name="vault_files_subtitle">Files protected by your PIN or biometric authentication.</string>
+    <string name="vault_move_to_vault">Move to vault</string>
+    <string name="vault_move_from_vault">Move from vault</string>
+    <string name="vault_pin_mismatch">PINs do not match</string>
+    <string name="vault_pin_too_short">PIN must be at least 4 digits</string>
+    <string name="vault_incorrect_pin">Incorrect PIN</string>
+    <string name="vault_locked">Vault is locked</string>
+    <string name="vault_unlock">Unlock vault</string>
 </resources>

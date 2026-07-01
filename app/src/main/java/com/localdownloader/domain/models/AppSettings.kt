@@ -1,5 +1,7 @@
 package com.localdownloader.domain.models
 
+import com.localdownloader.domain.models.VaultSettings
+
 /**
  * User preferences that influence yt-dlp argument generation.
  */
@@ -44,6 +46,7 @@ data class AppSettings(
     val maxConcurrentDownloads: Int = 2,
     val allowMeteredDownloads: Boolean = false,
     val darkTheme: Boolean = false,
+    val vaultSettings: VaultSettings = VaultSettings(),
 )
 
 enum class ThemeMode {

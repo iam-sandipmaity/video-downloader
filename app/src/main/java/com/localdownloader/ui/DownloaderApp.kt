@@ -31,7 +31,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.layout.padding
@@ -83,6 +85,7 @@ import com.localdownloader.ui.screens.settings.AppLogSettingsScreen
 import com.localdownloader.ui.screens.settings.DownloadSettingsScreen
 import com.localdownloader.ui.screens.settings.NotificationsSettingsScreen
 import com.localdownloader.ui.screens.settings.StorageSettingsScreen
+import com.localdownloader.ui.screens.VaultScreen
 import com.localdownloader.viewmodel.AppLogViewModel
 import com.localdownloader.ui.model.ExternalOpenRequest
 import com.localdownloader.ui.model.MediaKind
@@ -97,6 +100,8 @@ import com.localdownloader.viewmodel.MusicSourceViewModel
 import com.localdownloader.viewmodel.MusicTrimViewModel
 import com.localdownloader.viewmodel.PlayerViewModel
 import com.localdownloader.viewmodel.UpdatesViewModel
+import com.localdownloader.viewmodel.VaultViewModel
+import kotlinx.coroutines.launch
 
 @Composable
 fun DownloaderApp(
@@ -577,6 +582,8 @@ fun DownloaderApp(
                     onDeleteCompletedFromDevice = downloadViewModel::deleteAllCompletedMedia,
                     onDismissMessage = downloadViewModel::dismissMessage,
                     onOpenQueue = { navController.navigate(Routes.DownloadQueue) },
+                    onMoveToVault = downloadViewModel::moveToVault,
+                    onMoveFromVault = downloadViewModel::moveFromVault,
                     fileExists = fileUtils::managedFileExists,
                 )
             }
@@ -612,6 +619,7 @@ fun DownloaderApp(
                     onOpenUpdates = { navController.navigate(Routes.Updates) },
                     onOpenSettings = { navController.navigate(Routes.Settings) },
                     onOpenHelp = { navController.navigate(Routes.Help) },
+                    onOpenVault = { navController.navigate(Routes.Vault) },
                 )
             }
             composable(Routes.YoutubeAuth) {
@@ -925,6 +933,34 @@ fun DownloaderApp(
                     onOpenYoutubeAccess = { navController.navigate(Routes.YoutubeAuth) },
                 )
             }
+            composable(Routes.Vault) {
+                val vaultViewModel: VaultViewModel = hiltViewModel()
+                val vaultState by vaultViewModel.uiState.collectAsStateWithLifecycle()
+                val coroutineScope = rememberCoroutineScope()
+                VaultScreen(
+                    uiState = vaultState,
+                    onUnlock = { pin ->
+                        coroutineScope.launch {
+                            val result = vaultViewModel.verifyPin(pin)
+                            if (result) {
+                                navController.popBackStack()
+                            }
+                        }
+                        true
+                    },
+                    onSetPin = { pin ->
+                        vaultViewModel.updatePin(pin)
+                        navController.popBackStack()
+                    },
+                    onSetBiometricEnabled = vaultViewModel::setBiometricEnabled,
+                    onSetVaultName = vaultViewModel::setVaultName,
+                    onDisableVault = {
+                        vaultViewModel.disableVault()
+                        navController.popBackStack()
+                    },
+                    onBack = { navController.popBackStack() },
+                )
+            }
             composable(Routes.Music) {
                 MusicPlayerScreen(
                     uiState = downloadState,
@@ -1038,7 +1074,6 @@ fun DownloaderApp(
 object Routes {
     const val Browser = AppLaunchRouter.ROUTE_BROWSER
     const val Downloads = AppLaunchRouter.ROUTE_DOWNLOADS
-    const val Music = AppLaunchRouter.ROUTE_MUSIC
     const val More = AppLaunchRouter.ROUTE_MORE
     const val YoutubeAuth = "youtube_auth"
     const val YoutubeAuthLogin = "youtube_auth_login"
@@ -1061,6 +1096,8 @@ object Routes {
     const val Help = "help"
     const val Player = AppLaunchRouter.ROUTE_PLAYER
     const val ExternalOpen = "external_open"
+    const val Vault = "vault"
+    const val Music = AppLaunchRouter.ROUTE_MUSIC
 
     fun updateChangelog(section: String): String {
         return "updates/changelog/${android.net.Uri.encode(section)}"

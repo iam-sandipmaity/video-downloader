@@ -941,6 +941,58 @@ class FileUtils @Inject constructor(
         return calculateDirSize(context.cacheDir)
     }
 
+    fun ensureVaultDir(): File {
+        val vaultDir = File(context.noBackupFilesDir, "vault")
+        if (!vaultDir.exists()) vaultDir.mkdirs()
+        return vaultDir
+    }
+
+    fun moveToVault(file: File): File {
+        val vaultDir = ensureVaultDir()
+        val bundleFiles = resolveManagedMediaBundle(file)
+        val movedFiles = mutableListOf<File>()
+        
+        bundleFiles.forEach { sourceFile ->
+            val targetFile = File(vaultDir, sourceFile.name)
+            if (sourceFile.absolutePath == targetFile.absolutePath) {
+                movedFiles.add(targetFile)
+                return@forEach
+            }
+            val finalTarget = if (targetFile.exists()) {
+                val stem = sourceFile.nameWithoutExtension
+                val ext = sourceFile.extension
+                var counter = 2
+                while (true) {
+                    val candidate = File(vaultDir, if (ext.isBlank()) "$stem ($counter)" else "$stem ($counter).$ext")
+                    if (!candidate.exists()) {
+                        moveManagedFile(sourceFile, candidate)
+                        break
+                    }
+                    counter++
+                }
+                File(vaultDir, "$stem ($counter).$ext")
+            } else {
+                moveManagedFile(sourceFile, targetFile)
+                targetFile
+            }
+            movedFiles.add(finalTarget)
+        }
+        return movedFiles.firstOrNull { it.name == file.name } ?: movedFiles.first()
+    }
+
+    fun moveFromVault(file: File): File {
+        val downloadsDir = ensureDownloadsDir()
+        val bundleFiles = resolveManagedMediaBundle(file)
+        val movedFiles = mutableListOf<File>()
+        
+        bundleFiles.forEach { sourceFile ->
+            val targetFile = File(downloadsDir, sourceFile.name)
+            moveManagedFile(sourceFile, targetFile)
+            movedFiles.add(targetFile)
+        }
+        return movedFiles.firstOrNull { it.name == file.name } ?: movedFiles.first()
+    }
+
     private fun calculateDirSize(dir: File): Long {
         var size = 0L
         dir.listFiles()?.forEach { file ->

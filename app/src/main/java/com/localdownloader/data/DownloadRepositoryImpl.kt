@@ -19,6 +19,7 @@ import com.localdownloader.domain.models.DownloadTask
 import com.localdownloader.domain.models.MediaSyncResult
 import com.localdownloader.domain.models.PlaylistDownloadRequest
 import com.localdownloader.domain.models.VideoInfo
+import com.localdownloader.domain.models.VaultSettings
 import com.localdownloader.domain.repositories.DownloaderRepository
 import com.localdownloader.downloader.FormatExtractor
 import com.localdownloader.notifications.AppNotifications
@@ -30,17 +31,19 @@ import com.localdownloader.utils.SensitiveDataSanitizer
 import com.localdownloader.worker.WorkerKeys
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.CancellationException
 import java.io.File
+import java.io.IOException
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -630,6 +633,67 @@ class DownloadRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun moveToVault(taskId: String): Result<Unit> {
+        return runCatching {
+            val task = downloadTaskStore.getTask(taskId)
+                ?: error("No task found with ID $taskId")
+            require(task.status == DownloadStatus.COMPLETED) { "Only completed downloads can be moved to vault" }
+            val outputPath = task.outputPath?.takeIf { it.isNotBlank() }
+                ?: error("This task does not have a saved output file.")
+            val sourceFile = File(fileUtils.normalizeLibraryOutputPath(outputPath))
+            if (!sourceFile.exists()) {
+                error("The saved file could not be found.")
+            }
+            val vaultFile = fileUtils.moveToVault(sourceFile)
+            downloadTaskStore.update(taskId) { current ->
+                current.copy(
+                    isInVault = true,
+                    outputPath = vaultFile.absolutePath,
+                    updatedAtEpochMs = System.currentTimeMillis(),
+                )
+            }
+        }.onFailure { error ->
+            logger.e("DownloadRepository", "moveToVault failed taskId=$taskId", error)
+        }
+    }
+
+    override suspend fun moveFromVault(taskId: String): Result<Unit> {
+        return runCatching {
+            val task = downloadTaskStore.getTask(taskId)
+                ?: error("No task found with ID $taskId")
+            val outputPath = task.outputPath?.takeIf { it.isNotBlank() }
+                ?: error("This task does not have a saved output file.")
+            val sourceFile = File(fileUtils.normalizeLibraryOutputPath(outputPath))
+            if (!sourceFile.exists()) {
+                error("The vault file could not be found.")
+            }
+            val targetFile = fileUtils.moveFromVault(sourceFile)
+            downloadTaskStore.update(taskId) { current ->
+                current.copy(
+                    isInVault = false,
+                    outputPath = targetFile.absolutePath,
+                    updatedAtEpochMs = System.currentTimeMillis(),
+                )
+            }
+        }.onFailure { error ->
+            logger.e("DownloadRepository", "moveFromVault failed taskId=$taskId", error)
+        }
+    }
+
+    override suspend fun getVaultSettings(): VaultSettings {
+        return settingsStore.getVaultSettings()
+    }
+
+    override suspend fun updateVaultSettings(settings: VaultSettings): Result<Unit> {
+        return runCatching {
+            settingsStore.updateSettings(
+                settingsStore.observeSettings().first().copy(vaultSettings = settings)
+            )
+        }.onFailure { error ->
+            logger.e("DownloadRepository", "updateVaultSettings failed", error)
+        }
+    }
+
     private fun prepareDownload(
         taskId: String,
         options: DownloadOptions,
@@ -803,7 +867,7 @@ class DownloadRepositoryImpl @Inject constructor(
                 workManager.getWorkInfoByIdFlow(workId).collect { info ->
                     val trackedTask = downloadTaskStore.getTask(taskId)
                     if (trackedTask?.activeWorkId != workIdValue) {
-                        cancel("Task no longer tracks work $workIdValue")
+                        cancelWork("Task no longer tracks work $workIdValue")
                         return@collect
                     }
                     if (info == null) {
@@ -812,7 +876,7 @@ class DownloadRepositoryImpl @Inject constructor(
                     }
                     syncTaskFromWorkState(taskId, workIdValue, info)
                     if (info.state.isFinished) {
-                        cancel("Observed WorkManager terminal state for $workIdValue")
+                        cancelWork("Observed WorkManager terminal state for $workIdValue")
                     }
                 }
             } finally {
@@ -820,6 +884,10 @@ class DownloadRepositoryImpl @Inject constructor(
             }
         }
         workObserverJobs[taskId] = observerJob
+    }
+
+    private suspend fun cancelWork(message: String) {
+        throw CancellationException(message)
     }
 
     private fun syncTaskFromWorkState(taskId: String, workId: String, info: WorkInfo) {

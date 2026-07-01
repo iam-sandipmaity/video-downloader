@@ -5,6 +5,7 @@ import androidx.compose.material.icons.rounded.CloudDownload
 import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Shield
@@ -34,6 +35,7 @@ fun MoreScreen(
     onOpenUpdates: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenHelp: () -> Unit,
+    onOpenVault: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     PreferencePageScaffold(
@@ -55,6 +57,13 @@ fun MoreScreen(
                     title = stringResource(R.string.more_history_title),
                     subtitle = stringResource(R.string.more_history_subtitle),
                     onClick = onOpenHistory,
+                )
+                PreferenceDivider()
+                PreferenceRow(
+                    icon = Icons.Outlined.Lock,
+                    title = stringResource(R.string.vault_title),
+                    subtitle = stringResource(R.string.vault_subtitle),
+                    onClick = onOpenVault,
                 )
                 PreferenceDivider()
                 PreferenceRow(

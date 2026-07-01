@@ -47,6 +47,7 @@ import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.DeleteForever
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.DriveFileRenameOutline
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.PauseCircle
 import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
@@ -112,6 +113,8 @@ fun DownloadsScreen(
     onDismissMessage: () -> Unit,
     onDismissAudioError: () -> Unit,
     onOpenQueue: () -> Unit,
+    onMoveToVault: (String) -> Unit,
+    onMoveFromVault: (String) -> Unit,
     modifier: Modifier = Modifier,
     fileExists: (String) -> Boolean = { path -> java.io.File(path).exists() },
 ) {
@@ -722,6 +725,8 @@ fun DownloadsScreen(
                                 selectedTaskIds = selectedTaskIds + taskId
                             }
                         },
+                        onMoveToVault = { onMoveToVault(item.task.id) },
+                        onMoveFromVault = { onMoveFromVault(item.task.id) },
                     )
                 }
             }
@@ -943,7 +948,6 @@ private fun QueueActionButton(
 }
 
 @Composable
-@OptIn(ExperimentalFoundationApi::class)
 private fun DownloadHeroCard(
     item: VideoLibraryItem,
     selectionMode: Boolean,
@@ -955,6 +959,8 @@ private fun DownloadHeroCard(
     onDelete: () -> Unit,
     onToggleSelected: () -> Unit,
     onStartSelection: () -> Unit,
+    onMoveToVault: () -> Unit,
+    onMoveFromVault: () -> Unit,
 ) {
     var showMenu by remember { mutableStateOf(false) }
     val snapshot = rememberLocalMediaSnapshot(item.file?.absolutePath)
@@ -1102,6 +1108,26 @@ private fun DownloadHeroCard(
                                         onClick = {
                                             showMenu = false
                                             onRename()
+                                        },
+                                    )
+                                }
+                                if (item.exists) {
+                                    androidx.compose.material3.DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.vault_move_to_vault)) },
+                                        leadingIcon = { Icon(Icons.Outlined.Lock, contentDescription = null) },
+                                        onClick = {
+                                            showMenu = false
+                                            onMoveToVault()
+                                        },
+                                    )
+                                }
+                                if (!item.exists && item.task.isInVault) {
+                                    androidx.compose.material3.DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.vault_move_from_vault)) },
+                                        leadingIcon = { Icon(Icons.Outlined.Lock, contentDescription = null) },
+                                        onClick = {
+                                            showMenu = false
+                                            onMoveFromVault()
                                         },
                                     )
                                 }
