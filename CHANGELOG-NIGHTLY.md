@@ -2,6 +2,14 @@
 
 Nightly builds are rolling prereleases published from the `nightly` release tag. This file tracks changes that are available in nightly before they are promoted into the stable changelog.
 
+## [2.0.1.5] - 2026-07-02
+
+### Added
+- **Private Vault** - Secure download storage with PIN protection. Completed downloads can be moved to a private vault that is not backed up to cloud storage. Requires a 4-digit PIN to access.
+
+### Fixed
+- **Vault serialization** - Fixed "Serializer for class 'VaultSettings' is not found" error by adding `@Serializable` annotation.
+
 ## [2.0.1.4] - 2026-07-01
 
 ### Fixed
