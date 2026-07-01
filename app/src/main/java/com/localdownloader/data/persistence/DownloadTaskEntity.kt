@@ -25,4 +25,5 @@ data class DownloadTaskEntity(
     @ColumnInfo(name = "pause_expires_at") val pauseExpiresAtEpochMs: Long? = null,
     @ColumnInfo(name = "created_at") val createdAtEpochMs: Long = System.currentTimeMillis(),
     @ColumnInfo(name = "updated_at") val updatedAtEpochMs: Long = System.currentTimeMillis(),
+    @ColumnInfo(name = "is_in_vault") val isInVault: Boolean = false,
 )

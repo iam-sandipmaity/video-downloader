@@ -5,13 +5,14 @@ import androidx.compose.material.icons.rounded.CloudDownload
 import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.MusicNote
-import androidx.compose.material.icons.outlined.PlayCircle
-import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material.icons.rounded.Transform
 import androidx.compose.material.icons.rounded.Web
+import androidx.compose.material.icons.outlined.PlayCircle
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -34,6 +35,7 @@ fun MoreScreen(
     onOpenUpdates: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenHelp: () -> Unit,
+    onOpenVault: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     PreferencePageScaffold(
@@ -55,6 +57,13 @@ fun MoreScreen(
                     title = stringResource(R.string.more_history_title),
                     subtitle = stringResource(R.string.more_history_subtitle),
                     onClick = onOpenHistory,
+                )
+                PreferenceDivider()
+                PreferenceRow(
+                    icon = Icons.Filled.Lock,
+                    title = stringResource(R.string.more_vault_title),
+                    subtitle = stringResource(R.string.more_vault_subtitle),
+                    onClick = onOpenVault,
                 )
                 PreferenceDivider()
                 PreferenceRow(

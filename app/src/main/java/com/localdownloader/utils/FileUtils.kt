@@ -30,7 +30,7 @@ import javax.inject.Singleton
 
 @Singleton
 class FileUtils @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @ApplicationContext val context: Context,
     settingsStore: SettingsStore,
 ) {
     private val conversionDirName = "converted"
@@ -50,6 +50,46 @@ class FileUtils @Inject constructor(
         AUDIO,
         OTHER,
         PLAYLIST,
+    }
+
+    fun ensureVaultDir(): File {
+        val vaultDir = File(context.noBackupFilesDir, "vault")
+        if (!vaultDir.exists()) vaultDir.mkdirs()
+        return vaultDir
+    }
+
+    fun moveToVault(path: String): String {
+        val sourceFile = File(path)
+        if (!sourceFile.exists()) return path
+
+        val vaultDir = ensureVaultDir()
+        val targetFile = File(vaultDir, sourceFile.name)
+        if (sourceFile.renameTo(targetFile)) {
+            return targetFile.absolutePath
+        }
+
+        return runCatching {
+            sourceFile.copyTo(targetFile, overwrite = false)
+            sourceFile.delete()
+            targetFile.absolutePath
+        }.getOrNull() ?: path
+    }
+
+    fun moveFromVault(path: String): String {
+        val vaultFile = File(path)
+        if (vaultFile.parentFile?.name?.equals("vault", ignoreCase = true) != true) return path
+
+        val libraryDir = ensureDownloadsDir()
+        val targetFile = File(libraryDir, vaultFile.name)
+        if (vaultFile.renameTo(targetFile)) {
+            return targetFile.absolutePath
+        }
+
+        return runCatching {
+            vaultFile.copyTo(targetFile, overwrite = false)
+            vaultFile.delete()
+            targetFile.absolutePath
+        }.getOrNull() ?: path
     }
 
     /**

@@ -15,11 +15,13 @@ import com.localdownloader.domain.models.ContrastMode
 import com.localdownloader.domain.models.CookieProfile
 import com.localdownloader.domain.models.SYSTEM_LANGUAGE_TAG
 import com.localdownloader.domain.models.ThemeMode
+import com.localdownloader.domain.models.VaultSettings
 import com.localdownloader.domain.models.YoutubeAuthConfig
 import com.localdownloader.utils.SensitiveDataSanitizer
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -82,6 +84,7 @@ class SettingsStore @Inject constructor(
         val maxConcurrent = intPreferencesKey("max_concurrent")
         val allowMeteredDownloads = booleanPreferencesKey("allow_metered_downloads")
         val darkTheme = booleanPreferencesKey("dark_theme")
+        val vaultSettings = stringPreferencesKey("vault_settings_json")
     }
 
     fun observeSettings(): Flow<AppSettings> {
@@ -133,6 +136,7 @@ class SettingsStore @Inject constructor(
                     maxConcurrentDownloads = prefs[Keys.maxConcurrent] ?: 2,
                     allowMeteredDownloads = prefs[Keys.allowMeteredDownloads] ?: false,
                     darkTheme = prefs[Keys.darkTheme] ?: false,
+                    vaultSettings = decodeVaultSettings(prefs[Keys.vaultSettings]),
                 )
             }
     }
@@ -179,6 +183,20 @@ class SettingsStore @Inject constructor(
             prefs[Keys.maxConcurrent] = settings.maxConcurrentDownloads
             prefs[Keys.allowMeteredDownloads] = settings.allowMeteredDownloads
             prefs[Keys.darkTheme] = settings.darkTheme
+            prefs[Keys.vaultSettings] = json.encodeToString(settings.vaultSettings)
+        }
+    }
+
+suspend fun getVaultSettings(): VaultSettings {
+        return context.settingsDataStore.data
+            .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+            .map { it[Keys.vaultSettings]?.let { json.decodeFromString<VaultSettings>(it) } ?: VaultSettings() }
+            .first()
+    }
+
+    suspend fun updateVaultSettings(settings: VaultSettings) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[Keys.vaultSettings] = json.encodeToString(settings)
         }
     }
 
@@ -280,5 +298,14 @@ class SettingsStore @Inject constructor(
 
     private fun secureCookieFile(profileId: String): File {
         return File(secureCookieDir.apply { mkdirs() }, "cookie-$profileId.txt")
+    }
+
+    private fun decodeVaultSettings(raw: String?): VaultSettings {
+        val payload = raw?.trim().orEmpty()
+        return if (payload.isBlank()) {
+            VaultSettings()
+        } else {
+            runCatching { json.decodeFromString<VaultSettings>(payload) }.getOrDefault(VaultSettings())
+        }
     }
 }

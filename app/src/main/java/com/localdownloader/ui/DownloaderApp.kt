@@ -65,17 +65,9 @@ import com.localdownloader.ui.screens.ExternalPreviewMode
 import com.localdownloader.ui.screens.ExternalPreviewScreen
 import com.localdownloader.ui.screens.HelpScreen
 import com.localdownloader.ui.screens.MoreScreen
-import com.localdownloader.ui.screens.MusicPlayerScreen
-import com.localdownloader.ui.screens.PlayerScreen
-import com.localdownloader.ui.screens.ProgressScreen
-import com.localdownloader.ui.screens.SettingsScreen
-import com.localdownloader.ui.screens.UpdateChangelogScreen
-import com.localdownloader.ui.screens.UpdateChangelogSections
-import com.localdownloader.ui.screens.UpdatesScreen
-import com.localdownloader.ui.screens.VideoGestureGuideSheet
-import com.localdownloader.ui.screens.VideoPlayerSourceSheet
-import com.localdownloader.ui.screens.YoutubeAuthLoginScreen
+import com.localdownloader.ui.screens.VaultScreen
 import com.localdownloader.ui.screens.YoutubeAuthScreen
+import com.localdownloader.ui.screens.YoutubeAuthLoginScreen
 import com.localdownloader.ui.screens.settings.AboutSettingsScreen
 import com.localdownloader.ui.screens.settings.AccessSettingsScreen
 import com.localdownloader.ui.screens.settings.AppearanceSettingsScreen
@@ -84,6 +76,7 @@ import com.localdownloader.ui.screens.settings.DownloadSettingsScreen
 import com.localdownloader.ui.screens.settings.NotificationsSettingsScreen
 import com.localdownloader.ui.screens.settings.StorageSettingsScreen
 import com.localdownloader.viewmodel.AppLogViewModel
+import com.localdownloader.viewmodel.VaultViewModel
 import com.localdownloader.ui.model.ExternalOpenRequest
 import com.localdownloader.ui.model.MediaKind
 import com.localdownloader.ui.model.buildVideoLibraryItems
@@ -97,6 +90,15 @@ import com.localdownloader.viewmodel.MusicSourceViewModel
 import com.localdownloader.viewmodel.MusicTrimViewModel
 import com.localdownloader.viewmodel.PlayerViewModel
 import com.localdownloader.viewmodel.UpdatesViewModel
+import com.localdownloader.ui.screens.UpdatesScreen
+import com.localdownloader.ui.screens.UpdateChangelogScreen
+import com.localdownloader.ui.screens.UpdateChangelogSections
+import com.localdownloader.ui.screens.VideoGestureGuideSheet
+import com.localdownloader.ui.screens.VideoPlayerSourceSheet
+import com.localdownloader.ui.screens.ProgressScreen
+import com.localdownloader.ui.screens.PlayerScreen
+import com.localdownloader.ui.screens.MusicPlayerScreen
+import com.localdownloader.ui.screens.SettingsScreen
 
 @Composable
 fun DownloaderApp(
@@ -612,6 +614,7 @@ fun DownloaderApp(
                     onOpenUpdates = { navController.navigate(Routes.Updates) },
                     onOpenSettings = { navController.navigate(Routes.Settings) },
                     onOpenHelp = { navController.navigate(Routes.Help) },
+                    onOpenVault = { navController.navigate(Routes.Vault) },
                 )
             }
             composable(Routes.YoutubeAuth) {
@@ -1031,6 +1034,15 @@ fun DownloaderApp(
                     )
                 }
             }
+            composable(Routes.Vault) {
+                val vaultViewModel: VaultViewModel = hiltViewModel()
+                VaultScreen(
+                    vaultViewModel = vaultViewModel,
+                    downloadViewModel = downloadViewModel,
+                    onBack = { navController.popBackStack() },
+                    onMoveToDownloads = { navController.navigate(Routes.Downloads) },
+                )
+            }
         }
     }
 }
@@ -1061,6 +1073,7 @@ object Routes {
     const val Help = "help"
     const val Player = AppLaunchRouter.ROUTE_PLAYER
     const val ExternalOpen = "external_open"
+    const val Vault = "vault"
 
     fun updateChangelog(section: String): String {
         return "updates/changelog/${android.net.Uri.encode(section)}"

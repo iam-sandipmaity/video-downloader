@@ -253,6 +253,8 @@
     <string name="more_converter_subtitle">Turn downloaded media into a different format.</string>
     <string name="more_compressor_title">Compressor</string>
     <string name="more_compressor_subtitle">Reduce file size before sharing or archiving.</string>
+    <string name="more_vault_title">Private Vault</string>
+    <string name="more_vault_subtitle">Securely store your downloaded media with a PIN.</string>
 
     <string name="settings_title">Settings</string>
     <string name="settings_appearance_title">Appearance</string>
@@ -788,4 +790,29 @@
     <string name="about_credits_subtitle">Tap any project to open its official website or upstream source.</string>
     <string name="about_reset_title">Reset all settings</string>
     <string name="about_reset_subtitle">Restore appearance, folders, download defaults, access preferences, and library behavior back to the default setup.</string>
+
+    <string name="vault_title">Private Vault</string>
+    <string name="vault_subtitle">Securely store your downloaded media</string>
+    <string name="vault_empty">Your vault is empty</string>
+    <string name="vault_empty_body">Move completed downloads here to keep them secure and private.</string>
+    <string name="vault_pin_setup_title">Set up Vault PIN</string>
+    <string name="vault_pin_setup_body">Create a 4-digit PIN to protect your vault. Files are stored in a secure location.</string>
+    <string name="vault_pin_prompt">Enter vault PIN</string>
+    <string name="vault_pin_confirm">Confirm PIN</string>
+    <string name="vault_pin_new">New PIN</string>
+    <string name="vault_pin_hint">4-digit PIN</string>
+    <string name="vault_enable">Enable Vault</string>
+    <string name="vault_disable">Disable Vault</string>
+    <string name="vault_move_to_vault">Move to Vault</string>
+    <string name="vault_move_to_downloads">Move to Downloads</string>
+    <string name="vault_unlock">Unlock Vault</string>
+    <string name="vault_unlocked">Vault unlocked</string>
+    <string name="vault_locked">Vault locked</string>
+    <string name="vault_invalid_pin">Invalid PIN</string>
+    <string name="vault_pin_set">PIN set successfully</string>
+    <string name="vault_vault_name">Vault name</string>
+    <string name="vault_biometric">Use biometric to unlock</string>
+    <string name="vault_move_to_vault_success">Moved to vault</string>
+    <string name="vault_move_to_downloads_success">Moved to downloads</string>
+    <string name="vault_move_failed">Move failed</string>
 </resources>
