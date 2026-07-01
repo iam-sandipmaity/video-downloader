@@ -15,8 +15,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.outlined.MoveToInbox
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -28,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.localdownloader.R
 import com.localdownloader.domain.models.DownloadTask
@@ -46,64 +49,82 @@ fun VaultScreen(
 ) {
     val vaultState = vaultViewModel.uiState.value
     val downloadState = downloadViewModel.uiState.value
+    var showPinDialog by remember { mutableStateOf(!vaultState.isUnlocked) }
+
+    if (showPinDialog) {
+        VaultPinEntryDialog(
+            onDismiss = onBack,
+            onVerify = { pin ->
+                vaultViewModel.verifyPin(pin) { success ->
+                    if (success) {
+                        showPinDialog = false
+                    }
+                }
+            },
+        )
+    }
+
     val vaultItems = remember(downloadState.tasks) {
         downloadState.tasks.filter { task -> task.isInVault }
     }
 
-    if (!vaultState.isUnlocked) {
-        VaultLockScreen(
-            vaultState = vaultState,
-            onBack = onBack,
-        )
-    } else {
-        VaultContentScreen(
-            vaultItems = vaultItems,
-            vaultState = vaultState,
-            downloadViewModel = downloadViewModel,
-            onBack = onBack,
-            onMoveToDownloads = onMoveToDownloads,
-        )
-    }
+    VaultContentScreen(
+        vaultItems = vaultItems,
+        vaultState = vaultState,
+        downloadViewModel = downloadViewModel,
+        onBack = onBack,
+        onMoveToDownloads = onMoveToDownloads,
+            )
 }
 
 @Composable
-private fun VaultLockScreen(
-    vaultState: VaultUiState,
-    onBack: () -> Unit,
+private fun VaultPinEntryDialog(
+    onDismiss: () -> Unit,
+    onVerify: (String) -> Unit,
 ) {
-    PreferencePageScaffold(
-        title = stringResource(R.string.vault_title),
-        onBack = onBack,
-    ) {
-        item {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
+    var pin by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.vault_unlock)) },
+        text = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(
                     imageVector = Icons.Filled.Lock,
                     contentDescription = null,
-                    modifier = Modifier.size(64.dp),
+                    modifier = Modifier.size(48.dp),
                     tint = MaterialTheme.colorScheme.primary,
-                )
-                Text(
-                    text = stringResource(R.string.vault_unlock),
-                    style = MaterialTheme.typography.titleLarge,
                 )
                 Text(
                     text = stringResource(R.string.vault_locked),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(top = 16.dp),
                 )
-                TextButton(onClick = onBack) {
-                    Text(stringResource(R.string.common_back))
-                }
+                OutlinedTextField(
+                    value = pin,
+                    onValueChange = { pin = it },
+                    label = { Text(stringResource(R.string.vault_pin_hint)) },
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp),
+                )
             }
-        }
-    }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onVerify(pin) },
+                enabled = pin.length >= 4,
+            ) {
+                Text(stringResource(R.string.vault_unlock))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.common_cancel))
+            }
+        },
+    )
 }
 
 @Composable
@@ -118,6 +139,7 @@ private fun VaultContentScreen(
 
     PreferencePageScaffold(
         title = vaultName,
+        subtitle = stringResource(R.string.vault_subtitle),
         onBack = onBack,
     ) {
         if (vaultItems.isEmpty()) {

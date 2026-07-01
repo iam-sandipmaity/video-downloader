@@ -1,5 +1,8 @@
 package com.localdownloader.domain.models
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class VaultSettings(
     val isEnabled: Boolean = false,
     val pinHash: String = "",
