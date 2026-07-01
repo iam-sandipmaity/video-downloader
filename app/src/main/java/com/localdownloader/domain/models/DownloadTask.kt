@@ -22,6 +22,7 @@ data class DownloadTask(
     val pauseExpiresAtEpochMs: Long? = null,
     val createdAtEpochMs: Long = System.currentTimeMillis(),
     val updatedAtEpochMs: Long = System.currentTimeMillis(),
+    val isInVault: Boolean = false,
 )
 
 enum class DownloadStatus {
