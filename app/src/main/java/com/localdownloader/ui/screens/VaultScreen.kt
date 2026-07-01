@@ -24,7 +24,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -49,16 +48,23 @@ fun VaultScreen(
 ) {
     val vaultState = vaultViewModel.uiState.value
     val downloadState = downloadViewModel.uiState.value
-    var showPinDialog by remember { mutableStateOf(!vaultState.isUnlocked) }
 
-    if (showPinDialog) {
+    // If vault is not enabled, show setup
+    if (!vaultState.vaultSettings.isEnabled) {
+        VaultSetupScreen(
+            vaultViewModel = vaultViewModel,
+            onBack = onBack,
+        )
+    return
+    }
+
+    // If vault is enabled but locked, show PIN entry
+    if (!vaultState.isUnlocked) {
         VaultPinEntryDialog(
             onDismiss = onBack,
             onVerify = { pin ->
                 vaultViewModel.verifyPin(pin) { success ->
-                    if (success) {
-                        showPinDialog = false
-                    }
+                    // PIN verification handled by ViewModel
                 }
             },
         )
@@ -74,7 +80,7 @@ fun VaultScreen(
         downloadViewModel = downloadViewModel,
         onBack = onBack,
         onMoveToDownloads = onMoveToDownloads,
-            )
+    )
 }
 
 @Composable
@@ -121,6 +127,80 @@ private fun VaultPinEntryDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.common_cancel))
+            }
+        },
+    )
+}
+
+@Composable
+private fun VaultSetupScreen(
+    vaultViewModel: VaultViewModel,
+    onBack: () -> Unit,
+) {
+    var pin by remember { mutableStateOf("") }
+    var confirmPin by remember { mutableStateOf("") }
+    var vaultName by remember { mutableStateOf("Private Vault") }
+
+    AlertDialog(
+        onDismissRequest = onBack,
+        title = { Text(stringResource(R.string.vault_pin_setup_title)) },
+        text = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(
+                    imageVector = Icons.Filled.Lock,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    text = stringResource(R.string.vault_pin_setup_body),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(vertical = 16.dp),
+                )
+                OutlinedTextField(
+                    value = vaultName,
+                    onValueChange = { vaultName = it },
+                    label = { Text(stringResource(R.string.vault_vault_name)) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = pin,
+                    onValueChange = { pin = it },
+                    label = { Text(stringResource(R.string.vault_pin_new)) },
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                )
+                OutlinedTextField(
+                    value = confirmPin,
+                    onValueChange = { confirmPin = it },
+                    label = { Text(stringResource(R.string.vault_pin_confirm)) },
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (pin.length >= 4 && pin == confirmPin) {
+                        vaultViewModel.updatePin(pin)
+                        vaultViewModel.setVaultName(vaultName)
+                        onBack()
+                    }
+                },
+                enabled = pin.length >= 4 && pin == confirmPin,
+            ) {
+                Text(stringResource(R.string.common_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onBack) {
                 Text(stringResource(R.string.common_cancel))
             }
         },
