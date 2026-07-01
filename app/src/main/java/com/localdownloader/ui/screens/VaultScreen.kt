@@ -139,7 +139,6 @@ private fun VaultContentScreen(
 
     PreferencePageScaffold(
         title = vaultName,
-        subtitle = stringResource(R.string.vault_subtitle),
         onBack = onBack,
     ) {
         if (vaultItems.isEmpty()) {
