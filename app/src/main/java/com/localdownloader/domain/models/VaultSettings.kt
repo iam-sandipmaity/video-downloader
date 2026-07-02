@@ -8,6 +8,7 @@ data class SingleVaultSettings(
     val name: String,
     val pinHash: String,
     val isBiometricEnabled: Boolean = false,
+    val autoMoveUrlRules: List<String> = emptyList(),
 )
 
 @Serializable

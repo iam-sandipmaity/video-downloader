@@ -15,12 +15,17 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.MoveToInbox
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -43,6 +48,7 @@ import com.localdownloader.domain.models.SingleVaultSettings
 import com.localdownloader.domain.models.getAllVaults
 import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.viewmodel.DownloadViewModel
+import com.localdownloader.viewmodel.DownloadUiState
 import com.localdownloader.viewmodel.VaultUiState
 import com.localdownloader.viewmodel.VaultViewModel
 
@@ -105,6 +111,10 @@ fun VaultScreen(
             VaultContentScreen(
                 vaultItems = vaultItems,
                 vaultName = activeVaultName,
+                activeId = activeId,
+                vaultState = vaultState,
+                downloadState = downloadState,
+                vaultViewModel = vaultViewModel,
                 downloadViewModel = downloadViewModel,
                 onBack = { vaultViewModel.lockActiveVault() },
                 onMoveToDownloads = onMoveToDownloads,
@@ -381,14 +391,28 @@ private fun VaultSelectorScreen(
 private fun VaultContentScreen(
     vaultItems: List<DownloadTask>,
     vaultName: String,
+    activeId: String,
+    vaultState: VaultUiState,
+    downloadState: DownloadUiState,
+    vaultViewModel: VaultViewModel,
     downloadViewModel: DownloadViewModel,
     onBack: () -> Unit,
     onMoveToDownloads: () -> Unit,
     onPlayItem: (String) -> Unit,
 ) {
+    var showSettings by remember { mutableStateOf(false) }
+
     PreferencePageScaffold(
         title = vaultName,
         onBack = onBack,
+        actions = {
+            IconButton(onClick = { showSettings = true }) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "Vault Settings"
+                )
+            }
+        },
         content = {
             if (vaultItems.isEmpty()) {
                 item {
@@ -429,6 +453,173 @@ private fun VaultContentScreen(
             }
         }
     )
+
+    if (showSettings) {
+        var newVaultName by remember { mutableStateOf(vaultName) }
+        var showDeleteConfirm by remember { mutableStateOf(false) }
+        var newRule by remember { mutableStateOf("") }
+        val activeVaultSettings = vaultState.vaultSettings.getAllVaults().firstOrNull { it.id == activeId }
+        val rules = activeVaultSettings?.autoMoveUrlRules ?: emptyList()
+
+        AlertDialog(
+            onDismissRequest = { showSettings = false },
+            title = { Text("$vaultName Settings") },
+            text = {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Rename Vault", style = MaterialTheme.typography.titleSmall)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                OutlinedTextField(
+                                    value = newVaultName,
+                                    onValueChange = { newVaultName = it },
+                                    singleLine = true,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Button(
+                                    onClick = {
+                                        if (newVaultName.isNotBlank()) {
+                                            vaultViewModel.renameVault(activeId, newVaultName)
+                                        }
+                                    },
+                                    enabled = newVaultName.isNotBlank() && newVaultName != vaultName
+                                ) {
+                                    Text("Rename")
+                                }
+                            }
+                        }
+                    }
+
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Auto-Move URL Rules", style = MaterialTheme.typography.titleSmall)
+                            Text(
+                                text = "Downloads matching these prefixes will automatically move here.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                OutlinedTextField(
+                                    value = newRule,
+                                    onValueChange = { newRule = it },
+                                    placeholder = { Text("https://example.com") },
+                                    singleLine = true,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Button(
+                                    onClick = {
+                                        if (newRule.isNotBlank()) {
+                                            vaultViewModel.addAutoMoveRule(activeId, newRule)
+                                            newRule = ""
+                                        }
+                                    },
+                                    enabled = newRule.isNotBlank()
+                                ) {
+                                    Text("Add")
+                                }
+                            }
+                        }
+                    }
+
+                    if (rules.isNotEmpty()) {
+                        items(rules) { rule ->
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = rule,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        maxLines = 1,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    IconButton(
+                                        onClick = { vaultViewModel.deleteAutoMoveRule(activeId, rule) },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = "Delete rule",
+                                            tint = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    item {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.padding(top = 16.dp)
+                        ) {
+                            Text("Danger Zone", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.error)
+                            Button(
+                                onClick = { showDeleteConfirm = true },
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Delete Vault & Stored Files", color = MaterialTheme.colorScheme.onError)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showSettings = false }) {
+                    Text("Close")
+                }
+            }
+        )
+
+        if (showDeleteConfirm) {
+            AlertDialog(
+                onDismissRequest = { showDeleteConfirm = false },
+                title = { Text("Delete $vaultName?") },
+                text = {
+                    Text("Are you sure? This will permanently delete the vault and delete all ${vaultItems.size} files stored inside it. This action is irreversible.")
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showDeleteConfirm = false
+                            showSettings = false
+                            vaultViewModel.deleteVault(activeId, downloadState.tasks)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Text("Delete Permanently")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteConfirm = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+    }
 }
 
 @Composable

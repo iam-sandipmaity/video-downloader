@@ -15,10 +15,13 @@ import javax.inject.Inject
 
 import com.localdownloader.domain.models.SingleVaultSettings
 import com.localdownloader.domain.models.getAllVaults
+import com.localdownloader.domain.models.DownloadTask
+import com.localdownloader.utils.FileUtils
 
 @HiltViewModel
 class VaultViewModel @Inject constructor(
     private val repository: DownloaderRepository,
+    private val fileUtils: FileUtils,
     private val logger: Logger,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(VaultUiState())
@@ -113,6 +116,86 @@ class VaultViewModel @Inject constructor(
             showSetup = false,
             errorMessage = null,
         )
+    }
+
+    fun renameVault(vaultId: String, newName: String) {
+        viewModelScope.launch {
+            runCatching {
+                val current = repository.getVaultSettings()
+                val updatedVaults = current.vaults.map { vault ->
+                    if (vault.id == vaultId) vault.copy(name = newName) else vault
+                }
+                val updatedSettings = current.copy(vaults = updatedVaults)
+                repository.updateVaultSettings(updatedSettings).getOrThrow()
+            }.onFailure { error ->
+                logger.e("VaultViewModel", "renameVault failed", error)
+            }
+        }
+    }
+
+    fun deleteVault(vaultId: String, tasks: List<DownloadTask>) {
+        viewModelScope.launch {
+            runCatching {
+                val vaultDir = fileUtils.ensureVaultDir(vaultId)
+                vaultDir.deleteRecursively()
+
+                tasks.filter { it.isInVault && it.outputPath?.contains("/vault/$vaultId/") == true }.forEach { task ->
+                    repository.deleteDownloadedFile(task.id)
+                }
+
+                val current = repository.getVaultSettings()
+                val updatedVaults = current.vaults.filter { it.id != vaultId }
+                val updatedSettings = current.copy(
+                    isEnabled = updatedVaults.isNotEmpty(),
+                    vaults = updatedVaults
+                )
+                repository.updateVaultSettings(updatedSettings).getOrThrow()
+
+                _uiState.value = _uiState.value.copy(
+                    activeVaultId = null,
+                    unlockingVaultId = null,
+                )
+            }.onFailure { error ->
+                logger.e("VaultViewModel", "deleteVault failed", error)
+            }
+        }
+    }
+
+    fun addAutoMoveRule(vaultId: String, rule: String) {
+        if (rule.isBlank()) return
+        viewModelScope.launch {
+            runCatching {
+                val current = repository.getVaultSettings()
+                val updatedVaults = current.vaults.map { vault ->
+                    if (vault.id == vaultId) {
+                        val newRules = (vault.autoMoveUrlRules + rule.trim()).distinct()
+                        vault.copy(autoMoveUrlRules = newRules)
+                    } else vault
+                }
+                val updatedSettings = current.copy(vaults = updatedVaults)
+                repository.updateVaultSettings(updatedSettings).getOrThrow()
+            }.onFailure { error ->
+                logger.e("VaultViewModel", "addAutoMoveRule failed", error)
+            }
+        }
+    }
+
+    fun deleteAutoMoveRule(vaultId: String, rule: String) {
+        viewModelScope.launch {
+            runCatching {
+                val current = repository.getVaultSettings()
+                val updatedVaults = current.vaults.map { vault ->
+                    if (vault.id == vaultId) {
+                        val newRules = vault.autoMoveUrlRules.filter { it != rule }
+                        vault.copy(autoMoveUrlRules = newRules)
+                    } else vault
+                }
+                val updatedSettings = current.copy(vaults = updatedVaults)
+                repository.updateVaultSettings(updatedSettings).getOrThrow()
+            }.onFailure { error ->
+                logger.e("VaultViewModel", "deleteAutoMoveRule failed", error)
+            }
+        }
     }
 
     fun showSetupScreen(show: Boolean) {
