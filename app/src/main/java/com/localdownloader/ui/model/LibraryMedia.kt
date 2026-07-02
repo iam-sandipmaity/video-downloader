@@ -16,7 +16,7 @@ fun buildVideoLibraryItems(
     fileExistsResolver: (String) -> Boolean = { path -> File(path).exists() },
 ): List<VideoLibraryItem> {
     return tasks
-        .filter { it.status == DownloadStatus.COMPLETED }
+        .filter { it.status == DownloadStatus.COMPLETED && !it.isInVault }
         .sortedByDescending { it.updatedAtEpochMs }
         .map { task ->
             val file = task.outputPath?.let(::File)

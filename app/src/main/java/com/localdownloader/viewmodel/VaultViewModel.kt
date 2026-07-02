@@ -31,25 +31,41 @@ class VaultViewModel @Inject constructor(
         }
     }
 
+    fun setupVault(pin: String, name: String) {
+        viewModelScope.launch {
+            runCatching {
+                val pinHash = hashPin(pin)
+                val currentSettings = repository.getVaultSettings()
+                val updatedSettings = currentSettings.copy(
+                    isEnabled = true,
+                    pinHash = pinHash,
+                    vaultName = name,
+                )
+                repository.updateVaultSettings(updatedSettings).getOrThrow()
+                // Update local state immediately
+                _uiState.value = _uiState.value.copy(
+                    vaultSettings = updatedSettings,
+                    isUnlocked = true,
+                )
+            }.onFailure { error ->
+                logger.e("VaultViewModel", "setupVault failed", error)
+            }
+        }
+    }
+
     fun updatePin(newPin: String) {
         viewModelScope.launch {
             runCatching {
                 val pinHash = hashPin(newPin)
                 val currentSettings = repository.getVaultSettings()
-                repository.updateSettings(
-                    repository.observeSettings().first().copy(
-                        vaultSettings = currentSettings.copy(
-                            isEnabled = true,
-                            pinHash = pinHash,
-                        )
-                    )
+                val updatedSettings = currentSettings.copy(
+                    isEnabled = true,
+                    pinHash = pinHash,
                 )
+                repository.updateVaultSettings(updatedSettings).getOrThrow()
                 // Update local state immediately
                 _uiState.value = _uiState.value.copy(
-                    vaultSettings = currentSettings.copy(
-                        isEnabled = true,
-                        pinHash = pinHash,
-                    ),
+                    vaultSettings = updatedSettings,
                     isUnlocked = true,
                 )
             }.onFailure { error ->
@@ -74,35 +90,38 @@ class VaultViewModel @Inject constructor(
 
     fun setBiometricEnabled(enabled: Boolean) {
         viewModelScope.launch {
-            val current = repository.getVaultSettings()
-            repository.updateSettings(
-                repository.observeSettings().first().copy(
-                    vaultSettings = current.copy(isBiometricEnabled = enabled)
-                )
-            )
+            runCatching {
+                val current = repository.getVaultSettings()
+                val updated = current.copy(isBiometricEnabled = enabled)
+                repository.updateVaultSettings(updated).getOrThrow()
+            }.onFailure { error ->
+                logger.e("VaultViewModel", "setBiometricEnabled failed", error)
+            }
         }
     }
 
     fun setVaultName(name: String) {
         viewModelScope.launch {
-            val current = repository.getVaultSettings()
-            repository.updateSettings(
-                repository.observeSettings().first().copy(
-                    vaultSettings = current.copy(vaultName = name)
-                )
-            )
+            runCatching {
+                val current = repository.getVaultSettings()
+                val updated = current.copy(vaultName = name)
+                repository.updateVaultSettings(updated).getOrThrow()
+            }.onFailure { error ->
+                logger.e("VaultViewModel", "setVaultName failed", error)
+            }
         }
     }
 
     fun disableVault() {
         viewModelScope.launch {
-            val current = repository.getVaultSettings()
-            repository.updateSettings(
-                repository.observeSettings().first().copy(
-                    vaultSettings = current.copy(isEnabled = false, pinHash = "")
-                )
-            )
-            _uiState.value = _uiState.value.copy(isUnlocked = false)
+            runCatching {
+                val current = repository.getVaultSettings()
+                val updated = current.copy(isEnabled = false, pinHash = "")
+                repository.updateVaultSettings(updated).getOrThrow()
+                _uiState.value = _uiState.value.copy(isUnlocked = false)
+            }.onFailure { error ->
+                logger.e("VaultViewModel", "disableVault failed", error)
+            }
         }
     }
 

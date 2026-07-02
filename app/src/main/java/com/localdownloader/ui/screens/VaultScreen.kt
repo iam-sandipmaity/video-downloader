@@ -190,9 +190,7 @@ private fun VaultSetupScreen(
             TextButton(
                 onClick = {
                     if (pin.length >= 4 && pin == confirmPin) {
-                        vaultViewModel.updatePin(pin)
-                        vaultViewModel.setVaultName(vaultName)
-                        onBack()
+                        vaultViewModel.setupVault(pin, vaultName)
                     }
                 },
                 enabled = pin.length >= 4 && pin == confirmPin,

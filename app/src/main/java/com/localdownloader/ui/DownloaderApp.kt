@@ -573,6 +573,7 @@ fun DownloaderApp(
                     onOpenPlayer = { taskId -> navController.navigate("${Routes.Player}/$taskId") },
                     onRename = downloadViewModel::renameDownloadedFile,
                     onDelete = downloadViewModel::deleteDownloadedFile,
+                    onMoveToVault = downloadViewModel::moveToVault,
                     onRemoveSelectedFromApp = downloadViewModel::removeDownloadedFilesFromLibrary,
                     onDeleteSelectedFromDevice = downloadViewModel::permanentlyDeleteDownloadedFiles,
                     onRemoveCompletedFromApp = downloadViewModel::clearCompletedLibraryEntries,

@@ -365,6 +365,7 @@ private fun DownloadTask.toEntity(json: Json, optionsJson: String? = null): Down
         pauseExpiresAtEpochMs = pauseExpiresAtEpochMs,
         createdAtEpochMs = createdAtEpochMs,
         updatedAtEpochMs = updatedAtEpochMs,
+        isInVault = isInVault,
     )
 }
 
@@ -392,6 +393,7 @@ private fun DownloadTaskEntity.toDomainTask(json: Json): DownloadTask? {
             pauseExpiresAtEpochMs = pauseExpiresAtEpochMs,
             createdAtEpochMs = createdAtEpochMs,
             updatedAtEpochMs = updatedAtEpochMs,
+            isInVault = isInVault,
         )
     }.getOrNull()
 }
