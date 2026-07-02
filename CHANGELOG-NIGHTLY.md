@@ -5,10 +5,19 @@ Nightly builds are rolling prereleases published from the `nightly` release tag.
 ## [2.0.1.5] - 2026-07-02
 
 ### Added
-- **Private Vault** - Secure download storage with PIN protection. Completed downloads can be moved to a private vault that is not backed up to cloud storage. Requires a 4-digit PIN to access.
+- **Private Vault** - Secure download storage with PIN protection. Completed downloads can be moved to a private vault that is not backed up to cloud storage.
+- **Multiple Vaults** - Support for creating and managing multiple vaults (e.g. Work, Personal) with distinct PIN credentials and secure subfolder allocations.
+- **Auto-Move URL Rules** - Vault settings allowing users to add URL prefixes so matching downloads are automatically secured in the selected vault upon completion.
+- **Vault Tab Filters and Search** - Added tab filters (All, Videos, Audios, Others) and a full-text Search Bar to easily manage secure vault items.
+- **In-App Music Player Integration** - Audio files in the vault now open directly in the full-screen music player, building a secure queue of all audio tracks in that vault.
+- **Click-to-Play** - Made vault item cards clickable to play secure video and audio files seamlessly inside the app.
+- **Redirect Setup Prompt** - Prompt dialog offering setup navigation if the user attempts to secure files from downloads but has not created any vault yet.
 
 ### Fixed
 - **Vault serialization** - Fixed "Serializer for class 'VaultSettings' is not found" error by adding `@Serializable` annotation.
+- **State Reactivity** - Replaced direct StateFlow value access in Compose screens with reactive state collection to guarantee instant recomposition.
+- **Security & Privacy Leak** - Changed file moving logic to delete staging copies from public MediaStore when securing files, hiding them completely from other apps.
+- **MediaStore Export on Move-Out** - Re-export files to the public Downloads folder when moved out of the vault so they become visible to system file manager apps again.
 
 ## [2.0.1.4] - 2026-07-01
 

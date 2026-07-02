@@ -29,6 +29,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -58,7 +60,8 @@ fun VaultScreen(
     downloadViewModel: DownloadViewModel,
     onBack: () -> Unit,
     onMoveToDownloads: () -> Unit,
-    onPlayItem: (String) -> Unit,
+    onPlayVideo: (String) -> Unit,
+    onPlayAudio: (String, List<DownloadTask>) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val vaultState by vaultViewModel.uiState.collectAsStateWithLifecycle()
@@ -118,7 +121,8 @@ fun VaultScreen(
                 downloadViewModel = downloadViewModel,
                 onBack = { vaultViewModel.lockActiveVault() },
                 onMoveToDownloads = onMoveToDownloads,
-                onPlayItem = onPlayItem,
+                onPlayVideo = onPlayVideo,
+                onPlayAudio = onPlayAudio,
             )
         }
 
@@ -398,9 +402,29 @@ private fun VaultContentScreen(
     downloadViewModel: DownloadViewModel,
     onBack: () -> Unit,
     onMoveToDownloads: () -> Unit,
-    onPlayItem: (String) -> Unit,
+    onPlayVideo: (String) -> Unit,
+    onPlayAudio: (String, List<DownloadTask>) -> Unit,
 ) {
     var showSettings by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedTab by remember { mutableStateOf(0) }
+
+    val filteredItems = remember(vaultItems, selectedTab, searchQuery) {
+        vaultItems.filter { item ->
+            val matchesSearch = item.title.contains(searchQuery, ignoreCase = true)
+            val path = item.outputPath.orEmpty()
+            val isVideo = com.localdownloader.media.isLikelyVideoPath(path)
+            val isAudio = com.localdownloader.media.isLikelyAudioPath(path)
+            val matchesTab = when (selectedTab) {
+                0 -> true // All
+                1 -> isVideo // Videos
+                2 -> isAudio // Audios
+                3 -> !isVideo && !isAudio // Others
+                else -> true
+            }
+            matchesSearch && matchesTab
+        }
+    }
 
     PreferencePageScaffold(
         title = vaultName,
@@ -414,7 +438,38 @@ private fun VaultContentScreen(
             }
         },
         content = {
-            if (vaultItems.isEmpty()) {
+            item {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Search vault files...") },
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+            }
+
+            item {
+                TabRow(
+                    selectedTabIndex = selectedTab,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    containerColor = androidx.compose.ui.graphics.Color.Transparent
+                ) {
+                    val tabs = listOf("All", "Videos", "Audios", "Others")
+                    tabs.forEachIndexed { index, title ->
+                        Tab(
+                            selected = selectedTab == index,
+                            onClick = { selectedTab = index },
+                            text = { Text(title) }
+                        )
+                    }
+                }
+            }
+
+            if (filteredItems.isEmpty()) {
                 item {
                     Column(
                         modifier = Modifier
@@ -430,24 +485,33 @@ private fun VaultContentScreen(
                             tint = MaterialTheme.colorScheme.primary,
                         )
                         Text(
-                            text = stringResource(R.string.vault_empty),
+                            text = if (searchQuery.isNotEmpty()) "No results found" else stringResource(R.string.vault_empty),
                             style = MaterialTheme.typography.titleMedium,
                         )
                         Text(
-                            text = stringResource(R.string.vault_empty_body),
+                            text = if (searchQuery.isNotEmpty()) "Try a different search query" else stringResource(R.string.vault_empty_body),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                         )
                     }
                 }
             } else {
-                items(vaultItems) { item ->
+                items(filteredItems) { item ->
+                    val path = item.outputPath.orEmpty()
+                    val isAudio = com.localdownloader.media.isLikelyAudioPath(path)
                     VaultItemCard(
                         item = item,
                         onMoveToDownloads = { taskId ->
                             downloadViewModel.moveFromVault(taskId)
                         },
-                        onPlayClick = { onPlayItem(item.id) },
+                        onPlayClick = {
+                            if (isAudio) {
+                                val audioTasks = vaultItems.filter { com.localdownloader.media.isLikelyAudioPath(it.outputPath.orEmpty()) }
+                                onPlayAudio(item.id, audioTasks)
+                            } else {
+                                onPlayVideo(item.id)
+                            }
+                        },
                     )
                 }
             }

@@ -1121,7 +1121,22 @@ fun DownloaderApp(
                     downloadViewModel = downloadViewModel,
                     onBack = { navController.popBackStack() },
                     onMoveToDownloads = { navController.navigate(Routes.Downloads) },
-                    onPlayItem = { taskId -> navController.navigate("${Routes.Player}/$taskId") },
+                    onPlayVideo = { taskId -> navController.navigate("${Routes.Player}/$taskId") },
+                    onPlayAudio = { taskId, audioTasks ->
+                        val audioQueue = audioTasks.map { task ->
+                            com.localdownloader.audio.AudioQueueItem(
+                                taskId = task.id,
+                                title = task.title,
+                                filePath = task.outputPath.orEmpty(),
+                            )
+                        }
+                        if (audioQueue.isNotEmpty()) {
+                            audioPlaybackViewModel.playQueue(audioQueue, taskId, false)
+                        }
+                        navController.navigate(Routes.Music) {
+                            launchSingleTop = true
+                        }
+                    }
                 )
             }
         }
