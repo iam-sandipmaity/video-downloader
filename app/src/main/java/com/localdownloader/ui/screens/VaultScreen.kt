@@ -1,5 +1,6 @@
 package com.localdownloader.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,6 +24,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,10 +47,11 @@ fun VaultScreen(
     downloadViewModel: DownloadViewModel,
     onBack: () -> Unit,
     onMoveToDownloads: () -> Unit,
+    onPlayItem: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val vaultState = vaultViewModel.uiState.value
-    val downloadState = downloadViewModel.uiState.value
+    val vaultState by vaultViewModel.uiState.collectAsStateWithLifecycle()
+    val downloadState by downloadViewModel.uiState.collectAsStateWithLifecycle()
 
     // If vault is not enabled, show setup
     if (!vaultState.vaultSettings.isEnabled) {
@@ -81,6 +84,7 @@ fun VaultScreen(
         downloadViewModel = downloadViewModel,
         onBack = onBack,
         onMoveToDownloads = onMoveToDownloads,
+        onPlayItem = onPlayItem,
     )
 }
 
@@ -213,6 +217,7 @@ private fun VaultContentScreen(
     downloadViewModel: DownloadViewModel,
     onBack: () -> Unit,
     onMoveToDownloads: () -> Unit,
+    onPlayItem: (String) -> Unit,
 ) {
     val vaultName = vaultState.vaultSettings.vaultName.ifBlank { "Vault" }
 
@@ -253,6 +258,7 @@ private fun VaultContentScreen(
                         onMoveToDownloads = { taskId ->
                             downloadViewModel.moveFromVault(taskId)
                         },
+                        onPlayClick = { onPlayItem(item.id) },
                     )
                 }
             }
@@ -264,11 +270,13 @@ private fun VaultContentScreen(
 private fun VaultItemCard(
     item: DownloadTask,
     onMoveToDownloads: (String) -> Unit,
+    onPlayClick: () -> Unit,
 ) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clickable { onPlayClick() },
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {

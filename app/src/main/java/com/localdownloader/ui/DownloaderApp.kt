@@ -1042,6 +1042,7 @@ fun DownloaderApp(
                     downloadViewModel = downloadViewModel,
                     onBack = { navController.popBackStack() },
                     onMoveToDownloads = { navController.navigate(Routes.Downloads) },
+                    onPlayItem = { taskId -> navController.navigate("${Routes.Player}/$taskId") },
                 )
             }
         }

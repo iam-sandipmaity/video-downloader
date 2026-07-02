@@ -64,13 +64,10 @@ class FileUtils @Inject constructor(
 
         val vaultDir = ensureVaultDir()
         val targetFile = File(vaultDir, sourceFile.name)
-        if (sourceFile.renameTo(targetFile)) {
-            return targetFile.absolutePath
-        }
 
         return runCatching {
             sourceFile.copyTo(targetFile, overwrite = false)
-            sourceFile.delete()
+            deleteManagedFile(sourceFile.absolutePath)
             targetFile.absolutePath
         }.getOrNull() ?: path
     }

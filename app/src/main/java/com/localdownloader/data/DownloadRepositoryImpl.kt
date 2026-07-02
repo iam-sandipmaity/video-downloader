@@ -1222,9 +1222,20 @@ class DownloadRepositoryImpl @Inject constructor(
             val outputPath = task.outputPath?.takeIf { it.isNotBlank() }
                 ?: error("This task does not have a saved output file.")
             val libraryPath = fileUtils.moveFromVault(outputPath)
+            
+            var finalPath = libraryPath
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                val exportedPath = fileUtils.copyToPublicDownloads(java.io.File(libraryPath), null)
+                if (exportedPath != null) {
+                    finalPath = exportedPath
+                    if (exportedPath != libraryPath) {
+                        fileUtils.deleteManagedFile(libraryPath)
+                    }
+                }
+            }
             downloadTaskStore.update(taskId) { current ->
                 current.copy(
-                    outputPath = libraryPath,
+                    outputPath = finalPath,
                     isInVault = false,
                     updatedAtEpochMs = System.currentTimeMillis(),
                 )
