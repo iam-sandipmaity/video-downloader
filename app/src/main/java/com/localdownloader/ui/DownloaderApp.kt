@@ -131,6 +131,7 @@ fun DownloaderApp(
     val vaultViewModel: VaultViewModel = hiltViewModel()
     val vaultState by vaultViewModel.uiState.collectAsStateWithLifecycle()
     var vaultSelectionTaskId by remember { mutableStateOf<String?>(null) }
+    var vaultSetupPromptTaskId by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     // Use the DI-provided FileUtils from mediaToolsViewModel instead of creating a new instance.
     val fileUtils = mediaToolsViewModel.fileUtils
@@ -352,6 +353,30 @@ fun DownloaderApp(
                 }
             )
         }
+    }
+
+    val activeVaultSetupPromptTaskId = vaultSetupPromptTaskId
+    if (activeVaultSetupPromptTaskId != null) {
+        AlertDialog(
+            onDismissRequest = { vaultSetupPromptTaskId = null },
+            title = { Text("Private Vault Setup Required") },
+            text = { Text("You must set up a Private Vault before you can secure files. Would you like to create one now?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        vaultSetupPromptTaskId = null
+                        navController.navigate(Routes.Vault)
+                    }
+                ) {
+                    Text("Set Up")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { vaultSetupPromptTaskId = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     LaunchedEffect(formatState.themeMode, formatState.accentPreset, formatState.contrastMode) {
@@ -621,9 +646,10 @@ fun DownloaderApp(
                     onDelete = downloadViewModel::deleteDownloadedFile,
                     onMoveToVault = { taskId ->
                         val vaults = vaultState.vaultSettings.getAllVaults()
-                        if (vaults.size <= 1) {
-                            val vaultId = vaults.firstOrNull()?.id ?: "default"
-                            downloadViewModel.moveToVault(taskId, vaultId)
+                        if (vaults.isEmpty()) {
+                            vaultSetupPromptTaskId = taskId
+                        } else if (vaults.size == 1) {
+                            downloadViewModel.moveToVault(taskId, vaults.first().id)
                         } else {
                             vaultSelectionTaskId = taskId
                         }
