@@ -17,6 +17,7 @@ import com.localdownloader.data.SettingsStore
 import com.localdownloader.domain.models.DownloadOptions
 import com.localdownloader.domain.models.DownloadStatus
 import com.localdownloader.domain.models.DownloadTask
+import com.localdownloader.domain.models.getAllVaults
 import com.localdownloader.domain.repositories.DownloaderRepository
 import com.localdownloader.downloader.CommandResult
 import com.localdownloader.downloader.DownloadEngine
@@ -684,11 +685,34 @@ class DownloadWorker @AssistedInject constructor(
                 ?.length()
                 ?.toReadableSize()
 
+            var resolvedPath = finalPath
+            var isInVault = false
+            runCatching {
+                val vaultSettings = settingsStore.observeSettings().first().vaultSettings
+                if (vaultSettings.isEnabled) {
+                    val sourceUrl = persistedTask?.url.orEmpty().ifBlank { url }
+                    val matchingVault = vaultSettings.getAllVaults().firstOrNull { vault ->
+                        vault.autoMoveUrlRules.any { rule ->
+                            sourceUrl.startsWith(rule, ignoreCase = true)
+                        }
+                    }
+                    if (matchingVault != null && finalPath != null) {
+                        logger.i("DownloadWorker", "Auto-moving completed task $taskId to vault ${matchingVault.name}")
+                        val vaultPath = fileUtils.moveToVault(finalPath, matchingVault.id)
+                        resolvedPath = vaultPath
+                        isInVault = true
+                    }
+                }
+            }.onFailure { error ->
+                logger.e("DownloadWorker", "Auto-move vault rule evaluation failed", error)
+            }
+
             downloadTaskStore.update(taskId) { task ->
                 task.copy(
                     status = DownloadStatus.COMPLETED,
                     progressPercent = 100,
-                    outputPath = finalPath,
+                    outputPath = resolvedPath,
+                    isInVault = isInVault,
                     subtitlePaths = exportedBundle.subtitlePaths,
                     downloadedStr = finalSizeLabel ?: task.downloadedStr.takeMeaningfulSizeLabel(),
                     totalSizeStr = finalSizeLabel ?: task.totalSizeStr.takeMeaningfulSizeLabel(),
@@ -698,11 +722,11 @@ class DownloadWorker @AssistedInject constructor(
             showCompletionNotification(
                 taskId = taskId,
                 title = runningTitle,
-                outputPath = finalPath,
+                outputPath = resolvedPath,
                 sizeLabel = finalSizeLabel,
             )
             refillQueuedDownloadsSafely(taskId)
-            return Result.success(workDataOf(WorkerKeys.OUTPUT_PATH to finalPath))
+            return Result.success(workDataOf(WorkerKeys.OUTPUT_PATH to resolvedPath))
         }
 
         logger.w(

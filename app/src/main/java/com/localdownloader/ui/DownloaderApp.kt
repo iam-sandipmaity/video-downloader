@@ -45,6 +45,13 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.unit.dp
+import com.localdownloader.domain.models.getAllVaults
 import com.localdownloader.R
 import com.localdownloader.AppLaunchRouter
 import com.localdownloader.AppOpenRequest
@@ -65,17 +72,9 @@ import com.localdownloader.ui.screens.ExternalPreviewMode
 import com.localdownloader.ui.screens.ExternalPreviewScreen
 import com.localdownloader.ui.screens.HelpScreen
 import com.localdownloader.ui.screens.MoreScreen
-import com.localdownloader.ui.screens.MusicPlayerScreen
-import com.localdownloader.ui.screens.PlayerScreen
-import com.localdownloader.ui.screens.ProgressScreen
-import com.localdownloader.ui.screens.SettingsScreen
-import com.localdownloader.ui.screens.UpdateChangelogScreen
-import com.localdownloader.ui.screens.UpdateChangelogSections
-import com.localdownloader.ui.screens.UpdatesScreen
-import com.localdownloader.ui.screens.VideoGestureGuideSheet
-import com.localdownloader.ui.screens.VideoPlayerSourceSheet
-import com.localdownloader.ui.screens.YoutubeAuthLoginScreen
+import com.localdownloader.ui.screens.VaultScreen
 import com.localdownloader.ui.screens.YoutubeAuthScreen
+import com.localdownloader.ui.screens.YoutubeAuthLoginScreen
 import com.localdownloader.ui.screens.settings.AboutSettingsScreen
 import com.localdownloader.ui.screens.settings.AccessSettingsScreen
 import com.localdownloader.ui.screens.settings.AppearanceSettingsScreen
@@ -84,6 +83,7 @@ import com.localdownloader.ui.screens.settings.DownloadSettingsScreen
 import com.localdownloader.ui.screens.settings.NotificationsSettingsScreen
 import com.localdownloader.ui.screens.settings.StorageSettingsScreen
 import com.localdownloader.viewmodel.AppLogViewModel
+import com.localdownloader.viewmodel.VaultViewModel
 import com.localdownloader.ui.model.ExternalOpenRequest
 import com.localdownloader.ui.model.MediaKind
 import com.localdownloader.ui.model.buildVideoLibraryItems
@@ -97,6 +97,15 @@ import com.localdownloader.viewmodel.MusicSourceViewModel
 import com.localdownloader.viewmodel.MusicTrimViewModel
 import com.localdownloader.viewmodel.PlayerViewModel
 import com.localdownloader.viewmodel.UpdatesViewModel
+import com.localdownloader.ui.screens.UpdatesScreen
+import com.localdownloader.ui.screens.UpdateChangelogScreen
+import com.localdownloader.ui.screens.UpdateChangelogSections
+import com.localdownloader.ui.screens.VideoGestureGuideSheet
+import com.localdownloader.ui.screens.VideoPlayerSourceSheet
+import com.localdownloader.ui.screens.ProgressScreen
+import com.localdownloader.ui.screens.PlayerScreen
+import com.localdownloader.ui.screens.MusicPlayerScreen
+import com.localdownloader.ui.screens.SettingsScreen
 
 @Composable
 fun DownloaderApp(
@@ -119,6 +128,10 @@ fun DownloaderApp(
     val musicSourceViewModel: MusicSourceViewModel = hiltViewModel()
     val musicTrimViewModel: MusicTrimViewModel = hiltViewModel()
     val updatesViewModel: UpdatesViewModel = hiltViewModel()
+    val vaultViewModel: VaultViewModel = hiltViewModel()
+    val vaultState by vaultViewModel.uiState.collectAsStateWithLifecycle()
+    var vaultSelectionTaskId by remember { mutableStateOf<String?>(null) }
+    var vaultSetupPromptTaskId by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     // Use the DI-provided FileUtils from mediaToolsViewModel instead of creating a new instance.
     val fileUtils = mediaToolsViewModel.fileUtils
@@ -303,6 +316,66 @@ fun DownloaderApp(
     if (showVideoGestureGuideSheet) {
         VideoGestureGuideSheet(
             onDismiss = { showVideoGestureGuideSheet = false },
+        )
+    }
+
+    val activeVaultSelectionTaskId = vaultSelectionTaskId
+    if (activeVaultSelectionTaskId != null) {
+        val vaults = vaultState.vaultSettings.getAllVaults()
+        if (vaults.size <= 1) {
+            val vaultId = vaults.firstOrNull()?.id ?: "default"
+            downloadViewModel.moveToVault(activeVaultSelectionTaskId, vaultId)
+            vaultSelectionTaskId = null
+        } else {
+            AlertDialog(
+                onDismissRequest = { vaultSelectionTaskId = null },
+                title = { Text("Select Vault") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        vaults.forEach { vault ->
+                            TextButton(
+                                onClick = {
+                                    downloadViewModel.moveToVault(activeVaultSelectionTaskId, vault.id)
+                                    vaultSelectionTaskId = null
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(vault.name, style = MaterialTheme.typography.bodyLarge)
+                            }
+                        }
+                    }
+                },
+                confirmButton = {},
+                dismissButton = {
+                    TextButton(onClick = { vaultSelectionTaskId = null }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+    }
+
+    val activeVaultSetupPromptTaskId = vaultSetupPromptTaskId
+    if (activeVaultSetupPromptTaskId != null) {
+        AlertDialog(
+            onDismissRequest = { vaultSetupPromptTaskId = null },
+            title = { Text("Private Vault Setup Required") },
+            text = { Text("You must set up a Private Vault before you can secure files. Would you like to create one now?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        vaultSetupPromptTaskId = null
+                        navController.navigate(Routes.Vault)
+                    }
+                ) {
+                    Text("Set Up")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { vaultSetupPromptTaskId = null }) {
+                    Text("Cancel")
+                }
+            }
         )
     }
 
@@ -568,9 +641,19 @@ fun DownloaderApp(
                         }
                     },
                     onDismissAudioError = audioPlaybackViewModel::dismissError,
-                    onOpenPlayer = { taskId -> navController.navigate("${Routes.Player}/$taskId") },
+                    onOpenPlayer = { taskId -> navController.navigate("${Routes.Player}/${taskId}") },
                     onRename = downloadViewModel::renameDownloadedFile,
                     onDelete = downloadViewModel::deleteDownloadedFile,
+                    onMoveToVault = { taskId ->
+                        val vaults = vaultState.vaultSettings.getAllVaults()
+                        if (vaults.isEmpty()) {
+                            vaultSetupPromptTaskId = taskId
+                        } else if (vaults.size == 1) {
+                            downloadViewModel.moveToVault(taskId, vaults.first().id)
+                        } else {
+                            vaultSelectionTaskId = taskId
+                        }
+                    },
                     onRemoveSelectedFromApp = downloadViewModel::removeDownloadedFilesFromLibrary,
                     onDeleteSelectedFromDevice = downloadViewModel::permanentlyDeleteDownloadedFiles,
                     onRemoveCompletedFromApp = downloadViewModel::clearCompletedLibraryEntries,
@@ -612,6 +695,7 @@ fun DownloaderApp(
                     onOpenUpdates = { navController.navigate(Routes.Updates) },
                     onOpenSettings = { navController.navigate(Routes.Settings) },
                     onOpenHelp = { navController.navigate(Routes.Help) },
+                    onOpenVault = { navController.navigate(Routes.Vault) },
                 )
             }
             composable(Routes.YoutubeAuth) {
@@ -1031,6 +1115,30 @@ fun DownloaderApp(
                     )
                 }
             }
+            composable(Routes.Vault) {
+                VaultScreen(
+                    vaultViewModel = vaultViewModel,
+                    downloadViewModel = downloadViewModel,
+                    onBack = { navController.popBackStack() },
+                    onMoveToDownloads = { navController.navigate(Routes.Downloads) },
+                    onPlayVideo = { taskId -> navController.navigate("${Routes.Player}/$taskId") },
+                    onPlayAudio = { taskId, audioTasks ->
+                        val audioQueue = audioTasks.map { task ->
+                            com.localdownloader.audio.AudioQueueItem(
+                                taskId = task.id,
+                                title = task.title,
+                                filePath = task.outputPath.orEmpty(),
+                            )
+                        }
+                        if (audioQueue.isNotEmpty()) {
+                            audioPlaybackViewModel.playQueue(audioQueue, taskId, false)
+                        }
+                        navController.navigate(Routes.Music) {
+                            launchSingleTop = true
+                        }
+                    }
+                )
+            }
         }
     }
 }
@@ -1061,6 +1169,7 @@ object Routes {
     const val Help = "help"
     const val Player = AppLaunchRouter.ROUTE_PLAYER
     const val ExternalOpen = "external_open"
+    const val Vault = "vault"
 
     fun updateChangelog(section: String): String {
         return "updates/changelog/${android.net.Uri.encode(section)}"

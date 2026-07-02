@@ -49,6 +49,7 @@ import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.DriveFileRenameOutline
 import androidx.compose.material.icons.outlined.PauseCircle
 import androidx.compose.material.icons.outlined.PlayCircle
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Share
@@ -105,6 +106,7 @@ fun DownloadsScreen(
     onOpenPlayer: (String) -> Unit,
     onRename: (String, String) -> Unit,
     onDelete: (String) -> Unit,
+    onMoveToVault: (String) -> Unit,
     onRemoveSelectedFromApp: (List<String>) -> Unit,
     onDeleteSelectedFromDevice: (List<String>) -> Unit,
     onRemoveCompletedFromApp: () -> Unit,
@@ -707,6 +709,7 @@ fun DownloadsScreen(
                             renameValue = item.file?.nameWithoutExtension ?: item.displayTitle
                         },
                         onDelete = { deleteTarget = item },
+                        onMoveToVault = { onMoveToVault(item.task.id) },
                         onToggleSelected = {
                             val taskId = item.task.id
                             selectedTaskIds = if (selectedTaskIds.contains(taskId)) {
@@ -953,6 +956,7 @@ private fun DownloadHeroCard(
     onShare: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit,
+    onMoveToVault: () -> Unit,
     onToggleSelected: () -> Unit,
     onStartSelection: () -> Unit,
 ) {
@@ -1102,6 +1106,14 @@ private fun DownloadHeroCard(
                                         onClick = {
                                             showMenu = false
                                             onRename()
+                                        },
+                                    )
+                                    androidx.compose.material3.DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.vault_move_to_vault)) },
+                                        leadingIcon = { Icon(Icons.Outlined.Lock, contentDescription = null) },
+                                        onClick = {
+                                            showMenu = false
+                                            onMoveToVault()
                                         },
                                     )
                                 }

@@ -497,6 +497,38 @@ class DownloadViewModel @Inject constructor(
         _uiState.update { state -> state.copy(infoMessage = null, errorMessage = null) }
     }
 
+    fun moveToVault(taskId: String, vaultId: String = "default") {
+        logger.i("DownloadViewModel", "move to vault requested taskId=$taskId vaultId=$vaultId")
+        viewModelScope.launch {
+            repository.moveToVault(taskId, vaultId)
+                .onSuccess {
+                    _uiState.update { state ->
+                        state.copy(infoMessage = "Moved to vault.", errorMessage = null)
+                    }
+                }
+                .onFailure { error ->
+                    logger.e("DownloadViewModel", "move to vault failed taskId=$taskId", error)
+                    _uiState.update { state -> state.copy(errorMessage = error.message) }
+                }
+        }
+    }
+
+    fun moveFromVault(taskId: String) {
+        logger.i("DownloadViewModel", "move from vault requested taskId=$taskId")
+        viewModelScope.launch {
+            repository.moveFromVault(taskId)
+                .onSuccess {
+                    _uiState.update { state ->
+                        state.copy(infoMessage = "Moved to downloads.", errorMessage = null)
+                    }
+                }
+                .onFailure { error ->
+                    logger.e("DownloadViewModel", "move from vault failed taskId=$taskId", error)
+                    _uiState.update { state -> state.copy(errorMessage = error.message) }
+                }
+        }
+    }
+
     private fun maybeAutoSyncMissingFiles(tasks: List<com.localdownloader.domain.models.DownloadTask>) {
         if (!settingsLoaded) return
         val state = uiState.value

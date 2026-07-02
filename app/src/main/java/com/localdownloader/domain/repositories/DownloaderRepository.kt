@@ -8,6 +8,7 @@ import com.localdownloader.domain.models.DownloadTask
 import com.localdownloader.domain.models.MediaSyncResult
 import com.localdownloader.domain.models.PlaylistDownloadRequest
 import com.localdownloader.domain.models.VideoInfo
+import com.localdownloader.domain.models.VaultSettings
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -48,4 +49,9 @@ interface DownloaderRepository {
     fun observeSettings(): Flow<AppSettings>
     suspend fun updateSettings(settings: AppSettings)
     suspend fun refillQueuedDownloads()
+
+    suspend fun moveToVault(taskId: String, vaultId: String = "default"): Result<Unit>
+    suspend fun moveFromVault(taskId: String): Result<Unit>
+    suspend fun getVaultSettings(): VaultSettings
+    suspend fun updateVaultSettings(settings: VaultSettings): Result<Unit>
 }
