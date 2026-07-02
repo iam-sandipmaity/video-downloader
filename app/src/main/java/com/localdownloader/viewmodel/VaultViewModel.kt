@@ -13,6 +13,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import com.localdownloader.domain.models.SingleVaultSettings
+import com.localdownloader.domain.models.getAllVaults
+
 @HiltViewModel
 class VaultViewModel @Inject constructor(
     private val repository: DownloaderRepository,
@@ -31,29 +34,101 @@ class VaultViewModel @Inject constructor(
         }
     }
 
-    fun setupVault(pin: String, name: String) {
+    fun createNewVault(name: String, pin: String) {
         viewModelScope.launch {
             runCatching {
+                val newVaultId = java.util.UUID.randomUUID().toString()
                 val pinHash = hashPin(pin)
-                val currentSettings = repository.getVaultSettings()
-                val updatedSettings = currentSettings.copy(
-                    isEnabled = true,
+                val newVault = SingleVaultSettings(
+                    id = newVaultId,
+                    name = name.ifBlank { "Private Vault" },
                     pinHash = pinHash,
-                    vaultName = name,
+                )
+                val current = repository.getVaultSettings()
+                val migratedVaults = current.getAllVaults()
+                val updatedVaults = migratedVaults + newVault
+                val updatedSettings = current.copy(
+                    isEnabled = true,
+                    vaults = updatedVaults,
                 )
                 repository.updateVaultSettings(updatedSettings).getOrThrow()
-                // Update local state immediately
+                
                 _uiState.value = _uiState.value.copy(
                     vaultSettings = updatedSettings,
-                    isUnlocked = true,
+                    activeVaultId = newVaultId,
+                    unlockingVaultId = null,
+                    showSetup = false,
                 )
             }.onFailure { error ->
-                logger.e("VaultViewModel", "setupVault failed", error)
+                logger.e("VaultViewModel", "createNewVault failed", error)
+                _uiState.value = _uiState.value.copy(errorMessage = "Failed to create vault")
             }
         }
     }
 
+    fun setupVault(pin: String, name: String) {
+        createNewVault(name, pin)
+    }
+
+    fun selectVaultForUnlock(vaultId: String) {
+        _uiState.value = _uiState.value.copy(
+            unlockingVaultId = vaultId,
+            showSetup = false,
+            errorMessage = null,
+        )
+    }
+
+    fun cancelUnlock() {
+        _uiState.value = _uiState.value.copy(
+            unlockingVaultId = null,
+            showSetup = false,
+            errorMessage = null,
+        )
+    }
+
+    fun unlockVault(vaultId: String, pin: String, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val settings = repository.getVaultSettings()
+            val vaultsList = settings.getAllVaults()
+            val targetVault = vaultsList.firstOrNull { it.id == vaultId }
+            val isValid = targetVault != null && hashPin(pin) == targetVault.pinHash
+            if (isValid) {
+                _uiState.value = _uiState.value.copy(
+                    activeVaultId = vaultId,
+                    unlockingVaultId = null,
+                    showSetup = false,
+                    errorMessage = null,
+                )
+            } else {
+                _uiState.value = _uiState.value.copy(errorMessage = "Invalid PIN")
+            }
+            onResult(isValid)
+        }
+    }
+
+    fun lockActiveVault() {
+        _uiState.value = _uiState.value.copy(
+            activeVaultId = null,
+            unlockingVaultId = null,
+            showSetup = false,
+            errorMessage = null,
+        )
+    }
+
+    fun showSetupScreen(show: Boolean) {
+        _uiState.value = _uiState.value.copy(
+            showSetup = show,
+            unlockingVaultId = null,
+            errorMessage = null,
+        )
+    }
+
+    fun dismissError() {
+        _uiState.value = _uiState.value.copy(errorMessage = null)
+    }
+
     fun updatePin(newPin: String) {
+        // Kept for backward compatibility
         viewModelScope.launch {
             runCatching {
                 val pinHash = hashPin(newPin)
@@ -63,10 +138,8 @@ class VaultViewModel @Inject constructor(
                     pinHash = pinHash,
                 )
                 repository.updateVaultSettings(updatedSettings).getOrThrow()
-                // Update local state immediately
                 _uiState.value = _uiState.value.copy(
                     vaultSettings = updatedSettings,
-                    isUnlocked = true,
                 )
             }.onFailure { error ->
                 logger.e("VaultViewModel", "updatePin failed", error)
@@ -81,7 +154,7 @@ class VaultViewModel @Inject constructor(
             if (isValid) {
                 _uiState.value = _uiState.value.copy(
                     vaultSettings = settings,
-                    isUnlocked = true,
+                    activeVaultId = "default",
                 )
             }
             onResult(isValid)
@@ -116,9 +189,9 @@ class VaultViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 val current = repository.getVaultSettings()
-                val updated = current.copy(isEnabled = false, pinHash = "")
+                val updated = current.copy(isEnabled = false, pinHash = "", vaults = emptyList())
                 repository.updateVaultSettings(updated).getOrThrow()
-                _uiState.value = _uiState.value.copy(isUnlocked = false)
+                _uiState.value = _uiState.value.copy(activeVaultId = null, unlockingVaultId = null)
             }.onFailure { error ->
                 logger.e("VaultViewModel", "disableVault failed", error)
             }
@@ -136,6 +209,9 @@ class VaultViewModel @Inject constructor(
 data class VaultUiState(
     val vaultSettings: VaultSettings = VaultSettings(),
     val isUnlocked: Boolean = false,
+    val activeVaultId: String? = null,
+    val unlockingVaultId: String? = null,
+    val showSetup: Boolean = false,
     val unlockPin: String = "",
     val newPin: String = "",
     val confirmPin: String = "",

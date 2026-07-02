@@ -45,6 +45,13 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.unit.dp
+import com.localdownloader.domain.models.getAllVaults
 import com.localdownloader.R
 import com.localdownloader.AppLaunchRouter
 import com.localdownloader.AppOpenRequest
@@ -121,6 +128,9 @@ fun DownloaderApp(
     val musicSourceViewModel: MusicSourceViewModel = hiltViewModel()
     val musicTrimViewModel: MusicTrimViewModel = hiltViewModel()
     val updatesViewModel: UpdatesViewModel = hiltViewModel()
+    val vaultViewModel: VaultViewModel = hiltViewModel()
+    val vaultState by vaultViewModel.uiState.collectAsStateWithLifecycle()
+    var vaultSelectionTaskId by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     // Use the DI-provided FileUtils from mediaToolsViewModel instead of creating a new instance.
     val fileUtils = mediaToolsViewModel.fileUtils
@@ -306,6 +316,42 @@ fun DownloaderApp(
         VideoGestureGuideSheet(
             onDismiss = { showVideoGestureGuideSheet = false },
         )
+    }
+
+    val activeVaultSelectionTaskId = vaultSelectionTaskId
+    if (activeVaultSelectionTaskId != null) {
+        val vaults = vaultState.vaultSettings.getAllVaults()
+        if (vaults.size <= 1) {
+            val vaultId = vaults.firstOrNull()?.id ?: "default"
+            downloadViewModel.moveToVault(activeVaultSelectionTaskId, vaultId)
+            vaultSelectionTaskId = null
+        } else {
+            AlertDialog(
+                onDismissRequest = { vaultSelectionTaskId = null },
+                title = { Text("Select Vault") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        vaults.forEach { vault ->
+                            TextButton(
+                                onClick = {
+                                    downloadViewModel.moveToVault(activeVaultSelectionTaskId, vault.id)
+                                    vaultSelectionTaskId = null
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(vault.name, style = MaterialTheme.typography.bodyLarge)
+                            }
+                        }
+                    }
+                },
+                confirmButton = {},
+                dismissButton = {
+                    TextButton(onClick = { vaultSelectionTaskId = null }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
     }
 
     LaunchedEffect(formatState.themeMode, formatState.accentPreset, formatState.contrastMode) {
@@ -570,10 +616,18 @@ fun DownloaderApp(
                         }
                     },
                     onDismissAudioError = audioPlaybackViewModel::dismissError,
-                    onOpenPlayer = { taskId -> navController.navigate("${Routes.Player}/$taskId") },
+                    onOpenPlayer = { taskId -> navController.navigate("${Routes.Player}/${taskId}") },
                     onRename = downloadViewModel::renameDownloadedFile,
                     onDelete = downloadViewModel::deleteDownloadedFile,
-                    onMoveToVault = downloadViewModel::moveToVault,
+                    onMoveToVault = { taskId ->
+                        val vaults = vaultState.vaultSettings.getAllVaults()
+                        if (vaults.size <= 1) {
+                            val vaultId = vaults.firstOrNull()?.id ?: "default"
+                            downloadViewModel.moveToVault(taskId, vaultId)
+                        } else {
+                            vaultSelectionTaskId = taskId
+                        }
+                    },
                     onRemoveSelectedFromApp = downloadViewModel::removeDownloadedFilesFromLibrary,
                     onDeleteSelectedFromDevice = downloadViewModel::permanentlyDeleteDownloadedFiles,
                     onRemoveCompletedFromApp = downloadViewModel::clearCompletedLibraryEntries,
@@ -1036,7 +1090,6 @@ fun DownloaderApp(
                 }
             }
             composable(Routes.Vault) {
-                val vaultViewModel: VaultViewModel = hiltViewModel()
                 VaultScreen(
                     vaultViewModel = vaultViewModel,
                     downloadViewModel = downloadViewModel,

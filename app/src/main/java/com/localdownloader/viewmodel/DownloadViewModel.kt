@@ -497,10 +497,10 @@ class DownloadViewModel @Inject constructor(
         _uiState.update { state -> state.copy(infoMessage = null, errorMessage = null) }
     }
 
-    fun moveToVault(taskId: String) {
-        logger.i("DownloadViewModel", "move to vault requested taskId=$taskId")
+    fun moveToVault(taskId: String, vaultId: String = "default") {
+        logger.i("DownloadViewModel", "move to vault requested taskId=$taskId vaultId=$vaultId")
         viewModelScope.launch {
-            repository.moveToVault(taskId)
+            repository.moveToVault(taskId, vaultId)
                 .onSuccess {
                     _uiState.update { state ->
                         state.copy(infoMessage = "Moved to vault.", errorMessage = null)

@@ -1196,13 +1196,13 @@ class DownloadRepositoryImpl @Inject constructor(
         val options: DownloadOptions,
     )
 
-    override suspend fun moveToVault(taskId: String): Result<Unit> {
+    override suspend fun moveToVault(taskId: String, vaultId: String): Result<Unit> {
         return runCatching {
             val task = downloadTaskStore.getTask(taskId)
                 ?: error("No task found with ID $taskId")
             val outputPath = task.outputPath?.takeIf { it.isNotBlank() }
                 ?: error("This task does not have a saved output file.")
-            val vaultPath = fileUtils.moveToVault(outputPath)
+            val vaultPath = fileUtils.moveToVault(outputPath, vaultId)
             downloadTaskStore.update(taskId) { current ->
                 current.copy(
                     outputPath = vaultPath,

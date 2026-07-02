@@ -52,17 +52,17 @@ class FileUtils @Inject constructor(
         PLAYLIST,
     }
 
-    fun ensureVaultDir(): File {
-        val vaultDir = File(context.noBackupFilesDir, "vault")
+    fun ensureVaultDir(vaultId: String = "default"): File {
+        val vaultDir = File(File(context.noBackupFilesDir, "vault"), vaultId)
         if (!vaultDir.exists()) vaultDir.mkdirs()
         return vaultDir
     }
 
-    fun moveToVault(path: String): String {
+    fun moveToVault(path: String, vaultId: String = "default"): String {
         val sourceFile = File(path)
         if (!sourceFile.exists()) return path
 
-        val vaultDir = ensureVaultDir()
+        val vaultDir = ensureVaultDir(vaultId)
         val targetFile = File(vaultDir, sourceFile.name)
 
         return runCatching {
@@ -74,7 +74,8 @@ class FileUtils @Inject constructor(
 
     fun moveFromVault(path: String): String {
         val vaultFile = File(path)
-        if (vaultFile.parentFile?.name?.equals("vault", ignoreCase = true) != true) return path
+        val vaultBase = File(context.noBackupFilesDir, "vault").absolutePath
+        if (!vaultFile.absolutePath.startsWith(vaultBase)) return path
 
         val libraryDir = ensureDownloadsDir()
         val targetFile = File(libraryDir, vaultFile.name)

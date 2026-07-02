@@ -50,7 +50,7 @@ interface DownloaderRepository {
     suspend fun updateSettings(settings: AppSettings)
     suspend fun refillQueuedDownloads()
 
-    suspend fun moveToVault(taskId: String): Result<Unit>
+    suspend fun moveToVault(taskId: String, vaultId: String = "default"): Result<Unit>
     suspend fun moveFromVault(taskId: String): Result<Unit>
     suspend fun getVaultSettings(): VaultSettings
     suspend fun updateVaultSettings(settings: VaultSettings): Result<Unit>
