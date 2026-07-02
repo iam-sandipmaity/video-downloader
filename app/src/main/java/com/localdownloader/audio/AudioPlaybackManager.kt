@@ -364,7 +364,7 @@ class AudioPlaybackManager @Inject constructor(
 
     private fun AudioQueueItem.toMediaItem(): MediaItem {
         var uri = filePath.toPlaybackUri()
-        if (filePath.contains("/vault/", ignoreCase = true)) {
+        if (filePath.contains("/vault/", ignoreCase = true) || filePath.contains("/.secure_vault/", ignoreCase = true)) {
             runCatching {
                 val cacheFile = File(appContext.cacheDir, "vault_play_$taskId")
                 if (!cacheFile.exists()) {

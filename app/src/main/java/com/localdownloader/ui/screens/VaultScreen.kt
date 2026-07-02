@@ -143,9 +143,9 @@ private fun isTaskInVault(task: DownloadTask, activeVaultId: String, allVaultIds
 
     val otherVaultIds = allVaultIds.filter { it != activeVaultId }
     if (activeVaultId == "default") {
-        return otherVaultIds.none { path.contains("/vault/$it/") }
+        return otherVaultIds.none { path.contains("/vault/$it/") || path.contains("/.secure_vault/$it/") }
     }
-    return path.contains("/vault/$activeVaultId/")
+    return path.contains("/vault/$activeVaultId/") || path.contains("/.secure_vault/$activeVaultId/")
 }
 
 @Composable

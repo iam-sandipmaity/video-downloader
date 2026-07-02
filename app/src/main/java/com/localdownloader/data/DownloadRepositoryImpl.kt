@@ -38,6 +38,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.File
@@ -1197,51 +1198,55 @@ class DownloadRepositoryImpl @Inject constructor(
     )
 
     override suspend fun moveToVault(taskId: String, vaultId: String): Result<Unit> {
-        return runCatching {
-            val task = downloadTaskStore.getTask(taskId)
-                ?: error("No task found with ID $taskId")
-            val outputPath = task.outputPath?.takeIf { it.isNotBlank() }
-                ?: error("This task does not have a saved output file.")
-            val vaultPath = fileUtils.moveToVault(outputPath, vaultId)
-            downloadTaskStore.update(taskId) { current ->
-                current.copy(
-                    outputPath = vaultPath,
-                    isInVault = true,
-                    updatedAtEpochMs = System.currentTimeMillis(),
-                )
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                val task = downloadTaskStore.getTask(taskId)
+                    ?: error("No task found with ID $taskId")
+                val outputPath = task.outputPath?.takeIf { it.isNotBlank() }
+                    ?: error("This task does not have a saved output file.")
+                val vaultPath = fileUtils.moveToVault(outputPath, vaultId)
+                downloadTaskStore.update(taskId) { current ->
+                    current.copy(
+                        outputPath = vaultPath,
+                        isInVault = true,
+                        updatedAtEpochMs = System.currentTimeMillis(),
+                    )
+                }
+            }.onFailure { error ->
+                logger.e("DownloadRepository", "moveToVault failed taskId=$taskId", error)
             }
-        }.onFailure { error ->
-            logger.e("DownloadRepository", "moveToVault failed taskId=$taskId", error)
         }
     }
 
     override suspend fun moveFromVault(taskId: String): Result<Unit> {
-        return runCatching {
-            val task = downloadTaskStore.getTask(taskId)
-                ?: error("No task found with ID $taskId")
-            val outputPath = task.outputPath?.takeIf { it.isNotBlank() }
-                ?: error("This task does not have a saved output file.")
-            val libraryPath = fileUtils.moveFromVault(outputPath)
-            
-            var finalPath = libraryPath
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                val exportedPath = fileUtils.copyToPublicDownloads(java.io.File(libraryPath), null)
-                if (exportedPath != null) {
-                    finalPath = exportedPath
-                    if (exportedPath != libraryPath) {
-                        fileUtils.deleteManagedFile(libraryPath)
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                val task = downloadTaskStore.getTask(taskId)
+                    ?: error("No task found with ID $taskId")
+                val outputPath = task.outputPath?.takeIf { it.isNotBlank() }
+                    ?: error("This task does not have a saved output file.")
+                val libraryPath = fileUtils.moveFromVault(outputPath)
+                
+                var finalPath = libraryPath
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                    val exportedPath = fileUtils.copyToPublicDownloads(java.io.File(libraryPath), null)
+                    if (exportedPath != null) {
+                        finalPath = exportedPath
+                        if (exportedPath != libraryPath) {
+                            fileUtils.deleteManagedFile(libraryPath)
+                        }
                     }
                 }
+                downloadTaskStore.update(taskId) { current ->
+                    current.copy(
+                        outputPath = finalPath,
+                        isInVault = false,
+                        updatedAtEpochMs = System.currentTimeMillis(),
+                    )
+                }
+            }.onFailure { error ->
+                logger.e("DownloadRepository", "moveFromVault failed taskId=$taskId", error)
             }
-            downloadTaskStore.update(taskId) { current ->
-                current.copy(
-                    outputPath = finalPath,
-                    isInVault = false,
-                    updatedAtEpochMs = System.currentTimeMillis(),
-                )
-            }
-        }.onFailure { error ->
-            logger.e("DownloadRepository", "moveFromVault failed taskId=$taskId", error)
         }
     }
 

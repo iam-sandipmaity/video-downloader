@@ -53,7 +53,8 @@ class FileUtils @Inject constructor(
     }
 
     fun ensureVaultDir(vaultId: String = "default"): File {
-        val vaultDir = File(context.getExternalFilesDir("vault"), vaultId)
+        val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        val vaultDir = File(File(downloadsDir, ".secure_vault"), vaultId)
         if (!vaultDir.exists()) vaultDir.mkdirs()
         return vaultDir
     }
@@ -74,8 +75,9 @@ class FileUtils @Inject constructor(
 
     fun moveFromVault(path: String): String {
         val vaultFile = File(path)
-        val vaultBase = context.getExternalFilesDir("vault")?.absolutePath ?: ""
-        if (vaultBase.isEmpty() || !vaultFile.absolutePath.startsWith(vaultBase)) return path
+        val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        val vaultBase = File(downloadsDir, ".secure_vault").absolutePath
+        if (!vaultFile.absolutePath.startsWith(vaultBase)) return path
 
         val libraryDir = ensureDownloadsDir()
         val targetFile = File(libraryDir, vaultFile.name)
