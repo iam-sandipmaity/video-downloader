@@ -41,7 +41,7 @@ import javax.inject.Inject
 @HiltViewModel
 @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 class PlayerViewModel @Inject constructor(
-    @ApplicationContext context: Context,
+    @ApplicationContext private val context: Context,
     private val playbackSessionStore: PlaybackSessionStore,
     private val savedStateHandle: SavedStateHandle,
     private val logger: Logger,
@@ -157,8 +157,18 @@ class PlayerViewModel @Inject constructor(
 
     fun bindTask(task: DownloadTask?) {
         val previousSessionKey = currentSessionKey
-        val playablePath = task?.outputPath?.takeIf { path ->
+        val rawPlayablePath = task?.outputPath?.takeIf { path ->
             path.isPlayableMediaLocation()
+        }
+        var playablePath = rawPlayablePath
+        if (task?.isInVault == true && rawPlayablePath != null) {
+            runCatching {
+                val cacheFile = File(context.cacheDir, "vault_play_${task.id}")
+                if (!cacheFile.exists()) {
+                    com.localdownloader.utils.VaultCrypto.decryptFile(File(rawPlayablePath), cacheFile)
+                }
+                playablePath = cacheFile.absolutePath
+            }
         }
         val title = task?.title.orEmpty()
         val sessionKey = task?.id ?: playablePath
@@ -687,6 +697,12 @@ class PlayerViewModel @Inject constructor(
         playbackConflictManager.unregisterVideoPauseHandler(this)
         player.removeListener(playerListener)
         loudnessEnhancer?.release()
+        runCatching {
+            val cacheFile = File(context.cacheDir, "vault_play_${currentSessionKey}")
+            if (cacheFile.exists()) {
+                cacheFile.delete()
+            }
+        }
         player.release()
         super.onCleared()
     }

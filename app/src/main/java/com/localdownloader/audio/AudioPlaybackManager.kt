@@ -363,9 +363,19 @@ class AudioPlaybackManager @Inject constructor(
     }
 
     private fun AudioQueueItem.toMediaItem(): MediaItem {
+        var uri = filePath.toPlaybackUri()
+        if (filePath.contains("/vault/", ignoreCase = true)) {
+            runCatching {
+                val cacheFile = File(appContext.cacheDir, "vault_play_$taskId")
+                if (!cacheFile.exists()) {
+                    com.localdownloader.utils.VaultCrypto.decryptFile(File(filePath), cacheFile)
+                }
+                uri = Uri.fromFile(cacheFile)
+            }
+        }
         return MediaItem.Builder()
             .setMediaId(taskId)
-            .setUri(filePath.toPlaybackUri())
+            .setUri(uri)
             .setMediaMetadata(
                 MediaMetadata.Builder()
                     .setTitle(title)
