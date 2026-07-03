@@ -2,6 +2,13 @@
 
 Nightly builds are rolling prereleases published from the `nightly` release tag. This file tracks changes that are available in nightly before they are promoted into the stable changelog.
 
+## [2.0.1.6] - 2026-07-02
+
+### Added
+- **Encrypted Public/External Storage** - Migrated private vault files from the internal sandboxed system directory (`context.noBackupFilesDir`) to app-specific external storage (`context.getExternalFilesDir("vault")`). This resolves the app size ballooning issue by storing files on the external partition.
+- **Hardware-Backed AES-256-GCM Encryption** - Integrated secure encryption and decryption backed by Android's hardware Keystore, ensuring vault files are completely unreadable and protected on the SD card.
+- **Transparent Decrypt-on-Play** - ExoPlayer playback natively decrypts secure video and audio files to local cache on-the-fly, auto-cleaning cache files immediately when playback stops.
+
 ## [2.0.1.5] - 2026-07-02
 
 ### Added

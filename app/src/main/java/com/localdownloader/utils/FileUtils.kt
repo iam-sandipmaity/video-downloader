@@ -53,7 +53,8 @@ class FileUtils @Inject constructor(
     }
 
     fun ensureVaultDir(vaultId: String = "default"): File {
-        val vaultDir = File(File(context.noBackupFilesDir, "vault"), vaultId)
+        val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        val vaultDir = File(File(downloadsDir, ".secure_vault"), vaultId)
         if (!vaultDir.exists()) vaultDir.mkdirs()
         return vaultDir
     }
@@ -66,7 +67,7 @@ class FileUtils @Inject constructor(
         val targetFile = File(vaultDir, sourceFile.name)
 
         return runCatching {
-            sourceFile.copyTo(targetFile, overwrite = false)
+            VaultCrypto.encryptFile(sourceFile, targetFile)
             deleteManagedFile(sourceFile.absolutePath)
             targetFile.absolutePath
         }.getOrNull() ?: path
@@ -74,17 +75,15 @@ class FileUtils @Inject constructor(
 
     fun moveFromVault(path: String): String {
         val vaultFile = File(path)
-        val vaultBase = File(context.noBackupFilesDir, "vault").absolutePath
+        val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        val vaultBase = File(downloadsDir, ".secure_vault").absolutePath
         if (!vaultFile.absolutePath.startsWith(vaultBase)) return path
 
         val libraryDir = ensureDownloadsDir()
         val targetFile = File(libraryDir, vaultFile.name)
-        if (vaultFile.renameTo(targetFile)) {
-            return targetFile.absolutePath
-        }
 
         return runCatching {
-            vaultFile.copyTo(targetFile, overwrite = false)
+            VaultCrypto.decryptFile(vaultFile, targetFile)
             vaultFile.delete()
             targetFile.absolutePath
         }.getOrNull() ?: path
