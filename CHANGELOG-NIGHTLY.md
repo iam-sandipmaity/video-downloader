@@ -2,6 +2,13 @@
 
 Nightly builds are rolling prereleases published from the `nightly` release tag. This file tracks changes that are available in nightly before they are promoted into the stable changelog.
 
+## [2.0.1.6] - 2026-07-05
+
+### Changed
+- **Weblate translation fallback policy** - partial Weblate translation updates no longer fail lint when strings are still untranslated. Android will use the default English strings for missing localized entries.
+- **Language catalog alignment** - registered every available app locale consistently across Android locale config and the in-app language picker: English plus Bengali, German, Spanish, French, Hindi, Japanese, Kannada, Korean, Malayalam, Dutch, Russian, Tamil, Telugu, and Simplified Chinese.
+- **Nightly version bump** - release metadata updated to `2.0.1.6`.
+
 ## [2.0.1.5] - 2026-07-02
 
 ### Added

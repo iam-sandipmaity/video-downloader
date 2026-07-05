@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="nav_home">Главная</string>
+    <string name="nav_downloads">Загрузки</string>
+    <string name="nav_more">Ещё</string>
+    <string name="common_settings">Настройки</string>
+    <string name="common_help">Помощь</string>
+    <string name="common_clear">Очистить</string>
+    <string name="common_select">Выбрать</string>
+    <string name="common_remove">Убрать</string>
+    <string name="common_close">Закрыть</string>
+    <string name="common_cancel">Отменить</string>
+    <string name="common_save">Сохранить</string>
+    <string name="common_delete">Удалить</string>
+    <string name="common_share">Поделиться</string>
+    <string name="common_rename">Переименовать</string>
+    <string name="common_edit">Редактировать</string>
+    <string name="common_loading">Загрузка…</string>
+    <string name="common_unknown_uploader">Неизвестный загрузчик</string>
+    <string name="browser_metered_body">Вы подключены к моб. сети. Оставьте загрузку в очереди, пока не появится Wi-Fi, или разрешите загрузку через моб. сеть.</string>
+    <string name="browser_allow_cellular">Разрешить моб. связь</string>
+    <string name="browser_wait_for_wifi">Подождать Wi-Fi</string>
+    <string name="browser_title">Просмотреть</string>
+    <string name="browser_subtitle">Вставить ссылку для запуска.</string>
+    <string name="browser_open_history">Открыть историю</string>
+    <string name="browser_actions">Просмотреть действия</string>
+    <string name="browser_use_light_theme">Светлая тема</string>
+    <string name="browser_use_dark_theme">Тёмная тема</string>
+    <string name="browser_url_label">Вставьте или введите ссылку</string>
+    <string name="browser_paste">Вставить</string>
+    <string name="browser_analyzing">Анализ…</string>
+    <string name="browser_analyze_link">Анализ ссылки</string>
+    <string name="browser_feedback_label">Главная</string>
+    <string name="browser_download_setup_intro_title">Перед первой загрузкой</string>
+    <string name="browser_download_setup_setup_title">Обеспечьте более удобный доступ</string>
+    <string name="browser_download_setup_intro_body_1">Вы можете загружать контент без файлов cookie, но рекомендуется создать их для лучшей работы загрузчика («Настройки» &gt; «Доступ и сеть»).</string>
+    <string name="browser_download_setup_intro_body_2">Если загрузка не удалась или зависла, попробуйте создать (или заново создать) cookie.</string>
+    <string name="browser_download_setup_setup_body_1">Начните с создания cookie, если хотите обеспечить максимально безопасную настройку. Для YouTube сохранение доступа — это дополнительный шаг, который обычно помогает в случае блокировки видео или авторизации.</string>
+    <string name="browser_download_setup_setup_body_2">Вы можете пропустить эти шаги и вернуться к ним позже в разделе «Настройки» или «Дополнительно».</string>
+</resources>
