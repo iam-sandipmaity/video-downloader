@@ -8,6 +8,48 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 Nightly-only changes are tracked separately in [CHANGELOG-NIGHTLY.md](CHANGELOG-NIGHTLY.md).
 
+## [1.7.5.0] - 2026-07-05
+
+### Added
+- **Private Vault** - Secure download storage with PIN protection. Completed downloads can be moved to a private vault that is not backed up to cloud storage.
+- **Multiple Vaults** - Support for creating and managing multiple vaults (e.g. Work, Personal) with distinct PIN credentials and secure subfolder allocations.
+- **Auto-Move URL Rules** - Vault settings allowing users to add URL prefixes so matching downloads are automatically secured in the selected vault upon completion.
+- **Vault Tab Filters and Search** - Added tab filters (All, Videos, Audios, Others) and a full-text Search Bar to easily manage secure vault items.
+- **In-App Music Player Integration** - Audio files in the vault now open directly in the full-screen music player, building a secure queue of all audio tracks in that vault.
+- **Click-to-Play** - Made vault item cards clickable to play secure video and audio files seamlessly inside the app.
+- **Redirect Setup Prompt** - Prompt dialog offering setup navigation if the user attempts to secure files from downloads but has not created any vault yet.
+- **Nightly launcher branding** - nightly builds now use a separate orange-purple launcher icon with a small `NIGHTLY` badge so they are easier to tell apart from stable installs.
+
+### Changed
+- **Weblate translation fallback policy** - partial Weblate translation updates no longer fail lint when strings are still untranslated. Android will use the default English strings for missing localized entries.
+- **Language catalog alignment** - registered every available app locale consistently across Android locale config and the in-app language picker: English plus Bengali, German, Spanish, French, Hindi, Japanese, Kannada, Korean, Malayalam, Dutch, Russian, Tamil, Telugu, and Simplified Chinese.
+- **FFmpeg Update Path Resolution** - Relaxed release tag verification to search for the `"ffmpeg"` keyword inside the release APK asset names. This allows standard version-only release tags (e.g. `v7.0.1`) to resolve correctly on all devices.
+- **Dynamic Version Display** - Resolved a bug where failed update checks caused the Updates screen to report the current version as `"unknown"`. The screen now dynamically displays the actual running bundled or installed FFmpeg version even when the network check fails.
+- **Master CI Workflow Toggles** - Enabled CodeQL scanning and Android build compilation checks in CI/CD pipeline triggers.
+- **FFmpeg Build Automation** - Configured the Gradle build process to automatically fetch, extract, and bundle the latest precompiled FFmpeg binaries from the release repository during compilation, removing the need to track large binaries in the codebase.
+- **FFmpeg Dependency Refactoring** - Shifted from using an external precompiled FFmpeg dependency to our own precompiled FFmpeg binaries, optimizing the build and ensuring full control over the compiled binary.
+- **Workflow & Installer Migration** - Updated CI/CD validation steps and BinaryInstaller background cleanup logic to transition fully to the new binary format (`libffmpeg.so` replacing the legacy `libffmpeg_exec.so`).
+- **FFmpeg Custom Package Repository** - Updated the update manager to fetch from `iam-sandipmaity/video-downloader-packages` instead of the placeholder repository.
+- **Custom Signature Fingerprint** - Added the custom release signature certificate fingerprint to trusted digests so in-app FFmpeg updates can verify and install correctly.
+
+### Fixed
+- **Vault serialization** - Fixed "Serializer for class 'VaultSettings' is not found" error by adding `@Serializable` annotation.
+- **State Reactivity** - Replaced direct StateFlow value access in Compose screens with reactive state collection to guarantee instant recomposition.
+- **Security & Privacy Leak** - Changed file moving logic to delete staging copies from public MediaStore when securing files, hiding them completely from other apps.
+- **MediaStore Export on Move-Out** - Re-export files to the public Downloads folder when moved out of the vault so they become visible to system file manager apps again.
+- **Python Hashing/Cryptography Modules** - Compiled standard hashing modules (`_md5`, `_sha1`, `_sha256`, `_sha512`, `_sha3`, and `_blake2`) statically into the Python runtime. This resolves `ValueError: unsupported hash type blake2b` errors during startup and restores YouTube signature deciphering functionality.
+- **UI Performance and Lag** - Added a time-based throttle (250ms interval) to download progress updates in `DownloadEngine`. This prevents rapid terminal output (e.g. during HLS fragment downloads) from flooding the Main thread with excessive Jetpack Compose recompositions, eliminating UI freezes and progress bar hangs.
+- **Restored Official youtubedl-android Dependency** - Replaced the custom Python and QuickJS executable runtime pipeline with the official `io.github.junkfood02.youtubedl-android:library:0.18.1` dependency wrapper. This successfully resolves all startup tracebacks, platform execution permissions, and architecture mismatches while restoring the stable performance of version `2.0.1.1`.
+- **FFmpeg package updates** - Updated custom FFmpeg package compilation configuration to enable WebP/GIF demuxers, muxers, and decoders, as well as subtitle encoders and handlers. This fixes missing/incorrect video/audio thumbnails and subtitle embedding failures.
+- **Fail-Fast Extractor Loop** - Added fatal system error checks inside `FormatExtractor` to immediately abort the candidate extractor loop on subprocess crashes or linker errors, preventing the main thread from hanging on broken runtimes.
+- **CI Build Pipeline Rate-Limiting** - Replaced dynamic GitHub REST API calls in gradle config tasks with a static release asset download URL to avoid unauthenticated HTTP 403 rate-limit blocks on CI environments.
+
+### Technical
+- **App version bump** - release metadata updated to `1.7.5.0`
+- **CI SDK compatibility** - CI now uses a local Android SDK setup action, installs the available SDK 36 platform, and pins AndroidX Core to the SDK-compatible `1.18.0`
+- **Nightly promotion** - summarized and promoted the `2.0.1.0` through `2.0.1.6` nightly changes into the stable changelog
+
+
 ## [1.7.4] - 2026-06-06
 
 ### Added

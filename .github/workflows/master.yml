@@ -21,9 +21,9 @@ env:
   # Change only these flags when you want to enable or disable workflow groups.
   ENABLE_CODEQL: "true"
   ENABLE_ANDROID_BUILD: "true"
-  ENABLE_RELEASE_NIGHTLY: "true"
-  ENABLE_RELEASE_MAIN: "false"
-  ENABLE_RELEASE_TAG: "false"
+  ENABLE_RELEASE_NIGHTLY: "false"
+  ENABLE_RELEASE_MAIN: "true"
+  ENABLE_RELEASE_TAG: "true"
   ENABLE_CLEANUP: "true"
 
 jobs:
