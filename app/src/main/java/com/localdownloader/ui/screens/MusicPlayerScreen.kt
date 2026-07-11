@@ -330,6 +330,7 @@ fun MusicPlayerScreen(
                             onSelectMusicSource(sourceType)
                         }
                     }
+                    MusicSourceType.PRIVATE_VAULT -> onSelectMusicSource(sourceType)
                 }
             },
             onPickFolder = { folderPicker.launch(null) },
@@ -2406,6 +2407,7 @@ private fun EmptyMusicState(
                         MusicSourceType.APP_DOWNLOADS -> "Download audio from Home or choose another audio source."
                         MusicSourceType.DEVICE_AUDIO -> "Allow audio permission or refresh after adding music to your device."
                         MusicSourceType.SELECTED_FOLDER -> "Pick a folder with audio files or refresh this source."
+                        MusicSourceType.PRIVATE_VAULT -> "Move audio files to your private vault first."
                     },
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
