@@ -39,6 +39,12 @@
 -keep class io.github.theyagas.** { *; }
 -dontwarn io.github.theyagas.**
 
+# ── yt-dlp-android (youtubedl-android) ───────────────────────────────────
+-keep class com.yausername.youtubedl_android.** { *; }
+-keep class com.yausername.youtubedl.** { *; }
+-dontwarn com.yausername.youtubedl_android.**
+-dontwarn com.yausername.youtubedl.**
+
 # ── WorkManager ───────────────────────────────────────────────────
 -keep class * extends androidx.work.Worker
 -keep class * extends androidx.work.ListenableWorker

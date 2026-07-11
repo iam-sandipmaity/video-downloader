@@ -2,6 +2,15 @@
 
 Nightly builds are rolling prereleases published from the `nightly` release tag. This file tracks changes that are available in nightly before they are promoted into the stable changelog.
 
+## [2.0.1.7] - 2026-07-11
+
+### Changed
+- **Minified Nightly Builds** - enabled minification and resource shrinking for the nightly build type to align packaging with stable release builds, ensuring ProGuard/obfuscation issues are caught early during prerelease testing.
+- **Nightly version bump** - release metadata updated to `2.0.1.7`.
+
+### Fixed
+- **yt-dlp-android ProGuard keeps** - added rules to keep `com.yausername.youtubedl_android` and `com.yausername.youtubedl` classes. This resolves the `rxo` (obfuscated package name) runtime crash and the "unknown" version label in minified builds.
+
 ## [2.0.1.6] - 2026-07-05
 
 ### Changed
