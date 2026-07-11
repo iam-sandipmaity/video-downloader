@@ -156,6 +156,12 @@ android {
         }
         create("nightly") {
             initWith(getByName("debug"))
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
             applicationIdSuffix = ".nightly"
             matchingFallbacks += listOf("debug")
             resValue("string", "app_name", "Nightly - $nightlyVersionName")

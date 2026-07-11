@@ -6,7 +6,8 @@ enum class MusicSourceType(
 ) {
     APP_DOWNLOADS("app_downloads", "App downloads"),
     DEVICE_AUDIO("device_audio", "Device audio"),
-    SELECTED_FOLDER("selected_folder", "Selected folder");
+    SELECTED_FOLDER("selected_folder", "Selected folder"),
+    PRIVATE_VAULT("private_vault", "Private Vault");
 
     companion object {
         fun fromStorageKey(value: String?): MusicSourceType {
