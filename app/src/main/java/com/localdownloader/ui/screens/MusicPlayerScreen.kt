@@ -97,10 +97,12 @@ import com.localdownloader.audio.AudioQueueItem
 import com.localdownloader.audio.PlaylistRepeatMode
 import com.localdownloader.domain.models.MusicLibraryTrack
 import com.localdownloader.domain.models.MusicSourceType
+import com.localdownloader.media.isLikelyAudioPath
 import com.localdownloader.media.readAudioTrackMetadata
 import com.localdownloader.ui.components.LocalVideoThumbnail
 import com.localdownloader.ui.model.MediaKind
 import com.localdownloader.ui.model.buildVideoLibraryItems
+import com.localdownloader.ui.model.toReadableSize
 import com.localdownloader.ui.model.formatMediaDate
 import com.localdownloader.ui.model.formatPlaybackTime
 import com.localdownloader.ui.model.toShortTimerLabel
@@ -197,15 +199,69 @@ fun MusicPlayerScreen(
                 }
         }
     }
+    val vaultTracks by produceState<List<MusicLibraryTrack>>(
+        initialValue = emptyList(),
+        key1 = uiState.tasks,
+        key2 = fileExists,
+    ) {
+        value = withContext(Dispatchers.IO) {
+            uiState.tasks
+                .filter { it.status == com.localdownloader.domain.models.DownloadStatus.COMPLETED && it.isInVault }
+                .sortedByDescending { it.updatedAtEpochMs }
+                .map { task ->
+                    val file = task.outputPath?.let(::File)
+                    val fileExistsVal = task.outputPath?.let(fileExists) == true
+                    val resolvedSize = file
+                        ?.takeIf { fileExistsVal }
+                        ?.length()
+                        ?.toReadableSize()
+                        .orEmpty()
+                    val displayTitle = task.title.ifBlank { file?.nameWithoutExtension ?: file?.name ?: "Saved media" }
+                    val path = file?.absolutePath.orEmpty()
+                    val metadata = readAudioTrackMetadata(context, path)
+                    MusicLibraryTrack(
+                        id = task.id,
+                        title = metadata.title ?: displayTitle,
+                        artist = metadata.artist,
+                        album = metadata.album,
+                        playbackUri = path,
+                        filePath = file?.absolutePath,
+                        fileName = file?.name,
+                        folderName = file?.parentFile?.name,
+                        displaySize = resolvedSize,
+                        sizeBytes = file?.length(),
+                        updatedAtEpochMs = task.updatedAtEpochMs,
+                        durationMs = metadata.durationMs,
+                        sourceType = MusicSourceType.PRIVATE_VAULT,
+                        sourceUrl = task.url,
+                        appTaskId = task.id,
+                    )
+                }
+                .filter { it.playbackUri.isNotBlank() && isLikelyAudioPath(it.fileName) }
+        }
+    }
+    val isPlayingFromVault = remember(audioPlaybackState.queue, uiState.tasks) {
+        audioPlaybackState.queue.isNotEmpty() && audioPlaybackState.queue.all { queueItem ->
+            uiState.tasks.firstOrNull { it.id == queueItem.taskId }?.isInVault == true ||
+                queueItem.filePath.contains("/vault/")
+        }
+    }
     val audioItems = remember(
+        isPlayingFromVault,
+        vaultTracks,
         musicSourceState.sourceType,
         appDownloadTracks,
         musicSourceState.externalTracks,
     ) {
-        when (musicSourceState.sourceType) {
-            MusicSourceType.APP_DOWNLOADS -> appDownloadTracks
-            MusicSourceType.DEVICE_AUDIO,
-            MusicSourceType.SELECTED_FOLDER -> musicSourceState.externalTracks
+        if (isPlayingFromVault) {
+            vaultTracks
+        } else {
+            when (musicSourceState.sourceType) {
+                MusicSourceType.APP_DOWNLOADS -> appDownloadTracks
+                MusicSourceType.DEVICE_AUDIO,
+                MusicSourceType.SELECTED_FOLDER -> musicSourceState.externalTracks
+                MusicSourceType.PRIVATE_VAULT -> vaultTracks
+            }
         }
     }
     val audioQueueItems = remember(audioItems) { audioItems.toAudioQueueItems() }
@@ -456,7 +512,7 @@ fun MusicPlayerScreen(
             NowPlayingDeck(
                 item = currentItem,
                 trackCount = audioItems.size,
-                sourceLabel = musicSourceState.sourceType.label,
+                sourceLabel = if (isPlayingFromVault) "Private Vault" else musicSourceState.sourceType.label,
                 audioPlaybackState = audioPlaybackState,
                 accentColor = MaterialTheme.colorScheme.primary,
                 scrubPositionMs = scrubPositionMs,
@@ -507,6 +563,7 @@ fun MusicPlayerScreen(
                 onOptions = { activeSheet = PlayerSheet.More },
                 onBack = onBack,
                 onDismissAudioError = onDismissAudioError,
+                showSourcePicker = !isPlayingFromVault,
             )
 
             QueueSection(
@@ -551,6 +608,7 @@ private fun NowPlayingDeck(
     onOptions: () -> Unit,
     onBack: () -> Unit,
     onDismissAudioError: () -> Unit,
+    showSourcePicker: Boolean = true,
 ) {
     val title = item?.title ?: "Music player"
     val artist = item?.artist?.ifBlank { null }
@@ -672,14 +730,34 @@ private fun NowPlayingDeck(
                     style = MaterialTheme.typography.labelLarge,
                     color = Color.White.copy(alpha = 0.68f),
                 )
-                TextButton(onClick = onOpenSourcePicker) {
-                    Icon(
-                        imageVector = Icons.Outlined.QueueMusic,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text("Source: $sourceLabel")
+                if (showSourcePicker) {
+                    TextButton(onClick = onOpenSourcePicker) {
+                        Icon(
+                            imageVector = Icons.Outlined.QueueMusic,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Source: $sourceLabel")
+                    }
+                } else {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.QueueMusic,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = Color.White.copy(alpha = 0.68f),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = "Source: $sourceLabel",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = Color.White.copy(alpha = 0.68f),
+                        )
+                    }
                 }
 
                 PlayerUtilityRow(

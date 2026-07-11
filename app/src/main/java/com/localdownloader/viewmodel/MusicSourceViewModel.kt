@@ -107,6 +107,15 @@ class MusicSourceViewModel @Inject constructor(
 
             MusicSourceType.DEVICE_AUDIO -> loadDeviceAudio()
             MusicSourceType.SELECTED_FOLDER -> loadSelectedFolder()
+            MusicSourceType.PRIVATE_VAULT -> {
+                _uiState.update {
+                    it.copy(
+                        externalTracks = emptyList(),
+                        isLoading = false,
+                        errorMessage = null,
+                    )
+                }
+            }
         }
     }
 
