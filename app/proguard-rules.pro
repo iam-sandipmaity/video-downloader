@@ -44,6 +44,10 @@
 -keep class com.yausername.youtubedl.** { *; }
 -dontwarn com.yausername.youtubedl_android.**
 -dontwarn com.yausername.youtubedl.**
+-keep class org.apache.commons.compress.** { *; }
+-dontwarn org.apache.commons.compress.**
+-keep class org.tukaani.xz.** { *; }
+-dontwarn org.tukaani.xz.**
 
 # ── WorkManager ───────────────────────────────────────────────────
 -keep class * extends androidx.work.Worker

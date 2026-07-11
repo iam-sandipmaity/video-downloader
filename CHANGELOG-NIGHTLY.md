@@ -10,6 +10,7 @@ Nightly builds are rolling prereleases published from the `nightly` release tag.
 
 ### Fixed
 - **yt-dlp-android ProGuard keeps** - added rules to keep `com.yausername.youtubedl_android` and `com.yausername.youtubedl` classes. This resolves the `rxo` (obfuscated package name) runtime crash and the "unknown" version label in minified builds.
+- **Apache Commons Compress & XZ keeps** - added rules to keep `org.apache.commons.compress` and `org.tukaani.xz` classes, preventing ClassNotFoundExceptions like `ExtraFieldUtils` when extracting zipped packages.
 
 ## [2.0.1.6] - 2026-07-05
 
