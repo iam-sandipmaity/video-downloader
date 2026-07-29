@@ -289,9 +289,26 @@ fun DownloaderApp(
     }
     val currentDestination = navController.currentBackStackEntryAsState().value?.destination
     val currentRoute = currentDestination?.route
-    val savedItemsCount = downloadState.tasks.count { it.status == DownloadStatus.COMPLETED }
+    val savedItemsCount = remember(savedMediaItems) {
+        savedMediaItems.count { it.exists }
+    }
     val duplicateSavedItemsCount = remember(downloadState.tasks) { countPossibleDuplicateSavedItems(downloadState.tasks) }
-    val availableDownloadsStorageBytes = remember { queryAvailableDownloadsStorageBytes() }
+    var availableDownloadsStorageBytes by remember { mutableLongStateOf(queryAvailableDownloadsStorageBytes()) }
+
+    LaunchedEffect(currentRoute) {
+        val route = currentRoute.orEmpty()
+        val keepsVaultSession = route == Routes.Vault ||
+            route.startsWith("${Routes.Player}/") ||
+            route == Routes.Music ||
+            route == Routes.ExternalOpen
+        if (!keepsVaultSession) {
+            vaultViewModel.lockActiveVault()
+            vaultViewModel.cancelUnlock()
+        }
+        if (route == Routes.Settings || route.startsWith("settings")) {
+            availableDownloadsStorageBytes = queryAvailableDownloadsStorageBytes()
+        }
+    }
 
     if (showVideoPlayerSourceSheet) {
         VideoPlayerSourceSheet(
@@ -320,39 +337,41 @@ fun DownloaderApp(
     }
 
     val activeVaultSelectionTaskId = vaultSelectionTaskId
-    if (activeVaultSelectionTaskId != null) {
-        val vaults = vaultState.vaultSettings.getAllVaults()
-        if (vaults.size <= 1) {
-            val vaultId = vaults.firstOrNull()?.id ?: "default"
-            downloadViewModel.moveToVault(activeVaultSelectionTaskId, vaultId)
+    val vaultsForSelection = vaultState.vaultSettings.getAllVaults()
+    LaunchedEffect(activeVaultSelectionTaskId, vaultsForSelection.size) {
+        val taskId = activeVaultSelectionTaskId ?: return@LaunchedEffect
+        if (vaultsForSelection.size <= 1) {
+            val vaultId = vaultsForSelection.firstOrNull()?.id ?: "default"
+            downloadViewModel.moveToVault(taskId, vaultId)
             vaultSelectionTaskId = null
-        } else {
-            AlertDialog(
-                onDismissRequest = { vaultSelectionTaskId = null },
-                title = { Text("Select Vault") },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        vaults.forEach { vault ->
-                            TextButton(
-                                onClick = {
-                                    downloadViewModel.moveToVault(activeVaultSelectionTaskId, vault.id)
-                                    vaultSelectionTaskId = null
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(vault.name, style = MaterialTheme.typography.bodyLarge)
-                            }
+        }
+    }
+    if (activeVaultSelectionTaskId != null && vaultsForSelection.size > 1) {
+        AlertDialog(
+            onDismissRequest = { vaultSelectionTaskId = null },
+            title = { Text("Select Vault") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    vaultsForSelection.forEach { vault ->
+                        TextButton(
+                            onClick = {
+                                downloadViewModel.moveToVault(activeVaultSelectionTaskId, vault.id)
+                                vaultSelectionTaskId = null
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(vault.name, style = MaterialTheme.typography.bodyLarge)
                         }
                     }
-                },
-                confirmButton = {},
-                dismissButton = {
-                    TextButton(onClick = { vaultSelectionTaskId = null }) {
-                        Text("Cancel")
-                    }
                 }
-            )
-        }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { vaultSelectionTaskId = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     val activeVaultSetupPromptTaskId = vaultSetupPromptTaskId
@@ -619,7 +638,7 @@ fun DownloaderApp(
                     onQueueWhenWifiAvailable = formatViewModel::queueDownloadWhenWifiAvailable,
                     onAllowCellularDownloadsAndQueue = formatViewModel::allowCellularDownloadsAndQueue,
                     onDarkThemeChanged = formatViewModel::toggleDarkTheme,
-                    isDownloadButtonEnabled = formatViewModel.isDownloadButtonEnabled(),
+                    isDownloadButtonEnabled = !formatState.isQueueing && !formatState.isDownloadButtonDisabled,
                 )
             }
             composable(Routes.Downloads) {
@@ -1064,6 +1083,7 @@ fun DownloaderApp(
                         {
                             navController.navigate("${Routes.Player}/$previousTaskId") {
                                 launchSingleTop = true
+                                popUpTo("${Routes.Player}/$taskId") { inclusive = true }
                             }
                         }
                     },
@@ -1071,6 +1091,7 @@ fun DownloaderApp(
                         {
                             navController.navigate("${Routes.Player}/$nextTaskId") {
                                 launchSingleTop = true
+                                popUpTo("${Routes.Player}/$taskId") { inclusive = true }
                             }
                         }
                     },
@@ -1119,8 +1140,11 @@ fun DownloaderApp(
                 VaultScreen(
                     vaultViewModel = vaultViewModel,
                     downloadViewModel = downloadViewModel,
-                    onBack = { navController.popBackStack() },
-                    onMoveToDownloads = { navController.navigate(Routes.Downloads) },
+                    onBack = {
+                        vaultViewModel.lockActiveVault()
+                        vaultViewModel.cancelUnlock()
+                        navController.popBackStack()
+                    },
                     onPlayVideo = { taskId -> navController.navigate("${Routes.Player}/$taskId") },
                     onPlayAudio = { taskId, audioTasks ->
                         val audioQueue = audioTasks.map { task ->

@@ -381,7 +381,7 @@ fun BrowserScreen(
                     }
                     Button(
                         onClick = onAnalyzeClicked,
-                        enabled = !uiState.isAnalyzing,
+                        enabled = uiState.urlInput.isNotBlank() && !uiState.isAnalyzing,
                         modifier = Modifier.weight(1f),
                         contentPadding = PaddingValues(vertical = 14.dp),
                     ) {
@@ -792,7 +792,9 @@ fun BrowserScreen(
                         }
                         Button(
                             onClick = onQueueDownloadClicked,
-                            enabled = !uiState.isQueueing && isDownloadButtonEnabled,
+                            enabled = !uiState.isQueueing &&
+                                isDownloadButtonEnabled &&
+                                (uiState.videoInfo?.isPlaylist != true || uiState.selectedPlaylistItemCount > 0),
                             modifier = Modifier.fillMaxWidth(),
                             contentPadding = PaddingValues(vertical = 14.dp),
                         ) {

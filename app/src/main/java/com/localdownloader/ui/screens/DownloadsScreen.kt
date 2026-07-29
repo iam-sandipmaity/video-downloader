@@ -977,6 +977,8 @@ private fun DownloadHeroCard(
                 onClick = {
                     if (selectionMode) {
                         onToggleSelected()
+                    } else if (item.exists && item.mediaKind != MediaKind.OTHER) {
+                        onPrimaryPlay()
                     }
                 },
                 onLongClick = onStartSelection,

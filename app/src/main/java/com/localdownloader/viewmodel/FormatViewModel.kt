@@ -64,6 +64,7 @@ class FormatViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(FormatUiState())
     val uiState: StateFlow<FormatUiState> = _uiState.asStateFlow()
     private var analyzePrefetchJob: Job? = null
+    private var downloadButtonEnableJob: Job? = null
     private var analyzePrefetchUrl: String? = null
     private var analyzePrefetchDeferred: Deferred<Result<VideoInfo>>? = null
     private var analyzePrefetchResult: AnalyzePrefetchResult? = null
@@ -478,10 +479,9 @@ class FormatViewModel @Inject constructor(
         _uiState.update { state -> 
             state.copy(
                 selectedQuality = quality,
-                isDownloadButtonDisabled = if (shouldReenable) false else state.isDownloadButtonDisabled,
-                downloadButtonDisabledAt = if (shouldReenable) 0L else state.downloadButtonDisabledAt
             )
         }
+        if (shouldReenable) clearDownloadButtonCooldown()
     }
 
     fun onStreamTypeChanged(streamType: StreamType) {
@@ -1873,10 +1873,9 @@ class FormatViewModel @Inject constructor(
                             lastQueuedAudioBitrate = current.audioBitrateKbps,
                             lastQueuedOutputTransform = current.selectedOutputTransform,
                             lastQueuedQuality = current.selectedQuality,
-                            isDownloadButtonDisabled = true,
-                            downloadButtonDisabledAt = System.currentTimeMillis(),
                         )
                     }
+                    scheduleDownloadButtonCooldown()
                 },
                 onFailure = { error ->
                     logger.e("FormatViewModel", "Playlist queue failed", error)
@@ -1954,10 +1953,9 @@ class FormatViewModel @Inject constructor(
                         lastQueuedAudioBitrate = current.audioBitrateKbps,
                         lastQueuedOutputTransform = current.selectedOutputTransform,
                         lastQueuedQuality = current.selectedQuality,
-                        isDownloadButtonDisabled = true,
-                        downloadButtonDisabledAt = System.currentTimeMillis(),
                     )
                 }
+                scheduleDownloadButtonCooldown()
             },
             onFailure = { error ->
                 logger.e("FormatViewModel", "Queue failed", error)
@@ -1993,24 +1991,42 @@ class FormatViewModel @Inject constructor(
 
     /**
      * Check if download button should be enabled.
-     * Disabled if:
-     * 1. Already disabled AND 6 seconds haven't passed yet
-     * 2. Currently queueing
+     * Disabled while queueing or during the post-queue cooldown window.
      */
     fun isDownloadButtonEnabled(): Boolean {
         val state = uiState.value
         if (state.isQueueing) return false
-        
-        if (state.isDownloadButtonDisabled) {
-            val elapsed = System.currentTimeMillis() - state.downloadButtonDisabledAt
-            if (elapsed < 6000) { // 6 seconds
-                return false
-            } else {
-                // Timeout expired, re-enable
-                _uiState.update { it.copy(isDownloadButtonDisabled = false, downloadButtonDisabledAt = 0L) }
+        return !state.isDownloadButtonDisabled
+    }
+
+    private fun scheduleDownloadButtonCooldown() {
+        downloadButtonEnableJob?.cancel()
+        _uiState.update {
+            it.copy(
+                isDownloadButtonDisabled = true,
+                downloadButtonDisabledAt = System.currentTimeMillis(),
+            )
+        }
+        downloadButtonEnableJob = viewModelScope.launch {
+            delay(DOWNLOAD_BUTTON_COOLDOWN_MS)
+            _uiState.update {
+                it.copy(
+                    isDownloadButtonDisabled = false,
+                    downloadButtonDisabledAt = 0L,
+                )
             }
         }
-        return true
+    }
+
+    private fun clearDownloadButtonCooldown() {
+        downloadButtonEnableJob?.cancel()
+        downloadButtonEnableJob = null
+        _uiState.update {
+            it.copy(
+                isDownloadButtonDisabled = false,
+                downloadButtonDisabledAt = 0L,
+            )
+        }
     }
 
     fun toggleDarkTheme(enabled: Boolean) {
@@ -2851,3 +2867,4 @@ class FormatViewModel @Inject constructor(
 
 private const val ANALYZE_PREFETCH_DEBOUNCE_MS = 700L
 private const val ANALYZE_PREFETCH_TTL_MS = 5 * 60 * 1000L
+private const val DOWNLOAD_BUTTON_COOLDOWN_MS = 6_000L

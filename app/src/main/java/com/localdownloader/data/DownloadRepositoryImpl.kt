@@ -1202,10 +1202,16 @@ class DownloadRepositoryImpl @Inject constructor(
                 ?: error("No task found with ID $taskId")
             val outputPath = task.outputPath?.takeIf { it.isNotBlank() }
                 ?: error("This task does not have a saved output file.")
-            val vaultPath = fileUtils.moveToVault(outputPath, vaultId)
+            val vaultPath = fileUtils.moveToVault(outputPath, vaultId).getOrThrow()
+            val remappedSubtitles = remapSiblingPaths(
+                originalPrimary = outputPath,
+                newPrimary = vaultPath,
+                siblingPaths = task.subtitlePaths,
+            )
             downloadTaskStore.update(taskId) { current ->
                 current.copy(
                     outputPath = vaultPath,
+                    subtitlePaths = remappedSubtitles,
                     isInVault = true,
                     updatedAtEpochMs = System.currentTimeMillis(),
                 )
@@ -1221,27 +1227,55 @@ class DownloadRepositoryImpl @Inject constructor(
                 ?: error("No task found with ID $taskId")
             val outputPath = task.outputPath?.takeIf { it.isNotBlank() }
                 ?: error("This task does not have a saved output file.")
-            val libraryPath = fileUtils.moveFromVault(outputPath)
-            
+            val libraryPath = fileUtils.moveFromVault(outputPath).getOrThrow()
+
             var finalPath = libraryPath
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
                 val exportedPath = fileUtils.copyToPublicDownloads(java.io.File(libraryPath), null)
                 if (exportedPath != null) {
                     finalPath = exportedPath
                     if (exportedPath != libraryPath) {
-                        fileUtils.deleteManagedFile(libraryPath)
+                        fileUtils.deleteManagedMediaBundle(libraryPath)
                     }
                 }
             }
+            val remappedSubtitles = remapSiblingPaths(
+                originalPrimary = outputPath,
+                newPrimary = finalPath,
+                siblingPaths = task.subtitlePaths,
+            )
             downloadTaskStore.update(taskId) { current ->
                 current.copy(
                     outputPath = finalPath,
+                    subtitlePaths = remappedSubtitles,
                     isInVault = false,
                     updatedAtEpochMs = System.currentTimeMillis(),
                 )
             }
         }.onFailure { error ->
             logger.e("DownloadRepository", "moveFromVault failed taskId=$taskId", error)
+        }
+    }
+
+    private fun remapSiblingPaths(
+        originalPrimary: String,
+        newPrimary: String,
+        siblingPaths: List<String>,
+    ): List<String> {
+        val originalFile = File(originalPrimary)
+        val newFile = File(newPrimary)
+        val originalStem = originalFile.nameWithoutExtension
+        val newStem = newFile.nameWithoutExtension
+        val originalParent = originalFile.parentFile?.absolutePath ?: return siblingPaths
+        val newParent = newFile.parentFile?.absolutePath ?: return siblingPaths
+
+        return siblingPaths.map { sibling ->
+            val siblingFile = File(sibling)
+            if (siblingFile.parentFile?.absolutePath != originalParent) {
+                return@map sibling
+            }
+            val suffix = siblingFile.name.removePrefix(originalStem)
+            File(newParent, "$newStem$suffix").absolutePath
         }
     }
 

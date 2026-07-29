@@ -772,17 +772,26 @@ fun PlayerScreen(
                 }
             }
         } else {
-            Surface(
+            Column(
                 modifier = Modifier
                     .align(Alignment.Center)
+                    .fillMaxWidth()
                     .padding(24.dp),
-                tonalElevation = 4.dp,
-                shape = RoundedCornerShape(28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                Text(
-                    text = "This file is not available for playback.",
-                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
-                )
+                Surface(
+                    tonalElevation = 4.dp,
+                    shape = RoundedCornerShape(28.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.player_file_unavailable),
+                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
+                    )
+                }
+                TextButton(onClick = onBack) {
+                    Text(stringResource(R.string.common_back))
+                }
             }
         }
     }

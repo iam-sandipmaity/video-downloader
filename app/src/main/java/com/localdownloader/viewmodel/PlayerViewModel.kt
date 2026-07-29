@@ -618,31 +618,37 @@ class PlayerViewModel @Inject constructor(
         playableFile: File?,
         explicitSubtitlePaths: List<String>,
     ): List<MediaItem.SubtitleConfiguration> {
-        val parentDir = playableFile?.parentFile ?: return emptyList()
-        val stem = playableFile.nameWithoutExtension
         val explicitFiles = explicitSubtitlePaths
             .map(::File)
             .filter { it.exists() }
-        val fallbackFiles = parentDir.listFiles()
-            ?.asSequence()
-            ?.filter { candidate ->
-                candidate.isFile &&
-                    candidate.name.startsWith("$stem.") &&
-                    candidate.name != playableFile.name
-            }
-            ?.sortedBy { it.name }
-            ?.toList()
-            .orEmpty()
+        val parentDir = playableFile?.parentFile
+        val stem = playableFile?.nameWithoutExtension
+        val fallbackFiles = if (playableFile != null && parentDir != null && stem != null) {
+            parentDir.listFiles()
+                ?.asSequence()
+                ?.filter { candidate ->
+                    candidate.isFile &&
+                        candidate.name.startsWith("$stem.") &&
+                        candidate.name != playableFile.name
+                }
+                ?.sortedBy { it.name }
+                ?.toList()
+                .orEmpty()
+        } else {
+            emptyList()
+        }
 
         return (explicitFiles + fallbackFiles)
             .distinctBy { it.absolutePath }
-            .mapNotNull { subtitleFile ->
-                val mimeType = resolveSubtitleMimeType(subtitleFile.extension) ?: return@mapNotNull null
+            .mapIndexedNotNull { index, subtitleFile ->
+                val mimeType = resolveSubtitleMimeType(subtitleFile.extension) ?: return@mapIndexedNotNull null
+                val labelStem = stem ?: subtitleFile.nameWithoutExtension
                 MediaItem.SubtitleConfiguration.Builder(Uri.fromFile(subtitleFile))
                     .setMimeType(mimeType)
-                    .setLabel(buildSubtitleLabel(stem, subtitleFile))
-                    .setLanguage(extractSubtitleLanguage(stem, subtitleFile))
-                    .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
+                    .setLabel(buildSubtitleLabel(labelStem, subtitleFile))
+                    .setLanguage(extractSubtitleLanguage(labelStem, subtitleFile))
+                    // Only mark the first explicit/preferred track as default to avoid ambiguous auto-selection.
+                    .setSelectionFlags(if (index == 0) C.SELECTION_FLAG_DEFAULT else 0)
                     .setRoleFlags(C.ROLE_FLAG_SUBTITLE)
                     .build()
             }
