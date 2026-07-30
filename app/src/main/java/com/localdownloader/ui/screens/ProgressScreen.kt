@@ -44,6 +44,7 @@ import androidx.compose.material.icons.outlined.PauseCircle
 import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -55,6 +56,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -500,28 +502,29 @@ private fun QueueBatchActionRow(
     onCancelTasks: (List<String>) -> Unit,
 ) {
     val taskIds = tasks.map { it.id }
+    var pendingCancelAll by remember { mutableStateOf(false) }
     val actions = when (currentFilter) {
         ProgressFilter.Queue -> listOf(
             QueueBatchAction(
-                label = "Pause All In Queue",
+                label = stringResource(R.string.queue_pause_all_label),
                 onClick = { onPauseTasks(taskIds) },
             ),
             QueueBatchAction(
-                label = "Cancel All In Queue",
-                onClick = { onCancelTasks(taskIds) },
+                label = stringResource(R.string.queue_cancel_all_label),
+                onClick = { pendingCancelAll = true },
             ),
         )
 
         ProgressFilter.Paused -> listOf(
             QueueBatchAction(
-                label = "Resume All Scheduled",
+                label = stringResource(R.string.queue_resume_all_label),
                 onClick = { onResumeTasks(taskIds) },
             ),
         )
 
         ProgressFilter.Error -> listOf(
             QueueBatchAction(
-                label = "Retry All Failed",
+                label = stringResource(R.string.queue_retry_all_label),
                 onClick = { onRetryTasks(taskIds) },
             ),
         )
@@ -551,6 +554,31 @@ private fun QueueBatchActionRow(
                 )
             }
         }
+    }
+
+    if (pendingCancelAll) {
+        AlertDialog(
+            onDismissRequest = { pendingCancelAll = false },
+            title = { Text(stringResource(R.string.queue_cancel_all_title)) },
+            text = {
+                Text(stringResource(R.string.queue_cancel_all_body, taskIds.size))
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pendingCancelAll = false
+                        onCancelTasks(taskIds)
+                    },
+                ) {
+                    Text(stringResource(R.string.queue_cancel_all_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingCancelAll = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            },
+        )
     }
 }
 

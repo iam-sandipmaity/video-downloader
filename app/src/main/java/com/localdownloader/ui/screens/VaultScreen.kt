@@ -1,5 +1,7 @@
 package com.localdownloader.ui.screens
 
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Delete
@@ -34,23 +37,27 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.localdownloader.R
 import com.localdownloader.domain.models.DownloadTask
 import com.localdownloader.domain.models.SingleVaultSettings
 import com.localdownloader.domain.models.getAllVaults
+import com.localdownloader.media.isLikelyAudioPath
+import com.localdownloader.media.isLikelyVideoPath
 import com.localdownloader.ui.components.PreferencePageScaffold
-import com.localdownloader.viewmodel.DownloadViewModel
 import com.localdownloader.viewmodel.DownloadUiState
+import com.localdownloader.viewmodel.DownloadViewModel
 import com.localdownloader.viewmodel.VaultUiState
 import com.localdownloader.viewmodel.VaultViewModel
 
@@ -59,7 +66,6 @@ fun VaultScreen(
     vaultViewModel: VaultViewModel,
     downloadViewModel: DownloadViewModel,
     onBack: () -> Unit,
-    onMoveToDownloads: () -> Unit,
     onPlayVideo: (String) -> Unit,
     onPlayAudio: (String, List<DownloadTask>) -> Unit,
     modifier: Modifier = Modifier,
@@ -81,34 +87,38 @@ fun VaultScreen(
                     } else {
                         vaultViewModel.showSetupScreen(false)
                     }
-                }
+                },
             )
         }
 
         vaultState.unlockingVaultId != null -> {
-            val targetVaultId = vaultState.unlockingVaultId!!
-            val targetVaultName = allVaults.firstOrNull { it.id == targetVaultId }?.name ?: "Vault"
+            val targetVaultId = vaultState.unlockingVaultId ?: return
+            val targetVaultName = allVaults.firstOrNull { it.id == targetVaultId }?.name
+                ?: stringResource(R.string.vault_title)
+            BackHandler { vaultViewModel.cancelUnlock() }
             VaultUnlockScreen(
                 vaultName = targetVaultName,
                 errorMessage = vaultState.errorMessage,
                 onCancel = { vaultViewModel.cancelUnlock() },
                 onUnlock = { pin ->
-                    vaultViewModel.unlockVault(targetVaultId, pin) { success ->
-                        // VM updates state
-                    }
-                }
+                    vaultViewModel.unlockVault(targetVaultId, pin) { _ -> }
+                },
             )
         }
 
         vaultState.activeVaultId != null -> {
-            val activeId = vaultState.activeVaultId!!
+            val activeId = vaultState.activeVaultId ?: return
             val activeVault = allVaults.firstOrNull { it.id == activeId }
-            val activeVaultName = activeVault?.name ?: "Vault"
+            val activeVaultName = activeVault?.name ?: stringResource(R.string.vault_title)
 
             val vaultItems = remember(downloadState.tasks, activeId) {
                 downloadState.tasks.filter { task ->
                     isTaskInVault(task, activeId, allVaults.map { it.id })
                 }
+            }
+
+            BackHandler {
+                vaultViewModel.lockActiveVault()
             }
 
             VaultContentScreen(
@@ -120,9 +130,9 @@ fun VaultScreen(
                 vaultViewModel = vaultViewModel,
                 downloadViewModel = downloadViewModel,
                 onBack = { vaultViewModel.lockActiveVault() },
-                onMoveToDownloads = onMoveToDownloads,
                 onPlayVideo = onPlayVideo,
                 onPlayAudio = onPlayAudio,
+                modifier = modifier,
             )
         }
 
@@ -131,7 +141,7 @@ fun VaultScreen(
                 vaults = allVaults,
                 onSelectVault = { vaultId -> vaultViewModel.selectVaultForUnlock(vaultId) },
                 onCreateNewClick = { vaultViewModel.showSetupScreen(true) },
-                onBack = onBack
+                onBack = onBack,
             )
         }
     }
@@ -156,6 +166,9 @@ private fun VaultSetupScreen(
     var pin by remember { mutableStateOf("") }
     var confirmPin by remember { mutableStateOf("") }
     var vaultName by remember { mutableStateOf("") }
+    val pinsMatch = pin.isNotEmpty() && confirmPin.isNotEmpty() && pin == confirmPin
+    val pinValid = pin.length in 4..8
+    val canSave = pinValid && pinsMatch
 
     PreferencePageScaffold(
         title = stringResource(R.string.vault_pin_setup_title),
@@ -166,7 +179,7 @@ private fun VaultSetupScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Lock,
@@ -180,48 +193,62 @@ private fun VaultSetupScreen(
                         text = stringResource(R.string.vault_pin_setup_body),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                        modifier = Modifier.padding(bottom = 8.dp)
+                        modifier = Modifier.padding(bottom = 8.dp),
                     )
                     OutlinedTextField(
                         value = vaultName,
                         onValueChange = { vaultName = it },
                         label = { Text(stringResource(R.string.vault_vault_name)) },
-                        placeholder = { Text("e.g. Work, Personal") },
+                        placeholder = { Text(stringResource(R.string.vault_name_optional_hint)) },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     )
                     OutlinedTextField(
                         value = pin,
                         onValueChange = { if (it.all { char -> char.isDigit() } && it.length <= 8) pin = it },
                         label = { Text(stringResource(R.string.vault_pin_new)) },
+                        placeholder = { Text(stringResource(R.string.vault_pin_hint)) },
                         visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     )
                     OutlinedTextField(
                         value = confirmPin,
                         onValueChange = { if (it.all { char -> char.isDigit() } && it.length <= 8) confirmPin = it },
                         label = { Text(stringResource(R.string.vault_pin_confirm)) },
                         visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        isError = confirmPin.isNotEmpty() && !pinsMatch,
+                        supportingText = {
+                            when {
+                                confirmPin.isNotEmpty() && !pinsMatch -> {
+                                    Text(stringResource(R.string.vault_pin_mismatch))
+                                }
+                                pin.isNotEmpty() && !pinValid -> {
+                                    Text(stringResource(R.string.vault_pin_too_short))
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
                     )
                     Button(
                         onClick = {
-                            if (pin.length >= 4 && pin == confirmPin) {
+                            if (canSave) {
                                 vaultViewModel.createNewVault(vaultName, pin)
                             }
                         },
-                        enabled = pin.length >= 4 && pin == confirmPin,
+                        enabled = canSave,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 16.dp)
+                            .padding(top = 16.dp),
                     ) {
                         Text(stringResource(R.string.common_save))
                     }
                 }
             }
-        }
+        },
     )
 }
 
@@ -230,12 +257,12 @@ private fun VaultUnlockScreen(
     vaultName: String,
     errorMessage: String?,
     onCancel: () -> Unit,
-    onUnlock: (String) -> Unit
+    onUnlock: (String) -> Unit,
 ) {
     var pin by remember { mutableStateOf("") }
 
     PreferencePageScaffold(
-        title = "Unlock $vaultName",
+        title = stringResource(R.string.vault_unlock_title, vaultName),
         onBack = onCancel,
         content = {
             item {
@@ -244,52 +271,54 @@ private fun VaultUnlockScreen(
                         .fillMaxWidth()
                         .padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(24.dp)
+                    verticalArrangement = Arrangement.spacedBy(24.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Lock,
                         contentDescription = null,
                         modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = MaterialTheme.colorScheme.primary,
                     )
 
                     Text(
-                        text = "Enter PIN to access $vaultName.",
+                        text = stringResource(R.string.vault_unlock_body, vaultName),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                     )
 
                     OutlinedTextField(
                         value = pin,
                         onValueChange = { if (it.all { char -> char.isDigit() } && it.length <= 8) pin = it },
-                        label = { Text("Vault PIN") },
+                        label = { Text(stringResource(R.string.vault_pin_prompt)) },
+                        placeholder = { Text(stringResource(R.string.vault_pin_hint)) },
                         visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     )
 
                     if (errorMessage != null) {
                         Text(
                             text = errorMessage,
                             color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall
+                            style = MaterialTheme.typography.bodySmall,
                         )
                     }
 
                     Button(
                         onClick = { onUnlock(pin) },
                         enabled = pin.length >= 4,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text("Unlock")
+                        Text(stringResource(R.string.vault_unlock))
                     }
 
                     TextButton(onClick = onCancel) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.common_cancel))
                     }
                 }
             }
-        }
+        },
     )
 }
 
@@ -298,10 +327,10 @@ private fun VaultSelectorScreen(
     vaults: List<SingleVaultSettings>,
     onSelectVault: (String) -> Unit,
     onCreateNewClick: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
 ) {
     PreferencePageScaffold(
-        title = "Private Vaults",
+        title = stringResource(R.string.vault_selector_title),
         onBack = onBack,
         content = {
             if (vaults.isEmpty()) {
@@ -311,58 +340,58 @@ private fun VaultSelectorScreen(
                             .fillMaxWidth()
                             .padding(32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Lock,
                             contentDescription = null,
                             modifier = Modifier.size(64.dp),
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = MaterialTheme.colorScheme.primary,
                         )
                         Text(
-                            text = "No Vaults Created",
-                            style = MaterialTheme.typography.titleMedium
+                            text = stringResource(R.string.vault_no_vaults),
+                            style = MaterialTheme.typography.titleMedium,
                         )
                         Button(onClick = onCreateNewClick) {
-                            Text("Create First Vault")
+                            Text(stringResource(R.string.vault_create_first))
                         }
                     }
                 }
             } else {
-                items(vaults) { vault ->
+                items(vaults, key = { it.id }) { vault ->
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 8.dp)
                             .clickable { onSelectVault(vault.id) },
                         shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerLow
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(16.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.Lock,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary
+                                    tint = MaterialTheme.colorScheme.primary,
                                 )
                                 Text(
                                     text = vault.name,
-                                    style = MaterialTheme.typography.titleMedium
+                                    style = MaterialTheme.typography.titleMedium,
                                 )
                             }
                             Icon(
                                 imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                             )
                         }
                     }
@@ -373,21 +402,21 @@ private fun VaultSelectorScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                        horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Button(onClick = onCreateNewClick) {
                             Icon(
                                 imageVector = Icons.Outlined.Add,
                                 contentDescription = null,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(18.dp),
                             )
                             Spacer(modifier = Modifier.size(8.dp))
-                            Text("Create New Vault")
+                            Text(stringResource(R.string.vault_create_new))
                         }
                     }
                 }
             }
-        }
+        },
     )
 }
 
@@ -401,25 +430,27 @@ private fun VaultContentScreen(
     vaultViewModel: VaultViewModel,
     downloadViewModel: DownloadViewModel,
     onBack: () -> Unit,
-    onMoveToDownloads: () -> Unit,
     onPlayVideo: (String) -> Unit,
     onPlayAudio: (String, List<DownloadTask>) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var showSettings by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var selectedTab by remember { mutableStateOf(0) }
+    val context = LocalContext.current
+    val notPlayableMessage = stringResource(R.string.vault_file_not_playable)
 
     val filteredItems = remember(vaultItems, selectedTab, searchQuery) {
         vaultItems.filter { item ->
             val matchesSearch = item.title.contains(searchQuery, ignoreCase = true)
             val path = item.outputPath.orEmpty()
-            val isVideo = com.localdownloader.media.isLikelyVideoPath(path)
-            val isAudio = com.localdownloader.media.isLikelyAudioPath(path)
+            val isVideo = isLikelyVideoPath(path)
+            val isAudio = isLikelyAudioPath(path)
             val matchesTab = when (selectedTab) {
-                0 -> true // All
-                1 -> isVideo // Videos
-                2 -> isAudio // Audios
-                3 -> !isVideo && !isAudio // Others
+                0 -> true
+                1 -> isVideo
+                2 -> isAudio
+                3 -> !isVideo && !isAudio
                 else -> true
             }
             matchesSearch && matchesTab
@@ -429,11 +460,12 @@ private fun VaultContentScreen(
     PreferencePageScaffold(
         title = vaultName,
         onBack = onBack,
+        modifier = modifier,
         actions = {
             IconButton(onClick = { showSettings = true }) {
                 Icon(
                     imageVector = Icons.Default.Settings,
-                    contentDescription = "Vault Settings"
+                    contentDescription = stringResource(R.string.common_settings),
                 )
             }
         },
@@ -442,11 +474,11 @@ private fun VaultContentScreen(
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search vault files...") },
+                    placeholder = { Text(stringResource(R.string.vault_search_hint)) },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                 )
             }
 
@@ -456,14 +488,19 @@ private fun VaultContentScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp),
-                    containerColor = androidx.compose.ui.graphics.Color.Transparent
+                    containerColor = androidx.compose.ui.graphics.Color.Transparent,
                 ) {
-                    val tabs = listOf("All", "Videos", "Audios", "Others")
+                    val tabs = listOf(
+                        stringResource(R.string.vault_tab_all),
+                        stringResource(R.string.vault_tab_videos),
+                        stringResource(R.string.vault_tab_audios),
+                        stringResource(R.string.vault_tab_others),
+                    )
                     tabs.forEachIndexed { index, title ->
                         Tab(
                             selected = selectedTab == index,
                             onClick = { selectedTab = index },
-                            text = { Text(title) }
+                            text = { Text(title) },
                         )
                     }
                 }
@@ -485,37 +522,52 @@ private fun VaultContentScreen(
                             tint = MaterialTheme.colorScheme.primary,
                         )
                         Text(
-                            text = if (searchQuery.isNotEmpty()) "No results found" else stringResource(R.string.vault_empty),
+                            text = if (searchQuery.isNotEmpty()) {
+                                stringResource(R.string.vault_no_search_results)
+                            } else {
+                                stringResource(R.string.vault_empty)
+                            },
                             style = MaterialTheme.typography.titleMedium,
                         )
                         Text(
-                            text = if (searchQuery.isNotEmpty()) "Try a different search query" else stringResource(R.string.vault_empty_body),
+                            text = if (searchQuery.isNotEmpty()) {
+                                stringResource(R.string.vault_no_search_results_body)
+                            } else {
+                                stringResource(R.string.vault_empty_body)
+                            },
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                         )
                     }
                 }
             } else {
-                items(filteredItems) { item ->
+                items(filteredItems, key = { it.id }) { item ->
                     val path = item.outputPath.orEmpty()
-                    val isAudio = com.localdownloader.media.isLikelyAudioPath(path)
+                    val isAudio = isLikelyAudioPath(path)
+                    val isVideo = isLikelyVideoPath(path)
                     VaultItemCard(
                         item = item,
                         onMoveToDownloads = { taskId ->
                             downloadViewModel.moveFromVault(taskId)
                         },
                         onPlayClick = {
-                            if (isAudio) {
-                                val audioTasks = vaultItems.filter { com.localdownloader.media.isLikelyAudioPath(it.outputPath.orEmpty()) }
-                                onPlayAudio(item.id, audioTasks)
-                            } else {
-                                onPlayVideo(item.id)
+                            when {
+                                isAudio -> {
+                                    val audioTasks = vaultItems.filter {
+                                        isLikelyAudioPath(it.outputPath.orEmpty())
+                                    }
+                                    onPlayAudio(item.id, audioTasks)
+                                }
+                                isVideo -> onPlayVideo(item.id)
+                                else -> {
+                                    Toast.makeText(context, notPlayableMessage, Toast.LENGTH_SHORT).show()
+                                }
                             }
                         },
                     )
                 }
             }
-        }
+        },
     )
 
     if (showSettings) {
@@ -531,7 +583,7 @@ private fun VaultContentScreen(
             text = {
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     item {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -539,13 +591,13 @@ private fun VaultContentScreen(
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 OutlinedTextField(
                                     value = newVaultName,
                                     onValueChange = { newVaultName = it },
                                     singleLine = true,
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.weight(1f),
                                 )
                                 Button(
                                     onClick = {
@@ -553,7 +605,7 @@ private fun VaultContentScreen(
                                             vaultViewModel.renameVault(activeId, newVaultName)
                                         }
                                     },
-                                    enabled = newVaultName.isNotBlank() && newVaultName != vaultName
+                                    enabled = newVaultName.isNotBlank() && newVaultName != vaultName,
                                 ) {
                                     Text("Rename")
                                 }
@@ -567,19 +619,19 @@ private fun VaultContentScreen(
                             Text(
                                 text = "Downloads matching these prefixes will automatically move here.",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                             )
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 OutlinedTextField(
                                     value = newRule,
                                     onValueChange = { newRule = it },
                                     placeholder = { Text("https://example.com") },
                                     singleLine = true,
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.weight(1f),
                                 )
                                 Button(
                                     onClick = {
@@ -588,7 +640,7 @@ private fun VaultContentScreen(
                                             newRule = ""
                                         }
                                     },
-                                    enabled = newRule.isNotBlank()
+                                    enabled = newRule.isNotBlank(),
                                 ) {
                                     Text("Add")
                                 }
@@ -601,30 +653,30 @@ private fun VaultContentScreen(
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant
+                                color = MaterialTheme.colorScheme.surfaceVariant,
                             ) {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(horizontal = 12.dp, vertical = 8.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                                    verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     Text(
                                         text = rule,
                                         style = MaterialTheme.typography.bodyMedium,
                                         maxLines = 1,
-                                        modifier = Modifier.weight(1f)
+                                        modifier = Modifier.weight(1f),
                                     )
                                     IconButton(
                                         onClick = { vaultViewModel.deleteAutoMoveRule(activeId, rule) },
-                                        modifier = Modifier.size(32.dp)
+                                        modifier = Modifier.size(32.dp),
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Delete,
-                                            contentDescription = "Delete rule",
+                                            contentDescription = stringResource(R.string.common_delete),
                                             tint = MaterialTheme.colorScheme.error,
-                                            modifier = Modifier.size(18.dp)
+                                            modifier = Modifier.size(18.dp),
                                         )
                                     }
                                 }
@@ -635,13 +687,17 @@ private fun VaultContentScreen(
                     item {
                         Column(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.padding(top = 16.dp)
+                            modifier = Modifier.padding(top = 16.dp),
                         ) {
-                            Text("Danger Zone", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.error)
+                            Text(
+                                "Danger Zone",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
                             Button(
                                 onClick = { showDeleteConfirm = true },
                                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
                             ) {
                                 Text("Delete Vault & Stored Files", color = MaterialTheme.colorScheme.onError)
                             }
@@ -652,9 +708,9 @@ private fun VaultContentScreen(
             confirmButton = {},
             dismissButton = {
                 TextButton(onClick = { showSettings = false }) {
-                    Text("Close")
+                    Text(stringResource(R.string.common_close))
                 }
-            }
+            },
         )
 
         if (showDeleteConfirm) {
@@ -662,7 +718,9 @@ private fun VaultContentScreen(
                 onDismissRequest = { showDeleteConfirm = false },
                 title = { Text("Delete $vaultName?") },
                 text = {
-                    Text("Are you sure? This will permanently delete the vault and delete all ${vaultItems.size} files stored inside it. This action is irreversible.")
+                    Text(
+                        "Are you sure? This will permanently delete the vault and delete all ${vaultItems.size} files stored inside it. This action is irreversible.",
+                    )
                 },
                 confirmButton = {
                     Button(
@@ -671,16 +729,16 @@ private fun VaultContentScreen(
                             showSettings = false
                             vaultViewModel.deleteVault(activeId, downloadState.tasks)
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                     ) {
-                        Text("Delete Permanently")
+                        Text(stringResource(R.string.common_delete))
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { showDeleteConfirm = false }) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.common_cancel))
                     }
-                }
+                },
             )
         }
     }

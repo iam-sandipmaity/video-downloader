@@ -686,6 +686,7 @@ class DownloadWorker @AssistedInject constructor(
                 ?.toReadableSize()
 
             var resolvedPath = finalPath
+            var resolvedSubtitlePaths = exportedBundle.subtitlePaths
             var isInVault = false
             runCatching {
                 val vaultSettings = settingsStore.observeSettings().first().vaultSettings
@@ -698,9 +699,25 @@ class DownloadWorker @AssistedInject constructor(
                     }
                     if (matchingVault != null && finalPath != null) {
                         logger.i("DownloadWorker", "Auto-moving completed task $taskId to vault ${matchingVault.name}")
-                        val vaultPath = fileUtils.moveToVault(finalPath, matchingVault.id)
-                        resolvedPath = vaultPath
-                        isInVault = true
+                        val vaultMove = fileUtils.moveToVault(finalPath, matchingVault.id)
+                        vaultMove.fold(
+                            onSuccess = { vaultPath ->
+                                resolvedPath = vaultPath
+                                isInVault = true
+                                resolvedSubtitlePaths = remapSiblingPathsForVault(
+                                    originalPrimary = finalPath,
+                                    newPrimary = vaultPath,
+                                    siblingPaths = exportedBundle.subtitlePaths,
+                                )
+                            },
+                            onFailure = { error ->
+                                logger.e(
+                                    "DownloadWorker",
+                                    "Auto-move to vault failed for task $taskId; keeping public download",
+                                    error,
+                                )
+                            },
+                        )
                     }
                 }
             }.onFailure { error ->
@@ -713,7 +730,7 @@ class DownloadWorker @AssistedInject constructor(
                     progressPercent = 100,
                     outputPath = resolvedPath,
                     isInVault = isInVault,
-                    subtitlePaths = exportedBundle.subtitlePaths,
+                    subtitlePaths = resolvedSubtitlePaths,
                     downloadedStr = finalSizeLabel ?: task.downloadedStr.takeMeaningfulSizeLabel(),
                     totalSizeStr = finalSizeLabel ?: task.totalSizeStr.takeMeaningfulSizeLabel(),
                     updatedAtEpochMs = System.currentTimeMillis(),
@@ -2622,6 +2639,28 @@ class DownloadWorker @AssistedInject constructor(
         val primaryPath: String?,
         val subtitlePaths: List<String>,
     )
+
+    private fun remapSiblingPathsForVault(
+        originalPrimary: String,
+        newPrimary: String,
+        siblingPaths: List<String>,
+    ): List<String> {
+        val originalFile = File(originalPrimary)
+        val newFile = File(newPrimary)
+        val originalStem = originalFile.nameWithoutExtension
+        val newStem = newFile.nameWithoutExtension
+        val originalParent = originalFile.parentFile?.absolutePath ?: return siblingPaths
+        val newParent = newFile.parentFile?.absolutePath ?: return siblingPaths
+
+        return siblingPaths.map { sibling ->
+            val siblingFile = File(sibling)
+            if (siblingFile.parentFile?.absolutePath != originalParent) {
+                return@map sibling
+            }
+            val suffix = siblingFile.name.removePrefix(originalStem)
+            File(newParent, "$newStem$suffix").absolutePath
+        }
+    }
 
     private data class SplitMediaArtifacts(
         val video: File,

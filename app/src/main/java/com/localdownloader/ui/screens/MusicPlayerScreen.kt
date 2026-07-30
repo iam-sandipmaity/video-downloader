@@ -1730,7 +1730,7 @@ private fun AudioToolsSheet(
                     repeatModeLabel(audioPlaybackState.repeatMode),
                     "${formatPlaybackTime(audioPlaybackState.positionMs)} / ${formatPlaybackTime(audioPlaybackState.durationMs)}",
                 ).joinToString(" | "),
-                onClick = {},
+                onClick = null,
             )
             PlayerOptionRow(
                 icon = Icons.Outlined.AccessTime,
@@ -2225,12 +2225,18 @@ private fun PlayerOptionRow(
     icon: ImageVector,
     title: String,
     subtitle: String,
-    onClick: () -> Unit,
+    onClick: (() -> Unit)?,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .then(
+                if (onClick != null) {
+                    Modifier.clickable(onClick = onClick)
+                } else {
+                    Modifier
+                },
+            )
             .padding(vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,

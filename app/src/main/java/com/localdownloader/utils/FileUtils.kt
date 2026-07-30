@@ -58,36 +58,122 @@ class FileUtils @Inject constructor(
         return vaultDir
     }
 
-    fun moveToVault(path: String, vaultId: String = "default"): String {
+    /**
+     * Moves a media file and its managed sidecar bundle into the vault.
+     * Returns the new primary path on success, or fails without marking the move complete.
+     */
+    fun moveToVault(path: String, vaultId: String = "default"): Result<String> {
         val sourceFile = File(path)
-        if (!sourceFile.exists()) return path
+        if (!sourceFile.exists()) {
+            return Result.failure(IllegalStateException("Source file does not exist: $path"))
+        }
 
         val vaultDir = ensureVaultDir(vaultId)
-        val targetFile = File(vaultDir, sourceFile.name)
-
-        return runCatching {
-            sourceFile.copyTo(targetFile, overwrite = false)
-            deleteManagedFile(sourceFile.absolutePath)
-            targetFile.absolutePath
-        }.getOrNull() ?: path
-    }
-
-    fun moveFromVault(path: String): String {
-        val vaultFile = File(path)
-        val vaultBase = File(context.noBackupFilesDir, "vault").absolutePath
-        if (!vaultFile.absolutePath.startsWith(vaultBase)) return path
-
-        val libraryDir = ensureDownloadsDir()
-        val targetFile = File(libraryDir, vaultFile.name)
-        if (vaultFile.renameTo(targetFile)) {
-            return targetFile.absolutePath
+        val targetPrimary = File(vaultDir, sourceFile.name)
+        if (targetPrimary.exists()) {
+            return Result.failure(IllegalStateException("A vault file already exists: ${targetPrimary.name}"))
         }
 
         return runCatching {
-            vaultFile.copyTo(targetFile, overwrite = false)
-            vaultFile.delete()
-            targetFile.absolutePath
-        }.getOrNull() ?: path
+            val bundle = resolveManagedMediaBundle(sourceFile)
+            val sourceStem = sourceFile.nameWithoutExtension
+            val movedPairs = mutableListOf<Pair<File, File>>()
+
+            try {
+                for (source in bundle) {
+                    val target = if (source.absolutePath == sourceFile.absolutePath) {
+                        targetPrimary
+                    } else {
+                        val suffix = source.name.removePrefix(sourceStem)
+                        File(vaultDir, "${sourceStem}$suffix")
+                    }
+                    if (target.exists()) {
+                        error("Vault destination already exists: ${target.name}")
+                    }
+                    source.copyTo(target, overwrite = false)
+                    if (!target.exists() || target.length() != source.length()) {
+                        error("Failed to copy ${source.name} into vault")
+                    }
+                    movedPairs += source to target
+                }
+
+                val deletedAllSources = movedPairs.all { (source, _) ->
+                    deleteManagedFile(source.absolutePath)
+                }
+                if (!deletedAllSources) {
+                    error("Copied into vault but failed to remove public originals")
+                }
+
+                targetPrimary.absolutePath
+            } catch (error: Throwable) {
+                movedPairs.forEach { (_, target) ->
+                    runCatching { target.delete() }
+                }
+                throw error
+            }
+        }
+    }
+
+    /**
+     * Moves a vault media file and its managed sidecar bundle back to the downloads library.
+     */
+    fun moveFromVault(path: String): Result<String> {
+        val vaultFile = File(path)
+        val vaultBase = File(context.noBackupFilesDir, "vault").absoluteFile.normalize()
+        val vaultPath = vaultFile.absoluteFile.normalize()
+        if (!vaultPath.path.startsWith(vaultBase.path + File.separator) && vaultPath != vaultBase) {
+            return Result.failure(IllegalStateException("Path is not inside the vault: $path"))
+        }
+        if (!vaultFile.exists()) {
+            return Result.failure(IllegalStateException("Vault file does not exist: $path"))
+        }
+
+        val libraryDir = ensureDownloadsDir()
+        val targetPrimary = File(libraryDir, vaultFile.name)
+        if (targetPrimary.exists()) {
+            return Result.failure(IllegalStateException("A downloads file already exists: ${targetPrimary.name}"))
+        }
+
+        return runCatching {
+            val bundle = resolveManagedMediaBundle(vaultFile)
+            val sourceStem = vaultFile.nameWithoutExtension
+            val movedPairs = mutableListOf<Pair<File, File>>()
+
+            try {
+                for (source in bundle) {
+                    val target = if (source.absolutePath == vaultFile.absolutePath) {
+                        targetPrimary
+                    } else {
+                        val suffix = source.name.removePrefix(sourceStem)
+                        File(libraryDir, "${sourceStem}$suffix")
+                    }
+                    if (target.exists()) {
+                        error("Downloads destination already exists: ${target.name}")
+                    }
+                    if (!source.renameTo(target)) {
+                        source.copyTo(target, overwrite = false)
+                        if (!target.exists() || target.length() != source.length()) {
+                            error("Failed to copy ${source.name} out of vault")
+                        }
+                        if (!source.delete()) {
+                            target.delete()
+                            error("Failed to remove vault original: ${source.name}")
+                        }
+                    }
+                    movedPairs += source to target
+                }
+                targetPrimary.absolutePath
+            } catch (error: Throwable) {
+                movedPairs.forEach { (source, target) ->
+                    if (!source.exists() && target.exists()) {
+                        runCatching { target.renameTo(source) }
+                    } else if (target.exists() && source.exists()) {
+                        runCatching { target.delete() }
+                    }
+                }
+                throw error
+            }
+        }
     }
 
     /**

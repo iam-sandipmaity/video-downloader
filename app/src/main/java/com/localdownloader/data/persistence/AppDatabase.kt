@@ -76,7 +76,7 @@ abstract class AppDatabase : RoomDatabase() {
                 database.execSQL(
                     """
                     ALTER TABLE download_tasks
-                    ADD COLUMN is_in_vault INTEGER DEFAULT 0
+                    ADD COLUMN is_in_vault INTEGER NOT NULL DEFAULT 0
                     """.trimIndent(),
                 )
             }
