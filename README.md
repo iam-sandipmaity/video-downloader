@@ -51,11 +51,36 @@
   </a>
 </p>
 
+## 📑 Table of Contents
+
+- [Why This App](#why-this-app)
+- [Download](#download)
+- [Quick Start](#quick-start)
+- [Features](#features)
+- [Supported Sources](#supported-sources)
+- [App Preview](#app-preview)
+- [Supported Languages](#supported-languages)
+- [Translation Progress](#translation-progress)
+- [Compatibility](#compatibility)
+- [Architecture](#architecture)
+- [Build From Source](#build-from-source)
+- [Repository Docs](#repository-docs)
+- [Donate](#donate)
+- [License](#license)
+- [Credits](#credits)
+- [Star History](#star-history)
+- [Contributors](#contributors)
+
 ## Why This App
 
-| Local-first | Real downloader stack | Built for recovery | Useful beyond downloads |
-| --- | --- | --- | --- |
-| Analyze links, download media, merge streams, and convert files directly on the device. | Uses embedded `yt-dlp` plus managed `FFmpeg` paths instead of a remote relay service. | Queueing, retries, diagnostics, cookies, YouTube access help, and runtime updates are part of the product flow. | Includes saved-library browsing, audio/video playback, compression, conversion, and history tools. |
+| | What it means |
+| --- | --- |
+| **Local-first** | Analyze links, download media, merge streams, and convert files directly on the device. |
+| **Real downloader stack** | Embedded `yt-dlp` plus managed `FFmpeg` paths — no remote relay service. |
+| **Built for recovery** | Queueing, retries, diagnostics, cookies, and YouTube access help are part of the product flow. |
+| **Useful beyond downloads** | Saved-library browsing, audio/video playback, compression, conversion, and history tools. |
+
+Everything runs on-device: no backend, no cloud conversion, no forced account system, and no server-side link handling.
 
 ## Download
 
@@ -69,6 +94,7 @@ Stable downloads use GitHub's latest release endpoint, which tracks the newest n
 
 ### Nightly / Debug Build
 
+> [!WARNING]
 > Nightly builds are unstable and may contain bugs. Use at your own risk.
 
 <p align="center">
@@ -78,50 +104,75 @@ Stable downloads use GitHub's latest release endpoint, which tracks the newest n
 </p>
 
 <p align="center">
-  <strong>Rolling nightly release tag</strong> - always points to the newest successful <code>main</code> debug build
+  <strong>Rolling nightly release tag</strong> — always points to the newest successful <code>main</code> debug build
 </p>
 
 Nightly downloads use the rolling `nightly` release tag, which is separate from stable releases. Nightly-only changes are tracked in [CHANGELOG-NIGHTLY.md](CHANGELOG-NIGHTLY.md).
 
 ### Requirements
 
-- Minimum requirement: Android 8.0+
+- **Minimum:** Android 8.0+
+- **Primary shipped ABI:** `arm64-v8a`
+- **Public downloads root:** `Download/LocalDownloader/`
 
-## What You Can Do
+## Quick Start
 
-- Paste a supported link, analyze it locally, and choose from the formats `yt-dlp` exposes for that source.
-- Download single videos, audio-only files, or playlists with global defaults plus per-item overrides.
-- Rename outputs before download, keep source thumbnails, and let the app handle post-processing when audio/video streams need merging.
-- Pause, resume, retry, inspect, and recover queue items without needing a desktop companion app.
-- Open completed downloads in the built-in audio or video players, or manage them from the local library with share and delete actions.
-- Use cookies and YouTube access helpers when a site needs session data for better compatibility.
-- Run conversion and compression workflows directly on the device after a download finishes.
+1. **Install** — grab the latest stable build from [Releases](https://github.com/iam-sandipmaity/video-downloader/releases/latest) or via [Obtainium](https://apps.obtainium.imranr.dev/redirect.html?r=obtainium://add/https://github.com/iam-sandipmaity/video-downloader/releases/latest).
+2. **Paste a link** — any supported URL goes in the home screen input. The app analyzes it locally and shows available formats.
+3. **Pick and download** — choose format/quality, optionally rename, and hit download. Pause, resume, or retry anytime from the queue.
 
-## How The App Feels In Practice
+## Features
 
-| Before download | While downloading | After download |
+**Downloads**
+
+- Video downloads with format, quality, and container selection
+- Audio-only downloads with music-friendly outputs
+- Playlist downloads with global defaults and per-item overrides
+- Download queue with pause, resume, retry, and diagnostics
+- Download history with per-task logs and traces
+- Cookies and YouTube access recovery tools for harder sites
+- Rename outputs before download, keep source thumbnails
+- Auto post-processing when audio/video streams need merging
+
+**Built-in tools**
+
+- Saved downloads library with share, delete, and batch actions
+- In-app audio player (vinyl-style artwork, queue controls, trim, sleep timer)
+- In-app video player (portrait and landscape, full-screen flow)
+- Built-in converter and compressor flows
+
+**Updates & localization**
+
+- Updates center for the app, `yt-dlp`, and `FFmpeg`
+- Multi-language UI with expanding coverage
+
+## Supported Sources
+
+Powered by `yt-dlp`, the app supports **1,000+ sites** out of the box, including:
+
+| | | |
 | --- | --- | --- |
-| Link analysis, format selection, naming control, cookies, and access recovery are built into the main flow. | Queue diagnostics, pause/resume behavior, and worker-backed retries help tougher downloads stay manageable. | Saved media stays available in the local library with playback, sharing, cleanup, and follow-up media tools. |
+| YouTube | Instagram | Twitter / X |
+| Facebook | TikTok | Twitch |
+| Vimeo | SoundCloud | Reddit |
+| Bandcamp | Dailymotion | …and many more |
 
-## Practical Focus
-
-- Stability-first download behavior instead of backend-heavy automation.
-- Local processing with minimal trust in external services.
-- Recovery paths for difficult sites, network hiccups, and post-processing failures.
-- UI surfaces that stay useful for regular downloading instead of exposing raw runtime complexity everywhere.
-
-For release-specific changes, see [CHANGELOG.md](CHANGELOG.md).
+For the full list, see the [yt-dlp support database](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md).
 
 ## App Preview
 
-### Home And Link Analysis
+<details>
+<summary><b>Home & Link Analysis</b></summary>
 
 | Home | Link Analyzing | Single Download Sheet |
 | --- | --- | --- |
 | <img src="public/demo/home-page.png" alt="Home screen with URL input" width="200" /> | <img src="public/demo/home-link-analyzing.png" alt="Home screen while analyzing a link" width="200" /> | <img src="public/demo/single-file-download-option-view.png" alt="Single file download options overlay" width="200" /> |
 | URL entry, ready-history cards, and the main download starting point. | Active metadata extraction before formats are shown. | Format, naming, and final output controls for a single media item. |
 
-### Playlist And Queue
+</details>
+
+<details>
+<summary><b>Playlist & Queue</b></summary>
 
 | Playlist Picker | Per-File Playlist Controls |
 | --- | --- |
@@ -133,7 +184,10 @@ For release-specific changes, see [CHANGELOG.md](CHANGELOG.md).
 | <img src="public/demo/downloading-screen.png" alt="Queue screen while a task is active" width="200" /> | <img src="public/demo/downloading-tab.png" alt="Download queue tab" width="200" /> |
 | Live task progress with worker-driven updates. | Broader queue view for running, queued, and failed items. |
 
-### Library And Playback
+</details>
+
+<details>
+<summary><b>Library & Playback</b></summary>
 
 | Downloads Library | Saved File Viewer |
 | --- | --- |
@@ -145,24 +199,30 @@ For release-specific changes, see [CHANGELOG.md](CHANGELOG.md).
 | <img src="public/demo/downloaded-audio-inapp-player.png" alt="In-app audio player with vinyl-style artwork" width="200" /> | <img src="public/demo/audio-player-more-options.png" alt="Audio player more options sheet" width="200" /> | <img src="public/demo/in-app-video-player.png" alt="In-app video player" width="200" /> |
 | Music-style playback with artwork, queue controls, and audio-source switching. | Details, trim, sleep timer, share, and set-as actions for local tracks. | Full-screen player flow for downloaded video. |
 
-| Video Player - Portrait | Video Player - Landscape |
+| Video Player — Portrait | Video Player — Landscape |
 | --- | --- |
 | <img src="public/demo/in-app-video-player-verticle.png" alt="In-app video player in portrait orientation" width="200" /> | <img src="public/demo/in-app-video-player-horizontal.png" alt="In-app video player in landscape orientation" width="320" /> |
 | Touch-first portrait playback controls. | Wide playback layout for landscape viewing. |
 
-### Settings And Support Surfaces
+</details>
+
+<details>
+<summary><b>Settings & Support Surfaces</b></summary>
 
 | More Page | Settings Hub |
 | --- | --- |
 | <img src="public/demo/more-page.png" alt="More page" width="200" /> | <img src="public/demo/settings-page.png" alt="Settings page" width="200" /> |
 | Utility shortcuts, tools, updates, and help entry points. | Main settings navigation with grouped categories. |
 
-| Appearance Page | About And Credits |
+| Appearance Page | About & Credits |
 | --- | --- |
 | <img src="public/demo/appearence-page.png" alt="Appearance page" width="200" /> | <img src="public/demo/about-page-credit-section.png" alt="About page with credits section" width="200" /> |
 | Theme, accent, contrast, and language-adjacent presentation controls. | Credits and upstream acknowledgements inside the app. |
 
-### Access And Media Tools
+</details>
+
+<details>
+<summary><b>Access & Media Tools</b></summary>
 
 | Cookies Page | YouTube Access |
 | --- | --- |
@@ -174,25 +234,17 @@ For release-specific changes, see [CHANGELOG.md](CHANGELOG.md).
 | <img src="public/demo/converter.png" alt="Converter tool page" width="200" /> | <img src="public/demo/compressor.png" alt="Compressor tool page" width="200" /> |
 | Format conversion utility built into the app. | Compression workflow for media size reduction. |
 
-### Localization Examples
+</details>
+
+<details>
+<summary><b>Localization Examples</b></summary>
 
 | Appearance In Bengali | Notification Settings In Bengali |
 | --- | --- |
 | <img src="public/demo/appearence-page-in-bengali.png" alt="Appearance page in Bengali" width="200" /> | <img src="public/demo/notification-page-in-bengali.png" alt="Notification settings in Bengali" width="200" /> |
 | One of the localized settings surfaces. | Another example of translated in-app settings UI. |
 
-## Feature Set
-
-- Video downloads with format, quality, and container selection.
-- Audio-only downloads with music-friendly outputs.
-- Playlist downloads with global defaults and per-item overrides.
-- Download queue with pause, resume, retry, and diagnostics.
-- Saved downloads library with share, delete, and batch actions.
-- Download history with per-task logs and traces.
-- Cookies and YouTube access recovery tools.
-- Built-in converter and compressor flows.
-- Updates center for the app, `yt-dlp`, and `FFmpeg`.
-- Multi-language UI with expanding coverage.
+</details>
 
 ## Supported Languages
 
@@ -246,7 +298,7 @@ or send a direct pull request against the Android resource files.
 > [!NOTE]
 > If you experience runtime crashes, extractor tracebacks, or execution failures on a specific Android version or CPU architecture, it is likely due to binary compatibility limits. Please refer to the [Compatibility Guide](COMPATIBILITY.md) for detailed troubleshooting steps, architecture details, and fallback builds.
 
-## Architecture Summary
+## Architecture
 
 The app is built around:
 
