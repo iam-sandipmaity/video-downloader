@@ -17,6 +17,7 @@ class DownloadOptionSecretsStore @Inject constructor(
     @ApplicationContext private val context: Context,
     private val json: Json,
     private val logger: Logger,
+    private val secretsCipher: SecretsCipher,
 ) {
 
     fun persist(taskId: String, options: DownloadOptions): String {
@@ -101,7 +102,17 @@ class DownloadOptionSecretsStore @Inject constructor(
         val target = secretsFile(taskId)
         target.parentFile?.mkdirs()
         val tempFile = File(target.parentFile, "${target.name}.tmp")
-        tempFile.writeText(json.encodeToString(secrets))
+        val plaintext = json.encodeToString(secrets).toByteArray(Charsets.UTF_8)
+        val encrypted = runCatching { secretsCipher.encrypt(plaintext) }
+            .getOrElse { error ->
+                logger.w(
+                    "DownloadOptionSecretsStore",
+                    "Failed encrypting secrets for taskId=$taskId; aborting write",
+                    error,
+                )
+                return
+            }
+        tempFile.writeBytes(encrypted)
         if (!tempFile.renameTo(target)) {
             tempFile.copyTo(target, overwrite = true)
             tempFile.delete()
@@ -113,11 +124,38 @@ class DownloadOptionSecretsStore @Inject constructor(
         if (!secretFile.exists() || !secretFile.isFile) {
             return null
         }
+        val bytes = runCatching { secretFile.readBytes() }.getOrNull() ?: return null
+        val plaintext = decodeSecretsBytes(taskId, bytes) ?: return null
         return runCatching {
-            json.decodeFromString<PersistedDownloadOptionSecrets>(secretFile.readText())
+            json.decodeFromString<PersistedDownloadOptionSecrets>(
+                plaintext.toString(Charsets.UTF_8),
+            )
         }.onFailure { error ->
-            logger.w("DownloadOptionSecretsStore", "Failed reading persisted secrets for taskId=$taskId", error)
+            logger.w("DownloadOptionSecretsStore", "Failed decoding persisted secrets for taskId=$taskId", error)
         }.getOrNull()
+    }
+
+    /**
+     * Decrypts an encrypted sidecar, transparently falling back to plaintext for
+     * sidecars written by older app versions so existing tasks keep hydrating.
+     * Returns null if the payload can be neither decrypted nor parsed.
+     */
+    private fun decodeSecretsBytes(taskId: String, bytes: ByteArray): ByteArray? {
+        if (secretsCipher.isEncryptedBlob(bytes)) {
+            val decrypted = secretsCipher.decrypt(bytes)
+            if (decrypted == null) {
+                logger.w(
+                    "DownloadOptionSecretsStore",
+                    "Failed decrypting persisted secrets for taskId=$taskId",
+                )
+            }
+            return decrypted
+        }
+        logger.w(
+            "DownloadOptionSecretsStore",
+            "Legacy plaintext secrets sidecar for taskId=$taskId; will be re-encrypted on next persist",
+        )
+        return bytes
     }
 
     private fun secretsFile(taskId: String): File {

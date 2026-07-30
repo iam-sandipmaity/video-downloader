@@ -1,6 +1,8 @@
 package com.localdownloader.di
 
 import com.localdownloader.data.DownloadRepositoryImpl
+import com.localdownloader.data.KeystoreSecretsCipher
+import com.localdownloader.data.SecretsCipher
 import com.localdownloader.domain.repositories.DownloaderRepository
 import dagger.Binds
 import dagger.Module
@@ -17,4 +19,10 @@ abstract class RepositoryModule {
     abstract fun bindDownloaderRepository(
         implementation: DownloadRepositoryImpl,
     ): DownloaderRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindSecretsCipher(
+        implementation: KeystoreSecretsCipher,
+    ): SecretsCipher
 }
