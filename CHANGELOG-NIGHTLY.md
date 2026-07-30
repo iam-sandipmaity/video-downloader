@@ -2,6 +2,26 @@
 
 Nightly builds are rolling prereleases published from the `nightly` release tag. This file tracks changes that are available in nightly before they are promoted into the stable changelog.
 
+## [2.0.1.8] - 2026-07-30
+
+### Changed
+- **Nightly build workflows** - Enabled Android compilation check and nightly release workflows in GitHub Actions (`master.yml`).
+- **Nightly version bump** - Updated the release metadata version to `2.0.1.8` (NIGHTLY_VERSION_CODE `42`).
+
+### Added
+- **Cancel All Confirmation Dialog** - Added a confirmation popup when selecting the "Cancel All" batch option in the progress queue to prevent accidental cancellations.
+- **PIN validation and helper text** - Strengthened the vault PIN setup UX with explicit mismatch/too-short messages, keyboard layout limits, and a disabled state for the save button until a valid 4–8 digit PIN matches.
+- **File accessibility improvements** - Added direct tap-to-play support for completed media files in the downloads queue, and intercepted in-app play attempts on non-playable files in the vault with a Toast message.
+
+### Fixed
+- **Harden Vault Transactions** - Rewrote the file moving pipeline (`moveToVault` and `moveFromVault`) to run atomically as a `Result`. Sidecar files (subtitles, thumbnails, info metadata) are resolved and moved together. On failure, transaction state is automatically rolled back.
+- **Room Migration Schema Mismatch** - Hardened Room migration 4→5 to specify `is_in_vault` as `NOT NULL DEFAULT 0` and aligned `DownloadTaskEntity` column configurations to resolve database creation and upgrade crashes.
+- **Vault Session Leakage** - Enforced lock-on-exit by automatically locking the vault and canceling pending unlocks when navigating away from vault-related screens or pressing the back button.
+- **Infinite video backstack growth** - Pop the current player composable route when navigating to the previous or next track, resolving nested backstack allocation and memory leaks.
+- **Player missing-file lockup** - Centered a localized warning message and added a "Back" button on the video player screen when loading a missing or unplayable file, avoiding black screen lockups.
+- **Empty playlist analyze guards** - Guarded URL analysis and playlist queue actions from running on empty inputs.
+- **Compose Cooldown Lag** - Replaced direct epoch-time checks for the download button cooldown with a coroutine-based enable job in `FormatViewModel`, resolving UI lag and recomposition stutter.
+
 ## [2.0.1.7] - 2026-07-11
 
 ### Changed
