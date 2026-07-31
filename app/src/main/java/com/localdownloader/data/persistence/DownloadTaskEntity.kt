@@ -17,6 +17,7 @@ data class DownloadTaskEntity(
     @ColumnInfo(name = "output_path") val outputPath: String? = null,
     @ColumnInfo(name = "thumbnail_url") val thumbnailUrl: String? = null,
     @ColumnInfo(name = "subtitle_paths_json") val subtitlePathsJson: String? = null,
+    @ColumnInfo(name = "subtitle_status") val subtitleStatus: String? = null,
     @ColumnInfo(name = "downloaded_str") val downloadedStr: String? = null,
     @ColumnInfo(name = "total_size_str") val totalSizeStr: String? = null,
     @ColumnInfo(name = "error_message") val errorMessage: String? = null,
