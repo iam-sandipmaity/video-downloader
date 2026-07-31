@@ -357,6 +357,7 @@ private fun DownloadTask.toEntity(json: Json, optionsJson: String? = null): Down
         outputPath = outputPath,
         thumbnailUrl = thumbnailUrl,
         subtitlePathsJson = json.encodeToString(subtitlePaths),
+        subtitleStatus = subtitleStatus,
         downloadedStr = downloadedStr,
         totalSizeStr = totalSizeStr,
         errorMessage = errorMessage,
@@ -386,6 +387,7 @@ private fun DownloadTaskEntity.toDomainTask(json: Json): DownloadTask? {
                 ?.takeIf { it.isNotBlank() }
                 ?.let { json.decodeFromString<List<String>>(it) }
                 .orEmpty(),
+            subtitleStatus = subtitleStatus,
             downloadedStr = downloadedStr,
             totalSizeStr = totalSizeStr,
             errorMessage = errorMessage,
