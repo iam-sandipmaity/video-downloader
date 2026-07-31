@@ -81,9 +81,13 @@ class DownloadEngine @Inject constructor(
         }
 
         if ((options.shouldDownloadSubtitles || options.shouldEmbedSubtitles) && !options.extractAudio) {
+            // Subtitles are always fetched as sidecars here. Embedding (when requested) is
+            // performed as a separate, non-fatal post-step by the worker after the media
+            // download succeeds, so a subtitle problem can never abort the whole download.
             args += subtitleArgs(
                 url = options.url,
-                embedSubtitles = options.shouldEmbedSubtitles,
+                preferredAudioLanguage = options.preferredAudioLanguage,
+                embedSubtitles = false,
             )
         }
 
@@ -197,6 +201,7 @@ class DownloadEngine @Inject constructor(
 
         args += subtitleArgs(
             url = options.url,
+            preferredAudioLanguage = options.preferredAudioLanguage,
             embedSubtitles = false,
         )
         args += options.url
@@ -256,6 +261,7 @@ class DownloadEngine @Inject constructor(
 
     private fun subtitleArgs(
         url: String,
+        preferredAudioLanguage: String? = null,
         embedSubtitles: Boolean,
     ): List<String> {
         return buildList {
@@ -264,7 +270,7 @@ class DownloadEngine @Inject constructor(
             add("--sub-langs")
             add(
                 if (isYoutubeUrl(url)) {
-                    preferredYoutubeSubtitleLanguages()
+                    preferredYoutubeSubtitleLanguages(preferredAudioLanguage = preferredAudioLanguage)
                 } else {
                     "all,-live_chat"
                 },
@@ -277,20 +283,11 @@ class DownloadEngine @Inject constructor(
         }
     }
 
-    private fun preferredYoutubeSubtitleLanguages(): String {
-        val locale = Locale.getDefault()
-        val candidates = linkedSetOf<String>()
-        locale.toLanguageTag()
-            .trim()
-            .takeIf { it.isNotBlank() && !it.equals("und", ignoreCase = true) }
-            ?.let(candidates::add)
-        locale.language
-            .trim()
-            .takeIf { it.isNotBlank() && !it.equals("und", ignoreCase = true) }
-            ?.let(candidates::add)
-        candidates += "en"
-        candidates += "en-orig"
-        return candidates.joinToString(",")
+    private fun preferredYoutubeSubtitleLanguages(preferredAudioLanguage: String? = null): String {
+        return buildYoutubeSubtitleLanguageList(
+            preferredAudioLanguage = preferredAudioLanguage,
+            locale = Locale.getDefault(),
+        )
     }
 
     private fun isYoutubeUrl(url: String): Boolean {
@@ -309,4 +306,31 @@ internal fun shouldPassAudioQuality(options: DownloadOptions): Boolean {
     return options.extractAudio &&
         options.audioBitrateKbps != null &&
         audioFormatSupportsBitrateControl(options.audioFormat)
+}
+
+/**
+ * Builds the YouTube `--sub-langs` candidate list in priority order. Exposed for tests so the
+ * language-resolution logic can be verified independently of the device locale default.
+ */
+internal fun buildYoutubeSubtitleLanguageList(
+    preferredAudioLanguage: String?,
+    locale: java.util.Locale = java.util.Locale.getDefault(),
+): String {
+    val candidates = linkedSetOf<String>()
+    preferredAudioLanguage
+        ?.trim()
+        ?.takeIf { it.isNotBlank() && !it.equals("und", ignoreCase = true) }
+        ?.let(candidates::add)
+    locale.toLanguageTag()
+        .trim()
+        .takeIf { it.isNotBlank() && !it.equals("und", ignoreCase = true) }
+        ?.let(candidates::add)
+    locale.language
+        .trim()
+        .takeIf { it.isNotBlank() && !it.equals("und", ignoreCase = true) }
+        ?.let(candidates::add)
+    candidates += "en"
+    candidates += "en-orig"
+    candidates += "all"
+    return candidates.joinToString(",")
 }
