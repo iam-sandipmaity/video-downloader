@@ -15,6 +15,7 @@ data class DownloadTask(
     val outputPath: String? = null,
     val thumbnailUrl: String? = null,
     val subtitlePaths: List<String> = emptyList(),
+    val subtitleStatus: String? = null,
     val downloadedStr: String? = null,
     val totalSizeStr: String? = null,
     val errorMessage: String? = null,
@@ -38,4 +39,26 @@ fun DownloadStatus.blocksRuntimeUpdates(): Boolean {
     return this == DownloadStatus.QUEUED ||
         this == DownloadStatus.RUNNING ||
         this == DownloadStatus.PAUSED
+}
+
+/**
+ * Outcome of the optional subtitle step for a completed download.
+ * [OK] means a subtitle sidecar (or embedded track) is present; [SKIPPED] means the user did
+ * not request subtitles; [FAILED] means subtitles were requested but could not be fetched/embedded.
+ */
+enum class SubtitleStatus {
+    OK,
+    SKIPPED,
+    FAILED,
+    ;
+}
+
+fun SubtitleStatus.toMessage(): String? = when (this) {
+    SubtitleStatus.OK -> null
+    SubtitleStatus.SKIPPED -> null
+    SubtitleStatus.FAILED -> "Subtitles were unavailable for this video; media downloaded without captions."
+}
+
+fun String?.toSubtitleStatus(): SubtitleStatus? = this?.let { raw ->
+    runCatching { SubtitleStatus.valueOf(raw) }.getOrNull()
 }
