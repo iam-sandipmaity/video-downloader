@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import type { Memory } from '@/types'
+import { usePlayer } from '@/context/PlayerContext'
 
 type Props = {
   memory: Memory
@@ -9,6 +10,14 @@ type Props = {
 }
 
 export function MemoryCard({ memory, index = 0, large }: Props) {
+  const { playQueue, setAmbientKind, setActiveMemoryId } = usePlayer()
+
+  const onSelect = () => {
+    setActiveMemoryId(memory.id)
+    if (memory.ambience) setAmbientKind(memory.ambience)
+    playQueue(memory.tracks, 0, memory.id)
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 18 }}
@@ -18,6 +27,7 @@ export function MemoryCard({ memory, index = 0, large }: Props) {
     >
       <Link
         to={`/memory/${memory.id}`}
+        onClick={onSelect}
         className="group block focus:outline-none"
         style={{ textDecoration: 'none', color: 'inherit' }}
       >

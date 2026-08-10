@@ -12,18 +12,21 @@ import { motion } from 'framer-motion'
 export function MemoryExperiencePage() {
   const { memoryId = '' } = useParams()
   const memory = memoryById[memoryId]
-  const { playQueue, setAmbientKind, setActiveMemoryId } = usePlayer()
+  const { playQueue, setAmbientKind, setActiveMemoryId, activeMemoryId } = usePlayer()
   const loadedRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (!memory) return
     setActiveMemoryId(memory.id)
     if (memory.ambience) setAmbientKind(memory.ambience)
-    if (loadedRef.current !== memory.id) {
-      loadedRef.current = memory.id
+    // MemoryCard usually starts playback on click (user gesture).
+    // Cold URL visits still load the cassette here.
+    if (loadedRef.current === memory.id) return
+    loadedRef.current = memory.id
+    if (activeMemoryId !== memory.id) {
       playQueue(memory.tracks, 0, memory.id)
     }
-  }, [memory, playQueue, setActiveMemoryId, setAmbientKind])
+  }, [memory, playQueue, setActiveMemoryId, setAmbientKind, activeMemoryId])
 
   if (!memory) {
     return (
