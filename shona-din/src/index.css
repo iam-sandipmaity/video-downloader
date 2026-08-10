@@ -1,0 +1,204 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cream: #f3e6cf;
+  --color-paper: #f7f1e3;
+  --color-aged: #e8d6b5;
+  --color-ink: #2a2420;
+  --color-brown: #3d2914;
+  --color-charcoal: #2c2622;
+  --color-faded-red: #a65d4e;
+  --color-mustard: #c4a35a;
+  --color-deep-green: #3d5a45;
+  --color-lamp: #e8b86d;
+  --color-rain: #6b7c85;
+  --color-mela: #c47a3a;
+  --color-pujo: #b85c38;
+  --color-winter: #8a7a68;
+
+  --font-display: "Cormorant Garamond", Georgia, serif;
+  --font-bengali: "Noto Serif Bengali", "Tiro Bangla", serif;
+  --font-tiro: "Tiro Bangla", "Noto Serif Bengali", serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    color: var(--color-ink);
+    background: var(--color-cream);
+    font-family: var(--font-display);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--color-mustard) 55%, transparent);
+    color: var(--color-ink);
+  }
+
+  button,
+  input,
+  textarea {
+    font: inherit;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display);
+  }
+
+  .font-bengali {
+    font-family: var(--font-bengali);
+  }
+
+  .font-tiro {
+    font-family: var(--font-tiro);
+  }
+
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+
+  .paper-bg {
+    background-color: var(--color-paper);
+    background-image:
+      radial-gradient(ellipse at 20% 10%, rgba(196, 163, 90, 0.18), transparent 45%),
+      radial-gradient(ellipse at 80% 0%, rgba(166, 93, 78, 0.12), transparent 40%),
+      radial-gradient(ellipse at 50% 100%, rgba(61, 90, 69, 0.1), transparent 50%),
+      url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.045'/%3E%3C/svg%3E");
+  }
+
+  .film-grain {
+    pointer-events: none;
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    opacity: 0.07;
+    mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 250 250' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  }
+
+  .vignette {
+    pointer-events: none;
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: radial-gradient(ellipse at center, transparent 45%, rgba(42, 36, 32, 0.28) 100%);
+  }
+
+  .handwritten {
+    font-family: var(--font-tiro);
+    font-style: italic;
+  }
+
+  .cassette-metal {
+    background:
+      linear-gradient(145deg, #5a4a3a 0%, #3d2914 40%, #2a1f14 100%);
+  }
+
+  .lcd-glow {
+    background: #1a2a1a;
+    color: #9dce7a;
+    text-shadow: 0 0 6px rgba(157, 206, 122, 0.45);
+    font-family: var(--font-mono);
+    letter-spacing: 0.04em;
+  }
+
+  .ticket-stub {
+    background:
+      repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 8px,
+        rgba(42, 36, 32, 0.06) 8px,
+        rgba(42, 36, 32, 0.06) 9px
+      ),
+      linear-gradient(180deg, #f7f1e3, #ead9b8);
+  }
+
+  .newspaper-clip {
+    background: #f0e6d2;
+    box-shadow: inset 0 0 0 1px rgba(42, 36, 32, 0.12);
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+@keyframes reel-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes led-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes eq-bar {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes rain-fall {
+  to {
+    transform: translateY(100vh);
+  }
+}
+
+@keyframes road-scroll {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes soft-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.reel-spinning {
+  animation: reel-spin 2.4s linear infinite;
+}
+
+.led-active {
+  animation: led-blink 1.4s ease-in-out infinite;
+}
+
+.eq-bar {
+  transform-origin: bottom;
+  animation: eq-bar 0.8s ease-in-out infinite;
+}
