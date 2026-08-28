@@ -258,6 +258,40 @@ class VaultViewModel @Inject constructor(
         }
     }
 
+    fun unlockVaultWithBiometric(vaultId: String) {
+        viewModelScope.launch {
+            runCatching { fileUtils.encryptVaultContentsIfNeeded(vaultId) }
+            _uiState.value = _uiState.value.copy(
+                activeVaultId = vaultId,
+                unlockingVaultId = null,
+                showSetup = false,
+                errorMessage = null,
+            )
+        }
+    }
+
+    fun setVaultBiometricEnabled(vaultId: String, enabled: Boolean) {
+        viewModelScope.launch {
+            runCatching {
+                val current = repository.getVaultSettings()
+                val updatedVaults = current.getAllVaults().map { vault ->
+                    if (vault.id == vaultId) vault.copy(isBiometricEnabled = enabled) else vault
+                }
+                val updatedSettings = current.copy(
+                    isBiometricEnabled = if (vaultId == current.vaults.firstOrNull()?.id || vaultId == "default") {
+                        enabled
+                    } else {
+                        current.isBiometricEnabled
+                    },
+                    vaults = updatedVaults,
+                )
+                repository.updateVaultSettings(updatedSettings).getOrThrow()
+            }.onFailure { error ->
+                logger.e("VaultViewModel", "setVaultBiometricEnabled failed", error)
+            }
+        }
+    }
+
     fun setBiometricEnabled(enabled: Boolean) {
         viewModelScope.launch {
             runCatching {

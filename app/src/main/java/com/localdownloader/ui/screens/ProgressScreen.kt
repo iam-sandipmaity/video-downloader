@@ -84,6 +84,9 @@ import coil.decode.SvgDecoder
 import com.localdownloader.R
 import com.localdownloader.domain.models.DownloadStatus
 import com.localdownloader.domain.models.DownloadTask
+import com.localdownloader.domain.models.applyStableTaskOrder
+import com.localdownloader.domain.models.orderedTaskIdsByCreatedAt
+import com.localdownloader.domain.models.queueOrderSignature
 import com.localdownloader.ui.components.LocalVideoThumbnail
 import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.ui.components.rememberLocalMediaSnapshot
@@ -123,8 +126,16 @@ fun ProgressScreen(
     }
     val isQueueMode = onBack != null
     val context = LocalContext.current
-    // Keep queue ordering stable while progress ticks update task timestamps.
-    val allTasks = uiState.tasks.sortedByDescending { it.createdAtEpochMs }
+    val orderSignature = queueOrderSignature(uiState.tasks)
+    val newestFirstIds = remember(orderSignature) {
+        orderedTaskIdsByCreatedAt(uiState.tasks, oldestFirst = false)
+    }
+    val oldestFirstIds = remember(orderSignature) {
+        orderedTaskIdsByCreatedAt(uiState.tasks, oldestFirst = true)
+    }
+    val allTasks = remember(newestFirstIds, uiState.tasks) {
+        applyStableTaskOrder(newestFirstIds, uiState.tasks)
+    }
     val runningCount = allTasks.count { it.status == DownloadStatus.RUNNING }
     val queuedCount = allTasks.count { it.status == DownloadStatus.QUEUED }
     val pausedCount = allTasks.count { it.status == DownloadStatus.PAUSED }
@@ -158,7 +169,7 @@ fun ProgressScreen(
         .filter { currentFilter.matches(it.status) }
         .let { tasks ->
             if (currentFilter == ProgressFilter.Queue) {
-                tasks.sortedBy { it.createdAtEpochMs }
+                applyStableTaskOrder(oldestFirstIds, tasks)
             } else {
                 tasks
             }

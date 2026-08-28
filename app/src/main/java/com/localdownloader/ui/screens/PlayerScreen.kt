@@ -377,6 +377,21 @@ fun PlayerScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .onSizeChanged {
+                        if (playerWidthPx > 0 && playerHeightPx > 0 &&
+                            (it.width != playerWidthPx || it.height != playerHeightPx)
+                        ) {
+                            val remapped = remapPinchPanForSizeChange(
+                                panX = panOffsetX,
+                                panY = panOffsetY,
+                                zoom = zoomScale,
+                                oldWidth = playerWidthPx,
+                                oldHeight = playerHeightPx,
+                                newWidth = it.width,
+                                newHeight = it.height,
+                            )
+                            panOffsetX = remapped.first
+                            panOffsetY = remapped.second
+                        }
                         playerWidthPx = it.width
                         playerHeightPx = it.height
                     }
