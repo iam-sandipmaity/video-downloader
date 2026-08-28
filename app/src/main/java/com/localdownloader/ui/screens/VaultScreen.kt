@@ -32,11 +32,13 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -93,15 +95,21 @@ fun VaultScreen(
 
         vaultState.unlockingVaultId != null -> {
             val targetVaultId = vaultState.unlockingVaultId ?: return
-            val targetVaultName = allVaults.firstOrNull { it.id == targetVaultId }?.name
+            val targetVault = allVaults.firstOrNull { it.id == targetVaultId }
+            val targetVaultName = targetVault?.name
                 ?: stringResource(R.string.vault_title)
             BackHandler { vaultViewModel.cancelUnlock() }
             VaultUnlockScreen(
                 vaultName = targetVaultName,
                 errorMessage = vaultState.errorMessage,
+                biometricEnabled = targetVault?.isBiometricEnabled == true ||
+                    vaultState.vaultSettings.isBiometricEnabled,
                 onCancel = { vaultViewModel.cancelUnlock() },
                 onUnlock = { pin ->
                     vaultViewModel.unlockVault(targetVaultId, pin) { _ -> }
+                },
+                onBiometricUnlock = {
+                    vaultViewModel.unlockVaultWithBiometric(targetVaultId)
                 },
             )
         }
@@ -256,10 +264,32 @@ private fun VaultSetupScreen(
 private fun VaultUnlockScreen(
     vaultName: String,
     errorMessage: String?,
+    biometricEnabled: Boolean,
     onCancel: () -> Unit,
     onUnlock: (String) -> Unit,
+    onBiometricUnlock: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val activity = remember(context) { context.findActivityOrNull() }
+    val biometricAvailable = remember(context) { context.canUseDeviceBiometrics() }
     var pin by remember { mutableStateOf("") }
+    var biometricError by remember { mutableStateOf<String?>(null) }
+
+    fun launchBiometricPrompt() {
+        val host = activity ?: return
+        host.promptDeviceBiometrics(
+            title = "Unlock $vaultName",
+            subtitle = "Confirm it's you to open this private vault",
+            onSuccess = onBiometricUnlock,
+            onError = { message -> biometricError = message },
+        )
+    }
+
+    LaunchedEffect(biometricEnabled, biometricAvailable) {
+        if (biometricEnabled && biometricAvailable) {
+            launchBiometricPrompt()
+        }
+    }
 
     PreferencePageScaffold(
         title = stringResource(R.string.vault_unlock_title, vaultName),
@@ -297,9 +327,9 @@ private fun VaultUnlockScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
 
-                    if (errorMessage != null) {
+                    if (errorMessage != null || biometricError != null) {
                         Text(
-                            text = errorMessage,
+                            text = errorMessage ?: biometricError.orEmpty(),
                             color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall,
                         )
@@ -311,6 +341,15 @@ private fun VaultUnlockScreen(
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text(stringResource(R.string.vault_unlock))
+                    }
+
+                    if (biometricEnabled && biometricAvailable) {
+                        TextButton(
+                            onClick = { launchBiometricPrompt() },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("Use fingerprint or face unlock")
+                        }
                     }
 
                     TextButton(onClick = onCancel) {
@@ -609,6 +648,30 @@ private fun VaultContentScreen(
                                 ) {
                                     Text("Rename")
                                 }
+                            }
+                        }
+                    }
+
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Unlock with biometrics", style = MaterialTheme.typography.titleSmall)
+                            Text(
+                                text = "Use fingerprint or face unlock as a shortcut. Your PIN remains the fallback.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text("Biometric unlock")
+                                Switch(
+                                    checked = activeVaultSettings?.isBiometricEnabled == true,
+                                    onCheckedChange = { enabled ->
+                                        vaultViewModel.setVaultBiometricEnabled(activeId, enabled)
+                                    },
+                                )
                             }
                         }
                     }

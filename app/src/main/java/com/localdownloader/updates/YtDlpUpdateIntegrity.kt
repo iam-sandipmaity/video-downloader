@@ -22,6 +22,25 @@ internal fun parseSha256Checksums(checksumPayload: String): Map<String, String> 
         .toMap()
 }
 
+internal fun findYtDlpChecksumAsset(release: GitHubReleaseDto): GitHubAssetDto? {
+    return release.assets.firstOrNull { asset ->
+        asset.name.equals("SHA2-256SUMS", ignoreCase = true)
+    }
+}
+
+internal fun findExpectedSha256ForInstalledYtDlp(
+    checksumPayload: String,
+    installedFileName: String,
+): String? {
+    val checksums = parseSha256Checksums(checksumPayload)
+    return ytDlpChecksumAssetNameCandidates(installedFileName)
+        .firstNotNullOfOrNull { candidate -> checksums[candidate] }
+}
+
+internal fun ytDlpChecksumAssetNameCandidates(installedFileName: String): List<String> {
+    return listOf(installedFileName, "yt-dlp", "yt-dlp.zip").distinct()
+}
+
 internal fun sha256Hex(file: File): String {
     val messageDigest = MessageDigest.getInstance("SHA-256")
     file.inputStream().use { input ->

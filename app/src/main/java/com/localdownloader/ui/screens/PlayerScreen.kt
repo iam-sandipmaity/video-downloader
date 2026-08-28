@@ -9,6 +9,7 @@ import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.media.AudioManager
 import android.provider.Settings
+import android.util.TypedValue
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -376,6 +377,21 @@ fun PlayerScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .onSizeChanged {
+                        if (playerWidthPx > 0 && playerHeightPx > 0 &&
+                            (it.width != playerWidthPx || it.height != playerHeightPx)
+                        ) {
+                            val remapped = remapPinchPanForSizeChange(
+                                panX = panOffsetX,
+                                panY = panOffsetY,
+                                zoom = zoomScale,
+                                oldWidth = playerWidthPx,
+                                oldHeight = playerHeightPx,
+                                newWidth = it.width,
+                                newHeight = it.height,
+                            )
+                            panOffsetX = remapped.first
+                            panOffsetY = remapped.second
+                        }
                         playerWidthPx = it.width
                         playerHeightPx = it.height
                     }
@@ -388,6 +404,10 @@ fun PlayerScreen(
                 update = { playerView ->
                     playerView.player = playerViewModel.player
                     playerView.resizeMode = media3ResizeMode(uiState.resizeMode)
+                    playerView.subtitleView?.apply {
+                        setApplyEmbeddedStyles(false)
+                        setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, uiState.subtitleTextSizeSp)
+                    }
                 },
             )
 
@@ -706,6 +726,9 @@ fun PlayerScreen(
                     },
                     onSetVolumeBoostMb = {
                         playerViewModel.setVolumeBoostMb(it)
+                    },
+                    onSetSubtitleTextSizeSp = {
+                        playerViewModel.setSubtitleTextSizeSp(it)
                     },
                     isZoomed = zoomScale > 1.02f,
                     onResetZoom = {
@@ -1486,6 +1509,7 @@ private fun PlayerOptionPanel(
     onSelectSubtitleTrack: (PlayerTrackOption?) -> Unit,
     onSelectResizeMode: (Int) -> Unit,
     onSetVolumeBoostMb: (Int) -> Unit,
+    onSetSubtitleTextSizeSp: (Float) -> Unit,
     isZoomed: Boolean,
     onResetZoom: () -> Unit,
 ) {
@@ -1575,6 +1599,16 @@ private fun PlayerOptionPanel(
                 }
 
                 PlayerPanel.SUBTITLES -> {
+                    PanelSectionLabel("Text size")
+                    SUBTITLE_TEXT_SIZE_OPTIONS.forEach { option ->
+                        PanelOptionRow(
+                            title = option.label,
+                            subtitle = null,
+                            selected = kotlin.math.abs(uiState.subtitleTextSizeSp - option.sizeSp) < 0.1f,
+                            onClick = { onSetSubtitleTextSizeSp(option.sizeSp) },
+                        )
+                    }
+                    PanelSectionLabel("Track")
                     PanelOptionRow(
                         title = "None",
                         subtitle = null,
@@ -2035,6 +2069,18 @@ private enum class PlayerPanel(val title: String) {
 }
 
 private val SPEED_OPTIONS = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
+
+private data class SubtitleTextSizeOption(
+    val label: String,
+    val sizeSp: Float,
+)
+
+private val SUBTITLE_TEXT_SIZE_OPTIONS = listOf(
+    SubtitleTextSizeOption("Small", 14f),
+    SubtitleTextSizeOption("Default", 18f),
+    SubtitleTextSizeOption("Large", 24f),
+    SubtitleTextSizeOption("Extra large", 32f),
+)
 
 private val RESIZE_OPTIONS = listOf(
     ResizeOption(

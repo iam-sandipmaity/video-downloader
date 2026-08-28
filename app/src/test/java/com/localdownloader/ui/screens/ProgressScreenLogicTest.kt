@@ -110,4 +110,20 @@ class ProgressScreenLogicTest {
 
         assertEquals(RecoveryCategory.RUNTIME_OR_DEVICE, category)
     }
+
+    @Test
+    fun remapPinchPanForSizeChange_scalesAndClampsToNewViewport() {
+        val remapped = remapPinchPanForSizeChange(
+            panX = 100f,
+            panY = 40f,
+            zoom = 2f,
+            oldWidth = 1000,
+            oldHeight = 500,
+            newWidth = 2000,
+            newHeight = 1000,
+        )
+
+        assertEquals(200f, remapped.first, 0.01f)
+        assertEquals(80f, remapped.second, 0.01f)
+    }
 }
