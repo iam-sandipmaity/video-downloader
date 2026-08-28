@@ -10,7 +10,7 @@ import android.os.CancellationSignal
 import androidx.core.content.ContextCompat
 
 internal fun Context.canUseDeviceBiometrics(): Boolean {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return false
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
     val manager = getSystemService(BiometricManager::class.java) ?: return false
     val status = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
         manager.canAuthenticate(
@@ -30,8 +30,8 @@ internal fun Activity.promptDeviceBiometrics(
     onSuccess: () -> Unit,
     onError: (String) -> Unit,
 ) {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
-        onError("Biometrics require Android 9 or newer")
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+        onError("Biometrics require Android 10 or newer")
         return
     }
     val executor = ContextCompat.getMainExecutor(this)
@@ -58,10 +58,9 @@ internal fun Activity.promptDeviceBiometrics(
             .setNegativeButton("Use PIN", executor) { _, _ -> }
             .build()
             .authenticate(cancel, executor, callback)
-    } else {
-        BiometricPrompt(this, executor, callback)
-            .authenticate(cancel, executor, callback)
+        return
     }
+    onError("Biometrics require Android 10 or newer")
 }
 
 internal fun Context.findActivityOrNull(): Activity? {
