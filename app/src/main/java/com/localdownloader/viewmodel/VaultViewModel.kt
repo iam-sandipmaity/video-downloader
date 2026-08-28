@@ -16,6 +16,7 @@ import javax.inject.Inject
 import com.localdownloader.domain.models.SingleVaultSettings
 import com.localdownloader.domain.models.getAllVaults
 import com.localdownloader.domain.models.DownloadTask
+import com.localdownloader.security.PinHasher
 import com.localdownloader.utils.FileUtils
 
 @HiltViewModel
@@ -41,7 +42,7 @@ class VaultViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 val newVaultId = java.util.UUID.randomUUID().toString()
-                val pinHash = hashPin(pin)
+                val pinHash = PinHasher.hash(pin)
                 val newVault = SingleVaultSettings(
                     id = newVaultId,
                     name = name.ifBlank { "Private Vault" },
@@ -94,18 +95,26 @@ class VaultViewModel @Inject constructor(
             val settings = repository.getVaultSettings()
             val vaultsList = settings.getAllVaults()
             val targetVault = vaultsList.firstOrNull { it.id == vaultId }
-            val isValid = targetVault != null && hashPin(pin) == targetVault.pinHash
-            if (isValid) {
+            if (targetVault != null && PinHasher.verify(pin, targetVault.pinHash)) {
+                if (PinHasher.needsUpgrade(targetVault.pinHash)) {
+                    val upgradedVaults = vaultsList.map { vault ->
+                        if (vault.id == vaultId) vault.copy(pinHash = PinHasher.hash(pin)) else vault
+                    }
+                    val updatedSettings = settings.copy(vaults = upgradedVaults)
+                    runCatching { repository.updateVaultSettings(updatedSettings) }
+                }
+                runCatching { fileUtils.encryptVaultContentsIfNeeded(vaultId) }
                 _uiState.value = _uiState.value.copy(
                     activeVaultId = vaultId,
                     unlockingVaultId = null,
                     showSetup = false,
                     errorMessage = null,
                 )
+                onResult(true)
             } else {
                 _uiState.value = _uiState.value.copy(errorMessage = "Invalid PIN")
+                onResult(false)
             }
-            onResult(isValid)
         }
     }
 
@@ -214,7 +223,7 @@ class VaultViewModel @Inject constructor(
         // Kept for backward compatibility
         viewModelScope.launch {
             runCatching {
-                val pinHash = hashPin(newPin)
+                val pinHash = PinHasher.hash(newPin)
                 val currentSettings = repository.getVaultSettings()
                 val updatedSettings = currentSettings.copy(
                     isEnabled = true,
@@ -233,8 +242,13 @@ class VaultViewModel @Inject constructor(
     fun verifyPin(pin: String, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             val settings = repository.getVaultSettings()
-            val isValid = settings.isEnabled && hashPin(pin) == settings.pinHash
+            val isValid = settings.isEnabled && PinHasher.verify(pin, settings.pinHash)
             if (isValid) {
+                if (PinHasher.needsUpgrade(settings.pinHash)) {
+                    val updatedSettings = settings.copy(pinHash = PinHasher.hash(pin))
+                    runCatching { repository.updateVaultSettings(updatedSettings) }
+                }
+                runCatching { fileUtils.encryptVaultContentsIfNeeded("default") }
                 _uiState.value = _uiState.value.copy(
                     vaultSettings = settings,
                     activeVaultId = "default",
@@ -279,13 +293,6 @@ class VaultViewModel @Inject constructor(
                 logger.e("VaultViewModel", "disableVault failed", error)
             }
         }
-    }
-
-    private fun hashPin(pin: String): String {
-        return runCatching {
-            java.security.MessageDigest.getInstance("SHA-256")
-                .digest(pin.toByteArray()).joinToString("") { "%02x".format(it) }
-        }.getOrNull() ?: ""
     }
 }
 

@@ -645,11 +645,14 @@ class DownloadWorker @AssistedInject constructor(
                     taskId = taskId,
                 )
             }
-            if (outputPath != null && options.shouldDownloadSubtitles && !options.shouldEmbedSubtitles) {
+            if (outputPath != null && !options.extractAudio &&
+                (options.shouldDownloadSubtitles || options.shouldEmbedSubtitles)
+            ) {
                 val subtitleTemplate = buildOutputTemplateForExistingFile(outputPath!!)
                 appendDebugTrace(taskId, "Downloading subtitle sidecars for completed media")
                 val subtitleResult = downloadEngine.runSubtitleDownload(
                     options = options.copy(
+                        shouldDownloadSubtitles = true,
                         outputTemplate = subtitleTemplate,
                         loadInfoJsonPath = null,
                     ),
@@ -663,6 +666,14 @@ class DownloadWorker @AssistedInject constructor(
                         taskId,
                         "Subtitle sidecar download skipped after failure: ${subtitleResult.stderr.take(MAX_OUTPUT_TRACE_LINE_LENGTH).ifBlank { "unknown error" }}",
                     )
+                } else if (options.shouldEmbedSubtitles) {
+                    val embedResult = embedSubtitlesIfPresent(
+                        taskId = taskId,
+                        mediaPath = outputPath!!,
+                    )
+                    if (embedResult != null) {
+                        outputPath = embedResult
+                    }
                 }
             }
             logger.i("DownloadWorker", "Task completed taskId=$taskId outputPath=$outputPath")
@@ -1918,6 +1929,97 @@ class DownloadWorker @AssistedInject constructor(
                 )
             },
         )
+    }
+
+    private suspend fun embedSubtitlesIfPresent(taskId: String, mediaPath: String): String? {
+        val mediaFile = File(mediaPath)
+        val subtitleFiles = findSubtitleSidecars(mediaFile)
+        if (subtitleFiles.isEmpty()) {
+            appendDebugTrace(taskId, "No subtitle sidecar files were available to embed")
+            return null
+        }
+        val subtitleCodec = subtitleCodecForContainer(mediaFile.extension) ?: run {
+            appendDebugTrace(
+                taskId,
+                "Keeping subtitle sidecars because ${mediaFile.extension} does not support a safe embed codec",
+            )
+            return null
+        }
+        val embeddedFile = File(
+            mediaFile.parentFile,
+            "${mediaFile.nameWithoutExtension}.subs-embedded.${mediaFile.extension}",
+        )
+        runCatching { embeddedFile.delete() }
+        val embedResult = ffmpegExecutor.execute(
+            args = buildList {
+                add("-y")
+                add("-i")
+                add(mediaFile.absolutePath)
+                subtitleFiles.forEach { subtitle ->
+                    add("-i")
+                    add(subtitle.absolutePath)
+                }
+                add("-map")
+                add("0")
+                subtitleFiles.indices.forEach { index ->
+                    add("-map")
+                    add("${index + 1}:0")
+                }
+                add("-c")
+                add("copy")
+                add("-c:s")
+                add(subtitleCodec)
+                if (mediaFile.extension.equals("mp4", ignoreCase = true) ||
+                    mediaFile.extension.equals("mov", ignoreCase = true)
+                ) {
+                    add("-movflags")
+                    add("+faststart")
+                }
+                add(embeddedFile.absolutePath)
+            },
+            onStderrLine = { line ->
+                appendDebugTrace(taskId, "ffmpeg: ${line.take(MAX_OUTPUT_TRACE_LINE_LENGTH)}")
+            },
+        )
+        if (!embedResult.isSuccess || !embeddedFile.exists() || embeddedFile.length() <= 0L) {
+            runCatching { embeddedFile.delete() }
+            appendDebugTrace(
+                taskId,
+                "Subtitle embedding failed; keeping media plus sidecar files: ${embedResult.stderr.take(MAX_OUTPUT_TRACE_LINE_LENGTH).ifBlank { "unknown error" }}",
+            )
+            return null
+        }
+        return runCatching {
+            embeddedFile.copyTo(mediaFile, overwrite = true)
+            embeddedFile.delete()
+            appendDebugTrace(taskId, "Embedded ${subtitleFiles.size} subtitle track(s) into ${mediaFile.name}")
+            mediaFile.absolutePath
+        }.getOrElse { error ->
+            runCatching { embeddedFile.delete() }
+            appendDebugTrace(taskId, "Subtitle embedding succeeded but could not replace media: ${error.message}")
+            null
+        }
+    }
+
+    private fun findSubtitleSidecars(mediaFile: File): List<File> {
+        val parent = mediaFile.parentFile ?: return emptyList()
+        val stem = mediaFile.nameWithoutExtension
+        return parent.listFiles()
+            .orEmpty()
+            .filter { candidate ->
+                candidate.isFile &&
+                    candidate.name.startsWith(stem) &&
+                    candidate.extension.equals("srt", ignoreCase = true)
+            }
+            .sortedBy { it.name }
+    }
+
+    private fun subtitleCodecForContainer(extension: String): String? {
+        return when (extension.lowercase()) {
+            "mp4", "mov", "m4v" -> "mov_text"
+            "mkv" -> "srt"
+            else -> null
+        }
     }
 
     private fun isRecoverablePostprocessingFailure(stderr: String): Boolean {

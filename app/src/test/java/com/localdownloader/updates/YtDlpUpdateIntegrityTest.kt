@@ -28,6 +28,35 @@ class YtDlpUpdateIntegrityTest {
     }
 
     @Test
+    fun findExpectedSha256ForInstalledYtDlp_fallsBackToUnixAssetName() {
+        val payload = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  yt-dlp"
+
+        assertEquals(
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            findExpectedSha256ForInstalledYtDlp(payload, "yt-dlp.zip"),
+        )
+    }
+
+    @Test
+    fun findYtDlpChecksumAsset_selectsSha256Sums() {
+        val release = GitHubReleaseDto(
+            tag_name = "2026.08.01",
+            assets = listOf(
+                GitHubAssetDto(
+                    name = "yt-dlp",
+                    browser_download_url = "https://example.com/yt-dlp",
+                ),
+                GitHubAssetDto(
+                    name = "SHA2-256SUMS",
+                    browser_download_url = "https://example.com/SHA2-256SUMS",
+                ),
+            ),
+        )
+
+        assertEquals("SHA2-256SUMS", findYtDlpChecksumAsset(release)?.name)
+    }
+
+    @Test
     fun sha256Hex_hashesFileContent() {
         val tempFile = Files.createTempFile("ytdlp-digest", ".txt").toFile().apply {
             writeText("hello world")
