@@ -3,7 +3,6 @@ package com.localdownloader.security
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
-import java.security.SecureRandom
 import javax.crypto.Cipher
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
@@ -33,9 +32,8 @@ internal object AesGcmCodec {
     }
 
     fun seal(key: SecretKey, plaintext: ByteArray): ByteArray {
-        val iv = randomIv()
-        val cipher = newCipher()
-        cipher.init(Cipher.ENCRYPT_MODE, key, GCMParameterSpec(TAG_BITS, iv))
+        val cipher = initEncryptCipher(key)
+        val iv = requireIv(cipher)
         val ciphertext = cipher.doFinal(plaintext)
         return MAGIC + iv + ciphertext
     }
@@ -51,11 +49,9 @@ internal object AesGcmCodec {
     }
 
     fun encryptStream(key: SecretKey, input: InputStream, output: OutputStream) {
-        val iv = randomIv()
-        val cipher = newCipher()
-        cipher.init(Cipher.ENCRYPT_MODE, key, GCMParameterSpec(TAG_BITS, iv))
+        val cipher = initEncryptCipher(key)
         output.write(MAGIC)
-        output.write(iv)
+        output.write(requireIv(cipher))
         copyThroughCipher(cipher, input, output)
     }
 
@@ -100,8 +96,19 @@ internal object AesGcmCodec {
         output.write(cipher.doFinal())
     }
 
-    private fun randomIv(): ByteArray {
-        return ByteArray(IV_BYTES).also { SecureRandom().nextBytes(it) }
+    private fun initEncryptCipher(key: SecretKey): Cipher {
+        val cipher = newCipher()
+        // Android Keystore forbids caller-provided IVs when randomized encryption is required.
+        cipher.init(Cipher.ENCRYPT_MODE, key)
+        return cipher
+    }
+
+    private fun requireIv(cipher: Cipher): ByteArray {
+        val iv = cipher.iv
+        check(iv != null && iv.size == IV_BYTES) {
+            "Unexpected GCM IV length: ${iv?.size ?: 0}"
+        }
+        return iv
     }
 
     private fun newCipher(): Cipher {
