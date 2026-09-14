@@ -214,7 +214,7 @@ fun DownloadSettingsScreen(
             }
         }
         item {
-            PreferenceGroup(title = stringResource(R.string.download_defaults_format_details_title)) {
+            PreferenceGroup {
                 PreferenceSwitchRow(
                     icon = Icons.Rounded.Speed,
                     title = stringResource(R.string.download_defaults_show_fps_title),
