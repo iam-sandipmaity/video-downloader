@@ -6,8 +6,11 @@ Nightly builds are rolling prereleases published from the `nightly` release tag.
 
 ### Added
 - **Popup menu download for share link** (#98) - Added `QuickDownloadActivity` as a translucent overlay activity when sharing links from YouTube or social media apps.
-- **Quick download UI popup** - Added floating popup card with editable video/audio title, Video/Audio pill toggle, Quality dropdown with size estimation, Format selector, and concurrent fragment download thread stepper.
+- **Quick download UI popup** - Added floating popup card with editable title, 2-way Video/Audio toggle, Quality selector with file size estimation, Format selector (MP4, WebM, MKV, Auto / MP3, M4A, Opus, FLAC, WAV, AAC), and concurrent fragment download threads stepper (1–16).
+- **Video + Audio merging & container support** - Seamlessly synthesizes and merges best video and audio streams into user-selected container formats (MP4, WebM, MKV) when downloading videos from the quick popup.
 - **Multi-threaded fragment downloads** - Added `concurrentFragments` option to `DownloadOptions` and configured `DownloadEngine` to run with user-configured thread count (1–16).
+- **Metered network confirmation dialog** - Prompts users on cellular connections when metered downloads are disabled in settings to avoid queued tasks stalling.
+- **Safe playlist queueing** - Preserves playlist indices and subfolder structures to prevent items from overwriting each other.
 
 ## [2.0.1.8] - 2026-07-30
 
