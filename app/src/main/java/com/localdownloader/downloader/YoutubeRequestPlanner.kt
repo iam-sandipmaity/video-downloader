@@ -14,14 +14,12 @@ object YoutubeRequestPlanner {
         val candidates = buildList {
             preferredExtractorArgs?.trim()?.ifBlank { null }?.let(::add)
             add(null)
-            add(buildExtractorArgs(clientSpec = "android,mweb"))
-            add(buildExtractorArgs(clientSpec = "ios,mweb"))
+            // Keep analyze closer to the faster apps: try the preferred/default plan first,
+            // then only a couple of web-focused fallbacks that usually unlock adaptive formats.
             add(buildExtractorArgs(clientSpec = "default,mweb"))
             add(buildExtractorArgs(clientSpec = "default,web"))
-            add(buildExtractorArgs(clientSpec = "tv,android"))
             if (cookiesAvailable) {
                 add(buildExtractorArgs(clientSpec = "default,mweb,web", includePlayerSkip = true))
-                add(buildExtractorArgs(clientSpec = "android,mweb,web", includePlayerSkip = true))
             }
         }
         return candidates.distinct()
