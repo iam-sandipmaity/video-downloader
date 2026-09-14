@@ -684,6 +684,14 @@
     <string name="download_defaults_retention_15">A balanced half-month history.</string>
     <string name="download_defaults_retention_30">Keep ready links around for a full month.</string>
     <string name="download_defaults_retention_90">A longer saved history for frequently reused links.</string>
+    <string name="download_defaults_format_details_title">Format details display</string>
+    <string name="download_defaults_format_details_subtitle">Configure media info shown in download cards and format selectors.</string>
+    <string name="download_defaults_show_fps_title">Show framerate (FPS)</string>
+    <string name="download_defaults_show_fps_subtitle">Display FPS values (e.g. 60fps) in format options</string>
+    <string name="download_defaults_show_codec_title">Show codecs</string>
+    <string name="download_defaults_show_codec_subtitle">Display video and audio codec details (e.g. AVC1, VP9, AAC)</string>
+    <string name="download_defaults_show_bitrate_title">Show bitrate</string>
+    <string name="download_defaults_show_bitrate_subtitle">Display audio and video bitrate values in format options</string>
     <string name="container_desc_mp4">Best general compatibility across Android devices and players.</string>
     <string name="container_desc_webm">Smaller web-friendly container when the source supports it well.</string>
     <string name="container_desc_mkv">Flexible container for mixed codecs and more unusual source formats.</string>
