@@ -1032,6 +1032,21 @@ class FormatViewModel @Inject constructor(
         persistSettingsSilently()
     }
 
+    fun onShowFormatFpsChanged(value: Boolean) {
+        _uiState.update { state -> state.copy(appSettings = state.appSettings.copy(showFormatFps = value)) }
+        persistSettingsSilently()
+    }
+
+    fun onShowFormatCodecChanged(value: Boolean) {
+        _uiState.update { state -> state.copy(appSettings = state.appSettings.copy(showFormatCodec = value)) }
+        persistSettingsSilently()
+    }
+
+    fun onShowFormatBitrateChanged(value: Boolean) {
+        _uiState.update { state -> state.copy(appSettings = state.appSettings.copy(showFormatBitrate = value)) }
+        persistSettingsSilently()
+    }
+
     fun onCookiesEnabledChanged(value: Boolean) {
         _uiState.update { state -> state.copy(cookiesEnabled = value) }
         persistSettings("Cookie preference saved.", FormatMessageScope.COOKIES)

@@ -91,6 +91,7 @@ import com.localdownloader.R
 import com.localdownloader.downloader.isAutomaticContainerSelection
 import com.localdownloader.downloader.isChoiceCompatibleWithRequestedContainer
 import com.localdownloader.downloader.resolveMergeContainerCompatibility
+import com.localdownloader.domain.models.AppSettings
 import com.localdownloader.domain.models.FormatChoice
 import com.localdownloader.domain.models.OutputTransform
 import com.localdownloader.domain.models.StreamType
@@ -573,6 +574,7 @@ fun BrowserScreen(
                                     audioFormats = audioFormats,
                                     bitrates = bitrates,
                                     emptyChoicesMessage = stringResource(R.string.browser_closest_available_format),
+                                    appSettings = uiState.appSettings,
                                 )
                             }
                         }
@@ -651,6 +653,7 @@ fun BrowserScreen(
                                     containers = containers,
                                     audioFormats = audioFormats,
                                     bitrates = bitrates,
+                                    appSettings = uiState.appSettings,
                                     onSelectedChanged = { onPlaylistItemSelectedChanged(index, it) },
                                     onExpandedChanged = { onPlaylistItemExpandedChanged(index, it) },
                                     onUseGlobalChanged = { onPlaylistItemUseGlobalChanged(index, it) },
@@ -695,6 +698,7 @@ fun BrowserScreen(
                                     audioFormats = audioFormats,
                                     bitrates = bitrates,
                                     emptyChoicesMessage = null,
+                                    appSettings = uiState.appSettings,
                                 )
                             }
                         }
@@ -1360,6 +1364,7 @@ private fun SelectionOptionsCard(
     audioFormats: List<String>,
     bitrates: List<Int>,
     emptyChoicesMessage: String?,
+    appSettings: AppSettings = AppSettings(),
 ) {
     val availableTransforms = remember(streamType, hasVideoAudioChoices, hasVideoOnlyChoices, hasAudioOnlyChoices) {
         if (streamType != StreamType.VIDEO_AUDIO || !hasVideoAudioChoices) {
@@ -1418,12 +1423,15 @@ private fun SelectionOptionsCard(
                     choice = selectedChoice,
                     streamType = streamType,
                     requestedContainer = container,
+                    appSettings = appSettings,
                 ),
                 selectedSupporting = buildSelectedFormatMetadata(
                     choice = selectedChoice,
                     streamType = streamType,
                     requestedContainer = container,
+                    appSettings = appSettings,
                 ),
+                appSettings = appSettings,
                 onSelected = { onFormatSelectorChanged(visibleChoices[it].selector) },
             )
             FlowRow(
@@ -1625,6 +1633,7 @@ private fun PlaylistItemCard(
     containers: List<String>,
     audioFormats: List<String>,
     bitrates: List<Int>,
+    appSettings: AppSettings = AppSettings(),
     onSelectedChanged: (Boolean) -> Unit,
     onExpandedChanged: (Boolean) -> Unit,
     onUseGlobalChanged: (Boolean) -> Unit,
@@ -1817,6 +1826,7 @@ private fun PlaylistItemCard(
                             audioFormats = audioFormats,
                             bitrates = bitrates,
                             emptyChoicesMessage = stringResource(R.string.browser_playlist_auto_format),
+                            appSettings = appSettings,
                         )
                     }
                 }
@@ -1981,6 +1991,32 @@ private fun compactCodecLabel(codec: String): String {
         .uppercase()
 }
 
+private fun buildFormatChoiceTitle(
+    choice: FormatChoice,
+    appSettings: AppSettings,
+): String {
+    return when (choice.streamType) {
+        StreamType.AUDIO_ONLY -> {
+            val ext = choice.container.uppercase()
+            if (appSettings.showFormatBitrate && choice.bitrateKbps != null && choice.bitrateKbps > 0) {
+                "$ext • ${choice.bitrateKbps} kbps"
+            } else {
+                ext
+            }
+        }
+        else -> {
+            val resolution = choice.height?.let { "${it}p" }
+                ?: choice.label.substringBefore(' ').takeIf { it.isNotBlank() }
+                ?: "Video"
+            if (appSettings.showFormatFps && (choice.fps ?: 0.0) >= 50.0) {
+                "$resolution ${choice.fps?.toInt()}fps"
+            } else {
+                resolution
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FormatChoiceDropdownRow(
@@ -1989,6 +2025,7 @@ private fun FormatChoiceDropdownRow(
     selectedIndex: Int,
     selectedValue: String,
     selectedSupporting: String?,
+    appSettings: AppSettings,
     onSelected: (Int) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -2009,37 +2046,43 @@ private fun FormatChoiceDropdownRow(
             onDismissRequest = { expanded = false },
         ) {
             choices.forEachIndexed { index, choice ->
+                val isSelected = index == selectedIndex
                 DropdownMenuItem(
                     text = {
                         Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            verticalArrangement = Arrangement.spacedBy(3.dp),
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(
-                                    text = choice.label,
-                                    modifier = Modifier.weight(1f),
-                                    maxLines = 2,
+                                    text = buildFormatChoiceTitle(choice, appSettings),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
                                 formatChoicePrimarySizeLabel(choice)?.let { sizeLabel ->
                                     Text(
                                         text = sizeLabel,
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
                             }
-                            buildFormatMenuMetadata(choice)?.let { metadata ->
+                            buildFormatMenuMetadata(choice, appSettings)?.let { metadata ->
                                 Text(
                                     text = metadata,
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 2,
+                                    maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
                             }
@@ -2049,7 +2092,18 @@ private fun FormatChoiceDropdownRow(
                         expanded = false
                         onSelected(index)
                     },
-                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .then(
+                            if (isSelected) {
+                                Modifier.background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f))
+                            } else {
+                                Modifier
+                            }
+                        ),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                 )
             }
         }
@@ -2061,23 +2115,40 @@ private fun formatChoiceDisplayLabel(choice: FormatChoice): String {
     return "${choice.label} • $sizeLabel"
 }
 
-private fun buildFormatMenuMetadata(choice: FormatChoice): String? {
-    return buildFormatMenuMetadata(choice = choice, containerOverride = choice.container)
+private fun buildFormatMenuMetadata(
+    choice: FormatChoice,
+    appSettings: AppSettings = AppSettings(),
+): String? {
+    return buildFormatMenuMetadata(choice = choice, appSettings = appSettings, containerOverride = choice.container)
 }
 
 private fun buildFormatMenuMetadata(
     choice: FormatChoice,
-    containerOverride: String,
+    appSettings: AppSettings = AppSettings(),
+    containerOverride: String = choice.container,
 ): String? {
     return buildList {
-        choice.height?.let { add("${it}p") }
-        choice.fps?.takeIf { it > 0 }?.let { add("${it.toInt()}fps") }
-        add(containerOverride.uppercase())
-        choice.videoCodec?.takeIf { it.isNotBlank() && !it.equals("none", ignoreCase = true) }?.let {
-            add("v:${compactCodecLabel(it)}")
+        if (appSettings.showFormatFps) {
+            choice.fps?.takeIf { it > 0 }?.let { add("${it.toInt()}fps") }
         }
-        choice.audioCodec?.takeIf { it.isNotBlank() && !it.equals("none", ignoreCase = true) }?.let {
-            add("a:${compactCodecLabel(it)}")
+        if (containerOverride.isNotBlank()) {
+            add(containerOverride.uppercase())
+        }
+        if (appSettings.showFormatCodec) {
+            choice.videoCodec?.takeIf { it.isNotBlank() && !it.equals("none", ignoreCase = true) }?.let {
+                add("v:${compactCodecLabel(it)}")
+            }
+            choice.audioCodec?.takeIf { it.isNotBlank() && !it.equals("none", ignoreCase = true) }?.let {
+                add("a:${compactCodecLabel(it)}")
+            }
+        }
+        if (appSettings.showFormatBitrate) {
+            choice.bitrateKbps?.takeIf { it > 0 }?.let {
+                add("${it} kbps")
+            }
+        }
+        if (choice.isMerged) {
+            add("merge")
         }
     }.joinToString(" | ").ifBlank { null }
 }
@@ -2140,9 +2211,15 @@ private fun buildSelectedFormatHeadline(
     choice: FormatChoice,
     streamType: StreamType,
     requestedContainer: String,
+    appSettings: AppSettings = AppSettings(),
 ): String {
     if (streamType == StreamType.AUDIO_ONLY) {
-        return choice.label
+        val ext = choice.container.uppercase()
+        return if (appSettings.showFormatBitrate && choice.bitrateKbps != null && choice.bitrateKbps > 0) {
+            "$ext • ${choice.bitrateKbps} kbps"
+        } else {
+            ext
+        }
     }
 
     return buildList {
@@ -2154,7 +2231,9 @@ private fun buildSelectedFormatHeadline(
                 choice = choice,
             ).uppercase(),
         )
-        choice.fps?.takeIf { it > 0 }?.let { add("${it.toInt()}fps") }
+        if (appSettings.showFormatFps) {
+            choice.fps?.takeIf { it > 0 }?.let { add("${it.toInt()}fps") }
+        }
     }.joinToString(" ").ifBlank { choice.label }
 }
 
@@ -2162,9 +2241,11 @@ private fun buildSelectedFormatMetadata(
     choice: FormatChoice,
     streamType: StreamType,
     requestedContainer: String,
+    appSettings: AppSettings = AppSettings(),
 ): String? {
     return buildFormatMenuMetadata(
         choice = choice,
+        appSettings = appSettings,
         containerOverride = resolvedOutputContainer(
             streamType = streamType,
             requestedContainer = requestedContainer,

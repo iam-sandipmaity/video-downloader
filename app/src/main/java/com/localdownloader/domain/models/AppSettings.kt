@@ -45,6 +45,9 @@ data class AppSettings(
     val hasSeenDownloadSetupNotice: Boolean = false,
     val maxConcurrentDownloads: Int = 2,
     val allowMeteredDownloads: Boolean = false,
+    val showFormatFps: Boolean = true,
+    val showFormatCodec: Boolean = true,
+    val showFormatBitrate: Boolean = true,
     val darkTheme: Boolean = false,
     val vaultSettings: VaultSettings = VaultSettings(),
 )
