@@ -85,7 +85,7 @@ class QuickDownloadActivity : Hilt_QuickDownloadActivity() {
                 QuickDownloadScreen(
                     uiState = uiState,
                     onDismiss = { finish() },
-                    onModeChanged = viewModel::onModeChanged,
+                    onStreamTypeChanged = viewModel::onStreamTypeChanged,
                     onTitleChanged = viewModel::onTitleChanged,
                     onVideoQualitySelected = viewModel::onVideoQualitySelected,
                     onAudioQualitySelected = viewModel::onAudioQualitySelected,

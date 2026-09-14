@@ -843,7 +843,9 @@
 
     <string name="quick_download_title">Download Video</string>
     <string name="quick_download_title_audio">Download Audio</string>
+    <string name="quick_download_mode_video_audio">Video + Audio</string>
     <string name="quick_download_mode_video">Video</string>
+    <string name="quick_download_mode_video_only">Video only</string>
     <string name="quick_download_mode_audio">Audio</string>
     <string name="quick_download_label_title">Title</string>
     <string name="quick_download_label_quality">Quality</string>

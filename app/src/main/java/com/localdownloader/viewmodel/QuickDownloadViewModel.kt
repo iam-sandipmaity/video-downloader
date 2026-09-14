@@ -14,6 +14,7 @@ import com.localdownloader.domain.repositories.DownloaderRepository
 import com.localdownloader.downloader.FormatSelectorBuilder
 import com.localdownloader.ui.model.toReadableSize
 import com.localdownloader.utils.CookieTextCodec
+import com.localdownloader.utils.FileUtils
 import com.localdownloader.utils.Logger
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -53,7 +54,7 @@ data class QuickDownloadUiState(
     val errorMessage: String? = null,
     val videoInfo: VideoInfo? = null,
     val title: String = "",
-    val isAudioMode: Boolean = false,
+    val selectedStreamType: StreamType = StreamType.VIDEO_AUDIO,
     val videoQualityOptions: List<QuickQualityOption> = emptyList(),
     val audioQualityOptions: List<QuickQualityOption> = emptyList(),
     val selectedVideoQuality: QuickQualityOption? = null,
@@ -64,12 +65,16 @@ data class QuickDownloadUiState(
     val selectedAudioFormat: QuickFormatOption? = null,
     val threads: Int = 4,
     val appSettings: AppSettings = AppSettings(),
-)
+) {
+    val isAudioMode: Boolean
+        get() = selectedStreamType == StreamType.AUDIO_ONLY
+}
 
 @HiltViewModel
 class QuickDownloadViewModel @Inject constructor(
     private val repository: DownloaderRepository,
     private val settingsStore: SettingsStore,
+    private val fileUtils: FileUtils,
     private val logger: Logger,
 ) : ViewModel() {
 
@@ -147,6 +152,7 @@ class QuickDownloadViewModel @Inject constructor(
                             errorMessage = null,
                             videoInfo = info,
                             title = info.title,
+                            selectedStreamType = StreamType.VIDEO_AUDIO,
                             videoQualityOptions = videoQualities,
                             audioQualityOptions = audioQualities,
                             selectedVideoQuality = defaultVideoQuality,
@@ -172,8 +178,8 @@ class QuickDownloadViewModel @Inject constructor(
         }
     }
 
-    fun onModeChanged(isAudio: Boolean) {
-        _uiState.update { it.copy(isAudioMode = isAudio) }
+    fun onStreamTypeChanged(streamType: StreamType) {
+        _uiState.update { it.copy(selectedStreamType = streamType) }
     }
 
     fun onTitleChanged(newTitle: String) {
@@ -208,42 +214,91 @@ class QuickDownloadViewModel @Inject constructor(
         _uiState.update { it.copy(isQueueing = true, errorMessage = null) }
 
         viewModelScope.launch {
-            val isAudio = state.isAudioMode
-            val formatId = if (isAudio) {
-                state.selectedAudioQuality?.formatChoice?.selector
-                    ?: "ba/b"
+            val streamType = state.selectedStreamType
+            val isAudio = streamType == StreamType.AUDIO_ONLY
+            val isVideoOnly = streamType == StreamType.VIDEO_ONLY
+
+            val requestedContainer = state.selectedVideoFormat?.container?.lowercase() ?: "mp4"
+            val targetCategory = if (isAudio) {
+                FileUtils.MediaFolderCategory.AUDIO
             } else {
-                val height = state.selectedVideoQuality?.height
-                val codec = state.selectedVideoFormat?.videoCodec
-                when {
-                    state.selectedVideoQuality?.formatChoice != null ->
-                        state.selectedVideoQuality.formatChoice.selector
-                    height != null && codec != null && codec.contains("vp9", ignoreCase = true) ->
-                        "bv*[height<=$height][vcodec^=vp9]+ba/bv*[height<=$height]+ba/b[height<=$height]/b"
-                    height != null && codec != null && (codec.contains("avc", ignoreCase = true) || codec.contains("h264", ignoreCase = true)) ->
-                        "bv*[height<=$height][vcodec^=avc1]+ba/bv*[height<=$height]+ba/b[height<=$height]/b"
-                    height != null ->
-                        "bv*[height<=$height]+ba/b[height<=$height]/b"
-                    else ->
-                        "bv*+ba/b"
+                FileUtils.MediaFolderCategory.VIDEO
+            }
+
+            val formatId = when (streamType) {
+                StreamType.AUDIO_ONLY -> {
+                    "bestaudio/best"
+                }
+                StreamType.VIDEO_ONLY -> {
+                    val h = state.selectedVideoQuality?.height?.let { "[height<=$it]" }.orEmpty()
+                    val vExt = when (requestedContainer) {
+                        "mp4", "mov" -> "[ext=mp4]"
+                        "webm" -> "[ext=webm]"
+                        else -> ""
+                    }
+                    if (vExt.isNotEmpty()) {
+                        "bestvideo$h$vExt/bestvideo$h/best$h/best"
+                    } else {
+                        "bestvideo$h/bestvideo/best$h/best"
+                    }
+                }
+                StreamType.VIDEO_AUDIO -> {
+                    val h = state.selectedVideoQuality?.height?.let { "[height<=$it]" }.orEmpty()
+                    val vExt = when (requestedContainer) {
+                        "mp4", "mov" -> "[ext=mp4]"
+                        "webm" -> "[ext=webm]"
+                        else -> ""
+                    }
+                    val aExt = when (requestedContainer) {
+                        "mp4", "mov" -> "[ext=m4a]"
+                        "webm" -> "[ext=webm]"
+                        else -> ""
+                    }
+                    if (vExt.isNotEmpty()) {
+                        "bestvideo$h$vExt+bestaudio$aExt/bestvideo$h+bestaudio/best$h/best"
+                    } else {
+                        "bestvideo$h+bestaudio/best$h/best"
+                    }
                 }
             }
 
             val mergeFormat = if (!isAudio) {
-                state.selectedVideoFormat?.container?.takeUnless { it == "auto" }
+                when (requestedContainer) {
+                    "auto" -> "mp4"
+                    else -> requestedContainer
+                }
             } else {
                 null
             }
 
             val cookiesPath = resolveCookiesPath(state.url, state.appSettings)
+
+            val baseTemplate = if (isAudio) {
+                state.appSettings.defaultAudioOutputTemplate
+            } else {
+                state.appSettings.defaultOutputTemplate
+            }
+
+            val targetTemplate = if (state.title.isNotBlank() && state.title != info.title) {
+                val sanitized = fileUtils.sanitizeFileName(state.title.trim())
+                if (sanitized.isNotBlank()) {
+                    "$sanitized [%(id)s].%(ext)s"
+                } else {
+                    baseTemplate
+                }
+            } else {
+                baseTemplate
+            }
+
+            val resolvedOutputTemplate = fileUtils.createOutputTemplateWithDirectory(
+                template = targetTemplate,
+                category = targetCategory,
+            )
+
             val options = DownloadOptions(
                 url = state.url,
                 formatId = formatId,
-                outputTemplate = if (state.title.isNotBlank() && state.title != info.title) {
-                    "${state.title.trim()} [%(id)s].%(ext)s"
-                } else {
-                    state.appSettings.defaultOutputTemplate
-                },
+                outputTemplate = resolvedOutputTemplate,
                 thumbnailUrl = info.thumbnailUrl,
                 youtubeCookiesPath = cookiesPath,
                 youtubeAuthEnabled = state.appSettings.youtubeAuthConfig.isConfigured(),
@@ -253,6 +308,8 @@ class QuickDownloadViewModel @Inject constructor(
                 preferredVideoHeight = if (!isAudio) state.selectedVideoQuality?.height else null,
                 expectedDurationSeconds = info.durationSeconds,
                 extractAudio = isAudio,
+                downloadVideoOnly = isVideoOnly,
+                removeAudioFromVideo = isVideoOnly,
                 audioFormat = if (isAudio) state.selectedAudioFormat?.container ?: "mp3" else null,
                 audioBitrateKbps = if (isAudio) state.selectedAudioQuality?.bitrateKbps ?: 160 else null,
                 concurrentFragments = state.threads,
@@ -314,28 +371,12 @@ class QuickDownloadViewModel @Inject constructor(
                 1440 -> "2K · 1440p"
                 else -> "${height}p"
             }
-            val choice = bestMatching?.let { fmt ->
-                FormatChoice(
-                    selector = if (fmt.isVideoOnly) FormatSelectorBuilder.buildVideoOnlySelector(fmt) + "+ba" else FormatSelectorBuilder.buildMuxedSelector(fmt),
-                    label = title,
-                    streamType = StreamType.VIDEO_AUDIO,
-                    container = fmt.normalizedExtension,
-                    height = height,
-                    isMerged = fmt.isVideoOnly,
-                    isImageLike = false,
-                    fileSizeBytes = sizeBytes,
-                    videoCodec = fmt.videoCodec,
-                    audioCodec = fmt.audioCodec,
-                    bitrateKbps = fmt.bitrateKbps,
-                )
-            }
             QuickQualityOption(
                 id = "${height}p",
                 title = title,
                 subtitle = sizeLabel,
                 height = height,
                 bitrateKbps = bestMatching?.bitrateKbps,
-                formatChoice = choice,
             )
         }
     }
@@ -355,32 +396,12 @@ class QuickDownloadViewModel @Inject constructor(
     }
 
     private fun buildVideoFormats(info: VideoInfo): List<QuickFormatOption> {
-        val videoFormats = info.formats.filter { it.isVideoOnly || !it.shouldTreatAsAudioOnlyChoice() }
-        val hasVp9 = videoFormats.any { it.videoCodec.contains("vp9", ignoreCase = true) }
-        val hasH264 = videoFormats.any {
-            it.videoCodec.contains("avc", ignoreCase = true) ||
-                it.videoCodec.contains("h264", ignoreCase = true)
-        }
-        val hasAv1 = videoFormats.any { it.videoCodec.contains("av1", ignoreCase = true) || it.videoCodec.contains("av01", ignoreCase = true) }
-
-        val list = mutableListOf<QuickFormatOption>()
-        if (hasVp9) {
-            list += QuickFormatOption(id = "vp9_webm", label = "VP9 · WebM", container = "webm", videoCodec = "vp9")
-        }
-        if (hasH264) {
-            list += QuickFormatOption(id = "h264_mp4", label = "H.264 · MP4", container = "mp4", videoCodec = "h264")
-        }
-        if (hasAv1) {
-            list += QuickFormatOption(id = "av1_mp4", label = "AV1 · MP4", container = "mp4", videoCodec = "av1")
-        }
-
-        // Fallbacks if no specific codec matches found
-        if (list.isEmpty()) {
-            list += QuickFormatOption(id = "mp4", label = "MP4", container = "mp4", videoCodec = "h264")
-            list += QuickFormatOption(id = "webm", label = "VP9 · WebM", container = "webm", videoCodec = "vp9")
-        }
-        list += QuickFormatOption(id = "mkv", label = "MKV", container = "mkv")
-        return list
+        return listOf(
+            QuickFormatOption(id = "mp4", label = "MP4", container = "mp4", videoCodec = "h264"),
+            QuickFormatOption(id = "webm", label = "WebM", container = "webm", videoCodec = "vp9"),
+            QuickFormatOption(id = "mkv", label = "MKV", container = "mkv", videoCodec = null),
+            QuickFormatOption(id = "auto", label = "Auto", container = "auto", videoCodec = null),
+        )
     }
 
     private fun buildAudioFormats(): List<QuickFormatOption> {

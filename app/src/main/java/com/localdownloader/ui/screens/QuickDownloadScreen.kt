@@ -1,6 +1,8 @@
 package com.localdownloader.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
@@ -60,6 +62,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.localdownloader.R
+import com.localdownloader.domain.models.StreamType
 import com.localdownloader.viewmodel.QuickDownloadUiState
 import com.localdownloader.viewmodel.QuickFormatOption
 import com.localdownloader.viewmodel.QuickQualityOption
@@ -68,7 +71,7 @@ import com.localdownloader.viewmodel.QuickQualityOption
 fun QuickDownloadScreen(
     uiState: QuickDownloadUiState,
     onDismiss: () -> Unit,
-    onModeChanged: (Boolean) -> Unit,
+    onStreamTypeChanged: (StreamType) -> Unit,
     onTitleChanged: (String) -> Unit,
     onVideoQualitySelected: (QuickQualityOption) -> Unit,
     onAudioQualitySelected: (QuickQualityOption) -> Unit,
@@ -88,14 +91,14 @@ fun QuickDownloadScreen(
     ) {
         Card(
             modifier = Modifier
-                .widthIn(max = 420.dp)
+                .widthIn(max = 440.dp)
                 .fillMaxWidth()
                 .clickable(enabled = false) {}, // Intercept clicks inside card
             shape = RoundedCornerShape(28.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface,
             ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
         ) {
             Column(
                 modifier = Modifier
@@ -137,13 +140,13 @@ fun QuickDownloadScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 32.dp),
+                            .padding(vertical = 36.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
                         CircularProgressIndicator(
                             color = MaterialTheme.colorScheme.primary,
-                            strokeWidth = 3.dp,
+                            strokeWidth = 3.5.dp,
                         )
                         Text(
                             text = stringResource(R.string.quick_download_analyzing),
@@ -194,18 +197,18 @@ fun QuickDownloadScreen(
                             )
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(14.dp),
                         maxLines = 2,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.outline,
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
                             unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
                         ),
                     )
 
-                    // Segmented Button: Video | Audio
-                    SegmentedPillToggle(
-                        isAudioMode = uiState.isAudioMode,
-                        onModeChanged = onModeChanged,
+                    // 3-Way Segmented Button: Video + Audio | Audio | Video only
+                    SegmentedThreeWayToggle(
+                        selectedType = uiState.selectedStreamType,
+                        onStreamTypeSelected = onStreamTypeChanged,
                     )
 
                     // Quality Row
@@ -267,11 +270,11 @@ fun QuickDownloadScreen(
 
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
                             Surface(
                                 shape = CircleShape,
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
                                 modifier = Modifier
                                     .size(36.dp)
                                     .clip(CircleShape)
@@ -297,14 +300,14 @@ fun QuickDownloadScreen(
                                 text = uiState.threads.toString(),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                modifier = Modifier.widthIn(min = 24.dp),
+                                modifier = Modifier.widthIn(min = 28.dp),
                                 textAlign = TextAlign.Center,
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
 
                             Surface(
                                 shape = CircleShape,
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
                                 modifier = Modifier
                                     .size(36.dp)
                                     .clip(CircleShape)
@@ -343,7 +346,7 @@ fun QuickDownloadScreen(
                             Text(
                                 text = stringResource(R.string.common_cancel),
                                 color = Color(0xFFE53935),
-                                fontWeight = FontWeight.Medium,
+                                fontWeight = FontWeight.SemiBold,
                                 fontSize = 16.sp,
                             )
                         }
@@ -357,7 +360,7 @@ fun QuickDownloadScreen(
                                 contentColor = Color.White,
                             ),
                             contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                                horizontal = 24.dp,
+                                horizontal = 26.dp,
                                 vertical = 12.dp,
                             ),
                         ) {
@@ -383,9 +386,9 @@ fun QuickDownloadScreen(
 }
 
 @Composable
-private fun SegmentedPillToggle(
-    isAudioMode: Boolean,
-    onModeChanged: (Boolean) -> Unit,
+private fun SegmentedThreeWayToggle(
+    selectedType: StreamType,
+    onStreamTypeSelected: (StreamType) -> Unit,
 ) {
     Surface(
         shape = RoundedCornerShape(50),
@@ -396,77 +399,54 @@ private fun SegmentedPillToggle(
             .height(44.dp),
     ) {
         Row(modifier = Modifier.fillMaxSize()) {
-            // Video Option
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxSize()
-                    .clip(RoundedCornerShape(topStart = 50.dp, bottomStart = 50.dp, topEnd = if (isAudioMode) 0.dp else 50.dp, bottomEnd = if (isAudioMode) 0.dp else 50.dp))
-                    .background(
-                        if (!isAudioMode) {
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
-                        } else {
-                            Color.Transparent
-                        },
-                    )
-                    .clickable { onModeChanged(false) },
-                contentAlignment = Alignment.Center,
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    if (!isAudioMode) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                            tint = MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
-                    Text(
-                        text = stringResource(R.string.quick_download_mode_video),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = if (!isAudioMode) FontWeight.Bold else FontWeight.Normal,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                }
-            }
+            val options = listOf(
+                StreamType.VIDEO_AUDIO to stringResource(R.string.quick_download_mode_video_audio),
+                StreamType.AUDIO_ONLY to stringResource(R.string.quick_download_mode_audio),
+                StreamType.VIDEO_ONLY to stringResource(R.string.quick_download_mode_video_only),
+            )
 
-            // Audio Option
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxSize()
-                    .clip(RoundedCornerShape(topEnd = 50.dp, bottomEnd = 50.dp, topStart = if (!isAudioMode) 0.dp else 50.dp, bottomStart = if (!isAudioMode) 0.dp else 50.dp))
-                    .background(
-                        if (isAudioMode) {
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
-                        } else {
-                            Color.Transparent
-                        },
-                    )
-                    .clickable { onModeChanged(true) },
-                contentAlignment = Alignment.Center,
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+            options.forEachIndexed { index, (streamType, label) ->
+                val isSelected = selectedType == streamType
+                val bgColor by animateColorAsState(
+                    targetValue = if (isSelected) {
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f)
+                    } else {
+                        Color.Transparent
+                    },
+                    animationSpec = tween(180),
+                    label = "segmentBg",
+                )
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxSize()
+                        .background(bgColor)
+                        .clickable { onStreamTypeSelected(streamType) },
+                    contentAlignment = Alignment.Center,
                 ) {
-                    if (isAudioMode) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                            tint = MaterialTheme.colorScheme.onSurface,
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                    ) {
+                        if (isSelected) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
-                    Text(
-                        text = stringResource(R.string.quick_download_mode_audio),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = if (isAudioMode) FontWeight.Bold else FontWeight.Normal,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
                 }
             }
         }
