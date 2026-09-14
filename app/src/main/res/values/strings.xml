@@ -840,4 +840,18 @@
     <string name="vault_move_to_vault_success">Moved to vault</string>
     <string name="vault_move_to_downloads_success">Moved to downloads</string>
     <string name="vault_move_failed">Move failed</string>
+
+    <string name="quick_download_title">Download Video</string>
+    <string name="quick_download_title_audio">Download Audio</string>
+    <string name="quick_download_mode_video">Video</string>
+    <string name="quick_download_mode_audio">Audio</string>
+    <string name="quick_download_label_title">Title</string>
+    <string name="quick_download_label_quality">Quality</string>
+    <string name="quick_download_label_format">Format</string>
+    <string name="quick_download_label_threads">Threads</string>
+    <string name="quick_download_action_download">Download</string>
+    <string name="quick_download_queued">Download queued</string>
+    <string name="quick_download_analyzing">Fetching media info…</string>
+    <string name="quick_download_error">Unable to analyze link</string>
+    <string name="quick_download_retry">Retry</string>
 </resources>

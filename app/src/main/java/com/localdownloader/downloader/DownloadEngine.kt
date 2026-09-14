@@ -34,8 +34,8 @@ class DownloadEngine @Inject constructor(
             "--retry-sleep", "1",
             "--retry-sleep", "fragment:1",
             "--abort-on-unavailable-fragments",
-            // Single-threaded fragment downloads prevent aggressive rate-limiting.
-            "--concurrent-fragments", "1",
+            // User-configured concurrent fragment download threads.
+            "--concurrent-fragments", options.concurrentFragments.coerceIn(1, 16).toString(),
             "-f",
             options.formatId,
             "-o",

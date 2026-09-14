@@ -38,6 +38,7 @@ data class DownloadOptions(
     val audioBitrateKbps: Int? = null,
     val playlistItemIndex: Int? = null,
     val playlistFolderName: String? = null,
+    val concurrentFragments: Int = 4,
 )
 
 /**
