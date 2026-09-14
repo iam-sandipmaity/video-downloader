@@ -52,7 +52,7 @@ class FormatExtractor @Inject constructor(
                 listOf<String?>(null)
             }
 
-            var best: AnalyzeCandidate? = if (!isYoutube && analyzeMode == AnalyzeRequestMode.STANDARD) {
+            var best: AnalyzeCandidate? = if (analyzeMode == AnalyzeRequestMode.STANDARD) {
                 loadRecentAnalyzeSnapshot(url)
             } else {
                 null
@@ -959,6 +959,10 @@ internal fun buildAnalyzeArgsForRequest(
     return buildList {
         add(if (useLineJsonMode) "-j" else "-J")
         add("--skip-download")
+        add("--no-write-thumbnail")
+        add("--no-write-comments")
+        add("--no-write-subs")
+        add("--no-write-auto-subs")
         add("--no-warnings")
         add("--ignore-config")
         add("--ignore-errors")

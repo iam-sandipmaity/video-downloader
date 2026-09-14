@@ -7,15 +7,19 @@ import com.localdownloader.domain.models.AppSettings
 import com.localdownloader.domain.models.DownloadOptions
 import com.localdownloader.domain.models.FormatChoice
 import com.localdownloader.domain.models.MediaFormat
+import com.localdownloader.domain.models.PlaylistDownloadRequest
 import com.localdownloader.domain.models.StreamType
 import com.localdownloader.domain.models.VideoInfo
 import com.localdownloader.domain.models.shouldTreatAsAudioOnlyChoice
 import com.localdownloader.domain.repositories.DownloaderRepository
 import com.localdownloader.downloader.FormatSelectorBuilder
+import com.localdownloader.downloader.YoutubeRequestPlanner
+import com.localdownloader.downloader.looksLikeYoutubeUrl
 import com.localdownloader.ui.model.toReadableSize
 import com.localdownloader.utils.CookieTextCodec
 import com.localdownloader.utils.FileUtils
 import com.localdownloader.utils.Logger
+import com.localdownloader.utils.NetworkStatusMonitor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -52,6 +56,7 @@ data class QuickDownloadUiState(
     val isQueueing: Boolean = false,
     val isDownloadSuccess: Boolean = false,
     val errorMessage: String? = null,
+    val showMeteredNetworkDialog: Boolean = false,
     val videoInfo: VideoInfo? = null,
     val title: String = "",
     val selectedStreamType: StreamType = StreamType.VIDEO_AUDIO,
@@ -75,6 +80,7 @@ class QuickDownloadViewModel @Inject constructor(
     private val repository: DownloaderRepository,
     private val settingsStore: SettingsStore,
     private val fileUtils: FileUtils,
+    private val networkStatusMonitor: NetworkStatusMonitor,
     private val logger: Logger,
 ) : ViewModel() {
 
@@ -123,10 +129,22 @@ class QuickDownloadViewModel @Inject constructor(
                 null
             }
 
+            val preferredExtractorArgs = if (looksLikeYoutubeUrl(url) && settings.youtubeAuthConfig.enabled && settings.youtubeAuthConfig.isConfigured()) {
+                YoutubeRequestPlanner.preferredAuthenticatedExtractorArgs(
+                    poToken = settings.youtubeAuthConfig.buildPoTokenValue(),
+                    preferredHint = settings.youtubeAuthConfig.clientHint,
+                    dataSyncId = settings.youtubeAuthConfig.dataSyncId.ifBlank { null },
+                    visitorData = settings.youtubeAuthConfig.visitorData.ifBlank { null },
+                )
+            } else {
+                null
+            }
+
             val result = repository.analyzeUrl(
                 url = url,
                 cookiesPath = cookiesPath,
                 userAgent = userAgent,
+                preferredExtractorArgs = preferredExtractorArgs,
             )
 
             result.fold(
@@ -207,6 +225,36 @@ class QuickDownloadViewModel @Inject constructor(
     }
 
     fun download() {
+        val state = _uiState.value
+        if (state.videoInfo == null || state.isQueueing) return
+
+        if (!state.appSettings.allowMeteredDownloads && networkStatusMonitor.isConnectedToMeteredNetwork()) {
+            _uiState.update { it.copy(showMeteredNetworkDialog = true) }
+            return
+        }
+
+        executeDownload()
+    }
+
+    fun dismissMeteredNetworkDialog() {
+        _uiState.update { it.copy(showMeteredNetworkDialog = false) }
+    }
+
+    fun allowCellularAndDownload() {
+        viewModelScope.launch {
+            val updatedSettings = _uiState.value.appSettings.copy(allowMeteredDownloads = true)
+            _uiState.update { it.copy(appSettings = updatedSettings, showMeteredNetworkDialog = false) }
+            runCatching { repository.updateSettings(updatedSettings) }
+            executeDownload()
+        }
+    }
+
+    fun downloadWhenWifiAvailable() {
+        _uiState.update { it.copy(showMeteredNetworkDialog = false) }
+        executeDownload()
+    }
+
+    private fun executeDownload() {
         val state = _uiState.value
         val info = state.videoInfo ?: return
         if (state.isQueueing) return
@@ -295,7 +343,7 @@ class QuickDownloadViewModel @Inject constructor(
                 category = targetCategory,
             )
 
-            val options = DownloadOptions(
+            val baseOptions = DownloadOptions(
                 url = state.url,
                 formatId = formatId,
                 outputTemplate = resolvedOutputTemplate,
@@ -319,10 +367,39 @@ class QuickDownloadViewModel @Inject constructor(
                 shouldEmbedSubtitles = state.appSettings.autoEmbedSubtitles,
             )
 
-            val enqueueResult = repository.enqueueDownload(
-                options = options,
-                titleHint = state.title.ifBlank { info.title },
-            )
+            val enqueueResult = if (info.isPlaylist && info.playlistEntries.isNotEmpty()) {
+                val requests = info.playlistEntries.map { entry ->
+                    PlaylistDownloadRequest(
+                        entry = entry,
+                        options = baseOptions.copy(
+                            url = entry.webpageUrl.ifBlank { state.url },
+                            thumbnailUrl = entry.thumbnailUrl ?: baseOptions.thumbnailUrl,
+                        ),
+                        titleHint = entry.title,
+                    )
+                }
+                repository.enqueuePlaylistDownload(
+                    playlistTitle = state.title.ifBlank { info.title },
+                    requests = requests,
+                ).map { it.firstOrNull().orEmpty() }
+            } else if (info.isPlaylist) {
+                val playlistTemplate = fileUtils.createOutputTemplateWithDirectory(
+                    template = "%(playlist_title)s/%(playlist_index)s - %(title)s [%(id)s].%(ext)s",
+                    category = targetCategory,
+                )
+                repository.enqueueDownload(
+                    options = baseOptions.copy(
+                        outputTemplate = playlistTemplate,
+                        isPlaylistEnabled = true,
+                    ),
+                    titleHint = state.title.ifBlank { info.title },
+                )
+            } else {
+                repository.enqueueDownload(
+                    options = baseOptions,
+                    titleHint = state.title.ifBlank { info.title },
+                )
+            }
 
             enqueueResult.fold(
                 onSuccess = {
@@ -397,8 +474,8 @@ class QuickDownloadViewModel @Inject constructor(
 
     private fun buildVideoFormats(info: VideoInfo): List<QuickFormatOption> {
         return listOf(
-            QuickFormatOption(id = "mp4", label = "MP4", container = "mp4", videoCodec = "h264"),
-            QuickFormatOption(id = "webm", label = "WebM", container = "webm", videoCodec = "vp9"),
+            QuickFormatOption(id = "mp4", label = "H264 · MP4", container = "mp4", videoCodec = "h264"),
+            QuickFormatOption(id = "webm", label = "VP9 · WebM", container = "webm", videoCodec = "vp9"),
             QuickFormatOption(id = "mkv", label = "MKV", container = "mkv", videoCodec = null),
             QuickFormatOption(id = "auto", label = "Auto", container = "auto", videoCodec = null),
         )

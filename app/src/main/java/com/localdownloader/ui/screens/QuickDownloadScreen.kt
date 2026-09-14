@@ -1,10 +1,7 @@
 package com.localdownloader.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -12,13 +9,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -31,6 +26,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -80,8 +76,29 @@ fun QuickDownloadScreen(
     onThreadsChanged: (Int) -> Unit,
     onDownloadClicked: () -> Unit,
     onRetryClicked: () -> Unit,
+    onDismissMeteredNetworkDialog: () -> Unit = {},
+    onAllowCellularAndDownload: () -> Unit = {},
+    onDownloadWhenWifiAvailable: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    if (uiState.showMeteredNetworkDialog) {
+        AlertDialog(
+            onDismissRequest = onDismissMeteredNetworkDialog,
+            title = { Text(stringResource(R.string.browser_metered_title)) },
+            text = { Text(stringResource(R.string.browser_metered_body)) },
+            confirmButton = {
+                TextButton(onClick = onAllowCellularAndDownload) {
+                    Text(stringResource(R.string.browser_allow_cellular))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDownloadWhenWifiAvailable) {
+                    Text(stringResource(R.string.browser_wait_for_wifi))
+                }
+            },
+        )
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -198,17 +215,18 @@ fun QuickDownloadScreen(
                         },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
-                        maxLines = 2,
+                        singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = MaterialTheme.colorScheme.primary,
                             unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
                         ),
                     )
 
-                    // 3-Way Segmented Button: Video + Audio | Audio | Video only
-                    SegmentedThreeWayToggle(
-                        selectedType = uiState.selectedStreamType,
-                        onStreamTypeSelected = onStreamTypeChanged,
+                    // 2-Way Segmented Button: [✓ Video | Audio] matching Issue #98 mockup
+                    SegmentedTwoWayToggle(
+                        isAudioMode = uiState.isAudioMode,
+                        onVideoSelected = { onStreamTypeChanged(StreamType.VIDEO_AUDIO) },
+                        onAudioSelected = { onStreamTypeChanged(StreamType.AUDIO_ONLY) },
                     )
 
                     // Quality Row
@@ -239,7 +257,7 @@ fun QuickDownloadScreen(
                         selectedText = if (uiState.isAudioMode) {
                             uiState.selectedAudioFormat?.label ?: "MP3"
                         } else {
-                            uiState.selectedVideoFormat?.label ?: "MP4"
+                            uiState.selectedVideoFormat?.label ?: "H264 · MP4"
                         },
                         options = if (uiState.isAudioMode) {
                             uiState.audioFormatOptions.map { it.label }
@@ -288,7 +306,7 @@ fun QuickDownloadScreen(
                                         contentDescription = "Decrease threads",
                                         modifier = Modifier.size(18.dp),
                                         tint = if (uiState.threads > 1) {
-                                            MaterialTheme.colorScheme.onSurface
+                                             MaterialTheme.colorScheme.onSurface
                                         } else {
                                             MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                                         },
@@ -386,9 +404,10 @@ fun QuickDownloadScreen(
 }
 
 @Composable
-private fun SegmentedThreeWayToggle(
-    selectedType: StreamType,
-    onStreamTypeSelected: (StreamType) -> Unit,
+private fun SegmentedTwoWayToggle(
+    isAudioMode: Boolean,
+    onVideoSelected: () -> Unit,
+    onAudioSelected: () -> Unit,
 ) {
     Surface(
         shape = RoundedCornerShape(50),
@@ -399,54 +418,87 @@ private fun SegmentedThreeWayToggle(
             .height(44.dp),
     ) {
         Row(modifier = Modifier.fillMaxSize()) {
-            val options = listOf(
-                StreamType.VIDEO_AUDIO to stringResource(R.string.quick_download_mode_video_audio),
-                StreamType.AUDIO_ONLY to stringResource(R.string.quick_download_mode_audio),
-                StreamType.VIDEO_ONLY to stringResource(R.string.quick_download_mode_video_only),
+            val isVideo = !isAudioMode
+            val videoBgColor by animateColorAsState(
+                targetValue = if (isVideo) {
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f)
+                } else {
+                    Color.Transparent
+                },
+                animationSpec = tween(180),
+                label = "videoBg",
             )
-
-            options.forEachIndexed { index, (streamType, label) ->
-                val isSelected = selectedType == streamType
-                val bgColor by animateColorAsState(
-                    targetValue = if (isSelected) {
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f)
-                    } else {
-                        Color.Transparent
-                    },
-                    animationSpec = tween(180),
-                    label = "segmentBg",
-                )
-
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxSize()
-                        .background(bgColor)
-                        .clickable { onStreamTypeSelected(streamType) },
-                    contentAlignment = Alignment.Center,
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxSize()
+                    .background(videoBgColor)
+                    .clickable { onVideoSelected() },
+                contentAlignment = Alignment.Center,
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.padding(horizontal = 4.dp),
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier = Modifier.padding(horizontal = 4.dp),
-                    ) {
-                        if (isSelected) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.onSurface,
-                            )
-                        }
-                        Text(
-                            text = label,
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
+                    if (isVideo) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onSurface,
                         )
                     }
+                    Text(
+                        text = stringResource(R.string.quick_download_mode_video),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = if (isVideo) FontWeight.Bold else FontWeight.Normal,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+
+            val isAudio = isAudioMode
+            val audioBgColor by animateColorAsState(
+                targetValue = if (isAudio) {
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f)
+                } else {
+                    Color.Transparent
+                },
+                animationSpec = tween(180),
+                label = "audioBg",
+            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxSize()
+                    .background(audioBgColor)
+                    .clickable { onAudioSelected() },
+                contentAlignment = Alignment.Center,
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                ) {
+                    if (isAudio) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                    Text(
+                        text = stringResource(R.string.quick_download_mode_audio),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = if (isAudio) FontWeight.Bold else FontWeight.Normal,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
         }
