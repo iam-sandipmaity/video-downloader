@@ -13,6 +13,7 @@ import com.localdownloader.domain.models.shouldTreatAsAudioOnlyChoice
 import com.localdownloader.domain.repositories.DownloaderRepository
 import com.localdownloader.downloader.FormatSelectorBuilder
 import com.localdownloader.ui.model.toReadableSize
+import com.localdownloader.utils.CookieTextCodec
 import com.localdownloader.utils.Logger
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -112,7 +113,7 @@ class QuickDownloadViewModel @Inject constructor(
             val settings = _uiState.value.appSettings
             val cookiesPath = resolveCookiesPath(url, settings)
             val userAgent = if (settings.cookieUserAgentEnabled) {
-                settings.cookieProfiles.firstOrNull { it.matchesUrl(url) }?.userAgent
+                CookieTextCodec.COOKIE_USER_AGENT
             } else {
                 null
             }
@@ -213,7 +214,6 @@ class QuickDownloadViewModel @Inject constructor(
                     ?: "ba/b"
             } else {
                 val height = state.selectedVideoQuality?.height
-                val container = state.selectedVideoFormat?.container
                 val codec = state.selectedVideoFormat?.videoCodec
                 when {
                     state.selectedVideoQuality?.formatChoice != null ->
@@ -247,7 +247,7 @@ class QuickDownloadViewModel @Inject constructor(
                 thumbnailUrl = info.thumbnailUrl,
                 youtubeCookiesPath = cookiesPath,
                 youtubeAuthEnabled = state.appSettings.youtubeAuthConfig.isConfigured(),
-                youtubePoToken = state.appSettings.youtubeAuthConfig.poToken,
+                youtubePoToken = state.appSettings.youtubeAuthConfig.buildPoTokenValue(),
                 youtubePoTokenClientHint = state.appSettings.youtubeAuthConfig.clientHint,
                 mergeOutputFormat = mergeFormat,
                 preferredVideoHeight = if (!isAudio) state.selectedVideoQuality?.height else null,
@@ -286,9 +286,9 @@ class QuickDownloadViewModel @Inject constructor(
     }
 
     private fun buildVideoQualities(info: VideoInfo): List<QuickQualityOption> {
-        val videoFormats = info.formats.filter { it.isVideoOnly || (!it.shouldTreatAsAudioOnlyChoice() && it.height != null) }
+        val videoFormats = info.formats.filter { it.isVideoOnly || (!it.shouldTreatAsAudioOnlyChoice() && parseHeight(it.resolution) != null) }
         val distinctHeights = videoFormats
-            .mapNotNull { it.height }
+            .mapNotNull { parseHeight(it.resolution) }
             .distinct()
             .sortedDescending()
 
@@ -303,7 +303,7 @@ class QuickDownloadViewModel @Inject constructor(
         }
 
         return distinctHeights.map { height ->
-            val matching = videoFormats.filter { it.height == height }
+            val matching = videoFormats.filter { parseHeight(it.resolution) == height }
             val bestMatching = matching.maxByOrNull { it.fileSizeBytes ?: (it.bitrateKbps?.toLong() ?: 0L) }
             val sizeBytes = bestMatching?.fileSizeBytes
                 ?: (estimateFormatSizeBytes(info.durationSeconds, bestMatching?.bitrateKbps)
@@ -356,12 +356,12 @@ class QuickDownloadViewModel @Inject constructor(
 
     private fun buildVideoFormats(info: VideoInfo): List<QuickFormatOption> {
         val videoFormats = info.formats.filter { it.isVideoOnly || !it.shouldTreatAsAudioOnlyChoice() }
-        val hasVp9 = videoFormats.any { it.videoCodec?.contains("vp9", ignoreCase = true) == true }
+        val hasVp9 = videoFormats.any { it.videoCodec.contains("vp9", ignoreCase = true) }
         val hasH264 = videoFormats.any {
-            it.videoCodec?.contains("avc", ignoreCase = true) == true ||
-                it.videoCodec?.contains("h264", ignoreCase = true) == true
+            it.videoCodec.contains("avc", ignoreCase = true) ||
+                it.videoCodec.contains("h264", ignoreCase = true)
         }
-        val hasAv1 = videoFormats.any { it.videoCodec?.contains("av1", ignoreCase = true) == true || it.videoCodec?.contains("av01", ignoreCase = true) == true }
+        val hasAv1 = videoFormats.any { it.videoCodec.contains("av1", ignoreCase = true) || it.videoCodec.contains("av01", ignoreCase = true) }
 
         val list = mutableListOf<QuickFormatOption>()
         if (hasVp9) {
@@ -406,14 +406,27 @@ class QuickDownloadViewModel @Inject constructor(
         }
     }
 
+    private fun estimateFormatSizeBytes(durationSeconds: Long?, bitrateKbps: Int?): Long? {
+        val safeDurationSeconds = durationSeconds?.takeIf { it > 0L } ?: return null
+        val safeBitrateKbps = bitrateKbps?.takeIf { it > 0 } ?: return null
+        return (safeDurationSeconds * safeBitrateKbps * 1_000L) / 8L
+    }
+
     private fun estimateSize(durationSeconds: Long?, bitrateKbps: Int): String? {
         val bytes = estimateFormatSizeBytes(durationSeconds, bitrateKbps) ?: return null
         return "~${bytes.toReadableSize()}"
     }
 
+    private fun parseHeight(resolution: String?): Int? {
+        val trimmed = resolution?.trim() ?: return null
+        return Regex("""(\d+)x(\d+)""").find(trimmed)?.groupValues?.getOrNull(2)?.toIntOrNull()
+            ?: Regex("""(\d+)p""").find(trimmed)?.groupValues?.getOrNull(1)?.toIntOrNull()
+            ?: trimmed.toIntOrNull()
+    }
+
     private fun resolveCookiesPath(url: String, settings: AppSettings): String? {
         if (!settings.cookiesEnabled) return null
-        val profile = settings.cookieProfiles.firstOrNull { it.matchesUrl(url) }
-        return profile?.filePath?.takeIf { File(it).exists() }
+        val profile = CookieTextCodec.findBestMatch(settings.cookieProfiles, url)
+        return profile?.localFilePath?.takeIf { File(it).exists() }
     }
 }

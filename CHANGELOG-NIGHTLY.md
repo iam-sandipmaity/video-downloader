@@ -2,6 +2,13 @@
 
 Nightly builds are rolling prereleases published from the `nightly` release tag. This file tracks changes that are available in nightly before they are promoted into the stable changelog.
 
+## [2.0.1.9] - 2026-09-14
+
+### Added
+- **Popup menu download for share link** (#98) - Added `QuickDownloadActivity` as a translucent overlay activity when sharing links from YouTube or social media apps.
+- **Quick download UI popup** - Added floating popup card with editable video/audio title, Video/Audio pill toggle, Quality dropdown with size estimation, Format selector, and concurrent fragment download thread stepper.
+- **Multi-threaded fragment downloads** - Added `concurrentFragments` option to `DownloadOptions` and configured `DownloadEngine` to run with user-configured thread count (1–16).
+
 ## [2.0.1.8] - 2026-07-30
 
 ### Changed
