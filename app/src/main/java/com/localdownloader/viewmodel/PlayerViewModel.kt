@@ -23,10 +23,13 @@ import com.localdownloader.data.PlaybackSessionStore
 import com.localdownloader.domain.models.DownloadTask
 import com.localdownloader.media.PlayerResizeModes
 import com.localdownloader.media.resolvePreferredMediaMimeType
+import com.localdownloader.security.AesGcmFileCipher
 import com.localdownloader.utils.FileUtils
 import com.localdownloader.utils.Logger
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,18 +38,20 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
 
 @HiltViewModel
 @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 class PlayerViewModel @Inject constructor(
-    @ApplicationContext context: Context,
+    @ApplicationContext private val context: Context,
     private val playbackSessionStore: PlaybackSessionStore,
     private val savedStateHandle: SavedStateHandle,
     private val logger: Logger,
     private val playbackConflictManager: PlaybackConflictManager,
     private val fileUtils: FileUtils,
+    private val vaultCipher: AesGcmFileCipher,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(PlayerUiState())
     val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
@@ -80,6 +85,11 @@ class PlayerViewModel @Inject constructor(
     private var progressJob: Job? = null
     private var currentPlaybackSpeed: Float = savedStateHandle[STATE_PLAYBACK_SPEED] ?: 1.0f
     private var currentResizeMode: Int = savedStateHandle[STATE_RESIZE_MODE] ?: PlayerResizeModes.FIT
+    private var bindJob: Job? = null
+    private var currentSubtitleTextSizeSp: Float =
+        savedStateHandle[STATE_SUBTITLE_TEXT_SIZE]
+            ?: context.getSharedPreferences(PLAYER_PREFS, Context.MODE_PRIVATE)
+                .getFloat(PREF_SUBTITLE_TEXT_SIZE, DEFAULT_SUBTITLE_TEXT_SIZE_SP)
     private var currentVolumeBoostMb: Int = savedStateHandle[STATE_VOLUME_BOOST_MB] ?: 0
     private var isLocked: Boolean = savedStateHandle[STATE_IS_LOCKED] ?: false
     private var audioDisabled: Boolean = savedStateHandle[STATE_AUDIO_DISABLED] ?: false
@@ -150,6 +160,7 @@ class PlayerViewModel @Inject constructor(
             isLocked = isLocked,
             audioDisabled = audioDisabled,
             subtitlesDisabled = subtitlesDisabled,
+            subtitleTextSizeSp = currentSubtitleTextSizeSp,
         )
         attachLoudnessEnhancer(player.audioSessionId)
         startProgressUpdates()
@@ -247,40 +258,83 @@ class PlayerViewModel @Inject constructor(
             "PlayerViewModel",
             "Loading media for playback sessionKey=$sessionKey path=$playablePath subtitles=${subtitlePaths.size}",
         )
-        player.setMediaItem(
-            buildMediaItem(
-                playableLocation = playablePath,
-                explicitSubtitlePaths = subtitlePaths,
-            ),
-        )
-        player.prepare()
-        if (savedPosition > 0L) {
-            player.seekTo(savedPosition)
-        }
-        player.setPlaybackSpeed(currentPlaybackSpeed)
-        player.playWhenReady = savedPlayWhenReady
-
-        _uiState.update { state ->
-            state.copy(
-                title = title,
-                isAvailable = true,
-                isPlaying = savedPlayWhenReady,
-                isBuffering = true,
-                isCompleted = false,
-                isLocked = isLocked,
-                durationMs = player.duration.takeIf { it > 0 } ?: 0L,
-                positionMs = savedPosition,
-                bufferedPositionMs = savedPosition,
-                isSeekable = isCurrentMediaSeekable(),
-                playbackSpeed = currentPlaybackSpeed,
-                resizeMode = currentResizeMode,
-                volumeBoostMb = currentVolumeBoostMb,
-                volumeBoostSupported = volumeBoostSupported,
-                audioDisabled = audioDisabled,
-                subtitlesDisabled = subtitlesDisabled,
-                errorMessage = null,
+        bindJob?.cancel()
+        bindJob = viewModelScope.launch {
+            _uiState.update { state ->
+                state.copy(
+                    title = title,
+                    isAvailable = true,
+                    isBuffering = true,
+                    errorMessage = null,
+                    subtitleTextSizeSp = currentSubtitleTextSizeSp,
+                )
+            }
+            val resolvedMedia = try {
+                withContext(Dispatchers.IO) { vaultCipher.resolveForPlayback(playablePath) }
+            } catch (_: CancellationException) {
+                return@launch
+            } catch (error: Throwable) {
+                logger.e("PlayerViewModel", "Failed decrypting vault media for playback", error)
+                _uiState.update { state ->
+                    state.copy(
+                        errorMessage = "Unable to open this private vault file.",
+                        isBuffering = false,
+                        isAvailable = false,
+                    )
+                }
+                return@launch
+            }
+            val resolvedSubtitles = withContext(Dispatchers.IO) {
+                subtitlePaths.map { path ->
+                    runCatching { vaultCipher.resolveForPlayback(path) }.getOrDefault(path)
+                }
+            }
+            player.setMediaItem(
+                buildMediaItem(
+                    playableLocation = resolvedMedia,
+                    explicitSubtitlePaths = resolvedSubtitles,
+                ),
             )
+            player.prepare()
+            if (savedPosition > 0L) {
+                player.seekTo(savedPosition)
+            }
+            player.setPlaybackSpeed(currentPlaybackSpeed)
+            player.playWhenReady = savedPlayWhenReady
+
+            _uiState.update { state ->
+                state.copy(
+                    title = title,
+                    isAvailable = true,
+                    isPlaying = savedPlayWhenReady,
+                    isBuffering = true,
+                    isCompleted = false,
+                    isLocked = isLocked,
+                    durationMs = player.duration.takeIf { it > 0 } ?: 0L,
+                    positionMs = savedPosition,
+                    bufferedPositionMs = savedPosition,
+                    isSeekable = isCurrentMediaSeekable(),
+                    playbackSpeed = currentPlaybackSpeed,
+                    resizeMode = currentResizeMode,
+                    volumeBoostMb = currentVolumeBoostMb,
+                    volumeBoostSupported = volumeBoostSupported,
+                    audioDisabled = audioDisabled,
+                    subtitlesDisabled = subtitlesDisabled,
+                    subtitleTextSizeSp = currentSubtitleTextSizeSp,
+                    errorMessage = null,
+                )
+            }
         }
+    }
+
+    fun setSubtitleTextSizeSp(sizeSp: Float) {
+        currentSubtitleTextSizeSp = sizeSp
+        savedStateHandle[STATE_SUBTITLE_TEXT_SIZE] = sizeSp
+        context.getSharedPreferences(PLAYER_PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putFloat(PREF_SUBTITLE_TEXT_SIZE, sizeSp)
+            .apply()
+        _uiState.update { state -> state.copy(subtitleTextSizeSp = sizeSp) }
     }
 
     fun togglePlayback() {
@@ -690,10 +744,12 @@ class PlayerViewModel @Inject constructor(
     override fun onCleared() {
         persistPlaybackState()
         progressJob?.cancel()
+        bindJob?.cancel()
         playbackConflictManager.unregisterVideoPauseHandler(this)
         player.removeListener(playerListener)
         loudnessEnhancer?.release()
         player.release()
+        vaultCipher.clearPlaybackCache()
         super.onCleared()
     }
 
@@ -724,6 +780,10 @@ class PlayerViewModel @Inject constructor(
         private const val STATE_IS_LOCKED = "player_is_locked"
         private const val STATE_AUDIO_DISABLED = "player_audio_disabled"
         private const val STATE_SUBTITLES_DISABLED = "player_subtitles_disabled"
+        private const val STATE_SUBTITLE_TEXT_SIZE = "player_subtitle_text_size"
+        private const val PLAYER_PREFS = "player_prefs"
+        private const val PREF_SUBTITLE_TEXT_SIZE = "subtitle_text_size_sp"
+        private const val DEFAULT_SUBTITLE_TEXT_SIZE_SP = 18f
         private const val PROGRESS_UPDATE_MS = 500L
         private const val MAX_VOLUME_BOOST_MB = 900
     }
@@ -746,6 +806,7 @@ data class PlayerUiState(
     val volumeBoostSupported: Boolean = true,
     val audioDisabled: Boolean = false,
     val subtitlesDisabled: Boolean = false,
+    val subtitleTextSizeSp: Float = 18f,
     val audioTracks: List<PlayerTrackOption> = emptyList(),
     val subtitleTracks: List<PlayerTrackOption> = emptyList(),
     val errorMessage: String? = null,

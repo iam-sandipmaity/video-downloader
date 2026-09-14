@@ -97,6 +97,11 @@ class YtDlpExecutor @Inject constructor(
         }
     }
 
+    fun installedYtDlpScript(): File {
+        val baseDir = File(context.noBackupFilesDir, YoutubeDL.baseName)
+        return File(File(baseDir, YoutubeDL.ytdlpDirName), YoutubeDL.ytdlpBin)
+    }
+
     private fun resolveRuntime(ffmpegRuntime: FfmpegRuntime): YtDlpRuntime {
         val nativeLibraryDir = File(context.applicationInfo.nativeLibraryDir)
         val baseDir = File(context.noBackupFilesDir, YoutubeDL.baseName)

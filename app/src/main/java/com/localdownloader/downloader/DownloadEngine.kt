@@ -80,13 +80,6 @@ class DownloadEngine @Inject constructor(
             args += listOf("--merge-output-format", requireNotNull(options.mergeOutputFormat))
         }
 
-        if ((options.shouldDownloadSubtitles || options.shouldEmbedSubtitles) && !options.extractAudio) {
-            args += subtitleArgs(
-                url = options.url,
-                embedSubtitles = options.shouldEmbedSubtitles,
-            )
-        }
-
         if (shouldRequestMetadataEmbedding(options)) {
             args += "--embed-metadata"
         }
@@ -197,7 +190,7 @@ class DownloadEngine @Inject constructor(
 
         args += subtitleArgs(
             url = options.url,
-            embedSubtitles = false,
+            preferredAudioLanguage = options.preferredAudioLanguage,
         )
         args += options.url
 
@@ -256,41 +249,12 @@ class DownloadEngine @Inject constructor(
 
     private fun subtitleArgs(
         url: String,
-        embedSubtitles: Boolean,
+        preferredAudioLanguage: String?,
     ): List<String> {
-        return buildList {
-            add("--write-subs")
-            add("--write-auto-subs")
-            add("--sub-langs")
-            add(
-                if (isYoutubeUrl(url)) {
-                    preferredYoutubeSubtitleLanguages()
-                } else {
-                    "all,-live_chat"
-                },
-            )
-            add("--convert-subs")
-            add("srt")
-            if (embedSubtitles) {
-                add("--embed-subs")
-            }
-        }
-    }
-
-    private fun preferredYoutubeSubtitleLanguages(): String {
-        val locale = Locale.getDefault()
-        val candidates = linkedSetOf<String>()
-        locale.toLanguageTag()
-            .trim()
-            .takeIf { it.isNotBlank() && !it.equals("und", ignoreCase = true) }
-            ?.let(candidates::add)
-        locale.language
-            .trim()
-            .takeIf { it.isNotBlank() && !it.equals("und", ignoreCase = true) }
-            ?.let(candidates::add)
-        candidates += "en"
-        candidates += "en-orig"
-        return candidates.joinToString(",")
+        return subtitleDownloadArgs(
+            url = url,
+            preferredAudioLanguage = preferredAudioLanguage,
+        )
     }
 
     private fun isYoutubeUrl(url: String): Boolean {
@@ -299,6 +263,61 @@ class DownloadEngine @Inject constructor(
     }
 
     // Keep URL helpers local to FormatExtractor; download should honor analysis selection.
+}
+
+internal fun subtitleDownloadArgs(
+    url: String,
+    preferredAudioLanguage: String? = null,
+    locale: Locale = Locale.getDefault(),
+): List<String> {
+    return buildList {
+        add("--write-subs")
+        add("--write-auto-subs")
+        add("--sub-langs")
+        add(
+            if (isYoutubeMediaUrl(url)) {
+                preferredYoutubeSubtitleLanguages(
+                    preferredAudioLanguage = preferredAudioLanguage,
+                    locale = locale,
+                )
+            } else {
+                "all,-live_chat"
+            },
+        )
+        add("--convert-subs")
+        add("srt")
+    }
+}
+
+internal fun preferredYoutubeSubtitleLanguages(
+    preferredAudioLanguage: String? = null,
+    locale: Locale = Locale.getDefault(),
+): String {
+    val candidates = linkedSetOf<String>()
+    preferredAudioLanguage
+        ?.trim()
+        ?.takeIf { it.isNotBlank() && !it.equals("und", ignoreCase = true) }
+        ?.let { language ->
+            candidates += language
+            language.substringBefore('-').takeIf { it.isNotBlank() }?.let(candidates::add)
+        }
+    locale.toLanguageTag()
+        .trim()
+        .takeIf { it.isNotBlank() && !it.equals("und", ignoreCase = true) }
+        ?.let(candidates::add)
+    locale.language
+        .trim()
+        .takeIf { it.isNotBlank() && !it.equals("und", ignoreCase = true) }
+        ?.let(candidates::add)
+    candidates += "en"
+    candidates += "en-orig"
+    candidates += "all"
+    return candidates.joinToString(",")
+}
+
+internal fun isYoutubeMediaUrl(url: String): Boolean {
+    val normalized = url.lowercase()
+    return normalized.contains("youtube.com") || normalized.contains("youtu.be")
 }
 
 internal fun shouldPassMergeOutputFormat(options: DownloadOptions): Boolean {
