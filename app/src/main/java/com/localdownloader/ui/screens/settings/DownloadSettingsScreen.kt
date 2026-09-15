@@ -103,104 +103,95 @@ fun DownloadSettingsScreen(
     }
 
     PreferencePageScaffold(
-        title = stringResource(R.string.settings_item_download_title),
+        title = stringResource(R.string.settings_download_defaults_title),
         onBack = onBack,
         modifier = modifier,
     ) {
         item {
             PreferenceGroup {
                 PreferenceRow(
-                    icon = Icons.Rounded.VideoFile,
-                    title = videoFilenameTitle,
-                    subtitle = filenameSupporting,
-                    value = uiState.appSettings.defaultOutputTemplate,
+                    icon = Icons.Rounded.Description,
+                    title = stringResource(R.string.download_defaults_filename_video_title),
+                    subtitle = stringResource(R.string.download_defaults_filename_video_subtitle),
+                    value = uiState.outputTemplate,
                     onClick = {
                         filenameTemplateDialog = FilenameTemplateDialogState(
                             title = videoFilenameTitle,
-                            initialTemplate = uiState.appSettings.defaultOutputTemplate,
-                            onSave = onDefaultVideoOutputTemplateChanged,
+                            value = uiState.outputTemplate,
+                            supporting = filenameSupporting,
+                            presets = videoFilenameTemplatePresets(context),
+                            tokens = suggestedFilenameTokens(),
+                            onConfirm = onDefaultVideoOutputTemplateChanged,
                         )
                     },
                 )
                 PreferenceDivider()
                 PreferenceRow(
                     icon = Icons.Rounded.AudioFile,
-                    title = audioFilenameTitle,
-                    subtitle = filenameSupporting,
-                    value = uiState.appSettings.defaultAudioOutputTemplate,
+                    title = stringResource(R.string.download_defaults_filename_audio_title),
+                    subtitle = stringResource(R.string.download_defaults_filename_audio_subtitle),
+                    value = uiState.audioOutputTemplate,
                     onClick = {
                         filenameTemplateDialog = FilenameTemplateDialogState(
                             title = audioFilenameTitle,
-                            initialTemplate = uiState.appSettings.defaultAudioOutputTemplate,
-                            onSave = onDefaultAudioOutputTemplateChanged,
+                            value = uiState.audioOutputTemplate,
+                            supporting = filenameSupporting,
+                            presets = audioFilenameTemplatePresets(context),
+                            tokens = suggestedFilenameTokens(),
+                            onConfirm = onDefaultAudioOutputTemplateChanged,
                         )
                     },
                 )
                 PreferenceDivider()
                 PreferenceRow(
                     icon = Icons.Rounded.VideoFile,
-                    title = videoContainerTitle,
+                    title = stringResource(R.string.download_defaults_video_container_title),
                     subtitle = stringResource(R.string.download_defaults_video_container_subtitle),
-                    value = uiState.appSettings.defaultMergeContainer.uppercase(),
+                    value = containerDisplayLabel(context, uiState.selectedContainer),
                     onClick = {
-                        val choices = listOf("auto", "mp4", "webm", "mkv", "mov").map { container ->
-                            SettingChoiceOption(
-                                title = container.uppercase(),
-                                subtitle = stringResource(
-                                    when (container) {
-                                        "mp4" -> R.string.container_desc_mp4
-                                        "webm" -> R.string.container_desc_webm
-                                        "mkv" -> R.string.container_desc_mkv
-                                        "mov" -> R.string.container_desc_mov
-                                        else -> R.string.container_desc_auto
-                                    },
-                                ),
-                                onSelect = { onDefaultVideoContainerChanged(container) },
-                            )
-                        }
+                        val containers = listOf("auto", "mp4", "webm", "mkv", "mov")
                         choiceDialog = SettingChoiceDialogState(
                             title = videoContainerTitle,
-                            selected = uiState.appSettings.defaultMergeContainer.uppercase(),
-                            options = choices,
+                            selected = containerDisplayLabel(context, uiState.selectedContainer),
+                            options = containers.map { container ->
+                                SettingChoiceOption(
+                                    title = containerDisplayLabel(context, container),
+                                    subtitle = containerDescription(context, container),
+                                    onSelect = { onDefaultVideoContainerChanged(container) },
+                                )
+                            },
                         )
                     },
                 )
                 PreferenceDivider()
                 PreferenceRow(
                     icon = Icons.Rounded.AudioFile,
-                    title = audioContainerTitle,
+                    title = stringResource(R.string.download_defaults_audio_container_title),
                     subtitle = stringResource(R.string.download_defaults_audio_container_subtitle),
-                    value = uiState.appSettings.defaultAudioFormat.uppercase(),
+                    value = uiState.selectedAudioFormat.uppercase(),
                     onClick = {
-                        val choices = listOf("mp3", "m4a", "aac", "opus", "flac", "wav").map { format ->
-                            SettingChoiceOption(
-                                title = format.uppercase(),
-                                subtitle = stringResource(
-                                    when (format) {
-                                        "mp3" -> R.string.audio_desc_mp3
-                                        "m4a" -> R.string.audio_desc_m4a
-                                        "aac" -> R.string.audio_desc_aac
-                                        "opus" -> R.string.audio_desc_opus
-                                        "flac" -> R.string.audio_desc_flac
-                                        "wav" -> R.string.audio_desc_wav
-                                        else -> R.string.audio_desc_default
-                                    },
-                                ),
-                                onSelect = { onDefaultAudioContainerChanged(format) },
-                            )
-                        }
+                        val audioFormats = listOf("mp3", "m4a", "aac", "opus", "flac", "wav")
                         choiceDialog = SettingChoiceDialogState(
                             title = audioContainerTitle,
-                            selected = uiState.appSettings.defaultAudioFormat.uppercase(),
-                            options = choices,
+                            selected = uiState.selectedAudioFormat.uppercase(),
+                            options = audioFormats.map { format ->
+                                SettingChoiceOption(
+                                    title = format.uppercase(),
+                                    subtitle = audioFormatDescription(context, format),
+                                    onSelect = { onDefaultAudioContainerChanged(format) },
+                                )
+                            },
                         )
                     },
                 )
-                PreferenceDivider()
+            }
+        }
+        item {
+            PreferenceGroup {
                 PreferenceSwitchRow(
                     icon = Icons.Rounded.Subtitles,
-                    title = stringResource(R.string.download_defaults_download_subtitles_title),
-                    subtitle = stringResource(R.string.download_defaults_download_subtitles_subtitle),
+                    title = stringResource(R.string.download_defaults_subtitles_title),
+                    subtitle = stringResource(R.string.download_defaults_subtitles_subtitle),
                     checked = uiState.downloadSubtitles,
                     onCheckedChange = onDefaultDownloadSubtitlesChanged,
                 )

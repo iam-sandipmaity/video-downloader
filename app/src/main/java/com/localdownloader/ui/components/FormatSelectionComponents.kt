@@ -61,7 +61,7 @@ import com.localdownloader.R
 import com.localdownloader.domain.models.AppSettings
 import com.localdownloader.domain.models.FormatChoice
 import com.localdownloader.domain.models.StreamType
-import com.localdownloader.utils.FileUtils.toReadableSize
+import com.localdownloader.ui.model.toReadableSize
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -296,7 +296,6 @@ fun FormatChoiceCard(
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     // Quality / Resolution badge
                     QualityBadge(
