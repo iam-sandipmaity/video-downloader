@@ -326,7 +326,6 @@ class QuickDownloadViewModel @Inject constructor(
                     if (vFormat != null) {
                         FormatSelectorBuilder.buildVideoOnlySelector(vFormat)
                     } else {
-                        val requestedContainer = state.selectedVideoFormat?.container?.lowercase() ?: "mp4"
                         val h = quality?.height?.let { "[height<=$it]" }.orEmpty()
                         val vExt = when (requestedContainer) {
                             "mp4", "mov" -> "[ext=mp4]"
@@ -343,7 +342,6 @@ class QuickDownloadViewModel @Inject constructor(
                 StreamType.VIDEO_AUDIO -> {
                     val quality = state.selectedVideoQuality
                     val vFormat = quality?.mediaFormat
-                    val requestedContainer = state.selectedVideoFormat?.container?.lowercase() ?: "mp4"
                     if (vFormat != null) {
                         if (!vFormat.isVideoOnly && vFormat.audioCodec != "none") {
                             FormatSelectorBuilder.buildMuxedSelector(vFormat)
@@ -395,7 +393,6 @@ class QuickDownloadViewModel @Inject constructor(
                 }
             }
 
-            val requestedContainer = state.selectedVideoFormat?.container?.lowercase() ?: "mp4"
             val mergeFormat = if (!isAudio) {
                 when (requestedContainer) {
                     "auto" -> "mp4"
