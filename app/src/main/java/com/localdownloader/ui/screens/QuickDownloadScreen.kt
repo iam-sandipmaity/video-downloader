@@ -236,6 +236,56 @@ fun QuickDownloadScreen(
                         onAudioSelected = { onStreamTypeChanged(StreamType.AUDIO_ONLY) },
                     )
 
+                    // Format Row
+                    val formatItems = if (uiState.isAudioMode) {
+                        uiState.audioFormatOptions.mapIndexed { index, opt ->
+                            QuickOptionItem(
+                                id = opt.id,
+                                title = opt.label,
+                                badge = opt.label,
+                                secondaryPills = listOfNotNull(
+                                    opt.container.uppercase(),
+                                    if (opt.isOriginalStream) "ORIGINAL" else null,
+                                ),
+                                isBest = index == 0,
+                                isSelected = opt.id == uiState.selectedAudioFormat?.id,
+                            )
+                        }
+                    } else {
+                        uiState.videoFormatOptions.mapIndexed { index, opt ->
+                            QuickOptionItem(
+                                id = opt.id,
+                                title = opt.label,
+                                badge = opt.label,
+                                secondaryPills = listOfNotNull(
+                                    opt.container.uppercase().takeIf { it != "AUTO" },
+                                    opt.videoCodec?.uppercase(),
+                                ).distinct(),
+                                isBest = index == 0,
+                                isSelected = opt.id == uiState.selectedVideoFormat?.id,
+                            )
+                        }
+                    }
+
+                    QuickOptionSelectorRow(
+                        label = stringResource(R.string.quick_download_label_format),
+                        dialogTitle = stringResource(R.string.quick_download_select_format_title),
+                        selectedText = if (uiState.isAudioMode) {
+                            uiState.selectedAudioFormat?.label ?: "MP3"
+                        } else {
+                            uiState.selectedVideoFormat?.label ?: "H264 · MP4"
+                        },
+                        items = formatItems,
+                        formatSelectorStyle = uiState.appSettings.formatSelectorStyle,
+                        onOptionSelected = { index ->
+                            if (uiState.isAudioMode) {
+                                uiState.audioFormatOptions.getOrNull(index)?.let(onAudioFormatSelected)
+                            } else {
+                                uiState.videoFormatOptions.getOrNull(index)?.let(onVideoFormatSelected)
+                            }
+                        },
+                    )
+
                     // Quality Row
                     val qualityItems = if (uiState.isAudioMode) {
                         uiState.audioQualityOptions.mapIndexed { index, opt ->
@@ -255,6 +305,9 @@ fun QuickDownloadScreen(
                                 id = opt.id,
                                 title = opt.title,
                                 badge = opt.title,
+                                secondaryPills = listOfNotNull(
+                                    opt.fps?.takeIf { it >= 50.0 }?.let { "${it.toInt()}fps" },
+                                ),
                                 isBest = index == 0,
                                 isHighQuality = (opt.height ?: 0) >= 1080,
                                 sizeOrSupporting = opt.subtitle,
@@ -278,51 +331,6 @@ fun QuickDownloadScreen(
                                 uiState.audioQualityOptions.getOrNull(index)?.let(onAudioQualitySelected)
                             } else {
                                 uiState.videoQualityOptions.getOrNull(index)?.let(onVideoQualitySelected)
-                            }
-                        },
-                    )
-
-                    // Format Row
-                    val formatItems = if (uiState.isAudioMode) {
-                        uiState.audioFormatOptions.map { opt ->
-                            QuickOptionItem(
-                                id = opt.id,
-                                title = opt.label,
-                                badge = opt.label,
-                                secondaryPills = listOfNotNull(opt.container.uppercase()),
-                                isSelected = opt.id == uiState.selectedAudioFormat?.id,
-                            )
-                        }
-                    } else {
-                        uiState.videoFormatOptions.map { opt ->
-                            QuickOptionItem(
-                                id = opt.id,
-                                title = opt.label,
-                                badge = opt.label,
-                                secondaryPills = listOfNotNull(
-                                    opt.container.uppercase().takeIf { it != "AUTO" },
-                                    opt.videoCodec?.uppercase(),
-                                ),
-                                isSelected = opt.id == uiState.selectedVideoFormat?.id,
-                            )
-                        }
-                    }
-
-                    QuickOptionSelectorRow(
-                        label = stringResource(R.string.quick_download_label_format),
-                        dialogTitle = stringResource(R.string.quick_download_select_format_title),
-                        selectedText = if (uiState.isAudioMode) {
-                            uiState.selectedAudioFormat?.label ?: "MP3"
-                        } else {
-                            uiState.selectedVideoFormat?.label ?: "H264 · MP4"
-                        },
-                        items = formatItems,
-                        formatSelectorStyle = uiState.appSettings.formatSelectorStyle,
-                        onOptionSelected = { index ->
-                            if (uiState.isAudioMode) {
-                                uiState.audioFormatOptions.getOrNull(index)?.let(onAudioFormatSelected)
-                            } else {
-                                uiState.videoFormatOptions.getOrNull(index)?.let(onVideoFormatSelected)
                             }
                         },
                     )

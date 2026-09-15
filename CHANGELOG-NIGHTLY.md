@@ -7,6 +7,7 @@ Nightly builds are rolling prereleases published from the `nightly` release tag.
 ### Added
 - **Modern Format Selection Modal Sheet & Selector Style Setting** (#99) - Introduced a modern Material 3 bottom sheet format selector (`FormatSelectionBottomSheet` & `QuickOptionBottomSheet`) with visual quality badges (4K, 1080p, 720p, Audio), Best/Recommended stream indicator tags, FPS pills, container badges, codec and bitrate metadata, exact/estimated size highlights, and interactive stream-type filter chips (Video + Audio, Video Only, Audio Only).
 - **Quick Download Share Popup Format Modal** - Applied the modern format and quality bottom sheet selection flow to the quick download popup activity when sharing links from YouTube and external apps.
+- **Dynamic Format-Based Real Data Quality Filtering for Share Popup** - Share link quick download popup now parses and displays only the real formats and qualities actually fetched from the shared media link (e.g. social media videos with only 720p/1080p MP4), and dynamically filters available qualities to match the currently selected format.
 - **Format Selector Presentation Style preference** - Added a setting in Download Settings allowing users to choose between the modern **Modal Sheet (Visual Badges)** and the traditional **Compact Dropdown** format menu.
 
 ## [2.0.2.0] - 2026-09-15
