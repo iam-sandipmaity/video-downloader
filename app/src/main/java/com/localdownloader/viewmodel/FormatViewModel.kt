@@ -16,6 +16,7 @@ import com.localdownloader.domain.models.ContrastMode
 import com.localdownloader.domain.models.CookieProfile
 import com.localdownloader.domain.models.DownloadOptions
 import com.localdownloader.domain.models.FormatChoice
+import com.localdownloader.domain.models.FormatSelectorStyle
 import com.localdownloader.domain.models.MediaFormat
 import com.localdownloader.domain.models.OutputTransform
 import com.localdownloader.domain.models.PlaylistDownloadRequest
@@ -1029,6 +1030,26 @@ class FormatViewModel @Inject constructor(
 
     fun onAllowMeteredDownloadsChanged(value: Boolean) {
         _uiState.update { state -> state.copy(allowMeteredDownloads = value) }
+        persistSettingsSilently()
+    }
+
+    fun onShowFormatFpsChanged(value: Boolean) {
+        _uiState.update { state -> state.copy(appSettings = state.appSettings.copy(showFormatFps = value)) }
+        persistSettingsSilently()
+    }
+
+    fun onShowFormatCodecChanged(value: Boolean) {
+        _uiState.update { state -> state.copy(appSettings = state.appSettings.copy(showFormatCodec = value)) }
+        persistSettingsSilently()
+    }
+
+    fun onShowFormatBitrateChanged(value: Boolean) {
+        _uiState.update { state -> state.copy(appSettings = state.appSettings.copy(showFormatBitrate = value)) }
+        persistSettingsSilently()
+    }
+
+    fun onFormatSelectorStyleChanged(value: FormatSelectorStyle) {
+        _uiState.update { state -> state.copy(appSettings = state.appSettings.copy(formatSelectorStyle = value)) }
         persistSettingsSilently()
     }
 

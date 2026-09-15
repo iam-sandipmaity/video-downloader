@@ -45,9 +45,18 @@ data class AppSettings(
     val hasSeenDownloadSetupNotice: Boolean = false,
     val maxConcurrentDownloads: Int = 2,
     val allowMeteredDownloads: Boolean = false,
+    val showFormatFps: Boolean = true,
+    val showFormatCodec: Boolean = true,
+    val showFormatBitrate: Boolean = true,
+    val formatSelectorStyle: FormatSelectorStyle = FormatSelectorStyle.BOTTOM_SHEET,
     val darkTheme: Boolean = false,
     val vaultSettings: VaultSettings = VaultSettings(),
 )
+
+enum class FormatSelectorStyle {
+    BOTTOM_SHEET,
+    DROPDOWN,
+}
 
 enum class ThemeMode {
     SYSTEM,
