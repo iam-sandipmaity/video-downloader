@@ -94,6 +94,7 @@ import com.localdownloader.downloader.isChoiceCompatibleWithRequestedContainer
 import com.localdownloader.downloader.resolveMergeContainerCompatibility
 import com.localdownloader.domain.models.AppSettings
 import com.localdownloader.domain.models.FormatChoice
+import com.localdownloader.domain.models.FormatSelectorStyle
 import com.localdownloader.domain.models.OutputTransform
 import com.localdownloader.domain.models.StreamType
 import com.localdownloader.domain.models.VideoQuality
@@ -102,6 +103,7 @@ import com.localdownloader.domain.models.AnalyzedLinkRecord
 import com.localdownloader.domain.models.audioFormatSupportsBitrateControl
 import com.localdownloader.domain.models.choicesForStreamType
 import com.localdownloader.domain.models.effectiveOutputStreamType
+import com.localdownloader.ui.components.FormatSelectionBottomSheet
 import com.localdownloader.ui.components.InlineFeedbackCard
 import com.localdownloader.ui.model.toReadableSize
 import com.localdownloader.viewmodel.FormatMessageScope
@@ -1433,6 +1435,12 @@ private fun SelectionOptionsCard(
                     appSettings = appSettings,
                 ),
                 appSettings = appSettings,
+                streamType = streamType,
+                onStreamTypeChanged = onStreamTypeChanged,
+                hasVideoAudioChoices = hasVideoAudioChoices,
+                hasVideoOnlyChoices = hasVideoOnlyChoices,
+                hasAudioOnlyChoices = hasAudioOnlyChoices,
+                requestedContainer = container,
                 onSelected = { onFormatSelectorChanged(visibleChoices[it].selector) },
             )
             FlowRow(
@@ -2027,10 +2035,39 @@ private fun FormatChoiceDropdownRow(
     selectedValue: String,
     selectedSupporting: String?,
     appSettings: AppSettings,
+    streamType: StreamType = StreamType.VIDEO_AUDIO,
+    onStreamTypeChanged: (StreamType) -> Unit = {},
+    hasVideoAudioChoices: Boolean = true,
+    hasVideoOnlyChoices: Boolean = false,
+    hasAudioOnlyChoices: Boolean = false,
+    requestedContainer: String = "auto",
     onSelected: (Int) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    var showBottomSheet by remember { mutableStateOf(false) }
     val selectedChoice = choices.getOrNull(selectedIndex) ?: choices.firstOrNull() ?: return
+
+    if (showBottomSheet) {
+        FormatSelectionBottomSheet(
+            choices = choices,
+            selectedFormatSelector = selectedChoice.selector,
+            streamType = streamType,
+            onStreamTypeChanged = onStreamTypeChanged,
+            hasVideoAudioChoices = hasVideoAudioChoices,
+            hasVideoOnlyChoices = hasVideoOnlyChoices,
+            hasAudioOnlyChoices = hasAudioOnlyChoices,
+            requestedContainer = requestedContainer,
+            appSettings = appSettings,
+            onFormatSelected = { selector ->
+                val newIndex = choices.indexOfFirst { it.selector == selector }
+                if (newIndex >= 0) {
+                    onSelected(newIndex)
+                }
+            },
+            onDismissRequest = { showBottomSheet = false },
+        )
+    }
+
     Box(modifier = Modifier.fillMaxWidth()) {
         PickerSurface(
             label = label,
@@ -2039,73 +2076,81 @@ private fun FormatChoiceDropdownRow(
                 formatChoicePrimarySizeLabel(selectedChoice),
             ).joinToString(" | "),
             supporting = selectedSupporting,
-            expanded = expanded,
-            onClick = { expanded = !expanded },
+            expanded = expanded || showBottomSheet,
+            onClick = {
+                if (appSettings.formatSelectorStyle == FormatSelectorStyle.BOTTOM_SHEET) {
+                    showBottomSheet = true
+                } else {
+                    expanded = !expanded
+                }
+            },
         )
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-        ) {
-            choices.forEachIndexed { index, choice ->
-                val isSelected = index == selectedIndex
-                DropdownMenuItem(
-                    text = {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            verticalArrangement = Arrangement.spacedBy(3.dp),
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
+        if (appSettings.formatSelectorStyle == FormatSelectorStyle.DROPDOWN) {
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+            ) {
+                choices.forEachIndexed { index, choice ->
+                    val isSelected = index == selectedIndex
+                    DropdownMenuItem(
+                        text = {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                verticalArrangement = Arrangement.spacedBy(3.dp),
                             ) {
-                                Text(
-                                    text = buildFormatChoiceTitle(choice, appSettings),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                                formatChoicePrimarySizeLabel(choice)?.let { sizeLabel ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
                                     Text(
-                                        text = sizeLabel,
-                                        style = MaterialTheme.typography.labelLarge,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        text = buildFormatChoiceTitle(choice, appSettings),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    formatChoicePrimarySizeLabel(choice)?.let { sizeLabel ->
+                                        Text(
+                                            text = sizeLabel,
+                                            style = MaterialTheme.typography.labelLarge,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
+                                buildFormatMenuMetadata(choice, appSettings)?.let { metadata ->
+                                    Text(
+                                        text = metadata,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
                                     )
                                 }
                             }
-                            buildFormatMenuMetadata(choice, appSettings)?.let { metadata ->
-                                Text(
-                                    text = metadata,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
-                        }
-                    },
-                    onClick = {
-                        expanded = false
-                        onSelected(index)
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .then(
-                            if (isSelected) {
-                                Modifier.background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f))
-                            } else {
-                                Modifier
-                            }
-                        ),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                )
+                        },
+                        onClick = {
+                            expanded = false
+                            onSelected(index)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .then(
+                                if (isSelected) {
+                                    Modifier.background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f))
+                                } else {
+                                    Modifier
+                                }
+                            ),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    )
+                }
             }
         }
     }
