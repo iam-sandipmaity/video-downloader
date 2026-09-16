@@ -83,6 +83,9 @@ class SettingsStore @Inject constructor(
         val hasSeenDownloadSetupNotice = booleanPreferencesKey("has_seen_download_setup_notice")
         val maxConcurrent = intPreferencesKey("max_concurrent")
         val allowMeteredDownloads = booleanPreferencesKey("allow_metered_downloads")
+        val showFormatFps = booleanPreferencesKey("show_format_fps")
+        val showFormatCodec = booleanPreferencesKey("show_format_codec")
+        val showFormatBitrate = booleanPreferencesKey("show_format_bitrate")
         val darkTheme = booleanPreferencesKey("dark_theme")
         val vaultSettings = stringPreferencesKey("vault_settings_json")
     }
@@ -135,6 +138,9 @@ class SettingsStore @Inject constructor(
                     hasSeenDownloadSetupNotice = prefs[Keys.hasSeenDownloadSetupNotice] ?: false,
                     maxConcurrentDownloads = prefs[Keys.maxConcurrent] ?: 2,
                     allowMeteredDownloads = prefs[Keys.allowMeteredDownloads] ?: false,
+                    showFormatFps = prefs[Keys.showFormatFps] ?: true,
+                    showFormatCodec = prefs[Keys.showFormatCodec] ?: true,
+                    showFormatBitrate = prefs[Keys.showFormatBitrate] ?: true,
                     darkTheme = prefs[Keys.darkTheme] ?: false,
                     vaultSettings = decodeVaultSettings(prefs[Keys.vaultSettings]),
                 )
@@ -182,6 +188,9 @@ class SettingsStore @Inject constructor(
             prefs[Keys.hasSeenDownloadSetupNotice] = settings.hasSeenDownloadSetupNotice
             prefs[Keys.maxConcurrent] = settings.maxConcurrentDownloads
             prefs[Keys.allowMeteredDownloads] = settings.allowMeteredDownloads
+            prefs[Keys.showFormatFps] = settings.showFormatFps
+            prefs[Keys.showFormatCodec] = settings.showFormatCodec
+            prefs[Keys.showFormatBitrate] = settings.showFormatBitrate
             prefs[Keys.darkTheme] = settings.darkTheme
             prefs[Keys.vaultSettings] = json.encodeToString(settings.vaultSettings)
         }

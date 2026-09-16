@@ -90,4 +90,12 @@ class FormatUiStateTest {
         assertEquals(1, state.selectedPlaylistItemCount)
         assertFalse(state.areAllPlaylistItemsSelected)
     }
+
+    @Test
+    fun appSettings_formatDisplayDefaults_areTrue() {
+        val state = FormatUiState()
+        assertTrue(state.appSettings.showFormatFps)
+        assertTrue(state.appSettings.showFormatCodec)
+        assertTrue(state.appSettings.showFormatBitrate)
+    }
 }

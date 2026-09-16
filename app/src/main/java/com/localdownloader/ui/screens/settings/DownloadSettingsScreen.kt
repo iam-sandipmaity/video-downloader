@@ -3,9 +3,12 @@ package com.localdownloader.ui.screens.settings
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AudioFile
 import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.Equalizer
 import androidx.compose.material.icons.rounded.PhotoSizeSelectActual
 import androidx.compose.material.icons.rounded.Queue
+import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Subtitles
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.VideoFile
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -35,6 +38,9 @@ fun DownloadSettingsScreen(
     onDefaultEmbedSubtitlesChanged: (Boolean) -> Unit,
     onDefaultEmbedMetadataChanged: (Boolean) -> Unit,
     onDefaultEmbedThumbnailChanged: (Boolean) -> Unit,
+    onShowFormatFpsChanged: (Boolean) -> Unit = {},
+    onShowFormatCodecChanged: (Boolean) -> Unit = {},
+    onShowFormatBitrateChanged: (Boolean) -> Unit = {},
     onMaxConcurrentDownloadsChanged: (Int) -> Unit,
     onKeepAnalyzedLinkHistoryChanged: (Boolean) -> Unit,
     onAnalyzedLinkHistoryRetentionDaysChanged: (Int) -> Unit,
@@ -204,6 +210,33 @@ fun DownloadSettingsScreen(
                     subtitle = stringResource(R.string.download_defaults_embed_thumbnail_subtitle),
                     checked = uiState.embedThumbnail,
                     onCheckedChange = onDefaultEmbedThumbnailChanged,
+                )
+            }
+        }
+        item {
+            PreferenceGroup {
+                PreferenceSwitchRow(
+                    icon = Icons.Rounded.Speed,
+                    title = stringResource(R.string.download_defaults_show_fps_title),
+                    subtitle = stringResource(R.string.download_defaults_show_fps_subtitle),
+                    checked = uiState.appSettings.showFormatFps,
+                    onCheckedChange = onShowFormatFpsChanged,
+                )
+                PreferenceDivider()
+                PreferenceSwitchRow(
+                    icon = Icons.Rounded.Tune,
+                    title = stringResource(R.string.download_defaults_show_codec_title),
+                    subtitle = stringResource(R.string.download_defaults_show_codec_subtitle),
+                    checked = uiState.appSettings.showFormatCodec,
+                    onCheckedChange = onShowFormatCodecChanged,
+                )
+                PreferenceDivider()
+                PreferenceSwitchRow(
+                    icon = Icons.Rounded.Equalizer,
+                    title = stringResource(R.string.download_defaults_show_bitrate_title),
+                    subtitle = stringResource(R.string.download_defaults_show_bitrate_subtitle),
+                    checked = uiState.appSettings.showFormatBitrate,
+                    onCheckedChange = onShowFormatBitrateChanged,
                 )
             }
         }

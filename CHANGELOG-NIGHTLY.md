@@ -2,6 +2,13 @@
 
 Nightly builds are rolling prereleases published from the `nightly` release tag. This file tracks changes that are available in nightly before they are promoted into the stable changelog.
 
+## [2.0.2.0] - 2026-09-15
+
+### Added
+- **Quality & format details settings** (#99) - Added toggles in Download Settings to customize media information displayed in download cards and format selectors (Show FPS, Show Codecs, Show Bitrate).
+- **Clean download card format list layout** - Formatted quality choices with clear spacing, rounded card styling, highlighted selection state, and two-column alignment (resolution/label on left, file size on right).
+- **Spaced and uncluttered popup menu quality options** - Added distinct spacing, rounded items, and aligned size indicators across the download options sheet and quick download popup card.
+
 ## [2.0.1.9] - 2026-09-14
 
 ### Added
