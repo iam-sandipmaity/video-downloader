@@ -2,6 +2,12 @@
 
 Nightly builds are rolling prereleases published from the `nightly` release tag. This file tracks changes that are available in nightly before they are promoted into the stable changelog.
 
+## [2.0.2.2] - 2026-09-16
+
+### Changed
+- **Nightly Launcher Branding Revamp** - Refreshed and aligned the nightly launcher icon and SVG brand assets. Removed the moon backdrop for a cleaner, modern look, corrected the `NIGHTLY` badge text alignment and kerning (balanced `L` and `Y` spacing), and centered the badge symmetrically within the adaptive icon safe zone.
+- **Nightly Version Bump** - Release metadata updated to `2.0.2.2` (`NIGHTLY_VERSION_CODE` `46`).
+
 ## [2.0.2.1] - 2026-09-15
 
 ### Added
