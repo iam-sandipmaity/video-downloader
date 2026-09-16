@@ -36,7 +36,10 @@ data class QuickQualityOption(
     val subtitle: String? = null,
     val height: Int? = null,
     val bitrateKbps: Int? = null,
+    val fps: Double? = null,
     val formatChoice: FormatChoice? = null,
+    val mediaFormat: MediaFormat? = null,
+    val fileSizeBytes: Long? = null,
 ) {
     val displayLabel: String
         get() = if (!subtitle.isNullOrBlank()) "$title · $subtitle" else title
@@ -48,6 +51,7 @@ data class QuickFormatOption(
     val container: String,
     val videoCodec: String? = null,
     val audioCodec: String? = null,
+    val isOriginalStream: Boolean = false,
 )
 
 data class QuickDownloadUiState(
@@ -150,19 +154,20 @@ class QuickDownloadViewModel @Inject constructor(
             result.fold(
                 onSuccess = { info ->
                     logger.i("QuickDownloadViewModel", "Analyzed successfully: ${info.title}")
-                    val videoQualities = buildVideoQualities(info)
-                    val audioQualities = buildAudioQualities(info)
                     val videoFormats = buildVideoFormats(info)
-                    val audioFormats = buildAudioFormats()
-
-                    val defaultVideoQuality = videoQualities.firstOrNull { it.height != null && it.height <= 720 }
-                        ?: videoQualities.firstOrNull()
-                    val defaultAudioQuality = audioQualities.firstOrNull { it.bitrateKbps == 160 || it.bitrateKbps == 128 }
-                        ?: audioQualities.firstOrNull()
                     val defaultVideoFormat = videoFormats.firstOrNull { it.container == "mp4" || it.label.contains("MP4") }
                         ?: videoFormats.firstOrNull()
-                    val defaultAudioFormat = audioFormats.firstOrNull { it.container == "mp3" }
+                    val videoQualities = buildVideoQualities(info, defaultVideoFormat)
+                    val defaultVideoQuality = videoQualities.firstOrNull { it.height != null && it.height <= 720 }
+                        ?: videoQualities.firstOrNull()
+
+                    val audioFormats = buildAudioFormats(info)
+                    val defaultAudioFormat = audioFormats.firstOrNull { it.isOriginalStream }
+                        ?: audioFormats.firstOrNull { it.container == "mp3" }
                         ?: audioFormats.firstOrNull()
+                    val audioQualities = buildAudioQualities(info, defaultAudioFormat)
+                    val defaultAudioQuality = audioQualities.firstOrNull { it.bitrateKbps == 160 || it.bitrateKbps == 128 }
+                        ?: audioQualities.firstOrNull()
 
                     _uiState.update { state ->
                         state.copy(
@@ -213,11 +218,43 @@ class QuickDownloadViewModel @Inject constructor(
     }
 
     fun onVideoFormatSelected(option: QuickFormatOption) {
-        _uiState.update { it.copy(selectedVideoFormat = option) }
+        val info = _uiState.value.videoInfo
+        if (info == null) {
+            _uiState.update { it.copy(selectedVideoFormat = option) }
+            return
+        }
+        val newQualities = buildVideoQualities(info, option)
+        val currentHeight = _uiState.value.selectedVideoQuality?.height
+        val newSelectedQuality = newQualities.firstOrNull { it.height == currentHeight }
+            ?: newQualities.firstOrNull { it.height != null && it.height <= 720 }
+            ?: newQualities.firstOrNull()
+        _uiState.update {
+            it.copy(
+                selectedVideoFormat = option,
+                videoQualityOptions = newQualities,
+                selectedVideoQuality = newSelectedQuality,
+            )
+        }
     }
 
     fun onAudioFormatSelected(option: QuickFormatOption) {
-        _uiState.update { it.copy(selectedAudioFormat = option) }
+        val info = _uiState.value.videoInfo
+        if (info == null) {
+            _uiState.update { it.copy(selectedAudioFormat = option) }
+            return
+        }
+        val newQualities = buildAudioQualities(info, option)
+        val currentBitrate = _uiState.value.selectedAudioQuality?.bitrateKbps
+        val newSelectedQuality = newQualities.firstOrNull { it.bitrateKbps == currentBitrate }
+            ?: newQualities.firstOrNull { it.bitrateKbps == 160 || it.bitrateKbps == 128 }
+            ?: newQualities.firstOrNull()
+        _uiState.update {
+            it.copy(
+                selectedAudioFormat = option,
+                audioQualityOptions = newQualities,
+                selectedAudioQuality = newSelectedQuality,
+            )
+        }
     }
 
     fun onThreadsChanged(newThreads: Int) {
@@ -275,37 +312,83 @@ class QuickDownloadViewModel @Inject constructor(
 
             val formatId = when (streamType) {
                 StreamType.AUDIO_ONLY -> {
-                    "bestaudio/best"
+                    val quality = state.selectedAudioQuality
+                    val formatOpt = state.selectedAudioFormat
+                    if (formatOpt?.isOriginalStream == true && quality?.mediaFormat != null) {
+                        FormatSelectorBuilder.buildAudioOnlySelector(quality.mediaFormat)
+                    } else {
+                        "bestaudio/best"
+                    }
                 }
                 StreamType.VIDEO_ONLY -> {
-                    val h = state.selectedVideoQuality?.height?.let { "[height<=$it]" }.orEmpty()
-                    val vExt = when (requestedContainer) {
-                        "mp4", "mov" -> "[ext=mp4]"
-                        "webm" -> "[ext=webm]"
-                        else -> ""
-                    }
-                    if (vExt.isNotEmpty()) {
-                        "bestvideo$h$vExt/bestvideo$h/best$h/best"
+                    val quality = state.selectedVideoQuality
+                    val vFormat = quality?.mediaFormat
+                    if (vFormat != null) {
+                        FormatSelectorBuilder.buildVideoOnlySelector(vFormat)
                     } else {
-                        "bestvideo$h/bestvideo/best$h/best"
+                        val h = quality?.height?.let { "[height<=$it]" }.orEmpty()
+                        val vExt = when (requestedContainer) {
+                            "mp4", "mov" -> "[ext=mp4]"
+                            "webm" -> "[ext=webm]"
+                            else -> ""
+                        }
+                        if (vExt.isNotEmpty()) {
+                            "bestvideo$h$vExt/bestvideo$h/best$h/best"
+                        } else {
+                            "bestvideo$h/bestvideo/best$h/best"
+                        }
                     }
                 }
                 StreamType.VIDEO_AUDIO -> {
-                    val h = state.selectedVideoQuality?.height?.let { "[height<=$it]" }.orEmpty()
-                    val vExt = when (requestedContainer) {
-                        "mp4", "mov" -> "[ext=mp4]"
-                        "webm" -> "[ext=webm]"
-                        else -> ""
-                    }
-                    val aExt = when (requestedContainer) {
-                        "mp4", "mov" -> "[ext=m4a]"
-                        "webm" -> "[ext=webm]"
-                        else -> ""
-                    }
-                    if (vExt.isNotEmpty()) {
-                        "bestvideo$h$vExt+bestaudio$aExt/bestvideo$h+bestaudio/best$h/best"
+                    val quality = state.selectedVideoQuality
+                    val vFormat = quality?.mediaFormat
+                    if (vFormat != null) {
+                        if (!vFormat.isVideoOnly && vFormat.audioCodec != "none") {
+                            FormatSelectorBuilder.buildMuxedSelector(vFormat)
+                        } else {
+                            val audioList = info.formats.filter { it.isAudioOnly || it.shouldTreatAsAudioOnlyChoice() }
+                            val prefExts = if (requestedContainer == "mp4" || vFormat.normalizedExtension == "mp4") {
+                                listOf("m4a", "aac", "mp3")
+                            } else {
+                                listOf("opus", "webm", "m4a")
+                            }
+                            val bestAudio = prefExts.asSequence()
+                                .mapNotNull { ext -> audioList.filter { it.normalizedExtension == ext }.maxByOrNull { it.bitrateKbps ?: 0 } }
+                                .firstOrNull() ?: audioList.maxByOrNull { it.bitrateKbps ?: 0 }
+
+                            if (bestAudio != null) {
+                                FormatSelectorBuilder.buildMergedSelector(vFormat, bestAudio)
+                            } else {
+                                val h = quality.height?.let { "[height<=$it]" }.orEmpty()
+                                val vExt = when (requestedContainer) {
+                                    "mp4", "mov" -> "[ext=mp4]"
+                                    "webm" -> "[ext=webm]"
+                                    else -> ""
+                                }
+                                if (vExt.isNotEmpty()) {
+                                    "bestvideo$h$vExt+bestaudio/bestvideo$h+bestaudio/best$h/best"
+                                } else {
+                                    "bestvideo$h+bestaudio/best$h/best"
+                                }
+                            }
+                        }
                     } else {
-                        "bestvideo$h+bestaudio/best$h/best"
+                        val h = quality?.height?.let { "[height<=$it]" }.orEmpty()
+                        val vExt = when (requestedContainer) {
+                            "mp4", "mov" -> "[ext=mp4]"
+                            "webm" -> "[ext=webm]"
+                            else -> ""
+                        }
+                        val aExt = when (requestedContainer) {
+                            "mp4", "mov" -> "[ext=m4a]"
+                            "webm" -> "[ext=webm]"
+                            else -> ""
+                        }
+                        if (vExt.isNotEmpty()) {
+                            "bestvideo$h$vExt+bestaudio$aExt/bestvideo$h+bestaudio/best$h/best"
+                        } else {
+                            "bestvideo$h+bestaudio/best$h/best"
+                        }
                     }
                 }
             }
@@ -419,48 +502,212 @@ class QuickDownloadViewModel @Inject constructor(
         }
     }
 
-    private fun buildVideoQualities(info: VideoInfo): List<QuickQualityOption> {
-        val videoFormats = info.formats.filter { it.isVideoOnly || (!it.shouldTreatAsAudioOnlyChoice() && parseHeight(it.resolution) != null) }
-        val distinctHeights = videoFormats
+    private fun buildVideoFormats(info: VideoInfo): List<QuickFormatOption> {
+        val rawVideoFormats = info.formats.filter {
+            !it.isAudioOnly && !it.isImageLike && !it.shouldTreatAsAudioOnlyChoice()
+        }.ifEmpty {
+            info.formats.filter { !it.isImageLike }
+        }
+
+        if (rawVideoFormats.isEmpty()) {
+            return listOf(
+                QuickFormatOption(id = "mp4", label = "MP4", container = "mp4"),
+                QuickFormatOption(id = "webm", label = "WebM", container = "webm"),
+                QuickFormatOption(id = "mkv", label = "MKV", container = "mkv"),
+            )
+        }
+
+        val groups = rawVideoFormats.groupBy { format ->
+            Pair(normalizeContainer(format), normalizeCodecFamily(format.videoCodec))
+        }
+
+        return groups.map { (key, _) ->
+            val container = key.first
+            val codecFamily = key.second
+            val label = if (codecFamily != null) {
+                "$codecFamily · ${container.uppercase()}"
+            } else {
+                container.uppercase()
+            }
+            val id = if (codecFamily != null) "${container}_${codecFamily.lowercase()}" else container
+            QuickFormatOption(
+                id = id,
+                label = label,
+                container = container,
+                videoCodec = codecFamily,
+            )
+        }.sortedWith(
+            compareBy<QuickFormatOption> { option ->
+                when {
+                    option.container == "mp4" && option.videoCodec == "H264" -> 0
+                    option.container == "mp4" -> 1
+                    option.container == "webm" && option.videoCodec == "VP9" -> 2
+                    option.container == "webm" -> 3
+                    option.container == "mkv" -> 4
+                    else -> 5
+                }
+            }.thenBy { it.label }
+        )
+    }
+
+    private fun buildVideoQualities(info: VideoInfo, selectedFormat: QuickFormatOption?): List<QuickQualityOption> {
+        val rawVideoFormats = info.formats.filter {
+            !it.isAudioOnly && !it.isImageLike && !it.shouldTreatAsAudioOnlyChoice()
+        }.ifEmpty {
+            info.formats.filter { !it.isImageLike }
+        }
+
+        val matchingFormats = if (selectedFormat != null) {
+            rawVideoFormats.filter { format ->
+                normalizeContainer(format) == selectedFormat.container &&
+                    (selectedFormat.videoCodec == null ||
+                        normalizeCodecFamily(format.videoCodec) == selectedFormat.videoCodec ||
+                        normalizeCodecFamily(format.videoCodec) == null)
+            }.ifEmpty {
+                rawVideoFormats.filter { normalizeContainer(it) == selectedFormat.container }
+            }.ifEmpty {
+                rawVideoFormats
+            }
+        } else {
+            rawVideoFormats
+        }
+
+        val audioFormats = info.formats.filter { it.isAudioOnly || it.shouldTreatAsAudioOnlyChoice() }
+        val prefAudioExts = if (selectedFormat?.container == "mp4") listOf("m4a", "aac", "mp3") else listOf("opus", "webm", "m4a")
+        val bestAudio = prefAudioExts.asSequence()
+            .mapNotNull { ext -> audioFormats.filter { it.normalizedExtension == ext }.maxByOrNull { it.fileSizeBytes ?: (it.bitrateKbps?.toLong() ?: 0L) } }
+            .firstOrNull() ?: audioFormats.maxByOrNull { it.fileSizeBytes ?: (it.bitrateKbps?.toLong() ?: 0L) }
+        val bestAudioSize = bestAudio?.fileSizeBytes
+        val bestAudioBitrate = bestAudio?.bitrateKbps ?: 128
+
+        val distinctHeights = matchingFormats
             .mapNotNull { parseHeight(it.resolution) }
             .distinct()
             .sortedDescending()
 
-        if (distinctHeights.isEmpty()) {
-            return listOf(
-                QuickQualityOption(id = "1080p", title = "1080p", subtitle = estimateSize(info.durationSeconds, 4500), height = 1080),
-                QuickQualityOption(id = "720p", title = "720p", subtitle = estimateSize(info.durationSeconds, 2500), height = 720),
-                QuickQualityOption(id = "480p", title = "480p", subtitle = estimateSize(info.durationSeconds, 1200), height = 480),
-                QuickQualityOption(id = "360p", title = "360p", subtitle = estimateSize(info.durationSeconds, 800), height = 360),
-                QuickQualityOption(id = "240p", title = "240p", subtitle = estimateSize(info.durationSeconds, 400), height = 240),
-            )
+        if (distinctHeights.isNotEmpty()) {
+            return distinctHeights.map { height ->
+                val matchingForHeight = matchingFormats.filter { parseHeight(it.resolution) == height }
+                val bestFormat = matchingForHeight.maxByOrNull { it.fileSizeBytes ?: (it.bitrateKbps?.toLong() ?: 0L) } ?: matchingForHeight.first()
+
+                val videoSize = bestFormat.fileSizeBytes
+                val totalSizeBytes = if (videoSize != null) {
+                    if (bestFormat.isVideoOnly) videoSize + (bestAudioSize ?: 0L) else videoSize
+                } else {
+                    val totalBitrate = (bestFormat.bitrateKbps ?: defaultBitrateForHeight(height)) + if (bestFormat.isVideoOnly) bestAudioBitrate else 0
+                    estimateFormatSizeBytes(info.durationSeconds, totalBitrate)
+                }
+
+                val isExactSize = videoSize != null
+                val sizeLabel = totalSizeBytes?.takeIf { it > 0L }?.let { bytes ->
+                    if (isExactSize) bytes.toReadableSize() else "~${bytes.toReadableSize()}"
+                }
+
+                val fpsSuffix = if (bestFormat.fps != null && bestFormat.fps >= 50.0) " ${bestFormat.fps.toInt()}fps" else ""
+                val title = when (height) {
+                    2160 -> "4K · 2160p"
+                    1440 -> "2K · 1440p"
+                    else -> "${height}p"
+                } + fpsSuffix
+
+                QuickQualityOption(
+                    id = "${height}p_${bestFormat.formatId}",
+                    title = title,
+                    subtitle = sizeLabel,
+                    height = height,
+                    bitrateKbps = bestFormat.bitrateKbps,
+                    fps = bestFormat.fps,
+                    mediaFormat = bestFormat,
+                    fileSizeBytes = totalSizeBytes,
+                )
+            }
         }
 
-        return distinctHeights.map { height ->
-            val matching = videoFormats.filter { parseHeight(it.resolution) == height }
-            val bestMatching = matching.maxByOrNull { it.fileSizeBytes ?: (it.bitrateKbps?.toLong() ?: 0L) }
-            val sizeBytes = bestMatching?.fileSizeBytes
-                ?: (estimateFormatSizeBytes(info.durationSeconds, bestMatching?.bitrateKbps)
-                    ?: estimateFormatSizeBytes(info.durationSeconds, defaultBitrateForHeight(height)))
-            val sizeLabel = sizeBytes?.let { "~${it.toReadableSize()}" }
-            val title = when (height) {
-                2160 -> "4K · 2160p"
-                1440 -> "2K · 1440p"
-                else -> "${height}p"
+        if (matchingFormats.isNotEmpty()) {
+            return matchingFormats.distinctBy { it.formatId }.map { format ->
+                val sizeBytes = format.fileSizeBytes ?: estimateFormatSizeBytes(info.durationSeconds, format.bitrateKbps)
+                val isExact = format.fileSizeBytes != null
+                val sizeLabel = sizeBytes?.let { if (isExact) it.toReadableSize() else "~${it.toReadableSize()}" }
+                val title = format.resolution ?: format.note ?: format.asReadableLabel()
+                QuickQualityOption(
+                    id = format.formatId,
+                    title = title,
+                    subtitle = sizeLabel,
+                    bitrateKbps = format.bitrateKbps,
+                    fps = format.fps,
+                    mediaFormat = format,
+                    fileSizeBytes = sizeBytes,
+                )
             }
-            QuickQualityOption(
-                id = "${height}p",
-                title = title,
-                subtitle = sizeLabel,
-                height = height,
-                bitrateKbps = bestMatching?.bitrateKbps,
-            )
+        }
+
+        return listOf(
+            QuickQualityOption(id = "1080p", title = "1080p", subtitle = estimateSize(info.durationSeconds, 4500), height = 1080),
+            QuickQualityOption(id = "720p", title = "720p", subtitle = estimateSize(info.durationSeconds, 2500), height = 720),
+            QuickQualityOption(id = "480p", title = "480p", subtitle = estimateSize(info.durationSeconds, 1200), height = 480),
+            QuickQualityOption(id = "360p", title = "360p", subtitle = estimateSize(info.durationSeconds, 800), height = 360),
+            QuickQualityOption(id = "240p", title = "240p", subtitle = estimateSize(info.durationSeconds, 400), height = 240),
+        )
+    }
+
+    private fun buildAudioFormats(info: VideoInfo): List<QuickFormatOption> {
+        val audioStreams = info.formats.filter { it.isAudioOnly || it.shouldTreatAsAudioOnlyChoice() }
+        val streamExts = audioStreams.map { it.normalizedExtension.ifBlank { "m4a" } }.distinct()
+
+        return buildList {
+            if ("m4a" in streamExts || "aac" in streamExts) {
+                add(QuickFormatOption(id = "m4a_stream", label = "M4A (Original)", container = "m4a", isOriginalStream = true))
+            }
+            if ("opus" in streamExts || "webm" in streamExts || "weba" in streamExts) {
+                add(QuickFormatOption(id = "opus_stream", label = "Opus (Original)", container = "opus", isOriginalStream = true))
+            }
+            if ("mp3" in streamExts) {
+                add(QuickFormatOption(id = "mp3_stream", label = "MP3 (Original)", container = "mp3", isOriginalStream = true))
+            }
+            add(QuickFormatOption(id = "mp3", label = "MP3", container = "mp3", isOriginalStream = false))
+            if ("m4a" !in streamExts && "aac" !in streamExts) {
+                add(QuickFormatOption(id = "m4a", label = "M4A", container = "m4a", isOriginalStream = false))
+            }
+            add(QuickFormatOption(id = "flac", label = "FLAC (Lossless)", container = "flac", isOriginalStream = false))
+            add(QuickFormatOption(id = "wav", label = "WAV (Lossless)", container = "wav", isOriginalStream = false))
+            if ("opus" !in streamExts && "webm" !in streamExts) {
+                add(QuickFormatOption(id = "opus", label = "Opus", container = "opus", isOriginalStream = false))
+            }
         }
     }
 
-    private fun buildAudioQualities(info: VideoInfo): List<QuickQualityOption> {
-        val standardBitrates = listOf(320, 192, 160, 128, 92, 64)
-        return standardBitrates.map { bitrate ->
+    private fun buildAudioQualities(info: VideoInfo, selectedFormat: QuickFormatOption?): List<QuickQualityOption> {
+        val audioStreams = info.formats.filter { it.isAudioOnly || it.shouldTreatAsAudioOnlyChoice() }
+
+        if (selectedFormat?.isOriginalStream == true) {
+            val matchingAudio = audioStreams.filter {
+                it.normalizedExtension == selectedFormat.container ||
+                    (selectedFormat.container == "opus" && it.normalizedExtension in listOf("opus", "webm", "weba"))
+            }
+
+            if (matchingAudio.isNotEmpty()) {
+                return matchingAudio.distinctBy { it.formatId }.map { format ->
+                    val size = format.fileSizeBytes ?: estimateFormatSizeBytes(info.durationSeconds, format.bitrateKbps)
+                    val isExact = format.fileSizeBytes != null
+                    val sizeLabel = size?.let { if (isExact) it.toReadableSize() else "~${it.toReadableSize()}" }
+                    val title = if (format.bitrateKbps != null) "${format.bitrateKbps}k" else (format.note ?: "Original Audio")
+                    QuickQualityOption(
+                        id = "${format.formatId}_audio",
+                        title = title,
+                        subtitle = sizeLabel,
+                        bitrateKbps = format.bitrateKbps,
+                        mediaFormat = format,
+                        fileSizeBytes = size,
+                    )
+                }.sortedByDescending { it.bitrateKbps ?: 0 }
+            }
+        }
+
+        val maxSourceBitrate = audioStreams.mapNotNull { it.bitrateKbps }.maxOrNull() ?: 320
+        val standardBitrates = listOf(320, 256, 192, 160, 128, 96, 64)
+        val bitrates = standardBitrates.filter { it <= maxSourceBitrate || it == 320 || it == standardBitrates.first() }.distinct()
+
+        return bitrates.map { bitrate ->
             val sizeBytes = estimateFormatSizeBytes(info.durationSeconds, bitrate)
             val sizeLabel = sizeBytes?.let { "~${it.toReadableSize()}" }
             QuickQualityOption(
@@ -468,28 +715,35 @@ class QuickDownloadViewModel @Inject constructor(
                 title = "${bitrate}k",
                 subtitle = sizeLabel,
                 bitrateKbps = bitrate,
+                fileSizeBytes = sizeBytes,
             )
         }
     }
 
-    private fun buildVideoFormats(info: VideoInfo): List<QuickFormatOption> {
-        return listOf(
-            QuickFormatOption(id = "mp4", label = "H264 · MP4", container = "mp4", videoCodec = "h264"),
-            QuickFormatOption(id = "webm", label = "VP9 · WebM", container = "webm", videoCodec = "vp9"),
-            QuickFormatOption(id = "mkv", label = "MKV", container = "mkv", videoCodec = null),
-            QuickFormatOption(id = "auto", label = "Auto", container = "auto", videoCodec = null),
-        )
+    private fun normalizeContainer(format: MediaFormat): String {
+        val c = format.normalizedContainer.ifBlank { format.normalizedExtension }.lowercase()
+        return when {
+            c.contains("mp4") -> "mp4"
+            c.contains("webm") -> "webm"
+            c.contains("mkv") -> "mkv"
+            c.contains("mov") -> "mov"
+            c.contains("flv") -> "flv"
+            c.contains("3gp") -> "3gp"
+            c.contains("ts") -> "ts"
+            else -> format.normalizedExtension.ifBlank { "mp4" }
+        }
     }
 
-    private fun buildAudioFormats(): List<QuickFormatOption> {
-        return listOf(
-            QuickFormatOption(id = "mp3", label = "MP3", container = "mp3"),
-            QuickFormatOption(id = "m4a", label = "M4A", container = "m4a"),
-            QuickFormatOption(id = "opus", label = "Opus", container = "opus"),
-            QuickFormatOption(id = "flac", label = "FLAC", container = "flac"),
-            QuickFormatOption(id = "wav", label = "WAV", container = "wav"),
-            QuickFormatOption(id = "aac", label = "AAC", container = "aac"),
-        )
+    private fun normalizeCodecFamily(codec: String?): String? {
+        val c = codec?.trim()?.lowercase() ?: return null
+        return when {
+            c.startsWith("avc") || c.startsWith("h264") -> "H264"
+            c.startsWith("vp9") || c.startsWith("vp09") -> "VP9"
+            c.startsWith("av01") || c.startsWith("av1") -> "AV1"
+            c.startsWith("hevc") || c.startsWith("h265") -> "H265"
+            c == "none" || c.isBlank() -> null
+            else -> c.uppercase()
+        }
     }
 
     private fun defaultBitrateForHeight(height: Int): Int {

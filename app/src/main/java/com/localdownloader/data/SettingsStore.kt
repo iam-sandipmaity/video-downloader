@@ -13,6 +13,7 @@ import com.localdownloader.domain.models.AccentPreset
 import com.localdownloader.domain.models.AppSettings
 import com.localdownloader.domain.models.ContrastMode
 import com.localdownloader.domain.models.CookieProfile
+import com.localdownloader.domain.models.FormatSelectorStyle
 import com.localdownloader.domain.models.SYSTEM_LANGUAGE_TAG
 import com.localdownloader.domain.models.ThemeMode
 import com.localdownloader.domain.models.VaultSettings
@@ -86,6 +87,7 @@ class SettingsStore @Inject constructor(
         val showFormatFps = booleanPreferencesKey("show_format_fps")
         val showFormatCodec = booleanPreferencesKey("show_format_codec")
         val showFormatBitrate = booleanPreferencesKey("show_format_bitrate")
+        val formatSelectorStyle = stringPreferencesKey("format_selector_style")
         val darkTheme = booleanPreferencesKey("dark_theme")
         val vaultSettings = stringPreferencesKey("vault_settings_json")
     }
@@ -141,6 +143,7 @@ class SettingsStore @Inject constructor(
                     showFormatFps = prefs[Keys.showFormatFps] ?: true,
                     showFormatCodec = prefs[Keys.showFormatCodec] ?: true,
                     showFormatBitrate = prefs[Keys.showFormatBitrate] ?: true,
+                    formatSelectorStyle = prefs[Keys.formatSelectorStyle]?.toEnumOrDefault(FormatSelectorStyle.BOTTOM_SHEET) ?: FormatSelectorStyle.BOTTOM_SHEET,
                     darkTheme = prefs[Keys.darkTheme] ?: false,
                     vaultSettings = decodeVaultSettings(prefs[Keys.vaultSettings]),
                 )
@@ -191,6 +194,7 @@ class SettingsStore @Inject constructor(
             prefs[Keys.showFormatFps] = settings.showFormatFps
             prefs[Keys.showFormatCodec] = settings.showFormatCodec
             prefs[Keys.showFormatBitrate] = settings.showFormatBitrate
+            prefs[Keys.formatSelectorStyle] = settings.formatSelectorStyle.name
             prefs[Keys.darkTheme] = settings.darkTheme
             prefs[Keys.vaultSettings] = json.encodeToString(settings.vaultSettings)
         }

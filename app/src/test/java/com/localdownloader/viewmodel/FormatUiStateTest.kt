@@ -97,5 +97,6 @@ class FormatUiStateTest {
         assertTrue(state.appSettings.showFormatFps)
         assertTrue(state.appSettings.showFormatCodec)
         assertTrue(state.appSettings.showFormatBitrate)
+        assertEquals(com.localdownloader.domain.models.FormatSelectorStyle.BOTTOM_SHEET, state.appSettings.formatSelectorStyle)
     }
 }

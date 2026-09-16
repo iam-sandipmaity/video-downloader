@@ -866,6 +866,7 @@ fun DownloaderApp(
                     onShowFormatFpsChanged = formatViewModel::onShowFormatFpsChanged,
                     onShowFormatCodecChanged = formatViewModel::onShowFormatCodecChanged,
                     onShowFormatBitrateChanged = formatViewModel::onShowFormatBitrateChanged,
+                    onFormatSelectorStyleChanged = formatViewModel::onFormatSelectorStyleChanged,
                     onMaxConcurrentDownloadsChanged = formatViewModel::onMaxConcurrentDownloadsChanged,
                     onKeepAnalyzedLinkHistoryChanged = formatViewModel::onKeepAnalyzedLinkHistoryChanged,
                     onAnalyzedLinkHistoryRetentionDaysChanged = formatViewModel::onAnalyzedLinkHistoryRetentionDaysChanged,

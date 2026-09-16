@@ -37,6 +37,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -61,7 +62,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.localdownloader.R
+import com.localdownloader.domain.models.FormatSelectorStyle
 import com.localdownloader.domain.models.StreamType
+import com.localdownloader.ui.components.QuickOptionBottomSheet
+import com.localdownloader.ui.components.QuickOptionItem
 import com.localdownloader.viewmodel.QuickDownloadUiState
 import com.localdownloader.viewmodel.QuickFormatOption
 import com.localdownloader.viewmodel.QuickQualityOption
@@ -232,46 +236,101 @@ fun QuickDownloadScreen(
                         onAudioSelected = { onStreamTypeChanged(StreamType.AUDIO_ONLY) },
                     )
 
-                    // Quality Row
-                    DropdownSelectorRow(
-                        label = stringResource(R.string.quick_download_label_quality),
-                        selectedText = if (uiState.isAudioMode) {
-                            uiState.selectedAudioQuality?.displayLabel ?: "160k"
-                        } else {
-                            uiState.selectedVideoQuality?.displayLabel ?: "720p"
-                        },
-                        options = if (uiState.isAudioMode) {
-                            uiState.audioQualityOptions.map { it.displayLabel }
-                        } else {
-                            uiState.videoQualityOptions.map { it.displayLabel }
-                        },
-                        onOptionSelected = { index ->
-                            if (uiState.isAudioMode) {
-                                uiState.audioQualityOptions.getOrNull(index)?.let(onAudioQualitySelected)
-                            } else {
-                                uiState.videoQualityOptions.getOrNull(index)?.let(onVideoQualitySelected)
-                            }
-                        },
-                    )
-
                     // Format Row
-                    DropdownSelectorRow(
+                    val formatItems = if (uiState.isAudioMode) {
+                        uiState.audioFormatOptions.mapIndexed { index, opt ->
+                            QuickOptionItem(
+                                id = opt.id,
+                                title = opt.label,
+                                badge = opt.label,
+                                secondaryPills = listOfNotNull(
+                                    opt.container.uppercase(),
+                                    if (opt.isOriginalStream) "ORIGINAL" else null,
+                                ),
+                                isBest = index == 0,
+                                isSelected = opt.id == uiState.selectedAudioFormat?.id,
+                            )
+                        }
+                    } else {
+                        uiState.videoFormatOptions.mapIndexed { index, opt ->
+                            QuickOptionItem(
+                                id = opt.id,
+                                title = opt.label,
+                                badge = opt.label,
+                                secondaryPills = listOfNotNull(
+                                    opt.container.uppercase().takeIf { it != "AUTO" },
+                                    opt.videoCodec?.uppercase(),
+                                ).distinct(),
+                                isBest = index == 0,
+                                isSelected = opt.id == uiState.selectedVideoFormat?.id,
+                            )
+                        }
+                    }
+
+                    QuickOptionSelectorRow(
                         label = stringResource(R.string.quick_download_label_format),
+                        dialogTitle = stringResource(R.string.quick_download_select_format_title),
                         selectedText = if (uiState.isAudioMode) {
                             uiState.selectedAudioFormat?.label ?: "MP3"
                         } else {
                             uiState.selectedVideoFormat?.label ?: "H264 · MP4"
                         },
-                        options = if (uiState.isAudioMode) {
-                            uiState.audioFormatOptions.map { it.label }
-                        } else {
-                            uiState.videoFormatOptions.map { it.label }
-                        },
+                        items = formatItems,
+                        formatSelectorStyle = uiState.appSettings.formatSelectorStyle,
                         onOptionSelected = { index ->
                             if (uiState.isAudioMode) {
                                 uiState.audioFormatOptions.getOrNull(index)?.let(onAudioFormatSelected)
                             } else {
                                 uiState.videoFormatOptions.getOrNull(index)?.let(onVideoFormatSelected)
+                            }
+                        },
+                    )
+
+                    // Quality Row
+                    val qualityItems = if (uiState.isAudioMode) {
+                        uiState.audioQualityOptions.mapIndexed { index, opt ->
+                            QuickOptionItem(
+                                id = opt.id,
+                                title = opt.title,
+                                badge = opt.title,
+                                isBest = index == 0,
+                                isHighQuality = (opt.bitrateKbps ?: 0) >= 192,
+                                sizeOrSupporting = opt.subtitle,
+                                isSelected = opt.id == uiState.selectedAudioQuality?.id,
+                            )
+                        }
+                    } else {
+                        uiState.videoQualityOptions.mapIndexed { index, opt ->
+                            QuickOptionItem(
+                                id = opt.id,
+                                title = opt.title,
+                                badge = opt.title,
+                                secondaryPills = listOfNotNull(
+                                    opt.fps?.takeIf { it >= 50.0 }?.let { "${it.toInt()}fps" },
+                                ),
+                                isBest = index == 0,
+                                isHighQuality = (opt.height ?: 0) >= 1080,
+                                sizeOrSupporting = opt.subtitle,
+                                isSelected = opt.id == uiState.selectedVideoQuality?.id,
+                            )
+                        }
+                    }
+
+                    QuickOptionSelectorRow(
+                        label = stringResource(R.string.quick_download_label_quality),
+                        dialogTitle = stringResource(R.string.quick_download_select_quality_title),
+                        selectedText = if (uiState.isAudioMode) {
+                            uiState.selectedAudioQuality?.displayLabel ?: "160k"
+                        } else {
+                            uiState.selectedVideoQuality?.displayLabel ?: "720p"
+                        },
+                        items = qualityItems,
+                        formatSelectorStyle = uiState.appSettings.formatSelectorStyle,
+                        onOptionSelected = { index ->
+                            if (uiState.isAudioMode) {
+                                uiState.audioQualityOptions.getOrNull(index)?.let(onAudioQualitySelected)
+                            } else {
+                                uiState.videoQualityOptions.getOrNull(index)?.let(onVideoQualitySelected)
                             }
                         },
                     )
@@ -508,14 +567,28 @@ private fun SegmentedTwoWayToggle(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DropdownSelectorRow(
+private fun QuickOptionSelectorRow(
     label: String,
+    dialogTitle: String,
     selectedText: String,
-    options: List<String>,
+    items: List<QuickOptionItem>,
+    formatSelectorStyle: FormatSelectorStyle,
     onOptionSelected: (Int) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    var showBottomSheet by remember { mutableStateOf(false) }
+
+    if (showBottomSheet) {
+        QuickOptionBottomSheet(
+            title = dialogTitle,
+            subtitle = stringResource(R.string.format_picker_subtitle, items.size),
+            options = items,
+            onOptionSelected = onOptionSelected,
+            onDismissRequest = { showBottomSheet = false },
+        )
+    }
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -536,7 +609,13 @@ private fun DropdownSelectorRow(
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
                 modifier = Modifier
                     .clip(RoundedCornerShape(14.dp))
-                    .clickable { expanded = true },
+                    .clickable {
+                        if (formatSelectorStyle == FormatSelectorStyle.BOTTOM_SHEET) {
+                            showBottomSheet = true
+                        } else {
+                            expanded = true
+                        }
+                    },
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
@@ -559,64 +638,67 @@ private fun DropdownSelectorRow(
                 }
             }
 
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false },
-            ) {
-                options.forEachIndexed { index, option ->
-                    val isSelected = option == selectedText
-                    val parts = if (option.contains(" · ")) option.split(" · ", limit = 2) else null
-                    DropdownMenuItem(
-                        text = {
-                            if (parts != null) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 2.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Text(
-                                        text = parts[0],
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                    )
-                                    Spacer(modifier = Modifier.width(16.dp))
-                                    Text(
-                                        text = parts[1],
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            } else {
-                                Text(
-                                    text = option,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.padding(vertical = 2.dp),
-                                )
-                            }
-                        },
-                        onClick = {
-                            onOptionSelected(index)
-                            expanded = false
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .then(
-                                if (isSelected) {
-                                    Modifier.background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f))
+            if (formatSelectorStyle == FormatSelectorStyle.DROPDOWN) {
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false },
+                ) {
+                    items.forEachIndexed { index, item ->
+                        val isSelected = item.isSelected
+                        val primaryText = item.badge ?: item.title
+                        val supportingText = item.sizeOrSupporting
+                        DropdownMenuItem(
+                            text = {
+                                if (supportingText != null) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 2.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Text(
+                                            text = primaryText,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                        )
+                                        Spacer(modifier = Modifier.width(16.dp))
+                                        Text(
+                                            text = supportingText,
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
                                 } else {
-                                    Modifier
+                                    Text(
+                                        text = primaryText,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.padding(vertical = 2.dp),
+                                    )
                                 }
-                            ),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                    )
+                            },
+                            onClick = {
+                                onOptionSelected(index)
+                                expanded = false
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .then(
+                                    if (isSelected) {
+                                        Modifier.background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f))
+                                    } else {
+                                        Modifier
+                                    }
+                                ),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        )
+                    }
                 }
             }
         }

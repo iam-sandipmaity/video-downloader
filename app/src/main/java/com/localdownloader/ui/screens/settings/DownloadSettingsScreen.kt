@@ -10,6 +10,7 @@ import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Subtitles
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.VideoFile
+import androidx.compose.material.icons.rounded.ViewAgenda
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -20,6 +21,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import com.localdownloader.R
+import com.localdownloader.domain.models.FormatSelectorStyle
 import com.localdownloader.ui.components.PreferenceDivider
 import com.localdownloader.ui.components.PreferenceGroup
 import com.localdownloader.ui.components.PreferencePageScaffold
@@ -41,6 +43,7 @@ fun DownloadSettingsScreen(
     onShowFormatFpsChanged: (Boolean) -> Unit = {},
     onShowFormatCodecChanged: (Boolean) -> Unit = {},
     onShowFormatBitrateChanged: (Boolean) -> Unit = {},
+    onFormatSelectorStyleChanged: (FormatSelectorStyle) -> Unit = {},
     onMaxConcurrentDownloadsChanged: (Int) -> Unit,
     onKeepAnalyzedLinkHistoryChanged: (Boolean) -> Unit,
     onAnalyzedLinkHistoryRetentionDaysChanged: (Int) -> Unit,
@@ -80,6 +83,11 @@ fun DownloadSettingsScreen(
         uiState.appSettings.analyzedLinkHistoryRetentionDays,
         uiState.appSettings.analyzedLinkHistoryRetentionDays,
     )
+    val selectorStyleTitle = stringResource(R.string.download_defaults_selector_style_title)
+    val selectorStyleSheetTitle = stringResource(R.string.format_selector_style_sheet)
+    val selectorStyleSheetDesc = stringResource(R.string.format_selector_style_sheet_desc)
+    val selectorStyleDropdownTitle = stringResource(R.string.format_selector_style_dropdown)
+    val selectorStyleDropdownDesc = stringResource(R.string.format_selector_style_dropdown_desc)
 
     choiceDialog?.let { state ->
         SettingChoiceDialog(
@@ -215,6 +223,38 @@ fun DownloadSettingsScreen(
         }
         item {
             PreferenceGroup {
+                PreferenceRow(
+                    icon = Icons.Rounded.ViewAgenda,
+                    title = selectorStyleTitle,
+                    subtitle = stringResource(R.string.download_defaults_selector_style_subtitle),
+                    value = when (uiState.appSettings.formatSelectorStyle) {
+                        FormatSelectorStyle.BOTTOM_SHEET -> selectorStyleSheetTitle
+                        FormatSelectorStyle.DROPDOWN -> selectorStyleDropdownTitle
+                    },
+                    onClick = {
+                        val styleChoices = listOf(
+                            SettingChoiceOption(
+                                title = selectorStyleSheetTitle,
+                                subtitle = selectorStyleSheetDesc,
+                                onSelect = { onFormatSelectorStyleChanged(FormatSelectorStyle.BOTTOM_SHEET) },
+                            ),
+                            SettingChoiceOption(
+                                title = selectorStyleDropdownTitle,
+                                subtitle = selectorStyleDropdownDesc,
+                                onSelect = { onFormatSelectorStyleChanged(FormatSelectorStyle.DROPDOWN) },
+                            ),
+                        )
+                        choiceDialog = SettingChoiceDialogState(
+                            title = selectorStyleTitle,
+                            selected = when (uiState.appSettings.formatSelectorStyle) {
+                                FormatSelectorStyle.BOTTOM_SHEET -> selectorStyleSheetTitle
+                                FormatSelectorStyle.DROPDOWN -> selectorStyleDropdownTitle
+                            },
+                            options = styleChoices,
+                        )
+                    },
+                )
+                PreferenceDivider()
                 PreferenceSwitchRow(
                     icon = Icons.Rounded.Speed,
                     title = stringResource(R.string.download_defaults_show_fps_title),
