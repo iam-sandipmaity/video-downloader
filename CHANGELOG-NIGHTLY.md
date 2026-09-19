@@ -2,6 +2,16 @@
 
 Nightly builds are rolling prereleases published from the `nightly` release tag. This file tracks changes that are available in nightly before they are promoted into the stable changelog.
 
+## [2.0.2.3] - 2026-09-20
+
+### Added
+- **Startup Update Availability Popup** (#105) - Automatically checks for App, yt-dlp, and FFmpeg updates on app launch and displays a unified startup update dialog when new updates are available.
+- **Update Remind Later & Version Dismissal** - Supported temporary deferral ("Remind Later" with cooldown period) and skipping specific versions ("Don't remind for this version") to avoid repetitive prompts.
+- **Check Updates on Launch Preference** - Added a toggle switch in the Updates screen settings to enable or disable automatic update checks upon app startup.
+
+### Changed
+- **Nightly Version Bump** - Release metadata updated to `2.0.2.3` (`NIGHTLY_VERSION_CODE` `47`).
+
 ## [2.0.2.2] - 2026-09-16
 
 ### Changed
