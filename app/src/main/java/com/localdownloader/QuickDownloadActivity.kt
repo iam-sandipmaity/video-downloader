@@ -87,6 +87,8 @@ class QuickDownloadActivity : Hilt_QuickDownloadActivity() {
                     onDismiss = { finish() },
                     onStreamTypeChanged = viewModel::onStreamTypeChanged,
                     onTitleChanged = viewModel::onTitleChanged,
+                    onShowTitleEditDialog = viewModel::onShowTitleEditDialog,
+                    onToggleQuickSettings = viewModel::onToggleQuickSettings,
                     onVideoQualitySelected = viewModel::onVideoQualitySelected,
                     onAudioQualitySelected = viewModel::onAudioQualitySelected,
                     onVideoFormatSelected = viewModel::onVideoFormatSelected,

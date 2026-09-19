@@ -891,4 +891,10 @@
     <string name="quick_download_select_quality_title">Select Quality</string>
     <string name="quick_download_select_format_title">Select Format</string>
     <string name="quick_download_retry">Retry</string>
+    <string name="quick_download_section_music">Music / Audio</string>
+    <string name="quick_download_section_video">Video</string>
+    <string name="quick_download_edit_title_dialog">Edit File Title</string>
+    <string name="quick_download_quick_settings">Quick Settings</string>
+    <string name="quick_download_best_tag">BEST</string>
+    <string name="quick_download_hq_tag">HQ</string>
 </resources>
