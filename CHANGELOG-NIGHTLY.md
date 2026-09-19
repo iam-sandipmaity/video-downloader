@@ -2,6 +2,18 @@
 
 Nightly builds are rolling prereleases published from the `nightly` release tag. This file tracks changes that are available in nightly before they are promoted into the stable changelog.
 
+## [2.0.2.4] - 2026-09-20
+
+### Added
+- **Modern Quick Download Share Sheet Overlay** (#98) - Redesigned the quick download link share flow into a modern Material 3 Modal Bottom Sheet with rich media artwork, floating duration badge (`03:45`), 2-line title, uploader/domain tags, and an inline title edit modal.
+- **Immediate Categorized Audio & Video Grids** - Replaced nested menus with direct 2-column selectable cards for Music/Audio (MP3 320k HQ, 128k, M4A, FLAC) and Video (4K, 1080p 60fps, 720p HD, 480p, 360p) with live container badges, HQ pills, and estimated file sizes.
+- **Collapsible Quick Tuning Drawer** - Added an expandable quick settings row to adjust fragment download threads (`[-] 4 [+]`, 1–16) and container format overrides without cluttering the screen.
+- **Dynamic Contextual CTA Action Bar** - Sticky bottom download button dynamically updates with the selected quality and size (e.g. `Download 1080p (~48.2 MB)` or `Download MP3 320k (~8.4 MB)`).
+- **Shimmer Skeleton Loader** - Added animated shimmer placeholders for the header and format cards during link extraction to prevent layout shifts.
+
+### Changed
+- **Nightly Version Bump** - Release metadata updated to `2.0.2.4` (`NIGHTLY_VERSION_CODE` `48`).
+
 ## [2.0.2.3] - 2026-09-20
 
 ### Added
