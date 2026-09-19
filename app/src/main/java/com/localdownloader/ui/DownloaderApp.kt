@@ -97,6 +97,7 @@ import com.localdownloader.viewmodel.MusicSourceViewModel
 import com.localdownloader.viewmodel.MusicTrimViewModel
 import com.localdownloader.viewmodel.PlayerViewModel
 import com.localdownloader.viewmodel.UpdatesViewModel
+import com.localdownloader.ui.components.StartupUpdateDialog
 import com.localdownloader.ui.screens.UpdatesScreen
 import com.localdownloader.ui.screens.UpdateChangelogScreen
 import com.localdownloader.ui.screens.UpdateChangelogSections
@@ -487,6 +488,10 @@ fun DownloaderApp(
     // Update cache size periodically
     LaunchedEffect(currentRoute) {
         cacheSize = fileUtils.getCacheSize()
+    }
+
+    LaunchedEffect(Unit) {
+        updatesViewModel.checkForStartupUpdates()
     }
 
     val primaryDestinations = remember {
@@ -978,6 +983,7 @@ fun DownloaderApp(
                     onFfmpegChannelChanged = updatesViewModel::setFfmpegChannel,
                     onAutoUpdateYtDlpChanged = updatesViewModel::setAutoUpdateYtDlp,
                     onIncludePrereleaseAppReleasesChanged = updatesViewModel::setIncludePrereleaseAppReleases,
+                    onCheckUpdatesOnStartupChanged = updatesViewModel::setCheckUpdatesOnStartup,
                     onOpenChangelog = { section ->
                         navController.navigate(Routes.updateChangelog(section))
                     },
@@ -1167,6 +1173,21 @@ fun DownloaderApp(
                     }
                 )
             }
+        }
+
+        updatesState.startupUpdatePrompt?.let { prompt ->
+            StartupUpdateDialog(
+                prompt = prompt,
+                onOpenUpdates = {
+                    updatesViewModel.dismissStartupUpdatePrompt(snoozeCurrentVersions = false)
+                    navController.navigate(Routes.Updates) {
+                        launchSingleTop = true
+                    }
+                },
+                onDismiss = { snoozeVersion ->
+                    updatesViewModel.dismissStartupUpdatePrompt(snoozeCurrentVersions = snoozeVersion)
+                },
+            )
         }
     }
 }

@@ -15,7 +15,9 @@ import com.localdownloader.updates.YtDlpReleaseChannel
 import com.localdownloader.updates.YtDlpUpdateManager
 import com.localdownloader.worker.YtDlpUpdateScheduler
 import com.localdownloader.worker.YtDlpUpdateStateStore
+import com.localdownloader.updates.StartupUpdatePrompt
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -45,6 +47,91 @@ class UpdatesViewModel @Inject constructor(
             initialized = true
         }
         refreshAll()
+    }
+
+    fun checkForStartupUpdates(force: Boolean = false) {
+        val preferences = updatePreferencesStore.currentPreferences()
+        _uiState.value = _uiState.value.copy(
+            preferences = preferences,
+            app = _uiState.value.app.copy(currentVersion = appUpdateManager.currentVersionLabel()),
+        )
+        if (!preferences.checkUpdatesOnStartup && !force) {
+            return
+        }
+
+        val now = System.currentTimeMillis()
+        val lastCheck = updatePreferencesStore.getLastStartupCheckEpochMs()
+        if (!force && (now - lastCheck) < STARTUP_CHECK_COOLDOWN_MS) {
+            return
+        }
+
+        viewModelScope.launch {
+            val appDeferred = async {
+                runCatching {
+                    appUpdateManager.checkForUpdate(preferences.includePrereleaseAppReleases)
+                }.getOrNull()
+            }
+            val ytDlpDeferred = async {
+                runCatching {
+                    ytDlpUpdateManager.check(preferences.ytDlpChannel)
+                }.getOrNull()
+            }
+            val ffmpegDeferred = async {
+                runCatching {
+                    ffmpegUpdateManager.check(preferences.ffmpegChannel)
+                }.getOrNull()
+            }
+
+            val appCheck = appDeferred.await()
+            val ytDlpCheck = ytDlpDeferred.await()
+            val ffmpegCheck = ffmpegDeferred.await()
+
+            updatePreferencesStore.setLastStartupCheckEpochMs(now)
+
+            _uiState.value = _uiState.value.copy(
+                app = appCheck?.let { _uiState.value.app.fromCheck(it).copy(currentVersion = appUpdateManager.currentVersionLabel()) }
+                    ?: _uiState.value.app,
+                ytDlp = ytDlpCheck?.let { _uiState.value.ytDlp.fromCheck(it).copy(lastStatus = ytDlpUpdateStateStore.lastStatus()) }
+                    ?: _uiState.value.ytDlp,
+                ffmpeg = ffmpegCheck?.let { _uiState.value.ffmpeg.fromCheck(it) }
+                    ?: _uiState.value.ffmpeg,
+            )
+
+            val dismissedApp = updatePreferencesStore.getDismissedAppVersion()
+            val dismissedYtDlp = updatePreferencesStore.getDismissedYtDlpVersion()
+            val dismissedFfmpeg = updatePreferencesStore.getDismissedFfmpegVersion()
+
+            val validAppUpdate = appCheck?.takeIf { it.updateAvailable && it.latestVersion != dismissedApp }
+            val validYtDlpUpdate = ytDlpCheck?.takeIf { it.updateAvailable && it.latestVersion != dismissedYtDlp }
+            val validFfmpegUpdate = ffmpegCheck?.takeIf { it.updateAvailable && it.latestVersion != dismissedFfmpeg }
+
+            if (validAppUpdate != null || validYtDlpUpdate != null || validFfmpegUpdate != null) {
+                _uiState.value = _uiState.value.copy(
+                    startupUpdatePrompt = StartupUpdatePrompt(
+                        appUpdate = validAppUpdate,
+                        ytDlpUpdate = validYtDlpUpdate,
+                        ffmpegUpdate = validFfmpegUpdate,
+                    )
+                )
+            }
+        }
+    }
+
+    fun dismissStartupUpdatePrompt(snoozeCurrentVersions: Boolean = false) {
+        val prompt = _uiState.value.startupUpdatePrompt
+        if (snoozeCurrentVersions && prompt != null) {
+            prompt.appUpdate?.latestVersion?.let { updatePreferencesStore.setDismissedAppVersion(it) }
+            prompt.ytDlpUpdate?.latestVersion?.let { updatePreferencesStore.setDismissedYtDlpVersion(it) }
+            prompt.ffmpegUpdate?.latestVersion?.let { updatePreferencesStore.setDismissedFfmpegVersion(it) }
+        }
+        _uiState.value = _uiState.value.copy(startupUpdatePrompt = null)
+    }
+
+    fun setCheckUpdatesOnStartup(enabled: Boolean) {
+        updatePreferencesStore.setCheckUpdatesOnStartup(enabled)
+        _uiState.value = _uiState.value.copy(
+            preferences = _uiState.value.preferences.copy(checkUpdatesOnStartup = enabled),
+        )
     }
 
     fun refreshAll() {
@@ -331,6 +418,10 @@ class UpdatesViewModel @Inject constructor(
             task.status.blocksRuntimeUpdates()
         }
     }
+
+    private companion object {
+        private const val STARTUP_CHECK_COOLDOWN_MS = 12 * 60 * 60 * 1000L // 12 hours
+    }
 }
 
 data class UpdatesUiState(
@@ -349,6 +440,7 @@ data class UpdatesUiState(
     ),
     val pendingAppInstall: PreparedAppUpdate? = null,
     val pendingAppInstallRequestId: Long = 0L,
+    val startupUpdatePrompt: StartupUpdatePrompt? = null,
     val infoMessage: String? = null,
     val errorMessage: String? = null,
 )

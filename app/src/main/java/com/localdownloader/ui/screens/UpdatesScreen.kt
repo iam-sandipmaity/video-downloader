@@ -74,6 +74,7 @@ fun UpdatesScreen(
     onFfmpegChannelChanged: (FfmpegReleaseChannel) -> Unit,
     onAutoUpdateYtDlpChanged: (Boolean) -> Unit,
     onIncludePrereleaseAppReleasesChanged: (Boolean) -> Unit,
+    onCheckUpdatesOnStartupChanged: (Boolean) -> Unit,
     onOpenChangelog: (String) -> Unit,
     onConsumePendingAppInstall: () -> Unit,
     onDismissMessage: () -> Unit,
@@ -189,6 +190,14 @@ fun UpdatesScreen(
                         onCheckedChange = onIncludePrereleaseAppReleasesChanged,
                     )
                 }
+                DividerInset()
+                UpdateToggleRow(
+                    icon = Icons.Outlined.Settings,
+                    title = stringResource(R.string.updates_check_on_startup_title),
+                    subtitle = stringResource(R.string.updates_check_on_startup_subtitle),
+                    checked = uiState.preferences.checkUpdatesOnStartup,
+                    onCheckedChange = onCheckUpdatesOnStartupChanged,
+                )
                 DividerInset()
                 UpdateActionRow(
                     icon = Icons.Outlined.Refresh,

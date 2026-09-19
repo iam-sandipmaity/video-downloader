@@ -418,6 +418,17 @@
     <string name="updates_ffmpeg_current_subtitle">The FFmpeg runtime currently resolving for merges and media processing.</string>
     <string name="updates_ffmpeg_changelog_subtitle_fallback">Open the documentation-style changelog page for FFmpeg.</string>
     <string name="updates_ffmpeg_changelog_subtitle_ready">Read what changed in the latest FFmpeg runtime package.</string>
+    <string name="updates_check_on_startup_title">Check updates on app launch</string>
+    <string name="updates_check_on_startup_subtitle">Silently check for app, yt-dlp, and FFmpeg updates when opening the app and notify you.</string>
+    <string name="updates_startup_dialog_title">Updates Available</string>
+    <string name="updates_startup_dialog_subtitle">New updates were found for components used by the app:</string>
+    <string name="updates_startup_app_title">App update</string>
+    <string name="updates_startup_ytdlp_title">yt-dlp engine</string>
+    <string name="updates_startup_ffmpeg_title">FFmpeg runtime</string>
+    <string name="updates_startup_open_updates">Open updates</string>
+    <string name="updates_startup_remind_later">Remind later</string>
+    <string name="updates_startup_skip_version">Skip this version</string>
+
 
     <string name="converter_title">Converter</string>
     <string name="converter_section_source">Source</string>
