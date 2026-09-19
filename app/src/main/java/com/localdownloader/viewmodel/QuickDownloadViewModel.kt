@@ -61,8 +61,14 @@ data class QuickDownloadUiState(
     val isDownloadSuccess: Boolean = false,
     val errorMessage: String? = null,
     val showMeteredNetworkDialog: Boolean = false,
+    val showTitleEditDialog: Boolean = false,
+    val isQuickSettingsExpanded: Boolean = false,
     val videoInfo: VideoInfo? = null,
     val title: String = "",
+    val uploader: String? = null,
+    val durationFormatted: String? = null,
+    val thumbnailUrl: String? = null,
+    val domainHost: String? = null,
     val selectedStreamType: StreamType = StreamType.VIDEO_AUDIO,
     val videoQualityOptions: List<QuickQualityOption> = emptyList(),
     val audioQualityOptions: List<QuickQualityOption> = emptyList(),
@@ -77,6 +83,31 @@ data class QuickDownloadUiState(
 ) {
     val isAudioMode: Boolean
         get() = selectedStreamType == StreamType.AUDIO_ONLY
+
+    val currentSelectedQualityLabel: String
+        get() = if (isAudioMode) {
+            selectedAudioQuality?.title ?: selectedAudioFormat?.label ?: "Audio"
+        } else {
+            selectedVideoQuality?.title ?: selectedVideoFormat?.label ?: "Video"
+        }
+
+    val currentSelectedSize: String?
+        get() = if (isAudioMode) {
+            selectedAudioQuality?.subtitle
+        } else {
+            selectedVideoQuality?.subtitle
+        }
+
+    val ctaButtonLabel: String
+        get() {
+            val label = currentSelectedQualityLabel
+            val size = currentSelectedSize
+            return if (!size.isNullOrBlank()) {
+                "Download $label ($size)"
+            } else {
+                "Download $label"
+            }
+        }
 }
 
 @HiltViewModel
@@ -169,12 +200,19 @@ class QuickDownloadViewModel @Inject constructor(
                     val defaultAudioQuality = audioQualities.firstOrNull { it.bitrateKbps == 160 || it.bitrateKbps == 128 }
                         ?: audioQualities.firstOrNull()
 
+                    val durationStr = formatDurationSeconds(info.durationSeconds)
+                    val domainStr = extractDomainHost(info.webpageUrl.ifBlank { url })
+
                     _uiState.update { state ->
                         state.copy(
                             isAnalyzing = false,
                             errorMessage = null,
                             videoInfo = info,
                             title = info.title,
+                            uploader = info.uploader,
+                            durationFormatted = durationStr,
+                            thumbnailUrl = info.thumbnailUrl,
+                            domainHost = domainStr,
                             selectedStreamType = StreamType.VIDEO_AUDIO,
                             videoQualityOptions = videoQualities,
                             audioQualityOptions = audioQualities,
@@ -209,12 +247,30 @@ class QuickDownloadViewModel @Inject constructor(
         _uiState.update { it.copy(title = newTitle) }
     }
 
+    fun onShowTitleEditDialog(show: Boolean) {
+        _uiState.update { it.copy(showTitleEditDialog = show) }
+    }
+
+    fun onToggleQuickSettings() {
+        _uiState.update { it.copy(isQuickSettingsExpanded = !it.isQuickSettingsExpanded) }
+    }
+
     fun onVideoQualitySelected(option: QuickQualityOption) {
-        _uiState.update { it.copy(selectedVideoQuality = option) }
+        _uiState.update {
+            it.copy(
+                selectedVideoQuality = option,
+                selectedStreamType = StreamType.VIDEO_AUDIO,
+            )
+        }
     }
 
     fun onAudioQualitySelected(option: QuickQualityOption) {
-        _uiState.update { it.copy(selectedAudioQuality = option) }
+        _uiState.update {
+            it.copy(
+                selectedAudioQuality = option,
+                selectedStreamType = StreamType.AUDIO_ONLY,
+            )
+        }
     }
 
     fun onVideoFormatSelected(option: QuickFormatOption) {
@@ -780,5 +836,25 @@ class QuickDownloadViewModel @Inject constructor(
         if (!settings.cookiesEnabled) return null
         val profile = CookieTextCodec.findBestMatch(settings.cookieProfiles, url)
         return profile?.localFilePath?.takeIf { File(it).exists() }
+    }
+
+    private fun formatDurationSeconds(seconds: Long?): String? {
+        if (seconds == null || seconds <= 0) return null
+        val hrs = seconds / 3600
+        val mins = (seconds % 3600) / 60
+        val secs = seconds % 60
+        return if (hrs > 0) {
+            String.format(java.util.Locale.US, "%d:%02d:%02d", hrs, mins, secs)
+        } else {
+            String.format(java.util.Locale.US, "%02d:%02d", mins, secs)
+        }
+    }
+
+    private fun extractDomainHost(url: String): String? {
+        return runCatching {
+            val uri = java.net.URI(url)
+            val host = uri.host ?: return null
+            host.removePrefix("www.").removePrefix("m.")
+        }.getOrNull()
     }
 }
