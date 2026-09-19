@@ -59,9 +59,21 @@ enum class FfmpegReleaseChannel(
 data class UpdatePreferences(
     val includePrereleaseAppReleases: Boolean = false,
     val autoUpdateYtDlp: Boolean = BuildConfig.YTDLP_AUTO_UPDATE_DEFAULT,
+    val checkUpdatesOnStartup: Boolean = true,
     val ytDlpChannel: YtDlpReleaseChannel = YtDlpReleaseChannel.STABLE,
     val ffmpegChannel: FfmpegReleaseChannel = FfmpegReleaseChannel.STABLE,
 )
+
+data class StartupUpdatePrompt(
+    val appUpdate: ComponentUpdateCheck? = null,
+    val ytDlpUpdate: ComponentUpdateCheck? = null,
+    val ffmpegUpdate: ComponentUpdateCheck? = null,
+) {
+    val hasAnyUpdate: Boolean
+        get() = (appUpdate?.updateAvailable == true) ||
+                (ytDlpUpdate?.updateAvailable == true) ||
+                (ffmpegUpdate?.updateAvailable == true)
+}
 
 @Serializable
 data class GitHubReleaseDto(
