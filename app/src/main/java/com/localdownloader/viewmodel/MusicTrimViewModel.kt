@@ -2,6 +2,7 @@ package com.localdownloader.viewmodel
 
 import android.content.Context
 import android.net.Uri
+import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.localdownloader.data.DownloadTaskStore
@@ -151,7 +152,7 @@ class MusicTrimViewModel @Inject constructor(
     private fun prepareTrimSource(sourcePath: String, sourceTitle: String): TrimSource {
         if (!sourcePath.startsWith("content://", ignoreCase = true)) {
             val sourceFile = if (sourcePath.startsWith("file://", ignoreCase = true)) {
-                Uri.parse(sourcePath).path?.let(::File)
+                sourcePath.toUri().path?.let(::File)
             } else {
                 File(sourcePath)
             } ?: error("Source audio file was not found.")
@@ -167,7 +168,7 @@ class MusicTrimViewModel @Inject constructor(
             inputDirectory,
             "${sourceTitle.sanitizeFileStem().ifBlank { "audio" }}-${UUID.randomUUID()}.$extension",
         )
-        val sourceUri = Uri.parse(sourcePath)
+        val sourceUri = sourcePath.toUri()
         context.contentResolver.openInputStream(sourceUri)?.use { input ->
             tempFile.outputStream().use { output -> input.copyTo(output) }
         } ?: error("Unable to open this audio file for trimming.")

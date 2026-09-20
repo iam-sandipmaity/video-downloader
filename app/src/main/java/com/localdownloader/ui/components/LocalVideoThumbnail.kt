@@ -3,7 +3,7 @@ package com.localdownloader.ui.components
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
-import android.net.Uri
+import androidx.core.net.toUri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -40,7 +40,7 @@ fun LocalVideoThumbnail(
                     val retriever = MediaMetadataRetriever()
                     try {
                         if (filePath.startsWith("content://", ignoreCase = true)) {
-                            retriever.setDataSource(context, Uri.parse(filePath))
+                            retriever.setDataSource(context, filePath.toUri())
                         } else {
                             retriever.setDataSource(filePath)
                         }

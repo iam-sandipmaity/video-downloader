@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import androidx.core.net.toUri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -2506,7 +2507,7 @@ private fun shareAudioTrack(context: android.content.Context, track: MusicLibrar
                     file,
                 )
             }
-            ?: Uri.parse(track.playbackUri)
+            ?: track.playbackUri.toUri()
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = "audio/*"
             putExtra(Intent.EXTRA_STREAM, uri)

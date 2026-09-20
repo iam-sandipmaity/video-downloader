@@ -3,6 +3,7 @@ package com.localdownloader.viewmodel
 import android.content.Context
 import android.media.audiofx.LoudnessEnhancer
 import android.net.Uri
+import androidx.core.net.toUri
 import androidx.media3.common.AudioAttributes
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -707,8 +708,8 @@ class PlayerViewModel @Inject constructor(
 
     private fun String.toPlaybackUri(): Uri {
         return when {
-            startsWith("content://", ignoreCase = true) -> Uri.parse(this)
-            startsWith("file://", ignoreCase = true) -> Uri.parse(this)
+            startsWith("content://", ignoreCase = true) -> toUri()
+            startsWith("file://", ignoreCase = true) -> toUri()
             else -> Uri.fromFile(File(this))
         }
     }

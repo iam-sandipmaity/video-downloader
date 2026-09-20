@@ -9,6 +9,8 @@ import android.os.Build
 import android.provider.DocumentsContract
 import android.provider.MediaStore
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
+import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.localdownloader.domain.models.MusicLibraryTrack
@@ -58,7 +60,7 @@ class MusicSourceViewModel @Inject constructor(
     }
 
     fun selectSource(sourceType: MusicSourceType) {
-        prefs.edit().putString(KEY_SOURCE_TYPE, sourceType.storageKey).apply()
+        prefs.edit { putString(KEY_SOURCE_TYPE, sourceType.storageKey) }
         _uiState.update {
             it.copy(
                 sourceType = sourceType,
@@ -74,11 +76,11 @@ class MusicSourceViewModel @Inject constructor(
             ?.substringAfterLast(':')
             ?.ifBlank { null }
             ?: "Selected folder"
-        prefs.edit()
-            .putString(KEY_SOURCE_TYPE, MusicSourceType.SELECTED_FOLDER.storageKey)
-            .putString(KEY_FOLDER_URI, uri.toString())
-            .putString(KEY_FOLDER_LABEL, label)
-            .apply()
+        prefs.edit {
+            putString(KEY_SOURCE_TYPE, MusicSourceType.SELECTED_FOLDER.storageKey)
+            putString(KEY_FOLDER_URI, uri.toString())
+            putString(KEY_FOLDER_LABEL, label)
+        }
         _uiState.update {
             it.copy(
                 sourceType = MusicSourceType.SELECTED_FOLDER,
@@ -182,7 +184,7 @@ class MusicSourceViewModel @Inject constructor(
 
         viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-            val result = runCatching { queryTreeAudio(Uri.parse(folderUri)) }
+            val result = runCatching { queryTreeAudio(folderUri.toUri()) }
             _uiState.update { state ->
                 result.fold(
                     onSuccess = { tracks ->

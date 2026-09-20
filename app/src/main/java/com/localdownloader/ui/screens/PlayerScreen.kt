@@ -9,6 +9,7 @@ import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.media.AudioManager
 import android.provider.Settings
+import androidx.core.content.edit
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -357,7 +358,7 @@ fun PlayerScreen(
         if (gestureGuideVisible) {
             VideoGestureGuideSheet(
                 onDismiss = {
-                    gestureGuidePrefs.edit().putBoolean(VIDEO_PLAYER_HINT_SEEN_KEY, true).apply()
+                    gestureGuidePrefs.edit { putBoolean(VIDEO_PLAYER_HINT_SEEN_KEY, true) }
                     gestureGuideVisible = false
                     controlsVisible = true
                 },
