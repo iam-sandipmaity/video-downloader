@@ -2,6 +2,17 @@
 
 Nightly builds are rolling prereleases published from the `nightly` release tag. This file tracks changes that are available in nightly before they are promoted into the stable changelog.
 
+## [2.0.2.7] - 2026-09-21
+
+### Added
+- **Battery & Performance Settings Hub** - Added dedicated Battery & Performance settings screen with configurable Battery Saver mode (`Off`, `Auto`, `Always On`), low battery pause threshold (5%–35%), customizable fragment download threads (1–16), and power-aware scheduling.
+- **Power-Aware Download Constraints & Queue Pause Banners** - Added support for "Download only while charging" and "Pause downloads on low battery". When power constraints hold or pause downloads, an informative live status banner in the Download Queue explains the condition with a direct shortcut to Battery Settings, and queued tasks display clear status indicators.
+- **Android OS Battery Optimization Management** - Integrated Android OS battery optimization status tracking and deep-links to request unrestricted background execution or configure system battery profiles directly.
+
+### Changed
+- **Refined Preference Navigation & Dialog Affordances** - Differentiated subpage navigation rows (`PreferenceNavigationRow`, showing `>`) from dialog picker and action rows (`PreferenceRow`, displaying clean values without misleading navigation chevrons) across all settings screens.
+- **Nightly Version Bump** - Release metadata updated to `2.0.2.7` (`NIGHTLY_VERSION_CODE` `51`).
+
 ## [2.0.2.6] - 2026-09-20
 
 ### Fixed
