@@ -2,6 +2,19 @@
 
 Nightly builds are rolling prereleases published from the `nightly` release tag. This file tracks changes that are available in nightly before they are promoted into the stable changelog.
 
+## [2.0.2.8] - 2026-09-21
+
+### Added
+- **Playlist & Album Batch Download in Quick Share Overlay** - Extended the Quick Download share bottom sheet to seamlessly handle full playlists and albums. Shows playlist metadata with `PLAYLIST` badge, individual track/video items with thumbnails, durations, and indices, with "Select all" / "Deselect all" controls and batch queue generation.
+- **Quick Download Design Documentation** - Added comprehensive architecture and UX documentation at `docs/QUICK_DOWNLOAD_POPUP_DESIGN.md`.
+
+### Fixed
+- **Android Lint & Jetpack Compose Cleanups** - Hoisted dynamic string resource queries to eliminate `LocalContextGetResourceValueCall` lint errors, corrected Composable `modifier` parameter ordering according to Compose API guidelines, and converted state to `mutableIntStateOf` to avoid autoboxing overhead.
+- **Modern KTX Extensions & Cleanups** - Replaced direct `Uri.parse(...)` and `prefs.edit()` calls across ViewModels and screens with idiomatic `toUri()` and `edit {}` KTX extension functions, and removed obsolete `Build.VERSION.SDK_INT < M` checks.
+
+### Changed
+- **Nightly Version Bump** - Release metadata updated to `2.0.2.8` (`NIGHTLY_VERSION_CODE` `52`).
+
 ## [2.0.2.7] - 2026-09-21
 
 ### Added
