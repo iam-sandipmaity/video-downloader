@@ -321,6 +321,7 @@ fun PreferenceRow(
     modifier: Modifier = Modifier,
     value: String? = null,
     enabled: Boolean = true,
+    showChevron: Boolean = false,
     onClick: (() -> Unit)? = null,
     trailing: @Composable (() -> Unit)? = null,
 ) {
@@ -372,9 +373,9 @@ fun PreferenceRow(
                     color = supportingColor,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.widthIn(max = 128.dp),
+                    modifier = Modifier.widthIn(max = 140.dp),
                 )
-                if (onClick != null) {
+                if (showChevron) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                         contentDescription = null,
@@ -382,7 +383,7 @@ fun PreferenceRow(
                     )
                 }
             }
-            onClick != null -> {
+            showChevron -> {
                 Icon(
                     imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                     contentDescription = null,
@@ -391,6 +392,28 @@ fun PreferenceRow(
             }
         }
     }
+}
+
+@Composable
+fun PreferenceNavigationRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    value: String? = null,
+    enabled: Boolean = true,
+) {
+    PreferenceRow(
+        icon = icon,
+        title = title,
+        subtitle = subtitle,
+        modifier = modifier,
+        value = value,
+        enabled = enabled,
+        showChevron = true,
+        onClick = onClick,
+    )
 }
 
 @Composable

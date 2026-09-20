@@ -38,6 +38,7 @@ class DownloadViewModel @Inject constructor(
                 settingsLoaded = true
                 _uiState.update { state ->
                     state.copy(
+                        appSettings = settings,
                         autoRemoveMissingFilesFromLibrary = settings.autoRemoveMissingFilesFromLibrary,
                         deleteFromStorageWhenRemovedInApp = settings.deleteFromStorageWhenRemovedInApp,
                         downloadHistoryRetentionDays = settings.downloadHistoryRetentionDays,

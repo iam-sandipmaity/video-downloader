@@ -19,8 +19,8 @@ import androidx.compose.ui.res.stringResource
 import com.localdownloader.R
 import com.localdownloader.ui.components.PreferenceDivider
 import com.localdownloader.ui.components.PreferenceGroup
+import com.localdownloader.ui.components.PreferenceNavigationRow
 import com.localdownloader.ui.components.PreferencePageScaffold
-import com.localdownloader.ui.components.PreferenceRow
 
 @Composable
 fun MoreScreen(
@@ -45,28 +45,28 @@ fun MoreScreen(
     ) {
         item {
             PreferenceGroup {
-                PreferenceRow(
+                PreferenceNavigationRow(
                     icon = Icons.Rounded.CloudDownload,
                     title = stringResource(R.string.more_queue_title),
                     subtitle = stringResource(R.string.more_queue_subtitle),
                     onClick = onOpenQueue,
                 )
                 PreferenceDivider()
-                PreferenceRow(
+                PreferenceNavigationRow(
                     icon = Icons.Rounded.History,
                     title = stringResource(R.string.more_history_title),
                     subtitle = stringResource(R.string.more_history_subtitle),
                     onClick = onOpenHistory,
                 )
                 PreferenceDivider()
-                PreferenceRow(
+                PreferenceNavigationRow(
                     icon = Icons.Filled.Lock,
                     title = stringResource(R.string.more_vault_title),
                     subtitle = stringResource(R.string.more_vault_subtitle),
                     onClick = onOpenVault,
                 )
                 PreferenceDivider()
-                PreferenceRow(
+                PreferenceNavigationRow(
                     icon = Icons.Rounded.Settings,
                     title = stringResource(R.string.common_settings),
                     subtitle = stringResource(R.string.more_settings_subtitle),
@@ -76,28 +76,28 @@ fun MoreScreen(
         }
         item {
             PreferenceGroup {
-                PreferenceRow(
+                PreferenceNavigationRow(
                     icon = Icons.Rounded.Web,
                     title = stringResource(R.string.more_cookies_title),
                     subtitle = stringResource(R.string.more_cookies_subtitle),
                     onClick = onOpenCookies,
                 )
                 PreferenceDivider()
-                PreferenceRow(
+                PreferenceNavigationRow(
                     icon = Icons.Rounded.Shield,
                     title = stringResource(R.string.more_youtube_access_title),
                     subtitle = stringResource(R.string.more_youtube_access_subtitle),
                     onClick = onOpenYoutubeAccess,
                 )
                 PreferenceDivider()
-                PreferenceRow(
+                PreferenceNavigationRow(
                     icon = Icons.Rounded.SystemUpdate,
                     title = stringResource(R.string.more_updates_title),
                     subtitle = stringResource(R.string.more_updates_subtitle),
                     onClick = onOpenUpdates,
                 )
                 PreferenceDivider()
-                PreferenceRow(
+                PreferenceNavigationRow(
                     icon = Icons.Rounded.HelpOutline,
                     title = stringResource(R.string.common_help),
                     subtitle = stringResource(R.string.more_help_subtitle),
@@ -107,28 +107,28 @@ fun MoreScreen(
         }
         item {
             PreferenceGroup {
-                PreferenceRow(
+                PreferenceNavigationRow(
                     icon = Icons.Outlined.PlayCircle,
                     title = stringResource(R.string.more_video_player_title),
                     subtitle = stringResource(R.string.more_video_player_subtitle),
                     onClick = onOpenVideo,
                 )
                 PreferenceDivider()
-                PreferenceRow(
+                PreferenceNavigationRow(
                     icon = Icons.Rounded.MusicNote,
                     title = stringResource(R.string.more_music_player_title),
                     subtitle = stringResource(R.string.more_music_player_subtitle),
                     onClick = onOpenMusic,
                 )
                 PreferenceDivider()
-                PreferenceRow(
+                PreferenceNavigationRow(
                     icon = Icons.Rounded.SwapHoriz,
                     title = stringResource(R.string.more_converter_title),
                     subtitle = stringResource(R.string.more_converter_subtitle),
                     onClick = onOpenConvert,
                 )
                 PreferenceDivider()
-                PreferenceRow(
+                PreferenceNavigationRow(
                     icon = Icons.Rounded.Transform,
                     title = stringResource(R.string.more_compressor_title),
                     subtitle = stringResource(R.string.more_compressor_subtitle),

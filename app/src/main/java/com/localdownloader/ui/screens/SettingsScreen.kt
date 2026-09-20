@@ -63,46 +63,38 @@ fun SettingsScreen(
         )
         item {
             PreferenceGroup {
-                PreferenceRow(
+                PreferenceNavigationRow(
                     icon = Icons.Rounded.Palette,
                     title = stringResource(R.string.settings_appearance_title),
                     subtitle = stringResource(R.string.settings_appearance_subtitle),
-                    value = "${themeModeLabel(context, uiState.themeMode)} / ${accentLabel(context, uiState.accentPreset)}",
                     onClick = onOpenAppearance,
                 )
             }
         }
         item {
             PreferenceGroup {
-                PreferenceRow(
+                PreferenceNavigationRow(
                     icon = Icons.Rounded.CloudDownload,
                     title = stringResource(R.string.settings_download_defaults_title),
                     subtitle = stringResource(R.string.settings_download_defaults_subtitle),
-                    value = uiState.selectedContainer.uppercase(),
                     onClick = onOpenDownloads,
                 )
                 PreferenceDivider()
-                PreferenceRow(
+                PreferenceNavigationRow(
                     icon = Icons.Rounded.BatteryChargingFull,
                     title = stringResource(R.string.settings_battery_title),
                     subtitle = stringResource(R.string.settings_battery_subtitle),
-                    value = when (uiState.appSettings.batterySaverMode) {
-                        BatterySaverMode.AUTO -> stringResource(R.string.battery_saver_mode_auto)
-                        BatterySaverMode.ALWAYS_ON -> stringResource(R.string.battery_saver_mode_always_on)
-                        BatterySaverMode.OFF -> stringResource(R.string.battery_saver_mode_off)
-                    },
                     onClick = onOpenBattery,
                 )
                 PreferenceDivider()
-                PreferenceRow(
+                PreferenceNavigationRow(
                     icon = Icons.Rounded.Folder,
                     title = stringResource(R.string.settings_storage_title),
                     subtitle = stringResource(R.string.settings_storage_subtitle),
-                    value = stringResource(R.string.settings_saved_count, savedItemsCount),
                     onClick = onOpenStorage,
                 )
                 PreferenceDivider()
-                PreferenceRow(
+                PreferenceNavigationRow(
                     icon = Icons.Rounded.NotificationsActive,
                     title = stringResource(R.string.settings_notifications_title),
                     subtitle = stringResource(R.string.settings_notifications_subtitle),
@@ -112,15 +104,14 @@ fun SettingsScreen(
         }
         item {
             PreferenceGroup {
-                PreferenceRow(
+                PreferenceNavigationRow(
                     icon = Icons.Rounded.Security,
                     title = stringResource(R.string.settings_access_title),
                     subtitle = buildAccessSummary(uiState, context),
-                    value = accessValue(uiState, context),
                     onClick = onOpenAccess,
                 )
                 PreferenceDivider()
-                PreferenceRow(
+                PreferenceNavigationRow(
                     icon = Icons.Rounded.Info,
                     title = stringResource(R.string.settings_about_title),
                     subtitle = stringResource(R.string.settings_about_subtitle),
@@ -128,7 +119,7 @@ fun SettingsScreen(
                     onClick = onOpenAbout,
                 )
                 PreferenceDivider()
-                PreferenceRow(
+                PreferenceNavigationRow(
                     icon = Icons.Rounded.Description,
                     title = stringResource(R.string.settings_app_log_title),
                     subtitle = stringResource(R.string.settings_app_log_subtitle),
@@ -210,9 +201,3 @@ private fun buildAccessSummary(uiState: FormatUiState, context: android.content.
     return "$networkSummary $cookieSummary $youtubeSummary"
 }
 
-private fun accessValue(uiState: FormatUiState, context: android.content.Context): String {
-    return when {
-        uiState.allowMeteredDownloads -> context.getString(R.string.settings_access_value_cellular)
-        else -> context.getString(R.string.settings_access_value_wifi)
-    }
-}

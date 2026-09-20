@@ -13,8 +13,8 @@ import androidx.compose.ui.res.stringResource
 import com.localdownloader.R
 import com.localdownloader.ui.components.PreferenceDivider
 import com.localdownloader.ui.components.PreferenceGroup
+import com.localdownloader.ui.components.PreferenceNavigationRow
 import com.localdownloader.ui.components.PreferencePageScaffold
-import com.localdownloader.ui.components.PreferenceRow
 import com.localdownloader.ui.components.PreferenceSwitchRow
 import com.localdownloader.viewmodel.FormatUiState
 
@@ -63,7 +63,7 @@ fun AccessSettingsScreen(
                     onCheckedChange = onCookieUserAgentEnabledChanged,
                 )
                 PreferenceDivider()
-                PreferenceRow(
+                PreferenceNavigationRow(
                     icon = Icons.Rounded.OpenInNew,
                     title = stringResource(R.string.access_saved_cookies_title),
                     subtitle = if (cookieCount == 0) {
@@ -82,7 +82,7 @@ fun AccessSettingsScreen(
         }
         item {
             PreferenceGroup {
-                PreferenceRow(
+                PreferenceNavigationRow(
                     icon = Icons.Rounded.Shield,
                     title = stringResource(R.string.more_youtube_access_title),
                     subtitle = if (youtubeConfigured) {

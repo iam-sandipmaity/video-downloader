@@ -708,6 +708,7 @@ fun DownloaderApp(
                     onOpenYoutubeAccess = { navController.navigate(Routes.YoutubeAuth) },
                     onToggleDebug = downloadViewModel::toggleDebug,
                     onBack = { navController.popBackStack() },
+                    onOpenBatterySettings = { navController.navigate(Routes.SettingsBattery) },
                 )
             }
             composable(Routes.More) {

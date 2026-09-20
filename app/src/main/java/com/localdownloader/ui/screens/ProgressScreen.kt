@@ -44,6 +44,8 @@ import androidx.compose.material.icons.outlined.PauseCircle
 import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.rounded.BatteryAlert
+import androidx.compose.material.icons.rounded.BatteryChargingFull
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -92,6 +94,8 @@ import com.localdownloader.ui.support.SourceSiteVisual
 import com.localdownloader.ui.support.shareAppLogs
 import com.localdownloader.ui.support.sourceHostLabel
 import com.localdownloader.ui.support.sourceSiteVisualForUrl
+import com.localdownloader.utils.BatteryOptimizationManager
+import com.localdownloader.utils.BatterySnapshot
 import com.localdownloader.viewmodel.DownloadUiState
 import java.io.File
 
@@ -114,6 +118,7 @@ fun ProgressScreen(
     onToggleDebug: (String) -> Unit,
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
+    onOpenBatterySettings: (() -> Unit)? = null,
 ) {
     val currentTimeMs by produceState(initialValue = System.currentTimeMillis()) {
         while (true) {
@@ -123,6 +128,13 @@ fun ProgressScreen(
     }
     val isQueueMode = onBack != null
     val context = LocalContext.current
+    val batteryManager = remember(context) { BatteryOptimizationManager(context.applicationContext) }
+    val batterySnapshot by produceState(
+        initialValue = batteryManager.getBatterySnapshot(),
+        key1 = currentTimeMs,
+    ) {
+        value = batteryManager.getBatterySnapshot()
+    }
     // Keep queue ordering stable while progress ticks update task timestamps.
     val allTasks = uiState.tasks.sortedByDescending { it.createdAtEpochMs }
     val runningCount = allTasks.count { it.status == DownloadStatus.RUNNING }
@@ -131,6 +143,23 @@ fun ProgressScreen(
     val completedCount = allTasks.count { it.status == DownloadStatus.COMPLETED }
     val failedCount = allTasks.count { it.status == DownloadStatus.FAILED }
     val canceledCount = allTasks.count { it.status == DownloadStatus.CANCELED }
+
+    val activePowerConstraint = remember(
+        uiState.appSettings,
+        batterySnapshot,
+        queuedCount,
+        runningCount,
+    ) {
+        when {
+            uiState.appSettings.downloadOnlyWhileCharging && !batterySnapshot.isCharging ->
+                PowerConstraintType.CHARGING_REQUIRED
+            uiState.appSettings.pauseDownloadsOnLowBattery &&
+                !batterySnapshot.isCharging &&
+                batterySnapshot.batteryPercent <= uiState.appSettings.lowBatteryThresholdPercent ->
+                PowerConstraintType.LOW_BATTERY_PAUSED
+            else -> null
+        }
+    }
     val initialFilter = remember(
         isQueueMode,
         runningCount,
@@ -269,6 +298,23 @@ fun ProgressScreen(
             }
 
             AnimatedVisibility(
+                visible = activePowerConstraint != null && (queuedCount > 0 || runningCount > 0),
+                enter = fadeIn(animationSpec = tween(durationMillis = 200)) +
+                    expandVertically(animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing)),
+                exit = fadeOut(animationSpec = tween(durationMillis = 140)) +
+                    shrinkVertically(animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)),
+            ) {
+                activePowerConstraint?.let { constraint ->
+                    PowerConstraintBanner(
+                        constraintType = constraint,
+                        batteryPercent = batterySnapshot.batteryPercent,
+                        lowBatteryThreshold = uiState.appSettings.lowBatteryThresholdPercent,
+                        onOpenBatterySettings = onOpenBatterySettings,
+                    )
+                }
+            }
+
+            AnimatedVisibility(
                 visible = filteredTasks.isEmpty(),
                 enter = fadeIn(animationSpec = tween(durationMillis = 200)) +
                     expandVertically(animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing)),
@@ -350,6 +396,7 @@ fun ProgressScreen(
                                 onOpenYoutubeAccess = onOpenYoutubeAccess,
                                 expandedDebug = task.id in uiState.expandedDebugTaskIds,
                                 onToggleDebug = { onToggleDebug(task.id) },
+                                powerConstraint = activePowerConstraint,
                             )
                         } else {
                             ProgressTaskCard(
@@ -365,6 +412,7 @@ fun ProgressScreen(
                                 onOpenYoutubeAccess = onOpenYoutubeAccess,
                                 expandedDebug = task.id in uiState.expandedDebugTaskIds,
                                 onToggleDebug = { onToggleDebug(task.id) },
+                                powerConstraint = activePowerConstraint,
                             )
                         }
                     }
@@ -696,6 +744,7 @@ private fun QueueTaskRow(
     expandedDebug: Boolean,
     onToggleDebug: () -> Unit,
     modifier: Modifier = Modifier,
+    powerConstraint: PowerConstraintType? = null,
 ) {
     DownloadTaskHeroCard(
         task = task,
@@ -711,6 +760,7 @@ private fun QueueTaskRow(
         expandedDebug = expandedDebug,
         onToggleDebug = onToggleDebug,
         modifier = modifier,
+        powerConstraint = powerConstraint,
     )
 }
 
@@ -839,6 +889,7 @@ private fun ProgressTaskCard(
     expandedDebug: Boolean,
     onToggleDebug: () -> Unit,
     modifier: Modifier = Modifier,
+    powerConstraint: PowerConstraintType? = null,
 ) {
     DownloadTaskHeroCard(
         task = task,
@@ -854,6 +905,7 @@ private fun ProgressTaskCard(
         expandedDebug = expandedDebug,
         onToggleDebug = onToggleDebug,
         modifier = modifier,
+        powerConstraint = powerConstraint,
     )
 }
 
@@ -879,6 +931,7 @@ private fun DownloadTaskHeroCard(
     expandedDebug: Boolean,
     onToggleDebug: () -> Unit,
     modifier: Modifier = Modifier,
+    powerConstraint: PowerConstraintType? = null,
 ) {
     val context = LocalContext.current
     val pauseActionLabel = stringResource(R.string.queue_action_pause)
@@ -982,8 +1035,15 @@ private fun DownloadTaskHeroCard(
         task = task,
         pauseExpiryLabel = pauseExpiryLabel,
         showSourceInBadge = sourceVisual != null,
+        powerConstraint = powerConstraint,
     )
-    val footerMessage = buildTaskFooterMessageEnhanced(task, snapshot, pauseExpiryLabel, currentTimeMs)
+    val footerMessage = buildTaskFooterMessageEnhanced(
+        task = task,
+        snapshot = snapshot,
+        pauseExpiryLabel = pauseExpiryLabel,
+        currentTimeMs = currentTimeMs,
+        powerConstraint = powerConstraint,
+    )
 
     Surface(
         modifier = modifier
@@ -1908,6 +1968,7 @@ private fun buildTaskSubtitleEnhanced(
     task: DownloadTask,
     pauseExpiryLabel: String?,
     showSourceInBadge: Boolean,
+    powerConstraint: PowerConstraintType? = null,
 ): String? {
     val sourceLabel = sourceHostLabel(task.url)?.takeUnless { showSourceInBadge }
     return when (task.status) {
@@ -1918,7 +1979,14 @@ private fun buildTaskSubtitleEnhanced(
             task.eta?.takeIf { it.isNotBlank() }?.let { "ETA $it" },
         ).joinToString(" | ")
 
-        DownloadStatus.QUEUED -> listOfNotNull(sourceLabel, "Waiting in queue").joinToString(" | ")
+        DownloadStatus.QUEUED -> {
+            val stateText = when (powerConstraint) {
+                PowerConstraintType.CHARGING_REQUIRED -> "Waiting for charger"
+                PowerConstraintType.LOW_BATTERY_PAUSED -> "Paused on low battery"
+                null -> "Waiting in queue"
+            }
+            listOfNotNull(sourceLabel, stateText).joinToString(" | ")
+        }
         DownloadStatus.PAUSED -> listOfNotNull(sourceLabel, pauseExpiryLabel ?: "Paused").joinToString(" | ")
         DownloadStatus.COMPLETED -> listOfNotNull(sourceLabel, "Finished").joinToString(" | ")
         DownloadStatus.FAILED -> listOfNotNull(sourceLabel, "Needs attention").joinToString(" | ")
@@ -1931,6 +1999,7 @@ private fun buildTaskFooterMessageEnhanced(
     snapshot: com.localdownloader.ui.components.LocalMediaSnapshot,
     pauseExpiryLabel: String?,
     currentTimeMs: Long,
+    powerConstraint: PowerConstraintType? = null,
 ): String? {
     task.errorMessage?.takeIf { it.isNotBlank() }?.let { return it }
     if (isPotentiallyStuck(task, currentTimeMs)) {
@@ -1943,13 +2012,117 @@ private fun buildTaskFooterMessageEnhanced(
             "${task.progressPercent}% complete".takeIf { task.progressPercent > 0 },
         ).joinToString(" | ").ifBlank { null }
 
-        DownloadStatus.QUEUED -> "Queued and ready for the worker to start."
+        DownloadStatus.QUEUED -> when (powerConstraint) {
+            PowerConstraintType.CHARGING_REQUIRED -> "Waiting for charger. Connect power to begin."
+            PowerConstraintType.LOW_BATTERY_PAUSED -> "Battery is low. Connect charger to resume."
+            null -> "Queued and ready for the worker to start."
+        }
         DownloadStatus.PAUSED -> pauseExpiryLabel
         DownloadStatus.COMPLETED -> "Saved to your downloads library."
         DownloadStatus.FAILED -> "This item needs another try."
         DownloadStatus.CANCELED -> "Canceled by user."
     }
 }
+
+enum class PowerConstraintType {
+    CHARGING_REQUIRED,
+    LOW_BATTERY_PAUSED,
+}
+
+@Composable
+private fun PowerConstraintBanner(
+    constraintType: PowerConstraintType,
+    batteryPercent: Int,
+    lowBatteryThreshold: Int,
+    onOpenBatterySettings: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
+    val visuals = when (constraintType) {
+        PowerConstraintType.CHARGING_REQUIRED -> {
+            ConstraintBannerVisuals(
+                icon = Icons.Rounded.BatteryChargingFull,
+                title = stringResource(R.string.queue_power_charging_required_title),
+                body = stringResource(R.string.queue_power_charging_required_body),
+                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+            )
+        }
+        PowerConstraintType.LOW_BATTERY_PAUSED -> {
+            ConstraintBannerVisuals(
+                icon = Icons.Rounded.BatteryAlert,
+                title = stringResource(R.string.queue_power_low_battery_title),
+                body = stringResource(R.string.queue_power_low_battery_body, batteryPercent, lowBatteryThreshold),
+                containerColor = MaterialTheme.colorScheme.errorContainer,
+                contentColor = MaterialTheme.colorScheme.onErrorContainer,
+            )
+        }
+    }
+
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        color = visuals.containerColor,
+        tonalElevation = 2.dp,
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = visuals.contentColor.copy(alpha = 0.14f),
+                modifier = Modifier.size(40.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = visuals.icon,
+                        contentDescription = null,
+                        tint = visuals.contentColor,
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    text = visuals.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = visuals.contentColor,
+                )
+                Text(
+                    text = visuals.body,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = visuals.contentColor.copy(alpha = 0.88f),
+                )
+                if (onOpenBatterySettings != null) {
+                    TextButton(
+                        onClick = onOpenBatterySettings,
+                        contentPadding = PaddingValues(horizontal = 0.dp, vertical = 2.dp),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.queue_power_action_settings),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = visuals.contentColor,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private data class ConstraintBannerVisuals(
+    val icon: ImageVector,
+    val title: String,
+    val body: String,
+    val containerColor: Color,
+    val contentColor: Color,
+)
 
 internal enum class RecoveryCategory {
     STUCK_YOUTUBE,

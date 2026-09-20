@@ -380,6 +380,17 @@
     <string name="queue_recovery_youtube">YouTube failures often improve after adding cookies and refreshing YouTube access from Settings or More.</string>
     <string name="queue_recovery_default">If this download failed after redirects, rate limits, or protected access, try cookies first. If it still fails, export the logs and report the issue.</string>
 
+    <!-- Download queue power constraint banners and indicators -->
+    <string name="queue_power_charging_required_title">Downloads waiting for charger</string>
+    <string name="queue_power_charging_required_body">“Download only while charging” is turned on. Connect your charger to start or resume downloads.</string>
+    <string name="queue_power_low_battery_title">Downloads paused on low battery</string>
+    <string name="queue_power_low_battery_body">Battery is at %1$d%% (threshold: %2$d%%). Connect a charger or adjust Battery &amp; Performance settings to continue downloading.</string>
+    <string name="queue_power_action_settings">Battery settings</string>
+    <string name="queue_task_waiting_charger">Waiting for charger</string>
+    <string name="queue_task_waiting_charger_desc">Waiting for charger. Connect power to begin.</string>
+    <string name="queue_task_waiting_battery">Paused on low battery</string>
+    <string name="queue_task_waiting_battery_desc">Battery is low. Connect charger to resume.</string>
+
     <string name="history_title">History</string>
     <string name="history_actions">History actions</string>
     <string name="history_task_summary">Task summary</string>
