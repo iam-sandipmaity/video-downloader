@@ -14,6 +14,7 @@ import androidx.work.workDataOf
 import com.localdownloader.data.DownloadTaskStore
 import com.localdownloader.data.DownloadOptionSecretsStore
 import com.localdownloader.data.SettingsStore
+import com.localdownloader.domain.models.AppSettings
 import com.localdownloader.domain.models.DownloadOptions
 import com.localdownloader.domain.models.DownloadStatus
 import com.localdownloader.domain.models.DownloadTask

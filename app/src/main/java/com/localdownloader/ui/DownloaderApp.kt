@@ -137,7 +137,7 @@ fun DownloaderApp(
     var vaultSelectionTaskId by remember { mutableStateOf<String?>(null) }
     var vaultSetupPromptTaskId by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
-    val batteryOptimizationManager = remember(context) { BatteryOptimizationManager(context.applicationContext, Logger()) }
+    val batteryOptimizationManager = remember(context) { BatteryOptimizationManager(context.applicationContext) }
     // Use the DI-provided FileUtils from mediaToolsViewModel instead of creating a new instance.
     val fileUtils = mediaToolsViewModel.fileUtils
     var cacheSize by remember { mutableLongStateOf(0L) }

@@ -23,7 +23,6 @@ data class BatterySnapshot(
 @Singleton
 class BatteryOptimizationManager @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val logger: Logger,
 ) {
     private val powerManager: PowerManager?
         get() = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
