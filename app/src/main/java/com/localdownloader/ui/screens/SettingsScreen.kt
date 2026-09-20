@@ -16,14 +16,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.localdownloader.BuildConfig
 import com.localdownloader.R
-import com.localdownloader.domain.models.BatterySaverMode
 import com.localdownloader.ui.components.InlineFeedbackCard
 import com.localdownloader.ui.components.PreferenceDivider
 import com.localdownloader.ui.components.PreferenceGroup
+import com.localdownloader.ui.components.PreferenceNavigationRow
 import com.localdownloader.ui.components.PreferencePageScaffold
-import com.localdownloader.ui.components.PreferenceRow
-import com.localdownloader.ui.screens.settings.accentLabel
-import com.localdownloader.ui.screens.settings.themeModeLabel
 import com.localdownloader.viewmodel.FormatMessageScope
 import com.localdownloader.viewmodel.FormatUiState
 
