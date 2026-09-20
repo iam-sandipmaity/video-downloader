@@ -15,6 +15,7 @@ import androidx.core.net.toUri
 import com.localdownloader.data.SettingsStore
 import com.localdownloader.domain.models.AppSettings
 import com.localdownloader.media.resolvePreferredMediaMimeTypeForExtension
+import com.localdownloader.security.AesGcmFileCipher
 import com.localdownloader.ui.model.ExternalOpenRequest
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
@@ -32,6 +33,7 @@ import javax.inject.Singleton
 class FileUtils @Inject constructor(
     @ApplicationContext val context: Context,
     settingsStore: SettingsStore,
+    private val vaultCipher: AesGcmFileCipher,
 ) {
     private val conversionDirName = "converted"
     private val binDirName = "bin"
@@ -90,9 +92,9 @@ class FileUtils @Inject constructor(
                     if (target.exists()) {
                         error("Vault destination already exists: ${target.name}")
                     }
-                    source.copyTo(target, overwrite = false)
-                    if (!target.exists() || target.length() != source.length()) {
-                        error("Failed to copy ${source.name} into vault")
+                    vaultCipher.encryptFile(source, target)
+                    if (!target.exists() || !vaultCipher.isEncrypted(target)) {
+                        error("Failed to encrypt ${source.name} into vault")
                     }
                     movedPairs += source to target
                 }
@@ -150,7 +152,16 @@ class FileUtils @Inject constructor(
                     if (target.exists()) {
                         error("Downloads destination already exists: ${target.name}")
                     }
-                    if (!source.renameTo(target)) {
+                    if (vaultCipher.isEncrypted(source)) {
+                        vaultCipher.decryptFile(source, target)
+                        if (!target.exists() || target.length() <= 0L) {
+                            error("Failed to decrypt ${source.name} out of vault")
+                        }
+                        if (!source.delete()) {
+                            target.delete()
+                            error("Failed to remove vault original: ${source.name}")
+                        }
+                    } else if (!source.renameTo(target)) {
                         source.copyTo(target, overwrite = false)
                         if (!target.exists() || target.length() != source.length()) {
                             error("Failed to copy ${source.name} out of vault")
@@ -174,6 +185,19 @@ class FileUtils @Inject constructor(
                 throw error
             }
         }
+    }
+
+    fun encryptVaultContentsIfNeeded(vaultId: String) {
+        val vaultDir = ensureVaultDir(vaultId)
+        vaultDir.walkTopDown()
+            .filter { file ->
+                file.isFile &&
+                    !file.name.endsWith(".enc.tmp") &&
+                    !file.name.endsWith(".tmp")
+            }
+            .forEach { file ->
+                runCatching { vaultCipher.encryptFileInPlace(file) }
+            }
     }
 
     /**

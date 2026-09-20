@@ -44,6 +44,8 @@ import androidx.core.content.FileProvider
 import com.localdownloader.BuildConfig
 import com.localdownloader.ui.components.InlineFeedbackCard
 import com.localdownloader.utils.SensitiveDataSanitizer
+import com.localdownloader.ui.support.deviceMemorySnapshot
+import com.localdownloader.ui.support.toReportLines
 import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.viewmodel.AppLogEntry
 import com.localdownloader.viewmodel.AppLogEntryCategory
@@ -155,7 +157,7 @@ fun AppLogSettingsScreen(
                     exportLogText(
                         context = context,
                         fileName = "troubleshooting-report.txt",
-                        text = buildTroubleshootingReport(uiState.entries),
+                        text = buildTroubleshootingReport(context, uiState.entries),
                     )
                 },
                 modifier = Modifier.fillMaxWidth(),
@@ -515,7 +517,7 @@ private fun exportLogText(
     context.startActivity(Intent.createChooser(shareIntent, "Export app log"))
 }
 
-private fun buildTroubleshootingReport(entries: List<AppLogEntry>): String {
+private fun buildTroubleshootingReport(context: Context, entries: List<AppLogEntry>): String {
     val latestFailure = entries
         .asReversed()
         .firstOrNull { it.category == AppLogEntryCategory.FAILED }
@@ -526,6 +528,7 @@ private fun buildTroubleshootingReport(entries: List<AppLogEntry>): String {
         ?: "No failed command has been logged yet."
     val ytDlpStatus = latestLineMatching(entries, "yt-dlp")
     val ffmpegStatus = latestLineMatching(entries, "ffmpeg")
+    val memoryLines = deviceMemorySnapshot(context).toReportLines()
 
     return buildString {
         appendLine("Video Downloader troubleshooting report")
@@ -540,6 +543,9 @@ private fun buildTroubleshootingReport(entries: List<AppLogEntry>): String {
         appendLine("- Manufacturer: ${Build.MANUFACTURER}")
         appendLine("- Model: ${Build.MODEL}")
         appendLine("- ABI: ${Build.SUPPORTED_ABIS.firstOrNull().orEmpty().ifBlank { "unknown" }}")
+        appendLine()
+        appendLine("Memory and storage")
+        memoryLines.forEach(::appendLine)
         appendLine()
         appendLine("Runtime")
         appendLine("- yt-dlp status: ${ytDlpStatus ?: "No recent yt-dlp status line in app log."}")

@@ -2,6 +2,8 @@ package com.localdownloader.data
 
 import android.content.Context
 import com.localdownloader.domain.models.DownloadOptions
+import com.localdownloader.security.AesGcmCodec
+import com.localdownloader.security.AesGcmFileCipher
 import com.localdownloader.utils.Logger
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.serialization.Serializable
@@ -17,6 +19,7 @@ class DownloadOptionSecretsStore @Inject constructor(
     @ApplicationContext private val context: Context,
     private val json: Json,
     private val logger: Logger,
+    private val secretsCipher: AesGcmFileCipher,
 ) {
 
     fun persist(taskId: String, options: DownloadOptions): String {
@@ -101,7 +104,8 @@ class DownloadOptionSecretsStore @Inject constructor(
         val target = secretsFile(taskId)
         target.parentFile?.mkdirs()
         val tempFile = File(target.parentFile, "${target.name}.tmp")
-        tempFile.writeText(json.encodeToString(secrets))
+        val plaintext = json.encodeToString(secrets).toByteArray(Charsets.UTF_8)
+        tempFile.writeBytes(secretsCipher.encryptBytes(plaintext))
         if (!tempFile.renameTo(target)) {
             tempFile.copyTo(target, overwrite = true)
             tempFile.delete()
@@ -114,7 +118,19 @@ class DownloadOptionSecretsStore @Inject constructor(
             return null
         }
         return runCatching {
-            json.decodeFromString<PersistedDownloadOptionSecrets>(secretFile.readText())
+            val payload = secretFile.readBytes()
+            val plaintext = if (AesGcmCodec.hasMagic(payload)) {
+                secretsCipher.decryptBytes(payload)
+            } else {
+                payload
+            }
+            val decoded = json.decodeFromString<PersistedDownloadOptionSecrets>(
+                plaintext.toString(Charsets.UTF_8),
+            )
+            if (!AesGcmCodec.hasMagic(payload)) {
+                writeSecrets(taskId, decoded)
+            }
+            decoded
         }.onFailure { error ->
             logger.w("DownloadOptionSecretsStore", "Failed reading persisted secrets for taskId=$taskId", error)
         }.getOrNull()
