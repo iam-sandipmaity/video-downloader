@@ -79,9 +79,12 @@ import com.localdownloader.ui.screens.settings.AboutSettingsScreen
 import com.localdownloader.ui.screens.settings.AccessSettingsScreen
 import com.localdownloader.ui.screens.settings.AppearanceSettingsScreen
 import com.localdownloader.ui.screens.settings.AppLogSettingsScreen
+import com.localdownloader.ui.screens.settings.BatteryPerformanceSettingsScreen
 import com.localdownloader.ui.screens.settings.DownloadSettingsScreen
 import com.localdownloader.ui.screens.settings.NotificationsSettingsScreen
 import com.localdownloader.ui.screens.settings.StorageSettingsScreen
+import com.localdownloader.utils.BatteryOptimizationManager
+import com.localdownloader.utils.Logger
 import com.localdownloader.viewmodel.AppLogViewModel
 import com.localdownloader.viewmodel.VaultViewModel
 import com.localdownloader.ui.model.ExternalOpenRequest
@@ -134,6 +137,7 @@ fun DownloaderApp(
     var vaultSelectionTaskId by remember { mutableStateOf<String?>(null) }
     var vaultSetupPromptTaskId by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
+    val batteryOptimizationManager = remember(context) { BatteryOptimizationManager(context.applicationContext, Logger()) }
     // Use the DI-provided FileUtils from mediaToolsViewModel instead of creating a new instance.
     val fileUtils = mediaToolsViewModel.fileUtils
     var cacheSize by remember { mutableLongStateOf(0L) }
@@ -839,6 +843,7 @@ fun DownloaderApp(
                     onDismissMediaLibraryMessage = downloadViewModel::dismissMessage,
                     onOpenAppearance = { navController.navigate(Routes.SettingsAppearance) },
                     onOpenDownloads = { navController.navigate(Routes.SettingsDownloads) },
+                    onOpenBattery = { navController.navigate(Routes.SettingsBattery) },
                     onOpenStorage = { navController.navigate(Routes.SettingsStorage) },
                     onOpenNotifications = { navController.navigate(Routes.SettingsNotifications) },
                     onOpenAccess = { navController.navigate(Routes.SettingsAccess) },
@@ -872,9 +877,23 @@ fun DownloaderApp(
                     onShowFormatCodecChanged = formatViewModel::onShowFormatCodecChanged,
                     onShowFormatBitrateChanged = formatViewModel::onShowFormatBitrateChanged,
                     onFormatSelectorStyleChanged = formatViewModel::onFormatSelectorStyleChanged,
+                    onDefaultConcurrentFragmentsChanged = formatViewModel::onDefaultConcurrentFragmentsChanged,
                     onMaxConcurrentDownloadsChanged = formatViewModel::onMaxConcurrentDownloadsChanged,
                     onKeepAnalyzedLinkHistoryChanged = formatViewModel::onKeepAnalyzedLinkHistoryChanged,
                     onAnalyzedLinkHistoryRetentionDaysChanged = formatViewModel::onAnalyzedLinkHistoryRetentionDaysChanged,
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable(Routes.SettingsBattery) {
+                BatteryPerformanceSettingsScreen(
+                    uiState = formatState,
+                    batteryOptimizationManager = batteryOptimizationManager,
+                    onBatterySaverModeChanged = formatViewModel::onBatterySaverModeChanged,
+                    onDefaultConcurrentFragmentsChanged = formatViewModel::onDefaultConcurrentFragmentsChanged,
+                    onMaxConcurrentDownloadsChanged = formatViewModel::onMaxConcurrentDownloadsChanged,
+                    onDownloadOnlyWhileChargingChanged = formatViewModel::onDownloadOnlyWhileChargingChanged,
+                    onPauseDownloadsOnLowBatteryChanged = formatViewModel::onPauseDownloadsOnLowBatteryChanged,
+                    onLowBatteryThresholdPercentChanged = formatViewModel::onLowBatteryThresholdPercentChanged,
                     onBack = { navController.popBackStack() },
                 )
             }
@@ -1208,6 +1227,7 @@ object Routes {
     const val Settings = "settings"
     const val SettingsAppearance = "settings/appearance"
     const val SettingsDownloads = "settings/downloads"
+    const val SettingsBattery = "settings/battery"
     const val SettingsStorage = "settings/storage"
     const val SettingsNotifications = "settings/notifications"
     const val SettingsAccess = "settings/access"

@@ -44,6 +44,11 @@ data class AppSettings(
     val youtubeAuthConfig: YoutubeAuthConfig = YoutubeAuthConfig(),
     val hasSeenDownloadSetupNotice: Boolean = false,
     val maxConcurrentDownloads: Int = 2,
+    val defaultConcurrentFragments: Int = 4,
+    val batterySaverMode: BatterySaverMode = BatterySaverMode.AUTO,
+    val downloadOnlyWhileCharging: Boolean = false,
+    val pauseDownloadsOnLowBattery: Boolean = false,
+    val lowBatteryThresholdPercent: Int = 15,
     val allowMeteredDownloads: Boolean = false,
     val showFormatFps: Boolean = true,
     val showFormatCodec: Boolean = true,
@@ -52,6 +57,12 @@ data class AppSettings(
     val darkTheme: Boolean = false,
     val vaultSettings: VaultSettings = VaultSettings(),
 )
+
+enum class BatterySaverMode {
+    OFF,
+    AUTO,
+    ALWAYS_ON,
+}
 
 enum class FormatSelectorStyle {
     BOTTOM_SHEET,

@@ -44,6 +44,7 @@ fun DownloadSettingsScreen(
     onShowFormatCodecChanged: (Boolean) -> Unit = {},
     onShowFormatBitrateChanged: (Boolean) -> Unit = {},
     onFormatSelectorStyleChanged: (FormatSelectorStyle) -> Unit = {},
+    onDefaultConcurrentFragmentsChanged: (Int) -> Unit = {},
     onMaxConcurrentDownloadsChanged: (Int) -> Unit,
     onKeepAnalyzedLinkHistoryChanged: (Boolean) -> Unit,
     onAnalyzedLinkHistoryRetentionDaysChanged: (Int) -> Unit,
@@ -282,6 +283,45 @@ fun DownloadSettingsScreen(
         }
         item {
             PreferenceGroup {
+                val threadsTitle = stringResource(R.string.battery_threads_title)
+                val currentThreads = uiState.appSettings.defaultConcurrentFragments
+                val threadOptions = listOf(1, 2, 4, 8, 16)
+                val threadOptionLabels = mapOf(
+                    1 to stringResource(R.string.battery_threads_1),
+                    2 to stringResource(R.string.battery_threads_2),
+                    4 to stringResource(R.string.battery_threads_4),
+                    8 to stringResource(R.string.battery_threads_8),
+                    16 to stringResource(R.string.battery_threads_16),
+                )
+                val threadOptionSubtitles = mapOf(
+                    1 to stringResource(R.string.battery_threads_1_desc),
+                    2 to stringResource(R.string.battery_threads_2_desc),
+                    4 to stringResource(R.string.battery_threads_4_desc),
+                    8 to stringResource(R.string.battery_threads_8_desc),
+                    16 to stringResource(R.string.battery_threads_16_desc),
+                )
+
+                PreferenceRow(
+                    icon = Icons.Rounded.Speed,
+                    title = threadsTitle,
+                    subtitle = stringResource(R.string.battery_threads_subtitle),
+                    value = stringResource(R.string.battery_threads_count, currentThreads),
+                    onClick = {
+                        val choices = threadOptions.map { count ->
+                            SettingChoiceOption(
+                                title = threadOptionLabels[count] ?: "$count threads",
+                                subtitle = threadOptionSubtitles[count],
+                                onSelect = { onDefaultConcurrentFragmentsChanged(count) },
+                            )
+                        }
+                        choiceDialog = SettingChoiceDialogState(
+                            title = threadsTitle,
+                            selected = threadOptionLabels[currentThreads] ?: "$currentThreads threads",
+                            options = choices,
+                        )
+                    },
+                )
+                PreferenceDivider()
                 PreferenceRow(
                     icon = Icons.Rounded.Queue,
                     title = stringResource(R.string.download_defaults_concurrent_title),

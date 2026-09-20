@@ -27,6 +27,7 @@ import com.localdownloader.notifications.AppNotifications
 import com.localdownloader.utils.FileUtils
 import com.localdownloader.utils.Logger
 import com.localdownloader.utils.SensitiveDataSanitizer
+import com.localdownloader.utils.BatteryOptimizationManager
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import androidx.hilt.work.HiltWorker
@@ -45,6 +46,7 @@ class DownloadWorker @AssistedInject constructor(
     private val repository: DownloaderRepository,
     private val ffmpegExecutor: FfmpegExecutor,
     private val fileUtils: FileUtils,
+    private val batteryOptimizationManager: BatteryOptimizationManager,
     private val logger: Logger,
 ) : CoroutineWorker(appContext, params) {
 
@@ -142,9 +144,22 @@ class DownloadWorker @AssistedInject constructor(
                     taskId = taskId,
                 )
             }
+            val currentSettings = runCatching { settingsStore.observeSettings().first() }
+                .getOrDefault(AppSettings())
+            val effectiveThreads = batteryOptimizationManager.resolveEffectiveConcurrentFragments(
+                configuredThreads = attemptOptions.concurrentFragments,
+                mode = currentSettings.batterySaverMode,
+                lowBatteryThresholdPercent = currentSettings.lowBatteryThresholdPercent,
+            )
+            val resolvedAttemptOptions = if (effectiveThreads != attemptOptions.concurrentFragments) {
+                appendDebugTrace(taskId, "Battery Saver: download threads throttled to $effectiveThreads")
+                attemptOptions.copy(concurrentFragments = effectiveThreads)
+            } else {
+                attemptOptions
+            }
             return downloadEngine.runDownload(
-                options = attemptOptions,
-                outputTemplate = attemptOptions.outputTemplate,
+                options = resolvedAttemptOptions,
+                outputTemplate = resolvedAttemptOptions.outputTemplate,
                 onProgress = { progress ->
                     val normalizedProgress = progress.percent?.coerceIn(0, 100)
                     logger.d(

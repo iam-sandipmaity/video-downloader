@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.localdownloader.domain.models.AccentPreset
 import com.localdownloader.domain.models.AppSettings
+import com.localdownloader.domain.models.BatterySaverMode
 import com.localdownloader.domain.models.ContrastMode
 import com.localdownloader.domain.models.CookieProfile
 import com.localdownloader.domain.models.FormatSelectorStyle
@@ -83,6 +84,11 @@ class SettingsStore @Inject constructor(
         val youtubeAuthConfig = stringPreferencesKey("youtube_auth_config_json")
         val hasSeenDownloadSetupNotice = booleanPreferencesKey("has_seen_download_setup_notice")
         val maxConcurrent = intPreferencesKey("max_concurrent")
+        val defaultConcurrentFragments = intPreferencesKey("default_concurrent_fragments")
+        val batterySaverMode = stringPreferencesKey("battery_saver_mode")
+        val downloadOnlyWhileCharging = booleanPreferencesKey("download_only_while_charging")
+        val pauseDownloadsOnLowBattery = booleanPreferencesKey("pause_downloads_on_low_battery")
+        val lowBatteryThresholdPercent = intPreferencesKey("low_battery_threshold_percent")
         val allowMeteredDownloads = booleanPreferencesKey("allow_metered_downloads")
         val showFormatFps = booleanPreferencesKey("show_format_fps")
         val showFormatCodec = booleanPreferencesKey("show_format_codec")
@@ -139,6 +145,11 @@ class SettingsStore @Inject constructor(
                     youtubeAuthConfig = decodeYoutubeAuthConfig(prefs[Keys.youtubeAuthConfig]),
                     hasSeenDownloadSetupNotice = prefs[Keys.hasSeenDownloadSetupNotice] ?: false,
                     maxConcurrentDownloads = prefs[Keys.maxConcurrent] ?: 2,
+                    defaultConcurrentFragments = prefs[Keys.defaultConcurrentFragments] ?: 4,
+                    batterySaverMode = prefs[Keys.batterySaverMode]?.toEnumOrDefault(BatterySaverMode.AUTO) ?: BatterySaverMode.AUTO,
+                    downloadOnlyWhileCharging = prefs[Keys.downloadOnlyWhileCharging] ?: false,
+                    pauseDownloadsOnLowBattery = prefs[Keys.pauseDownloadsOnLowBattery] ?: false,
+                    lowBatteryThresholdPercent = prefs[Keys.lowBatteryThresholdPercent] ?: 15,
                     allowMeteredDownloads = prefs[Keys.allowMeteredDownloads] ?: false,
                     showFormatFps = prefs[Keys.showFormatFps] ?: true,
                     showFormatCodec = prefs[Keys.showFormatCodec] ?: true,
@@ -190,6 +201,11 @@ class SettingsStore @Inject constructor(
             prefs[Keys.youtubeAuthConfig] = json.encodeToString(redactedYoutubeAuthConfig(settings.youtubeAuthConfig))
             prefs[Keys.hasSeenDownloadSetupNotice] = settings.hasSeenDownloadSetupNotice
             prefs[Keys.maxConcurrent] = settings.maxConcurrentDownloads
+            prefs[Keys.defaultConcurrentFragments] = settings.defaultConcurrentFragments
+            prefs[Keys.batterySaverMode] = settings.batterySaverMode.name
+            prefs[Keys.downloadOnlyWhileCharging] = settings.downloadOnlyWhileCharging
+            prefs[Keys.pauseDownloadsOnLowBattery] = settings.pauseDownloadsOnLowBattery
+            prefs[Keys.lowBatteryThresholdPercent] = settings.lowBatteryThresholdPercent
             prefs[Keys.allowMeteredDownloads] = settings.allowMeteredDownloads
             prefs[Keys.showFormatFps] = settings.showFormatFps
             prefs[Keys.showFormatCodec] = settings.showFormatCodec

@@ -24,6 +24,7 @@ import com.localdownloader.downloader.FormatExtractor
 import com.localdownloader.notifications.AppNotifications
 import com.localdownloader.ffmpeg.Compressor
 import com.localdownloader.ffmpeg.FormatConverter
+import com.localdownloader.utils.BatteryOptimizationManager
 import com.localdownloader.utils.FileUtils
 import com.localdownloader.utils.Logger
 import com.localdownloader.utils.SensitiveDataSanitizer
@@ -59,6 +60,7 @@ class DownloadRepositoryImpl @Inject constructor(
     private val workManager: WorkManager,
     private val fileUtils: FileUtils,
     private val downloadOptionSecretsStore: DownloadOptionSecretsStore,
+    private val batteryOptimizationManager: BatteryOptimizationManager,
     private val logger: Logger,
 ) : DownloaderRepository {
     private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -178,6 +180,7 @@ class DownloadRepositoryImpl @Inject constructor(
                         ),
                         titleHint = request.titleHint,
                         requiredNetworkType = requiredNetworkType,
+                        settings = settings,
                         assignWorkId = false,
                     )
                 }
@@ -619,9 +622,12 @@ class DownloadRepositoryImpl @Inject constructor(
             pruneFailedAndCanceledHistory(settings.downloadHistoryRetentionDays)
         }
         if (previous.maxConcurrentDownloads != settings.maxConcurrentDownloads ||
-            previous.allowMeteredDownloads != settings.allowMeteredDownloads
+            previous.allowMeteredDownloads != settings.allowMeteredDownloads ||
+            previous.batterySaverMode != settings.batterySaverMode ||
+            previous.downloadOnlyWhileCharging != settings.downloadOnlyWhileCharging ||
+            previous.pauseDownloadsOnLowBattery != settings.pauseDownloadsOnLowBattery
         ) {
-            refreshQueuedScheduling("Queue scheduling refreshed after download settings changed")
+            refreshQueuedScheduling("Queue scheduling refreshed after download or power settings changed")
         }
     }
 
@@ -636,20 +642,29 @@ class DownloadRepositoryImpl @Inject constructor(
         options: DownloadOptions,
         titleHint: String,
         requiredNetworkType: NetworkType,
+        settings: AppSettings,
         existingTask: DownloadTask? = null,
         assignWorkId: Boolean = true,
     ): PreparedDownload {
+        val constraintsBuilder = Constraints.Builder()
+            .setRequiredNetworkType(requiredNetworkType)
+
+        if (settings.downloadOnlyWhileCharging) {
+            constraintsBuilder.setRequiresCharging(true)
+        }
+        if (settings.pauseDownloadsOnLowBattery ||
+            batteryOptimizationManager.isBatterySaverActive(settings.batterySaverMode, settings.lowBatteryThresholdPercent)
+        ) {
+            constraintsBuilder.setRequiresBatteryNotLow(true)
+        }
+
         val request = OneTimeWorkRequestBuilder<DownloadWorker>()
             .setInputData(
                 workDataOf(
                     WorkerKeys.TASK_ID to taskId,
                 ),
             )
-            .setConstraints(
-                Constraints.Builder()
-                    .setRequiredNetworkType(requiredNetworkType)
-                    .build(),
-            )
+            .setConstraints(constraintsBuilder.build())
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10, TimeUnit.SECONDS)
             .build()
 
@@ -706,12 +721,18 @@ class DownloadRepositoryImpl @Inject constructor(
     ) {
         schedulingMutex.withLock {
             val settings = settingsStore.observeSettings().first()
-            val shouldStartNow = countOccupiedSlots() < settings.maxConcurrentDownloads
+            val effectiveMaxConcurrent = batteryOptimizationManager.resolveEffectiveConcurrentSlots(
+                settings.maxConcurrentDownloads,
+                settings.batterySaverMode,
+                settings.lowBatteryThresholdPercent,
+            )
+            val shouldStartNow = countOccupiedSlots() < effectiveMaxConcurrent
             val prepared = prepareDownload(
                 taskId = taskId,
                 options = options,
                 titleHint = titleHint,
                 requiredNetworkType = requiredNetworkTypeFor(settings),
+                settings = settings,
                 existingTask = existingTask,
                 assignWorkId = shouldStartNow,
             )
@@ -746,7 +767,12 @@ class DownloadRepositoryImpl @Inject constructor(
     }
 
     private suspend fun fillAvailableDownloadSlotsLocked(settings: AppSettings) {
-        var availableSlots = settings.maxConcurrentDownloads - countOccupiedSlots()
+        val effectiveMaxConcurrent = batteryOptimizationManager.resolveEffectiveConcurrentSlots(
+            settings.maxConcurrentDownloads,
+            settings.batterySaverMode,
+            settings.lowBatteryThresholdPercent,
+        )
+        var availableSlots = effectiveMaxConcurrent - countOccupiedSlots()
         if (availableSlots <= 0) return
 
         val queuedCandidates = downloadTaskStore.getAllTasks()
@@ -771,11 +797,12 @@ class DownloadRepositoryImpl @Inject constructor(
                 options = queued.options,
                 titleHint = queued.task.title,
                 requiredNetworkType = requiredNetworkTypeFor(settings),
+                settings = settings,
                 existingTask = queued.task,
                 assignWorkId = true,
             )
             enqueuePreparedDownload(prepared)
-            availableSlots -= 1
+            availableSlots--
         }
     }
 

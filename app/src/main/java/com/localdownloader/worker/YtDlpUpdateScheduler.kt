@@ -48,6 +48,7 @@ class YtDlpUpdateScheduler @Inject constructor(
             .setConstraints(
                 Constraints.Builder()
                     .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .setRequiresBatteryNotLow(true)
                     .build(),
             )
             .setBackoffCriteria(

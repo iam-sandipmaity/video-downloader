@@ -127,7 +127,7 @@ class QuickDownloadViewModel @Inject constructor(
         viewModelScope.launch {
             val settings = runCatching { settingsStore.observeSettings().first() }
                 .getOrDefault(AppSettings())
-            _uiState.update { it.copy(appSettings = settings) }
+            _uiState.update { it.copy(appSettings = settings, threads = settings.defaultConcurrentFragments) }
         }
     }
 

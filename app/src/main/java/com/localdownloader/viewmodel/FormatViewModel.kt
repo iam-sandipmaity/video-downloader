@@ -12,6 +12,7 @@ import com.localdownloader.downloader.resolveMergeContainerCompatibility
 import com.localdownloader.downloader.resolveYoutubeFormatRouting
 import com.localdownloader.domain.models.AnalyzedLinkRecord
 import com.localdownloader.domain.models.AppSettings
+import com.localdownloader.domain.models.BatterySaverMode
 import com.localdownloader.domain.models.ContrastMode
 import com.localdownloader.domain.models.CookieProfile
 import com.localdownloader.domain.models.DownloadOptions
@@ -986,6 +987,43 @@ class FormatViewModel @Inject constructor(
         persistSettingsSilently()
     }
 
+    fun onDefaultConcurrentFragmentsChanged(value: Int) {
+        val normalized = value.coerceIn(1, 16)
+        _uiState.update { state ->
+            state.copy(appSettings = state.appSettings.copy(defaultConcurrentFragments = normalized))
+        }
+        persistSettingsSilently()
+    }
+
+    fun onBatterySaverModeChanged(mode: BatterySaverMode) {
+        _uiState.update { state ->
+            state.copy(appSettings = state.appSettings.copy(batterySaverMode = mode))
+        }
+        persistSettingsSilently()
+    }
+
+    fun onDownloadOnlyWhileChargingChanged(value: Boolean) {
+        _uiState.update { state ->
+            state.copy(appSettings = state.appSettings.copy(downloadOnlyWhileCharging = value))
+        }
+        persistSettingsSilently()
+    }
+
+    fun onPauseDownloadsOnLowBatteryChanged(value: Boolean) {
+        _uiState.update { state ->
+            state.copy(appSettings = state.appSettings.copy(pauseDownloadsOnLowBattery = value))
+        }
+        persistSettingsSilently()
+    }
+
+    fun onLowBatteryThresholdPercentChanged(value: Int) {
+        val normalized = value.coerceIn(5, 50)
+        _uiState.update { state ->
+            state.copy(appSettings = state.appSettings.copy(lowBatteryThresholdPercent = normalized))
+        }
+        persistSettingsSilently()
+    }
+
     fun onKeepAnalyzedLinkHistoryChanged(value: Boolean) {
         _uiState.update { state -> state.copy(appSettings = state.appSettings.copy(keepAnalyzedLinkHistory = value)) }
         persistSettingsSilently()
@@ -1808,6 +1846,7 @@ class FormatViewModel @Inject constructor(
                     removeAudioFromVideo = resolvedOutputTransform == OutputTransform.REMOVE_AUDIO,
                     audioFormat = if (isAudioOnly) audioFormat.ifBlank { null } else null,
                     audioBitrateKbps = resolvedAudioBitrateKbps,
+                    concurrentFragments = state.appSettings.defaultConcurrentFragments,
                 ),
                 queueNote = listOfNotNull(
                     youtubeRouting.queueNote,

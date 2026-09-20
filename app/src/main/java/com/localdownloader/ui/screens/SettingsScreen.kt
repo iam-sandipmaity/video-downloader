@@ -2,6 +2,7 @@ package com.localdownloader.ui.screens
 
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.BatteryChargingFull
 import androidx.compose.material.icons.rounded.CloudDownload
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Folder
@@ -15,6 +16,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.localdownloader.BuildConfig
 import com.localdownloader.R
+import com.localdownloader.domain.models.BatterySaverMode
 import com.localdownloader.ui.components.InlineFeedbackCard
 import com.localdownloader.ui.components.PreferenceDivider
 import com.localdownloader.ui.components.PreferenceGroup
@@ -35,6 +37,7 @@ fun SettingsScreen(
     onDismissMediaLibraryMessage: () -> Unit = {},
     onOpenAppearance: () -> Unit,
     onOpenDownloads: () -> Unit,
+    onOpenBattery: () -> Unit,
     onOpenStorage: () -> Unit,
     onOpenNotifications: () -> Unit,
     onOpenAccess: () -> Unit,
@@ -77,6 +80,18 @@ fun SettingsScreen(
                     subtitle = stringResource(R.string.settings_download_defaults_subtitle),
                     value = uiState.selectedContainer.uppercase(),
                     onClick = onOpenDownloads,
+                )
+                PreferenceDivider()
+                PreferenceRow(
+                    icon = Icons.Rounded.BatteryChargingFull,
+                    title = stringResource(R.string.settings_battery_title),
+                    subtitle = stringResource(R.string.settings_battery_subtitle),
+                    value = when (uiState.appSettings.batterySaverMode) {
+                        BatterySaverMode.AUTO -> stringResource(R.string.battery_saver_mode_auto)
+                        BatterySaverMode.ALWAYS_ON -> stringResource(R.string.battery_saver_mode_always_on)
+                        BatterySaverMode.OFF -> stringResource(R.string.battery_saver_mode_off)
+                    },
+                    onClick = onOpenBattery,
                 )
                 PreferenceDivider()
                 PreferenceRow(
