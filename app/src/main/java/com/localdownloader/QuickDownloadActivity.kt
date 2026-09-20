@@ -96,6 +96,8 @@ class QuickDownloadActivity : Hilt_QuickDownloadActivity() {
                     onThreadsChanged = viewModel::onThreadsChanged,
                     onDownloadClicked = viewModel::download,
                     onRetryClicked = viewModel::retry,
+                    onTogglePlaylistItem = viewModel::togglePlaylistItemSelection,
+                    onSelectAllPlaylistItems = viewModel::toggleSelectAllPlaylistItems,
                     onDismissMeteredNetworkDialog = viewModel::dismissMeteredNetworkDialog,
                     onAllowCellularAndDownload = viewModel::allowCellularAndDownload,
                     onDownloadWhenWifiAvailable = viewModel::downloadWhenWifiAvailable,

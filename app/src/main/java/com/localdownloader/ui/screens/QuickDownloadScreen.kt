@@ -50,6 +50,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -81,6 +82,7 @@ import com.localdownloader.R
 import com.localdownloader.domain.models.StreamType
 import com.localdownloader.viewmodel.QuickDownloadUiState
 import com.localdownloader.viewmodel.QuickFormatOption
+import com.localdownloader.viewmodel.QuickPlaylistItem
 import com.localdownloader.viewmodel.QuickQualityOption
 
 @Composable
@@ -96,6 +98,8 @@ fun QuickDownloadScreen(
     onThreadsChanged: (Int) -> Unit,
     onDownloadClicked: () -> Unit,
     onRetryClicked: () -> Unit,
+    onTogglePlaylistItem: (Int) -> Unit = {},
+    onSelectAllPlaylistItems: (Boolean) -> Unit = {},
     onShowTitleEditDialog: (Boolean) -> Unit = {},
     onToggleQuickSettings: () -> Unit = {},
     onDismissMeteredNetworkDialog: () -> Unit = {},
@@ -208,6 +212,8 @@ fun QuickDownloadScreen(
                         title = uiState.title,
                         uploader = uiState.uploader,
                         domainHost = uiState.domainHost,
+                        isPlaylist = uiState.isPlaylist,
+                        playlistCount = uiState.totalPlaylistItemCount,
                         onEditTitleClicked = { onShowTitleEditDialog(true) },
                         onCloseClicked = onDismiss,
                     )
@@ -228,6 +234,18 @@ fun QuickDownloadScreen(
                             .verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
+                        // 📋 Playlist Items Section
+                        if (uiState.playlistItems.isNotEmpty()) {
+                            QuickPlaylistItemsSection(
+                                playlistItems = uiState.playlistItems,
+                                selectedCount = uiState.selectedPlaylistItemCount,
+                                totalCount = uiState.totalPlaylistItemCount,
+                                allSelected = uiState.areAllPlaylistItemsSelected,
+                                onSelectAllClicked = onSelectAllPlaylistItems,
+                                onToggleItem = onTogglePlaylistItem,
+                            )
+                        }
+
                         // 🎵 Audio / Music Section
                         if (uiState.audioQualityOptions.isNotEmpty()) {
                             CategorizedSection(
@@ -285,6 +303,7 @@ fun QuickDownloadScreen(
                     QuickDownloadStickyActionBar(
                         label = uiState.ctaButtonLabel,
                         isQueueing = uiState.isQueueing,
+                        enabled = uiState.canDownload,
                         onDownloadClicked = onDownloadClicked,
                     )
                 }
@@ -304,6 +323,8 @@ private fun QuickMediaHeaderCard(
     title: String,
     uploader: String?,
     domainHost: String?,
+    isPlaylist: Boolean = false,
+    playlistCount: Int = 0,
     onEditTitleClicked: () -> Unit,
     onCloseClicked: () -> Unit,
     modifier: Modifier = Modifier,
@@ -313,7 +334,7 @@ private fun QuickMediaHeaderCard(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Thumbnail with Duration Pill
+        // Thumbnail with Duration / Playlist Pill
         Box(
             modifier = Modifier
                 .size(width = 86.dp, height = 54.dp)
@@ -328,7 +349,24 @@ private fun QuickMediaHeaderCard(
                 modifier = Modifier.fillMaxSize(),
             )
 
-            if (!durationFormatted.isNullOrBlank()) {
+            if (isPlaylist && playlistCount > 0) {
+                Surface(
+                    shape = RoundedCornerShape(4.dp),
+                    color = Color.Black.copy(alpha = 0.82f),
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(3.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.quick_download_playlist_count, playlistCount),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 9.sp,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
+                    )
+                }
+            } else if (!durationFormatted.isNullOrBlank()) {
                 Surface(
                     shape = RoundedCornerShape(4.dp),
                     color = Color.Black.copy(alpha = 0.78f),
@@ -353,6 +391,23 @@ private fun QuickMediaHeaderCard(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
+            if (isPlaylist) {
+                Surface(
+                    shape = RoundedCornerShape(4.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(bottom = 2.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.quick_download_playlist_badge),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 9.sp,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                    )
+                }
+            }
+
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleSmall,
@@ -408,6 +463,219 @@ private fun QuickMediaHeaderCard(
                 )
             }
         }
+    }
+}
+
+/**
+ * Collapsible / Scrollable Playlist Items Selection Section
+ */
+@Composable
+private fun QuickPlaylistItemsSection(
+    playlistItems: List<QuickPlaylistItem>,
+    selectedCount: Int,
+    totalCount: Int,
+    allSelected: Boolean,
+    onSelectAllClicked: (Boolean) -> Unit,
+    onToggleItem: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            // Header Row with title, count badge, and Select/Deselect All button
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.quick_download_playlist_section_title),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = if (selectedCount > 0) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.quick_download_items_selected_count, selectedCount, totalCount),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (selectedCount > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 11.sp,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                        )
+                    }
+                }
+
+                TextButton(
+                    onClick = { onSelectAllClicked(!allSelected) },
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                ) {
+                    Text(
+                        text = if (allSelected) stringResource(R.string.quick_download_deselect_all) else stringResource(R.string.quick_download_select_all),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
+
+            HorizontalDivider(
+                thickness = 0.5.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+            )
+
+            // Scrollable list of playlist items (capped at 220dp height for compact popup comfort)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 220.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                playlistItems.forEachIndexed { index, item ->
+                    QuickPlaylistItemRow(
+                        index = index,
+                        item = item,
+                        onToggle = { onToggleItem(index) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuickPlaylistItemRow(
+    index: Int,
+    item: QuickPlaylistItem,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val durationText = item.entry.durationSeconds?.takeIf { it > 0 }?.let { formatDuration(it) }
+
+    Surface(
+        onClick = onToggle,
+        shape = RoundedCornerShape(10.dp),
+        color = if (item.isSelected) {
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.22f)
+        } else {
+            MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
+        },
+        border = BorderStroke(
+            1.dp,
+            if (item.isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.45f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+        ),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Checkbox(
+                checked = item.isSelected,
+                onCheckedChange = { onToggle() },
+                modifier = Modifier.size(24.dp),
+            )
+
+            Text(
+                text = "#${index + 1}",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 11.sp,
+            )
+
+            // Small Thumbnail
+            Box(
+                modifier = Modifier
+                    .size(width = 54.dp, height = 34.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center,
+            ) {
+                AsyncImage(
+                    model = item.entry.thumbnailUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+
+                if (!durationText.isNullOrBlank()) {
+                    Surface(
+                        shape = RoundedCornerShape(2.dp),
+                        color = Color.Black.copy(alpha = 0.8f),
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(2.dp),
+                    ) {
+                        Text(
+                            text = durationText,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 8.sp,
+                            modifier = Modifier.padding(horizontal = 2.dp, vertical = 0.5.dp),
+                        )
+                    }
+                }
+            }
+
+            // Title and uploader
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(1.dp),
+            ) {
+                Text(
+                    text = item.entry.title.ifBlank { "Video #${index + 1}" },
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = if (item.isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                    color = if (item.isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    fontSize = 12.sp,
+                )
+                if (!item.entry.uploader.isNullOrBlank()) {
+                    Text(
+                        text = item.entry.uploader,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        fontSize = 10.5.sp,
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun formatDuration(seconds: Long): String {
+    val hrs = seconds / 3600
+    val mins = (seconds % 3600) / 60
+    val secs = seconds % 60
+    return if (hrs > 0) {
+        String.format(java.util.Locale.US, "%d:%02d:%02d", hrs, mins, secs)
+    } else {
+        String.format(java.util.Locale.US, "%02d:%02d", mins, secs)
     }
 }
 
@@ -798,6 +1066,7 @@ private fun QuickTuningDrawer(
 private fun QuickDownloadStickyActionBar(
     label: String,
     isQueueing: Boolean,
+    enabled: Boolean = true,
     onDownloadClicked: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -809,7 +1078,7 @@ private fun QuickDownloadStickyActionBar(
     ) {
         Button(
             onClick = onDownloadClicked,
-            enabled = !isQueueing,
+            enabled = enabled && !isQueueing,
             shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary,

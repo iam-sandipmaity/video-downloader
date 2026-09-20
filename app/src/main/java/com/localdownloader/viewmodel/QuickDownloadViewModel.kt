@@ -46,6 +46,11 @@ data class QuickQualityOption(
         get() = if (!subtitle.isNullOrBlank()) "$title · $subtitle" else title
 }
 
+data class QuickPlaylistItem(
+    val entry: PlaylistEntry,
+    val isSelected: Boolean = true,
+)
+
 data class QuickFormatOption(
     val id: String,
     val label: String,
@@ -65,6 +70,7 @@ data class QuickDownloadUiState(
     val showTitleEditDialog: Boolean = false,
     val isQuickSettingsExpanded: Boolean = false,
     val videoInfo: VideoInfo? = null,
+    val playlistItems: List<QuickPlaylistItem> = emptyList(),
     val title: String = "",
     val uploader: String? = null,
     val durationFormatted: String? = null,
@@ -85,6 +91,21 @@ data class QuickDownloadUiState(
     val isAudioMode: Boolean
         get() = selectedStreamType == StreamType.AUDIO_ONLY
 
+    val isPlaylist: Boolean
+        get() = (videoInfo?.isPlaylist == true) || playlistItems.isNotEmpty()
+
+    val selectedPlaylistItemCount: Int
+        get() = playlistItems.count { it.isSelected }
+
+    val totalPlaylistItemCount: Int
+        get() = playlistItems.size
+
+    val areAllPlaylistItemsSelected: Boolean
+        get() = playlistItems.isNotEmpty() && playlistItems.all { it.isSelected }
+
+    val canDownload: Boolean
+        get() = !isQueueing && (!isPlaylist || totalPlaylistItemCount == 0 || selectedPlaylistItemCount > 0)
+
     val currentSelectedQualityLabel: String
         get() = if (isAudioMode) {
             selectedAudioQuality?.title ?: selectedAudioFormat?.label ?: "Audio"
@@ -103,7 +124,13 @@ data class QuickDownloadUiState(
         get() {
             val label = currentSelectedQualityLabel
             val size = currentSelectedSize
-            return if (!size.isNullOrBlank()) {
+            return if (isPlaylist && totalPlaylistItemCount > 0) {
+                when (selectedPlaylistItemCount) {
+                    0 -> "Select items to download"
+                    totalPlaylistItemCount -> "Download all $totalPlaylistItemCount items · $label"
+                    else -> "Download $selectedPlaylistItemCount items · $label"
+                }
+            } else if (!size.isNullOrBlank()) {
                 "Download $label ($size)"
             } else {
                 "Download $label"
@@ -206,12 +233,18 @@ class QuickDownloadViewModel @Inject constructor(
 
                     val durationStr = formatDurationSeconds(info.durationSeconds)
                     val domainStr = extractDomainHost(info.webpageUrl.ifBlank { url })
+                    val playlistItems = if (info.isPlaylist && info.playlistEntries.isNotEmpty()) {
+                        info.playlistEntries.map { QuickPlaylistItem(entry = it, isSelected = true) }
+                    } else {
+                        emptyList()
+                    }
 
                     _uiState.update { state ->
                         state.copy(
                             isAnalyzing = false,
                             errorMessage = null,
                             videoInfo = info,
+                            playlistItems = playlistItems,
                             title = info.title,
                             uploader = info.uploader,
                             durationFormatted = durationStr,
@@ -321,9 +354,27 @@ class QuickDownloadViewModel @Inject constructor(
         _uiState.update { it.copy(threads = newThreads.coerceIn(1, 16)) }
     }
 
+    fun togglePlaylistItemSelection(index: Int) {
+        _uiState.update { state ->
+            if (index !in state.playlistItems.indices) return@update state
+            val updated = state.playlistItems.toMutableList()
+            val current = updated[index]
+            updated[index] = current.copy(isSelected = !current.isSelected)
+            state.copy(playlistItems = updated)
+        }
+    }
+
+    fun toggleSelectAllPlaylistItems(selectAll: Boolean) {
+        _uiState.update { state ->
+            val updated = state.playlistItems.map { it.copy(isSelected = selectAll) }
+            state.copy(playlistItems = updated)
+        }
+    }
+
     fun download() {
         val state = _uiState.value
         if (state.videoInfo == null || state.isQueueing) return
+        if (state.isPlaylist && state.totalPlaylistItemCount > 0 && state.selectedPlaylistItemCount == 0) return
 
         if (!state.appSettings.allowMeteredDownloads && networkStatusMonitor.isConnectedToMeteredNetwork()) {
             _uiState.update { it.copy(showMeteredNetworkDialog = true) }
@@ -512,7 +563,21 @@ class QuickDownloadViewModel @Inject constructor(
             )
 
             val enqueueResult = if (info.isPlaylist && info.playlistEntries.isNotEmpty()) {
-                val requests = info.playlistEntries.map { entry ->
+                val selectedEntries = if (state.playlistItems.isNotEmpty()) {
+                    state.playlistItems.filter { it.isSelected }.map { it.entry }
+                } else {
+                    info.playlistEntries
+                }
+                if (selectedEntries.isEmpty()) {
+                    _uiState.update {
+                        it.copy(
+                            isQueueing = false,
+                            errorMessage = "Please select at least one item to download",
+                        )
+                    }
+                    return@launch
+                }
+                val requests = selectedEntries.map { entry ->
                     PlaylistDownloadRequest(
                         entry = entry,
                         options = baseOptions.copy(

@@ -948,4 +948,11 @@
     <string name="quick_download_quick_settings">Quick Settings</string>
     <string name="quick_download_best_tag">BEST</string>
     <string name="quick_download_hq_tag">HQ</string>
+    <string name="quick_download_playlist_badge">PLAYLIST</string>
+    <string name="quick_download_playlist_section_title">Playlist Items</string>
+    <string name="quick_download_select_all">Select all</string>
+    <string name="quick_download_deselect_all">Deselect all</string>
+    <string name="quick_download_items_selected_count">%1$d / %2$d selected</string>
+    <string name="quick_download_playlist_count">%1$d videos</string>
+    <string name="quick_download_select_items_hint">Select items to download</string>
 </resources>

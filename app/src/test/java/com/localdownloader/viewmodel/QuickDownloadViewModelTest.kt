@@ -61,4 +61,66 @@ class QuickDownloadViewModelTest {
         )
         assertEquals("Download MP3 320k (~8.4 MB)", audioState.ctaButtonLabel)
     }
+
+    @Test
+    fun playlistUiState_computesCountsAndCtaLabelCorrectly() {
+        val entry1 = com.localdownloader.domain.models.PlaylistEntry(
+            playlistItemIndex = 1,
+            id = "id1",
+            title = "Video 1",
+            webpageUrl = "https://youtube.com/watch?v=1",
+        )
+        val entry2 = com.localdownloader.domain.models.PlaylistEntry(
+            playlistItemIndex = 2,
+            id = "id2",
+            title = "Video 2",
+            webpageUrl = "https://youtube.com/watch?v=2",
+        )
+        val quality = QuickQualityOption(
+            id = "1080p",
+            title = "1080p",
+            height = 1080,
+        )
+
+        val items = listOf(
+            QuickPlaylistItem(entry = entry1, isSelected = true),
+            QuickPlaylistItem(entry = entry2, isSelected = true),
+        )
+
+        val allSelectedState = QuickDownloadUiState(
+            playlistItems = items,
+            selectedVideoQuality = quality,
+        )
+
+        assertEquals(true, allSelectedState.isPlaylist)
+        assertEquals(2, allSelectedState.totalPlaylistItemCount)
+        assertEquals(2, allSelectedState.selectedPlaylistItemCount)
+        assertEquals(true, allSelectedState.areAllPlaylistItemsSelected)
+        assertEquals(true, allSelectedState.canDownload)
+        assertEquals("Download all 2 items · 1080p", allSelectedState.ctaButtonLabel)
+
+        // Partially selected
+        val partiallySelectedState = allSelectedState.copy(
+            playlistItems = listOf(
+                items[0].copy(isSelected = true),
+                items[1].copy(isSelected = false),
+            ),
+        )
+        assertEquals(1, partiallySelectedState.selectedPlaylistItemCount)
+        assertEquals(false, partiallySelectedState.areAllPlaylistItemsSelected)
+        assertEquals(true, partiallySelectedState.canDownload)
+        assertEquals("Download 1 items · 1080p", partiallySelectedState.ctaButtonLabel)
+
+        // None selected
+        val noneSelectedState = allSelectedState.copy(
+            playlistItems = listOf(
+                items[0].copy(isSelected = false),
+                items[1].copy(isSelected = false),
+            ),
+        )
+        assertEquals(0, noneSelectedState.selectedPlaylistItemCount)
+        assertEquals(false, noneSelectedState.areAllPlaylistItemsSelected)
+        assertEquals(false, noneSelectedState.canDownload)
+        assertEquals("Select items to download", noneSelectedState.ctaButtonLabel)
+    }
 }
