@@ -2,6 +2,16 @@
 
 Nightly builds are rolling prereleases published from the `nightly` release tag. This file tracks changes that are available in nightly before they are promoted into the stable changelog.
 
+## [2.0.2.5] - 2026-09-20
+
+### Fixed
+- **Invalid Merge Output Format for Audio & Share Popups** (#108) - Resolved an issue where selecting audio streams or sharing links with non-container formats passed `--merge-output-format m4a` to `yt-dlp`. Added strict merge container validation ensuring only valid container formats (`mp4`, `mkv`, `webm`, etc.) are passed.
+- **Long Unicode Filenames & Filesystem Errors** - Fixed `Errno 2: No such file or directory` / `File name too long` errors on platforms like Twitter/X with mathematical bold Unicode titles by adding `--windows-filenames` and `--trim-filenames 160` to yt-dlp arguments and ensuring target parent directories exist prior to download.
+- **Thumbnail Write Failure Recovery** - Added resilient fallback retry logic in `DownloadWorker` when thumbnail writing fails during the initial download phase, falling back to seamless poster-frame generation using Android native `MediaMetadataRetriever`.
+
+### Changed
+- **Nightly Version Bump** - Release metadata updated to `2.0.2.5` (`NIGHTLY_VERSION_CODE` `49`).
+
 ## [2.0.2.4] - 2026-09-20
 
 ### Added

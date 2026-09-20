@@ -14,6 +14,7 @@ import com.localdownloader.domain.models.shouldTreatAsAudioOnlyChoice
 import com.localdownloader.domain.repositories.DownloaderRepository
 import com.localdownloader.downloader.FormatSelectorBuilder
 import com.localdownloader.downloader.YoutubeRequestPlanner
+import com.localdownloader.downloader.isValidMergeContainer
 import com.localdownloader.downloader.looksLikeYoutubeUrl
 import com.localdownloader.ui.model.toReadableSize
 import com.localdownloader.utils.CookieTextCodec
@@ -200,6 +201,9 @@ class QuickDownloadViewModel @Inject constructor(
                     val defaultAudioQuality = audioQualities.firstOrNull { it.bitrateKbps == 160 || it.bitrateKbps == 128 }
                         ?: audioQualities.firstOrNull()
 
+                    val hasVideo = info.formats.any { !it.isAudioOnly && !it.isImageLike && !it.shouldTreatAsAudioOnlyChoice() }
+                    val defaultStreamType = if (hasVideo) StreamType.VIDEO_AUDIO else StreamType.AUDIO_ONLY
+
                     val durationStr = formatDurationSeconds(info.durationSeconds)
                     val domainStr = extractDomainHost(info.webpageUrl.ifBlank { url })
 
@@ -213,7 +217,7 @@ class QuickDownloadViewModel @Inject constructor(
                             durationFormatted = durationStr,
                             thumbnailUrl = info.thumbnailUrl,
                             domainHost = domainStr,
-                            selectedStreamType = StreamType.VIDEO_AUDIO,
+                            selectedStreamType = defaultStreamType,
                             videoQualityOptions = videoQualities,
                             audioQualityOptions = audioQualities,
                             selectedVideoQuality = defaultVideoQuality,
@@ -449,10 +453,11 @@ class QuickDownloadViewModel @Inject constructor(
                 }
             }
 
-            val mergeFormat = if (!isAudio) {
-                when (requestedContainer) {
-                    "auto" -> "mp4"
-                    else -> requestedContainer
+            val mergeFormat = if (!isAudio && !isVideoOnly) {
+                when {
+                    requestedContainer == "auto" -> "mp4"
+                    isValidMergeContainer(requestedContainer) -> requestedContainer
+                    else -> null
                 }
             } else {
                 null
@@ -561,8 +566,6 @@ class QuickDownloadViewModel @Inject constructor(
     private fun buildVideoFormats(info: VideoInfo): List<QuickFormatOption> {
         val rawVideoFormats = info.formats.filter {
             !it.isAudioOnly && !it.isImageLike && !it.shouldTreatAsAudioOnlyChoice()
-        }.ifEmpty {
-            info.formats.filter { !it.isImageLike }
         }
 
         if (rawVideoFormats.isEmpty()) {
