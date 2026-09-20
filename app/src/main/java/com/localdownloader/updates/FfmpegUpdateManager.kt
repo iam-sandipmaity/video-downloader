@@ -240,15 +240,9 @@ class FfmpegUpdateManager @Inject constructor(
     }
 
     private fun buildDisplayVersion(runtimeVersion: String?, packageVersion: String?): String? {
-        return when {
-            !runtimeVersion.isNullOrBlank() && !packageVersion.isNullOrBlank() ->
-                "$runtimeVersion (package $packageVersion)"
-            !runtimeVersion.isNullOrBlank() ->
-                "$runtimeVersion (bundled)"
-            !packageVersion.isNullOrBlank() ->
-                "package $packageVersion"
-            else -> null
-        }
+        val cleanPackage = packageVersion?.let { normalizeReleaseVersion(it) }
+        val cleanRuntime = runtimeVersion?.let { normalizeReleaseVersion(it) }
+        return cleanPackage ?: cleanRuntime
     }
 
     private data class ResolvedFfmpegRelease(

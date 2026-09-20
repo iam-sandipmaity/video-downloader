@@ -2,6 +2,14 @@
 
 Nightly builds are rolling prereleases published from the `nightly` release tag. This file tracks changes that are available in nightly before they are promoted into the stable changelog.
 
+## [2.0.2.6] - 2026-09-20
+
+### Fixed
+- **FFmpeg Update Tracking & Clean Version Display** - Fixed FFmpeg update availability comparison against bundled runtime and simplified version display labels to show clean version strings (e.g. `7.1.2`) instead of bracketed package tags.
+
+### Changed
+- **Nightly Version Bump** - Release metadata updated to `2.0.2.6` (`NIGHTLY_VERSION_CODE` `50`).
+
 ## [2.0.2.5] - 2026-09-20
 
 ### Fixed
