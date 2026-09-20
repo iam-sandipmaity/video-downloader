@@ -106,6 +106,26 @@ class DownloadCompatibilityTest {
         assertTrue(compatible)
     }
 
+    @Test
+    fun isValidMergeContainer_validatesSupportedContainersOnly() {
+        assertTrue(isValidMergeContainer("mp4"))
+        assertTrue(isValidMergeContainer("mkv"))
+        assertTrue(isValidMergeContainer("webm"))
+        assertTrue(isValidMergeContainer("mov"))
+        assertTrue(isValidMergeContainer("avi"))
+        assertTrue(isValidMergeContainer("flv"))
+        assertTrue(isValidMergeContainer("ogg"))
+
+        assertFalse(isValidMergeContainer("m4a"))
+        assertFalse(isValidMergeContainer("mp3"))
+        assertFalse(isValidMergeContainer("opus"))
+        assertFalse(isValidMergeContainer("aac"))
+        assertFalse(isValidMergeContainer("wav"))
+        assertFalse(isValidMergeContainer("auto"))
+        assertFalse(isValidMergeContainer(null))
+        assertFalse(isValidMergeContainer(""))
+    }
+
     private fun mergedChoice(
         height: Int,
         videoCodec: String,

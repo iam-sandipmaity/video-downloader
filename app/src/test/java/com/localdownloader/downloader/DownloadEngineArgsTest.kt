@@ -21,6 +21,30 @@ class DownloadEngineArgsTest {
     }
 
     @Test
+    fun shouldPassMergeOutputFormat_rejectsAudioContainersEvenWhenExtractAudioIsFalse() {
+        val options = DownloadOptions(
+            url = "https://example.com/watch",
+            formatId = "320",
+            extractAudio = false,
+            mergeOutputFormat = "m4a",
+        )
+
+        assertFalse(shouldPassMergeOutputFormat(options))
+    }
+
+    @Test
+    fun shouldPassMergeOutputFormat_rejectsInvalidContainers() {
+        val options = DownloadOptions(
+            url = "https://example.com/watch",
+            formatId = "best",
+            extractAudio = false,
+            mergeOutputFormat = "mp3",
+        )
+
+        assertFalse(shouldPassMergeOutputFormat(options))
+    }
+
+    @Test
     fun shouldPassMergeOutputFormat_keepsMergeFlagForVideoDownloads() {
         val options = DownloadOptions(
             url = "https://example.com/watch",
@@ -29,6 +53,18 @@ class DownloadEngineArgsTest {
         )
 
         assertTrue(shouldPassMergeOutputFormat(options))
+    }
+
+    @Test
+    fun shouldPassMergeOutputFormat_acceptsValidContainers() {
+        listOf("mp4", "mkv", "webm", "mov", "avi", "flv").forEach { container ->
+            val options = DownloadOptions(
+                url = "https://example.com/watch",
+                formatId = "bestvideo+bestaudio/best",
+                mergeOutputFormat = container,
+            )
+            assertTrue("Expected container $container to be valid", shouldPassMergeOutputFormat(options))
+        }
     }
 
     @Test

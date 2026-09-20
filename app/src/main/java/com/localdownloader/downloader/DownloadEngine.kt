@@ -22,10 +22,16 @@ class DownloadEngine @Inject constructor(
         onProgress: (DownloadProgressSnapshot) -> Unit,
         onOutputLine: (String) -> Unit,
     ): CommandResult {
+        runCatching {
+            File(outputTemplate).parentFile?.mkdirs()
+        }
+
         val args = mutableListOf(
             "--newline",
             "--ignore-config",
             "--no-warnings",
+            "--windows-filenames",
+            "--trim-filenames", "160",
             "--progress-template",
             "download:PROG|%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s|%(progress._downloaded_bytes_str)s|%(progress._total_bytes_estimate_str)s",
             // Fail fast enough for the worker's higher-level fallback logic to take over.
@@ -160,10 +166,16 @@ class DownloadEngine @Inject constructor(
             return CommandResult(exitCode = 0, stdout = "", stderr = "")
         }
 
+        runCatching {
+            File(outputTemplate).parentFile?.mkdirs()
+        }
+
         val args = mutableListOf(
             "--newline",
             "--ignore-config",
             "--no-warnings",
+            "--windows-filenames",
+            "--trim-filenames", "160",
             "--skip-download",
             "-o",
             outputTemplate,
@@ -302,7 +314,10 @@ class DownloadEngine @Inject constructor(
 }
 
 internal fun shouldPassMergeOutputFormat(options: DownloadOptions): Boolean {
-    return !options.extractAudio && !options.mergeOutputFormat.isNullOrBlank()
+    return !options.extractAudio &&
+        !options.downloadVideoOnly &&
+        !options.removeAudioFromVideo &&
+        isValidMergeContainer(options.mergeOutputFormat)
 }
 
 internal fun shouldPassAudioQuality(options: DownloadOptions): Boolean {

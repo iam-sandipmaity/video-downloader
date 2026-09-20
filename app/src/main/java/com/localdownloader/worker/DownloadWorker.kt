@@ -107,6 +107,9 @@ class DownloadWorker @AssistedInject constructor(
             },
         )
         appendDebugTrace(taskId, "Output template: $outputTemplate")
+        runCatching {
+            File(outputTemplate).parentFile?.mkdirs()
+        }
         cleanupOrphanedManagedArtifacts(outputTemplate = outputTemplate, taskId = taskId)
 
         val foregroundStarted = startForegroundIfPossible(
@@ -328,6 +331,18 @@ class DownloadWorker @AssistedInject constructor(
                 stderr = result.stderr,
             )
             return true
+        }
+
+        if (!result.isSuccess && (options.shouldWriteThumbnail || options.shouldEmbedThumbnail) && isThumbnailDownloadOrWriteFailure(result.stderr)) {
+            appendDebugTrace(taskId, "Thumbnail download or writing failed; retrying download without thumbnail")
+            val noThumbnailOptions = options.asFreshDownloadRetry().copy(
+                shouldWriteThumbnail = false,
+                shouldEmbedThumbnail = false,
+            )
+            result = runDownloadAttempt(noThumbnailOptions)
+            if (result.isSuccess && options.shouldWriteThumbnail) {
+                shouldGenerateThumbnailFallback = true
+            }
         }
 
         if (!result.isSuccess && shouldRetryWithFallbackExtractor(options, result.stderr)) {
@@ -1349,6 +1364,17 @@ class DownloadWorker @AssistedInject constructor(
             (lower.contains("thumbnailsconvertor") && lower.contains("decoder (codec webp) not found")) ||
             (lower.contains("embedthumbnail") && lower.contains("decoder (codec webp) not found")) ||
             (lower.contains("thumbnail") && lower.contains("decoder (codec webp) not found"))
+    }
+
+    private fun isThumbnailDownloadOrWriteFailure(stderr: String): Boolean {
+        val lower = stderr.lowercase()
+        val mentionsThumbnail = lower.contains("thumbnail") || lower.contains("thumbnailsconvertor")
+        val mentionsFileError = lower.contains("errno 2") ||
+            lower.contains("no such file") ||
+            lower.contains("file name too long") ||
+            lower.contains("invalid argument") ||
+            lower.contains("decoder (codec webp) not found")
+        return mentionsThumbnail && mentionsFileError
     }
 
     private fun cleanupThumbnailSidecars(primaryPath: String) {

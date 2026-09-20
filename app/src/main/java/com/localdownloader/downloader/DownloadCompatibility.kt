@@ -90,6 +90,21 @@ private fun shouldPreferWebmContainer(choice: FormatChoice): Boolean {
         normalizedAudioCodec.startsWith("vorbis")
 }
 
+val VALID_MERGE_CONTAINERS = setOf(
+    "mp4",
+    "mkv",
+    "webm",
+    "ogg",
+    "flv",
+    "mov",
+    "avi",
+)
+
+fun isValidMergeContainer(container: String?): Boolean {
+    val normalized = normalizeRequestedContainer(container) ?: return false
+    return normalized in VALID_MERGE_CONTAINERS
+}
+
 private val MP4_FAMILY_CONTAINERS = setOf(
     "mp4",
     "m4v",
@@ -97,3 +112,4 @@ private val MP4_FAMILY_CONTAINERS = setOf(
 )
 
 private const val AUTO_CONTAINER = "auto"
+
