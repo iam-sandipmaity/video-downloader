@@ -318,10 +318,13 @@ fun UpdatesScreen(
                     DividerInset()
                     UpdateActionRow(
                         icon = Icons.Outlined.FileDownload,
-                        title = if (uiState.ffmpeg.latestCheck?.requiresInitialInstall == true) {
-                            stringResource(R.string.updates_install_ffmpeg)
-                        } else {
-                            stringResource(R.string.updates_update_ffmpeg)
+                        title = when {
+                            uiState.ffmpeg.latestCheck?.requiresInitialInstall == true && uiState.ffmpeg.updateAvailable ->
+                                "Install FFmpeg ${uiState.ffmpeg.latestVersion?.let { "v$it" }.orEmpty()}".trim()
+                            uiState.ffmpeg.latestCheck?.requiresInitialInstall == true ->
+                                stringResource(R.string.updates_install_ffmpeg)
+                            else ->
+                                stringResource(R.string.updates_update_ffmpeg)
                         },
                         subtitle = buildInstallSubtitle(
                             section = uiState.ffmpeg,
@@ -624,8 +627,9 @@ private fun buildInstallSubtitle(
     return when {
         section.isInstalling && section.progressPercent != null -> "Downloading... ${section.progressPercent}%"
         hasPreparedInstall -> "The update APK is already downloaded and ready to install."
+        section.updateAvailable && isInitialInstall -> "Install managed runtime package v${section.latestVersion ?: ""} for direct in-app updates."
+        section.updateAvailable -> "Install version ${section.latestVersion ?: "the latest version"}"
         isInitialInstall -> "Install the optional managed runtime so FFmpeg can be updated directly in the app."
-        section.updateAvailable -> "Install ${section.latestVersion ?: "the latest version"}"
         else -> section.summary
     }
 }

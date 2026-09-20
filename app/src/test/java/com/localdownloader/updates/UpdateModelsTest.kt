@@ -65,5 +65,8 @@ class UpdateModelsTest {
         assertTrue(compareLooseVersions("2.0.0", "2.0.0") == 0)
         assertTrue(compareLooseVersions("2026.01.01", "2026.02.01") < 0)
         assertTrue(compareLooseVersions("v2.1.0", "2.1.0") == 0)
+        assertTrue(compareLooseVersions("7.1.1", "7.1.2") < 0)
+        assertTrue(compareLooseVersions("7.1.2", "7.1.1") > 0)
+        assertTrue(compareLooseVersions("7.1.2", "v7.1.2") == 0)
     }
 }

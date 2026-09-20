@@ -56,8 +56,8 @@ class FfmpegUpdateManager @Inject constructor(
         val release = resolveLatestRelease(channel)
         val latestVersion = release.version
         val requiresInitialInstall = installedPackageVersion.isNullOrBlank()
-        val updateAvailable = !requiresInitialInstall &&
-            compareLooseVersions(installedPackageVersion, latestVersion) < 0
+        val effectiveCurrentVersion = installedPackageVersion ?: runtimeVersion
+        val updateAvailable = compareLooseVersions(effectiveCurrentVersion, latestVersion) < 0
         return ComponentUpdateCheck(
             currentVersion = buildDisplayVersion(
                 runtimeVersion = runtimeVersion,
@@ -67,12 +67,14 @@ class FfmpegUpdateManager @Inject constructor(
             updateAvailable = updateAvailable,
             requiresInitialInstall = requiresInitialInstall,
             summary = when {
-                requiresInitialInstall ->
-                    "Bundled FFmpeg is active. Install the managed runtime package if you want direct in-app FFmpeg updates."
+                updateAvailable && requiresInitialInstall ->
+                    "A newer FFmpeg runtime package ($latestVersion) is available to upgrade from bundled ${runtimeVersion ?: "version"}."
                 updateAvailable ->
-                    "A newer managed FFmpeg runtime package is available."
+                    "A newer managed FFmpeg runtime package ($latestVersion) is available."
+                requiresInitialInstall ->
+                    "Bundled FFmpeg ${runtimeVersion?.let { "($it) " }.orEmpty()}is active. Install the managed runtime package if you want direct in-app FFmpeg updates."
                 else ->
-                    "Managed FFmpeg runtime is already on the latest stable feed."
+                    "Managed FFmpeg runtime is up to date ($latestVersion)."
             },
             releaseNotes = release.release.body,
             releasePageUrl = release.release.html_url,
@@ -86,12 +88,14 @@ class FfmpegUpdateManager @Inject constructor(
         onProgress: ((Int) -> Unit)? = null,
     ): RuntimeInstallResult = withContext(Dispatchers.IO) {
         val currentPackageVersion = installedPackageVersion()
+        val runtimeVersion = currentVersion()
+        val effectiveCurrentVersion = currentPackageVersion ?: runtimeVersion
         val release = resolveLatestRelease(channel)
-        if (!currentPackageVersion.isNullOrBlank() && compareLooseVersions(currentPackageVersion, release.version) >= 0) {
+        if (!effectiveCurrentVersion.isNullOrBlank() && compareLooseVersions(effectiveCurrentVersion, release.version) >= 0) {
             return@withContext RuntimeInstallResult(
                 updated = false,
                 version = buildDisplayVersion(
-                    runtimeVersion = currentVersion(),
+                    runtimeVersion = runtimeVersion,
                     packageVersion = currentPackageVersion,
                 ),
                 message = "FFmpeg is already on the latest stable runtime feed.",
