@@ -79,6 +79,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.localdownloader.R
+import com.localdownloader.domain.models.PlaylistEntry
 import com.localdownloader.domain.models.StreamType
 import com.localdownloader.viewmodel.QuickDownloadUiState
 import com.localdownloader.viewmodel.QuickFormatOption

@@ -8,6 +8,7 @@ import com.localdownloader.domain.models.DownloadOptions
 import com.localdownloader.domain.models.FormatChoice
 import com.localdownloader.domain.models.MediaFormat
 import com.localdownloader.domain.models.PlaylistDownloadRequest
+import com.localdownloader.domain.models.PlaylistEntry
 import com.localdownloader.domain.models.StreamType
 import com.localdownloader.domain.models.VideoInfo
 import com.localdownloader.domain.models.shouldTreatAsAudioOnlyChoice
