@@ -265,7 +265,7 @@
     <string name="settings_battery_subtitle">Eco mode, download threads, and Android battery optimization.</string>
     <string name="battery_section_system_title">System battery optimization</string>
     <string name="battery_system_unrestricted_title">Unrestricted background execution</string>
-    <string name="battery_system_unrestricted_subtitle">App is exempted from OS Doze mode. Background downloads will continue reliably when screen is off.</string>
+    <string name="battery_system_unrestricted_subtitle">App is exempted from OS Doze mode. Tap to open system app settings and manage battery restrictions.</string>
     <string name="battery_system_restricted_title">Optimize background execution</string>
     <string name="battery_system_restricted_desc">Android or OEM battery managers (MIUI, Samsung, OnePlus, etc.) may terminate active downloads in the background when the screen turns off. Allow unrestricted background battery execution to avoid download interruptions.</string>
     <string name="battery_system_restricted_action">Allow Unrestricted Background</string>

@@ -128,11 +128,11 @@ class BatteryOptimizationManager @Inject constructor(
     }
 
     /**
-     * Returns an intent to prompt the user to ignore battery optimizations or open battery settings.
+     * Returns an intent to prompt the user to ignore battery optimizations (direct dialog when restricted).
      */
     fun createIgnoreBatteryOptimizationsIntent(): Intent {
         val packageName = context.packageName
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !isIgnoringBatteryOptimizations()) {
             val directRequestIntent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
                 data = Uri.parse("package:$packageName")
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -140,7 +140,25 @@ class BatteryOptimizationManager @Inject constructor(
             if (directRequestIntent.resolveActivity(context.packageManager) != null) {
                 return directRequestIntent
             }
+        }
 
+        return createAppBatterySettingsIntent()
+    }
+
+    /**
+     * Returns an intent to open the system App Info / Battery screen so the user can change or revoke battery restrictions.
+     */
+    fun createAppBatterySettingsIntent(): Intent {
+        val packageName = context.packageName
+        val appDetailsIntent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+            data = Uri.parse("package:$packageName")
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        if (appDetailsIntent.resolveActivity(context.packageManager) != null) {
+            return appDetailsIntent
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             val listIntent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
@@ -149,8 +167,7 @@ class BatteryOptimizationManager @Inject constructor(
             }
         }
 
-        return Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-            data = Uri.parse("package:$packageName")
+        return Intent(Settings.ACTION_SETTINGS).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
     }

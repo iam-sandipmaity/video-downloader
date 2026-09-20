@@ -125,7 +125,7 @@ fun BatteryPerformanceSettingsScreen(
                         value = stringResource(R.string.battery_system_status_optimized),
                         onClick = {
                             runCatching {
-                                context.startActivity(batteryOptimizationManager.createIgnoreBatteryOptimizationsIntent())
+                                context.startActivity(batteryOptimizationManager.createAppBatterySettingsIntent())
                             }
                         },
                     )
