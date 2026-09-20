@@ -11,6 +11,7 @@ import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.IBinder
+import androidx.core.net.toUri
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
@@ -348,7 +349,7 @@ class AudioPlaybackService : Hilt_AudioPlaybackService() {
         val retriever = MediaMetadataRetriever()
         return runCatching {
             if (filePath.startsWith("content://", ignoreCase = true)) {
-                retriever.setDataSource(this, Uri.parse(filePath))
+                retriever.setDataSource(this, filePath.toUri())
             } else {
                 retriever.setDataSource(filePath)
             }

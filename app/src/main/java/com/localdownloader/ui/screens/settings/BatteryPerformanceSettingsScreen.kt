@@ -191,10 +191,17 @@ fun BatteryPerformanceSettingsScreen(
         item {
             PreferenceGroup {
                 val currentMode = uiState.appSettings.batterySaverMode
+                val autoTitle = stringResource(R.string.battery_saver_mode_auto)
+                val autoDesc = stringResource(R.string.battery_saver_mode_auto_desc)
+                val alwaysOnTitle = stringResource(R.string.battery_saver_mode_always_on)
+                val alwaysOnDesc = stringResource(R.string.battery_saver_mode_always_on_desc)
+                val offTitle = stringResource(R.string.battery_saver_mode_off)
+                val offDesc = stringResource(R.string.battery_saver_mode_off_desc)
+
                 val modeLabel = when (currentMode) {
-                    BatterySaverMode.AUTO -> stringResource(R.string.battery_saver_mode_auto)
-                    BatterySaverMode.ALWAYS_ON -> stringResource(R.string.battery_saver_mode_always_on)
-                    BatterySaverMode.OFF -> stringResource(R.string.battery_saver_mode_off)
+                    BatterySaverMode.AUTO -> autoTitle
+                    BatterySaverMode.ALWAYS_ON -> alwaysOnTitle
+                    BatterySaverMode.OFF -> offTitle
                 }
                 PreferenceRow(
                     icon = Icons.Rounded.EnergySavingsLeaf,
@@ -204,18 +211,18 @@ fun BatteryPerformanceSettingsScreen(
                     onClick = {
                         val modeChoices = listOf(
                             SettingChoiceOption(
-                                title = context.getString(R.string.battery_saver_mode_auto),
-                                subtitle = context.getString(R.string.battery_saver_mode_auto_desc),
+                                title = autoTitle,
+                                subtitle = autoDesc,
                                 onSelect = { onBatterySaverModeChanged(BatterySaverMode.AUTO) },
                             ),
                             SettingChoiceOption(
-                                title = context.getString(R.string.battery_saver_mode_always_on),
-                                subtitle = context.getString(R.string.battery_saver_mode_always_on_desc),
+                                title = alwaysOnTitle,
+                                subtitle = alwaysOnDesc,
                                 onSelect = { onBatterySaverModeChanged(BatterySaverMode.ALWAYS_ON) },
                             ),
                             SettingChoiceOption(
-                                title = context.getString(R.string.battery_saver_mode_off),
-                                subtitle = context.getString(R.string.battery_saver_mode_off_desc),
+                                title = offTitle,
+                                subtitle = offDesc,
                                 onSelect = { onBatterySaverModeChanged(BatterySaverMode.OFF) },
                             ),
                         )

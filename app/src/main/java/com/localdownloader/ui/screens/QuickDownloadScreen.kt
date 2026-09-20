@@ -99,6 +99,7 @@ fun QuickDownloadScreen(
     onThreadsChanged: (Int) -> Unit,
     onDownloadClicked: () -> Unit,
     onRetryClicked: () -> Unit,
+    modifier: Modifier = Modifier,
     onTogglePlaylistItem: (Int) -> Unit = {},
     onSelectAllPlaylistItems: (Boolean) -> Unit = {},
     onShowTitleEditDialog: (Boolean) -> Unit = {},
@@ -106,7 +107,6 @@ fun QuickDownloadScreen(
     onDismissMeteredNetworkDialog: () -> Unit = {},
     onAllowCellularAndDownload: () -> Unit = {},
     onDownloadWhenWifiAvailable: () -> Unit = {},
-    modifier: Modifier = Modifier,
 ) {
     if (uiState.showMeteredNetworkDialog) {
         AlertDialog(
@@ -324,11 +324,11 @@ private fun QuickMediaHeaderCard(
     title: String,
     uploader: String?,
     domainHost: String?,
-    isPlaylist: Boolean = false,
-    playlistCount: Int = 0,
     onEditTitleClicked: () -> Unit,
     onCloseClicked: () -> Unit,
     modifier: Modifier = Modifier,
+    isPlaylist: Boolean = false,
+    playlistCount: Int = 0,
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -1067,9 +1067,9 @@ private fun QuickTuningDrawer(
 private fun QuickDownloadStickyActionBar(
     label: String,
     isQueueing: Boolean,
-    enabled: Boolean = true,
     onDownloadClicked: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     Surface(
         modifier = modifier

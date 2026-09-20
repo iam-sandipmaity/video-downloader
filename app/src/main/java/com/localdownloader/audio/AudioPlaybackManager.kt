@@ -2,6 +2,7 @@ package com.localdownloader.audio
 
 import android.content.Context
 import android.net.Uri
+import androidx.core.net.toUri
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -383,8 +384,8 @@ class AudioPlaybackManager @Inject constructor(
 
     private fun String.toPlaybackUri(): Uri {
         return when {
-            startsWith("content://", ignoreCase = true) -> Uri.parse(this)
-            startsWith("file://", ignoreCase = true) -> Uri.parse(this)
+            startsWith("content://", ignoreCase = true) -> toUri()
+            startsWith("file://", ignoreCase = true) -> toUri()
             else -> Uri.fromFile(File(this))
         }
     }

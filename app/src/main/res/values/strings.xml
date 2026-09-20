@@ -282,8 +282,8 @@
     <string name="battery_saver_mode_off_desc">Uses your configured maximum threads and parallel queue slots without power throttling.</string>
     <string name="battery_section_concurrency_title">Concurrency and threads</string>
     <string name="battery_threads_title">Download threads per video</string>
-    <string name="battery_threads_subtitle">Number of parallel chunk streams per video (--concurrent-fragments). More threads increase download speed but consume more CPU and power.</string>
-    <string name="battery_threads_count">%1$d threads</string>
+    <string name="battery_threads_subtitle" tools:ignore="TypographyDashes">Number of parallel chunk streams per video (--concurrent-fragments). More threads increase download speed but consume more CPU and power.</string>
+    <string name="battery_threads_count" tools:ignore="PluralsCandidate">%1$d threads</string>
     <string name="battery_threads_1">1 thread (Eco / Low power)</string>
     <string name="battery_threads_1_desc">Lowest CPU, RAM, and battery draw. Best for weak cellular networks or background downloads.</string>
     <string name="battery_threads_2">2 threads (Light / Stable)</string>
@@ -755,7 +755,7 @@
     <string name="format_selector_style_dropdown">Compact Dropdown</string>
     <string name="format_selector_style_dropdown_desc">Traditional compact inline dropdown menu.</string>
     <string name="format_picker_title">Select Format &amp; Quality</string>
-    <string name="format_picker_subtitle">%1$d stream options available</string>
+    <string name="format_picker_subtitle" tools:ignore="PluralsCandidate">%1$d stream options available</string>
     <string name="format_badge_best">BEST</string>
     <string name="format_badge_merged">MERGED</string>
     <string name="format_tab_all">All</string>
@@ -904,7 +904,7 @@
     <string name="vault_file_not_playable">This file type cannot be played in-app</string>
     <string name="player_file_unavailable">This file is not available for playback.</string>
     <string name="queue_cancel_all_title">Cancel all queued downloads?</string>
-    <string name="queue_cancel_all_body">This will cancel %1$d download(s) in the current queue view.</string>
+    <string name="queue_cancel_all_body" tools:ignore="PluralsCandidate">This will cancel %1$d download(s) in the current queue view.</string>
     <string name="queue_cancel_all_confirm">Cancel all</string>
     <string name="queue_cancel_all_label">Cancel All In Queue</string>
     <string name="queue_pause_all_label">Pause All In Queue</string>
@@ -952,7 +952,7 @@
     <string name="quick_download_playlist_section_title">Playlist Items</string>
     <string name="quick_download_select_all">Select all</string>
     <string name="quick_download_deselect_all">Deselect all</string>
-    <string name="quick_download_items_selected_count">%1$d / %2$d selected</string>
-    <string name="quick_download_playlist_count">%1$d videos</string>
+    <string name="quick_download_items_selected_count" tools:ignore="PluralsCandidate">%1$d / %2$d selected</string>
+    <string name="quick_download_playlist_count" tools:ignore="PluralsCandidate">%1$d videos</string>
     <string name="quick_download_select_items_hint">Select items to download</string>
 </resources>

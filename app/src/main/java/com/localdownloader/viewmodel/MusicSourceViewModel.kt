@@ -366,8 +366,7 @@ class MusicSourceViewModel @Inject constructor(
         } else {
             Manifest.permission.READ_EXTERNAL_STORAGE
         }
-        return Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
-            ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+        return ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
     }
 
     private fun String.stableShortHash(): String {

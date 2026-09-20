@@ -40,16 +40,16 @@ fun DownloadSettingsScreen(
     onDefaultEmbedSubtitlesChanged: (Boolean) -> Unit,
     onDefaultEmbedMetadataChanged: (Boolean) -> Unit,
     onDefaultEmbedThumbnailChanged: (Boolean) -> Unit,
-    onShowFormatFpsChanged: (Boolean) -> Unit = {},
-    onShowFormatCodecChanged: (Boolean) -> Unit = {},
-    onShowFormatBitrateChanged: (Boolean) -> Unit = {},
-    onFormatSelectorStyleChanged: (FormatSelectorStyle) -> Unit = {},
-    onDefaultConcurrentFragmentsChanged: (Int) -> Unit = {},
     onMaxConcurrentDownloadsChanged: (Int) -> Unit,
     onKeepAnalyzedLinkHistoryChanged: (Boolean) -> Unit,
     onAnalyzedLinkHistoryRetentionDaysChanged: (Int) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    onShowFormatFpsChanged: (Boolean) -> Unit = {},
+    onShowFormatCodecChanged: (Boolean) -> Unit = {},
+    onShowFormatBitrateChanged: (Boolean) -> Unit = {},
+    onFormatSelectorStyleChanged: (FormatSelectorStyle) -> Unit = {},
+    onDefaultConcurrentFragmentsChanged: (Int) -> Unit = {},
 ) {
     val context = LocalContext.current
     var choiceDialog by remember { mutableStateOf<SettingChoiceDialogState?>(null) }

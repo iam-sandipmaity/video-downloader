@@ -317,7 +317,7 @@ fun MusicPlayerScreen(
                 when (sourceType) {
                     MusicSourceType.APP_DOWNLOADS -> onSelectMusicSource(sourceType)
                     MusicSourceType.DEVICE_AUDIO -> {
-                        if (musicSourceState.devicePermissionGranted || Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+                        if (musicSourceState.devicePermissionGranted) {
                             onSelectMusicSource(sourceType)
                         } else {
                             deviceAudioPermissionLauncher.launch(deviceAudioPermission)

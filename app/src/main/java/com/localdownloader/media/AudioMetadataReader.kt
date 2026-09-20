@@ -2,7 +2,7 @@ package com.localdownloader.media
 
 import android.content.Context
 import android.media.MediaMetadataRetriever
-import android.net.Uri
+import androidx.core.net.toUri
 
 data class AudioTrackMetadata(
     val title: String? = null,
@@ -19,7 +19,7 @@ fun readAudioTrackMetadata(
     val retriever = MediaMetadataRetriever()
     return runCatching {
         if (location.startsWith("content://", ignoreCase = true)) {
-            retriever.setDataSource(context, Uri.parse(location))
+            retriever.setDataSource(context, location.toUri())
         } else {
             retriever.setDataSource(location)
         }

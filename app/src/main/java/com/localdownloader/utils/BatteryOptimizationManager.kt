@@ -1,5 +1,6 @@
 package com.localdownloader.utils
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -8,6 +9,7 @@ import android.os.BatteryManager
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
+import androidx.core.net.toUri
 import com.localdownloader.domain.models.BatterySaverMode
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -32,11 +34,7 @@ class BatteryOptimizationManager @Inject constructor(
      */
     fun isIgnoringBatteryOptimizations(): Boolean {
         val pm = powerManager ?: return false
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            runCatching { pm.isIgnoringBatteryOptimizations(context.packageName) }.getOrDefault(false)
-        } else {
-            true
-        }
+        return runCatching { pm.isIgnoringBatteryOptimizations(context.packageName) }.getOrDefault(false)
     }
 
     /**
@@ -130,11 +128,12 @@ class BatteryOptimizationManager @Inject constructor(
     /**
      * Returns an intent to prompt the user to ignore battery optimizations (direct dialog when restricted).
      */
+    @SuppressLint("BatteryLife", "QueryPermissionsNeeded")
     fun createIgnoreBatteryOptimizationsIntent(): Intent {
         val packageName = context.packageName
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !isIgnoringBatteryOptimizations()) {
+        if (!isIgnoringBatteryOptimizations()) {
             val directRequestIntent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                data = Uri.parse("package:$packageName")
+                data = "package:$packageName".toUri()
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             if (directRequestIntent.resolveActivity(context.packageManager) != null) {
@@ -148,23 +147,22 @@ class BatteryOptimizationManager @Inject constructor(
     /**
      * Returns an intent to open the system App Info / Battery screen so the user can change or revoke battery restrictions.
      */
+    @SuppressLint("QueryPermissionsNeeded")
     fun createAppBatterySettingsIntent(): Intent {
         val packageName = context.packageName
         val appDetailsIntent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-            data = Uri.parse("package:$packageName")
+            data = "package:$packageName".toUri()
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         if (appDetailsIntent.resolveActivity(context.packageManager) != null) {
             return appDetailsIntent
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            val listIntent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            if (listIntent.resolveActivity(context.packageManager) != null) {
-                return listIntent
-            }
+        val listIntent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        if (listIntent.resolveActivity(context.packageManager) != null) {
+            return listIntent
         }
 
         return Intent(Settings.ACTION_SETTINGS).apply {
