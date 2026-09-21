@@ -60,7 +60,6 @@ import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.PictureInPictureAlt
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Subtitles
 import androidx.compose.material.icons.outlined.VolumeUp
 import androidx.compose.material3.CircularProgressIndicator

@@ -8,7 +8,6 @@ import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
