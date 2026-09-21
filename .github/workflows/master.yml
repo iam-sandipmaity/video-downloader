@@ -78,6 +78,7 @@ jobs:
     needs: workflow-flags
     permissions:
       contents: read
+      actions: write
     if: |
       needs.workflow-flags.outputs.enable_android_build == 'true' &&
       (
