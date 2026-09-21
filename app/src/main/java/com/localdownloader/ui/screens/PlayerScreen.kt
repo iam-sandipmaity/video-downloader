@@ -8,7 +8,6 @@ import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.media.AudioManager
-import android.provider.Settings
 import androidx.core.content.edit
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -60,6 +59,7 @@ import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.PictureInPictureAlt
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Subtitles
 import androidx.compose.material.icons.outlined.VolumeUp
 import androidx.compose.material3.CircularProgressIndicator
@@ -1992,9 +1992,9 @@ private class PlayerSwipeAdjustmentController(
             return windowBrightness.coerceIn(MIN_BRIGHTNESS_LEVEL, 1f)
         }
         val systemBrightness = runCatching {
-            Settings.System.getInt(
+            android.provider.Settings.System.getInt(
                 context.contentResolver,
-                Settings.System.SCREEN_BRIGHTNESS,
+                android.provider.Settings.System.SCREEN_BRIGHTNESS,
             ) / 255f
         }.getOrDefault(DEFAULT_GESTURE_LEVEL)
         return systemBrightness.coerceIn(MIN_BRIGHTNESS_LEVEL, 1f)

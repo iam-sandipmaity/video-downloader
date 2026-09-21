@@ -589,6 +589,7 @@ fun PreferenceNavigationRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     subtitle: String? = null,
+    description: String? = subtitle,
     value: String? = null,
     iconTint: Color = MaterialTheme.colorScheme.primary,
     enabled: Boolean = true,
@@ -597,7 +598,7 @@ fun PreferenceNavigationRow(
         icon = icon,
         iconTint = iconTint,
         title = title,
-        description = subtitle,
+        description = description ?: subtitle,
         value = value,
         enabled = enabled,
         trailingContent = {

@@ -505,17 +505,16 @@ fun CookieCaptureScreen(
                             val cookieString = android.webkit.CookieManager.getInstance()
                                 .getCookie(activeWebView.url ?: secureCaptureUrl)
                                 .orEmpty()
-                            val parsedCookies = CookieTextCodec.fromCookieHeader(
-                                cookieHeader = cookieString,
-                                targetUrl = activeWebView.url ?: secureCaptureUrl,
+                            val finalCookieText = CookieTextCodec.fromCookieHeader(
+                                url = activeWebView.url ?: secureCaptureUrl,
+                                header = cookieString,
                             )
-                            val finalCookieText = CookieTextCodec.toNetscapeFormat(parsedCookies)
                             WebViewSessionSanitizer.clearAndDestroy(webView)
                             webView = null
                             onConfirm(finalCookieText)
                         },
                     ) {
-                        Text(stringResource(R.string.cookies_capture_use_cookies))
+                        Text(stringResource(R.string.cookies_capture_confirm))
                     }
                 },
             )
@@ -531,7 +530,7 @@ fun CookieCaptureScreen(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
-                    text = stringResource(R.string.cookies_capture_banner_notice),
+                    text = "Sign in to export website cookies for downloads. Tap Save Cookies when ready.",
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -593,7 +592,7 @@ private fun CookieProfileCard(
         icon = Icons.Rounded.Cookie,
         title = profile.url,
         description = if (count > 0) "$count valid cookies" else "No cookie entries",
-        trailing = {
+        trailingContent = {
             Icon(
                 imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                 contentDescription = null,

@@ -1,13 +1,13 @@
 package com.localdownloader.ui.screens
 
 import android.content.Intent
-import android.provider.Settings
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -67,7 +67,7 @@ fun UpdatesScreen(
     LaunchedEffect(uiState.pendingAppInstallRequestId) {
         val pendingInstall = uiState.pendingAppInstall ?: return@LaunchedEffect
         if (pendingInstall.requiresInstallPermission) {
-            val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+            val intent = Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
                 data = "package:${context.packageName}".toUri()
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
