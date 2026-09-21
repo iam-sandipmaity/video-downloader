@@ -246,7 +246,46 @@ fun StorageSettingsScreen(
             )
         }
         item {
-            PreferenceSubtitle(text = "MEDIA LIBRARY & STORAGE")
+            PreferenceSubtitle(text = "STORAGE USAGE & STATS")
+        }
+        item {
+            PreferenceItem(
+                icon = Icons.Rounded.Storage,
+                title = "Available storage",
+                description = "Free space on download storage volume",
+                value = formatFileSize(availableStorageBytes),
+                onClick = null,
+            )
+        }
+        item {
+            PreferenceItem(
+                icon = Icons.Rounded.LibraryBooks,
+                title = stringResource(R.string.storage_saved_items_title),
+                description = "Indexed downloads in local media database",
+                value = "$savedItemsCount items",
+                onClick = null,
+            )
+        }
+        item {
+            PreferenceItem(
+                icon = Icons.Rounded.Folder,
+                title = "Possible duplicates",
+                description = "Downloaded files sharing identical sources or paths",
+                value = "$duplicateSavedItemsCount files",
+                onClick = null,
+            )
+        }
+        item {
+            PreferenceItem(
+                icon = Icons.Rounded.CleaningServices,
+                title = stringResource(R.string.storage_temp_cache_title),
+                description = "Temporary download fragments and thumbnails",
+                value = formatFileSize(cacheSize),
+                onClick = null,
+            )
+        }
+        item {
+            PreferenceSubtitle(text = "MEDIA LIBRARY BEHAVIOR")
         }
         item {
             PreferenceSwitch(
@@ -264,38 +303,6 @@ fun StorageSettingsScreen(
                 description = stringResource(R.string.storage_delete_storage_subtitle),
                 isChecked = uiState.deleteFromStorageWhenRemovedInApp,
                 onClick = { onDeleteFromStorageWhenRemovedInAppChanged(!uiState.deleteFromStorageWhenRemovedInApp) },
-            )
-        }
-        item {
-            PreferenceItem(
-                icon = Icons.Rounded.LibraryBooks,
-                title = stringResource(R.string.storage_saved_items_title),
-                value = savedItemsCount.toString(),
-                onClick = null,
-            )
-        }
-        item {
-            PreferenceItem(
-                icon = Icons.Rounded.LibraryBooks,
-                title = "Possible duplicates",
-                value = duplicateSavedItemsCount.toString(),
-                onClick = null,
-            )
-        }
-        item {
-            PreferenceItem(
-                icon = Icons.Rounded.Storage,
-                title = "Available storage",
-                value = formatFileSize(availableStorageBytes),
-                onClick = null,
-            )
-        }
-        item {
-            PreferenceItem(
-                icon = Icons.Rounded.Storage,
-                title = stringResource(R.string.storage_temp_cache_title),
-                value = formatFileSize(cacheSize),
-                onClick = null,
             )
         }
         item {

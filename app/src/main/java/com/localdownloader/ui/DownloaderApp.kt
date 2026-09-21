@@ -80,6 +80,7 @@ import com.localdownloader.ui.screens.settings.AccessSettingsScreen
 import com.localdownloader.ui.screens.settings.AppearanceSettingsScreen
 import com.localdownloader.ui.screens.settings.AppLogSettingsScreen
 import com.localdownloader.ui.screens.settings.BatteryPerformanceSettingsScreen
+import com.localdownloader.ui.screens.settings.CreditsSettingsScreen
 import com.localdownloader.ui.screens.settings.DownloadSettingsScreen
 import com.localdownloader.ui.screens.settings.NotificationsSettingsScreen
 import com.localdownloader.ui.screens.settings.StorageSettingsScreen
@@ -965,7 +966,13 @@ fun DownloaderApp(
             composable(Routes.SettingsAbout) {
                 AboutSettingsScreen(
                     onOpenUpdates = { navController.navigate(Routes.Updates) },
+                    onOpenCredits = { navController.navigate(Routes.SettingsCredits) },
                     onResetSettings = formatViewModel::resetSettingsToDefaults,
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable(Routes.SettingsCredits) {
+                CreditsSettingsScreen(
                     onBack = { navController.popBackStack() },
                 )
             }
@@ -1233,6 +1240,7 @@ object Routes {
     const val SettingsNotifications = "settings/notifications"
     const val SettingsAccess = "settings/access"
     const val SettingsAbout = "settings/about"
+    const val SettingsCredits = "settings/credits"
     const val SettingsAppLog = "settings/app-log"
     const val Updates = "updates"
     const val UpdateChangelog = "updates/changelog/{section}"

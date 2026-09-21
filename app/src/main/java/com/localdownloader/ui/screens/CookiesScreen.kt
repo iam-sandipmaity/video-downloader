@@ -28,9 +28,12 @@ import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.ContentPaste
 import androidx.compose.material.icons.rounded.Cookie
+import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Language
+import androidx.compose.material.icons.rounded.OpenInBrowser
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -43,6 +46,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -58,6 +62,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -380,11 +386,19 @@ private fun QuickCookieCaptureDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                imageVector = Icons.Rounded.Cookie,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(28.dp),
+            )
+        },
         title = { Text("Capture Website Cookies") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text(
-                    text = "Pick a site or enter a URL. The in-app browser will open so you can log in and save cookies.",
+                    text = "Pick a popular site below or enter a custom URL. The in-app browser will launch so you can log in and save cookies.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -392,13 +406,21 @@ private fun QuickCookieCaptureDialog(
                     value = urlText,
                     onValueChange = { urlText = it },
                     label = { Text("Website URL") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Rounded.Language,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text(
-                    text = "Popular services:",
+                    text = "Popular sites:",
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -479,57 +501,84 @@ fun CookieCaptureScreen(
                     TextButton(
                         enabled = !isConfirming,
                         onClick = {
-                            coroutineScope.launch {
-                                isConfirming = true
-                                val cookieText = runCatching {
-                                    withContext(Dispatchers.IO) {
-                                        WebViewCookieExporter.exportForUrl(context, secureCaptureUrl)
-                                    }
-                                }.getOrDefault("")
-                                isConfirming = false
-                                WebViewSessionSanitizer.clearAndDestroy(webView)
-                                webView = null
-                                onConfirm(cookieText)
-                            }
+                            val activeWebView = webView ?: return@TextButton
+                            isConfirming = true
+                            android.webkit.CookieManager.getInstance().flush()
+                            val cookieString = android.webkit.CookieManager.getInstance()
+                                .getCookie(activeWebView.url ?: secureCaptureUrl)
+                                .orEmpty()
+                            val parsedCookies = CookieTextCodec.fromCookieHeader(
+                                cookieHeader = cookieString,
+                                targetUrl = activeWebView.url ?: secureCaptureUrl,
+                            )
+                            val finalCookieText = CookieTextCodec.toNetscapeFormat(parsedCookies)
+                            WebViewSessionSanitizer.clearAndDestroy(webView)
+                            webView = null
+                            onConfirm(finalCookieText)
                         },
                     ) {
-                        Text(if (isConfirming) stringResource(R.string.youtube_access_login_saving) else stringResource(R.string.cookies_capture_confirm))
+                        Text(stringResource(R.string.cookies_capture_use_cookies))
                     }
                 },
             )
         },
     ) { innerPadding ->
-        AndroidView(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            factory = { context ->
-                WebViewSessionSanitizer.resetSession()
-                WebView(context).apply {
-                    webView = this
-                    configureRestrictedJavascriptSession(
-                        enableCookies = true,
-                        enableThirdPartyCookies = true,
-                    )
-                    webViewClient = object : WebViewClient() {
-                        override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
-                            val scheme = request?.url?.scheme.orEmpty()
-                            return scheme.isNotBlank() &&
-                                !scheme.equals("https", ignoreCase = true) &&
-                                !scheme.equals("about", ignoreCase = true)
-                        }
-                    }
-                    webChromeClient = object : WebChromeClient() {
-                        override fun onReceivedTitle(view: WebView?, pageTitle: String?) {
-                            if (!pageTitle.isNullOrBlank()) {
-                                title = pageTitle
+        ) {
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text = stringResource(R.string.cookies_capture_banner_notice),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            androidx.compose.ui.viewinterop.AndroidView(
+                factory = { ctx ->
+                    WebView(ctx).apply {
+                        webView = this
+                        settings.javaScriptEnabled = true
+                        settings.domStorageEnabled = true
+                        settings.databaseEnabled = true
+                        settings.userAgentString = "${settings.userAgentString} MobileAppBrowser"
+                        val cookieManager = android.webkit.CookieManager.getInstance()
+                        cookieManager.setAcceptCookie(true)
+                        cookieManager.setAcceptThirdPartyCookies(this, true)
+                        webViewClient = object : WebViewClient() {
+                            override fun shouldOverrideUrlLoading(
+                                view: WebView?,
+                                request: WebResourceRequest?,
+                            ): Boolean {
+                                return false
+                            }
+
+                            override fun onPageFinished(view: WebView?, url: String?) {
+                                super.onPageFinished(view, url)
+                                if (url != null) {
+                                    title = view?.title?.takeIf { it.isNotBlank() } ?: url
+                                }
                             }
                         }
+                        webChromeClient = object : WebChromeClient() {
+                            override fun onReceivedTitle(view: WebView?, webTitle: String?) {
+                                super.onReceivedTitle(view, webTitle)
+                                if (!webTitle.isNullOrBlank()) {
+                                    title = webTitle
+                                }
+                            }
+                        }
+                        loadUrl(secureCaptureUrl)
                     }
-                    loadUrl(secureCaptureUrl)
-                }
-            },
-        )
+                },
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
     }
 }
 
@@ -545,8 +594,8 @@ private fun CookieProfileCard(
     PreferenceItem(
         icon = Icons.Rounded.Cookie,
         title = profile.url,
-        description = if (count > 0) "$count cookies stored • Tap to edit or export" else "No cookies stored",
-        trailingContent = {
+        description = if (count > 0) "$count valid cookies" else "No cookie entries",
+        trailing = {
             Icon(
                 imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                 contentDescription = null,
@@ -558,6 +607,7 @@ private fun CookieProfileCard(
     )
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CookieEditorDialog(
     state: CookieEditorState,
@@ -571,102 +621,137 @@ private fun CookieEditorDialog(
 ) {
     val hasValidUrl = !CookieTextCodec.normalizeUrl(state.url).isNullOrBlank()
     val hasCookiesText = state.cookiesText.isNotBlank()
+    val cookieCount = remember(state.cookiesText) {
+        CookieTextCodec.countCookies(state.cookiesText)
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                imageVector = Icons.Rounded.Cookie,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(28.dp),
+            )
+        },
         title = {
-            Text(if (state.profileId == null) stringResource(R.string.cookies_new) else stringResource(R.string.common_edit))
+            Text(if (state.profileId == null) "Add Cookie Profile" else "Edit Cookie Profile")
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text(
-                    text = stringResource(R.string.cookies_editor_keep_one),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                OutlinedTextField(
+                    value = state.url,
+                    onValueChange = { onStateChanged(state.copy(url = it)) },
+                    label = { Text("Website URL") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Rounded.Language,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    placeholder = { Text("https://youtube.com") },
                 )
                 OutlinedTextField(
                     value = state.cookiesText,
                     onValueChange = { onStateChanged(state.copy(cookiesText = it)) },
-                    label = { Text(stringResource(R.string.cookies_editor_text)) },
+                    label = { Text("Netscape Cookie Data") },
+                    supportingText = {
+                        Text(
+                            text = if (cookieCount > 0) {
+                                "$cookieCount cookies detected"
+                            } else {
+                                "Paste standard Netscape format cookie lines"
+                            },
+                            color = if (cookieCount > 0) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                        )
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(280.dp),
-                    placeholder = { Text("# Netscape HTTP Cookie File") },
+                        .height(200.dp),
+                    textStyle = MaterialTheme.typography.bodySmall.copy(
+                        fontFamily = FontFamily.Monospace,
+                    ),
+                    placeholder = { Text("# Netscape HTTP Cookie File\n.domain.com TRUE / FALSE 0 name value") },
                 )
-                OutlinedTextField(
-                    value = state.url,
-                    onValueChange = { onStateChanged(state.copy(url = it)) },
-                    label = { Text(stringResource(R.string.cookies_editor_url)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    placeholder = { Text("https://reddit.com") },
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    Row(
-                        modifier = Modifier.weight(1f),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(999.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            modifier = Modifier.clickable(onClick = onCopy),
-                        ) {
+                    SuggestionChip(
+                        onClick = onPaste,
+                        icon = {
                             Icon(
-                                imageVector = Icons.Outlined.ContentCopy,
-                                contentDescription = stringResource(R.string.cookies_copy_cookies),
-                                modifier = Modifier.padding(16.dp),
+                                imageVector = Icons.Rounded.ContentPaste,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
                             )
-                        }
-                        Surface(
-                            shape = RoundedCornerShape(999.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            modifier = Modifier.clickable(onClick = onPaste),
-                        ) {
-                            Text(
-                                text = stringResource(R.string.cookies_editor_paste),
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                                style = MaterialTheme.typography.labelLarge,
-                            )
-                        }
+                        },
+                        label = { Text("Paste") },
+                    )
+                    if (hasCookiesText) {
+                        SuggestionChip(
+                            onClick = onCopy,
+                            icon = {
+                                Icon(
+                                    imageVector = Icons.Rounded.ContentCopy,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                            },
+                            label = { Text("Copy") },
+                        )
                     }
-                    if (state.profileId != null) {
-                        TextButton(onClick = onDelete) { Text(stringResource(R.string.common_delete)) }
-                    } else {
-                        Spacer(modifier = Modifier)
-                    }
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    Button(
+                    SuggestionChip(
                         onClick = onGetCookies,
                         enabled = hasValidUrl,
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Text(stringResource(R.string.cookies_editor_get))
-                    }
-                    Button(
-                        onClick = onSave,
-                        enabled = hasValidUrl && hasCookiesText,
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Text(if (state.profileId == null) stringResource(R.string.common_save) else stringResource(R.string.common_edit))
-                    }
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Rounded.OpenInBrowser,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                            )
+                        },
+                        label = { Text("Capture in Browser") },
+                    )
                 }
-                Text(
-                    text = stringResource(R.string.cookies_editor_url_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
             }
         },
-        confirmButton = {},
-        dismissButton = {},
+        confirmButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (state.profileId != null) {
+                    TextButton(
+                        onClick = onDelete,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.common_delete),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+                Button(
+                    onClick = onSave,
+                    enabled = hasValidUrl && hasCookiesText,
+                ) {
+                    Text(if (state.profileId == null) stringResource(R.string.common_save) else stringResource(R.string.common_edit))
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.common_cancel))
+            }
+        },
     )
 }
 

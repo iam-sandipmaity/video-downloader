@@ -108,7 +108,7 @@ fun DownloadSettingsScreen(
         modifier = modifier,
     ) {
         item {
-            PreferenceSubtitle(text = "OUTPUT FORMAT & TEMPLATES")
+            PreferenceSubtitle(text = "TEMPLATES & CONTAINERS")
         }
         item {
             PreferenceItem(
@@ -193,6 +193,7 @@ fun DownloadSettingsScreen(
             PreferenceSwitch(
                 icon = Icons.Rounded.Subtitles,
                 title = stringResource(R.string.download_defaults_subtitles_title),
+                description = "Download subtitle files alongside media when available",
                 isChecked = uiState.downloadSubtitles,
                 onClick = { onDefaultDownloadSubtitlesChanged(!uiState.downloadSubtitles) },
             )
@@ -201,6 +202,7 @@ fun DownloadSettingsScreen(
             PreferenceSwitch(
                 icon = Icons.Rounded.Subtitles,
                 title = stringResource(R.string.download_defaults_embed_subtitles_title),
+                description = "Embed subtitles directly into the video container",
                 isChecked = uiState.embedSubtitles,
                 onClick = { onDefaultEmbedSubtitlesChanged(!uiState.embedSubtitles) },
             )
@@ -209,6 +211,7 @@ fun DownloadSettingsScreen(
             PreferenceSwitch(
                 icon = Icons.Rounded.Description,
                 title = stringResource(R.string.download_defaults_embed_metadata_title),
+                description = "Tag title, artist, album, and track metadata into downloaded media",
                 isChecked = uiState.embedMetadata,
                 onClick = { onDefaultEmbedMetadataChanged(!uiState.embedMetadata) },
             )
@@ -217,6 +220,7 @@ fun DownloadSettingsScreen(
             PreferenceSwitch(
                 icon = Icons.Rounded.PhotoSizeSelectActual,
                 title = stringResource(R.string.download_defaults_embed_thumbnail_title),
+                description = "Embed album/video artwork cover into media files",
                 isChecked = uiState.embedThumbnail,
                 onClick = { onDefaultEmbedThumbnailChanged(!uiState.embedThumbnail) },
             )
@@ -260,6 +264,7 @@ fun DownloadSettingsScreen(
             PreferenceSwitch(
                 icon = Icons.Rounded.Speed,
                 title = stringResource(R.string.download_defaults_show_fps_title),
+                description = "Display frames per second for video streams",
                 isChecked = uiState.appSettings.showFormatFps,
                 onClick = { onShowFormatFpsChanged(!uiState.appSettings.showFormatFps) },
             )
@@ -268,6 +273,7 @@ fun DownloadSettingsScreen(
             PreferenceSwitch(
                 icon = Icons.Rounded.Tune,
                 title = stringResource(R.string.download_defaults_show_codec_title),
+                description = "Display video and audio codec tags in format list",
                 isChecked = uiState.appSettings.showFormatCodec,
                 onClick = { onShowFormatCodecChanged(!uiState.appSettings.showFormatCodec) },
             )
@@ -276,6 +282,7 @@ fun DownloadSettingsScreen(
             PreferenceSwitch(
                 icon = Icons.Rounded.Equalizer,
                 title = stringResource(R.string.download_defaults_show_bitrate_title),
+                description = "Display stream bitrate in format list when available",
                 isChecked = uiState.appSettings.showFormatBitrate,
                 onClick = { onShowFormatBitrateChanged(!uiState.appSettings.showFormatBitrate) },
             )
@@ -350,6 +357,7 @@ fun DownloadSettingsScreen(
             PreferenceSwitch(
                 icon = Icons.Rounded.Description,
                 title = stringResource(R.string.download_defaults_keep_links_title),
+                description = "Remember previously analyzed URLs in quick suggestions",
                 isChecked = uiState.appSettings.keepAnalyzedLinkHistory,
                 onClick = { onKeepAnalyzedLinkHistoryChanged(!uiState.appSettings.keepAnalyzedLinkHistory) },
             )
