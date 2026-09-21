@@ -49,11 +49,11 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.localdownloader.R
 import com.localdownloader.domain.models.BatterySaverMode
-import com.localdownloader.ui.components.PreferenceDivider
-import com.localdownloader.ui.components.PreferenceGroup
+import com.localdownloader.ui.components.PreferenceItem
 import com.localdownloader.ui.components.PreferencePageScaffold
-import com.localdownloader.ui.components.PreferenceRow
-import com.localdownloader.ui.components.PreferenceSwitchRow
+import com.localdownloader.ui.components.PreferenceSubtitle
+import com.localdownloader.ui.components.PreferenceSwitch
+import com.localdownloader.ui.components.PreferencesHintCard
 import com.localdownloader.utils.BatteryOptimizationManager
 import com.localdownloader.viewmodel.FormatUiState
 

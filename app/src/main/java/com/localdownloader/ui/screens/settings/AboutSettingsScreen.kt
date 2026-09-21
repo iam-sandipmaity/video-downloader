@@ -38,11 +38,9 @@ import coil.compose.AsyncImage
 import coil.decode.SvgDecoder
 import com.localdownloader.BuildConfig
 import com.localdownloader.R
-import com.localdownloader.ui.components.PreferenceDivider
-import com.localdownloader.ui.components.PreferenceGroup
+import com.localdownloader.ui.components.PreferenceItem
 import com.localdownloader.ui.components.PreferencePageScaffold
-import com.localdownloader.ui.components.PreferenceRow
-import com.localdownloader.ui.components.PreferenceSectionHeader
+import com.localdownloader.ui.components.PreferenceSubtitle
 
 @Composable
 fun AboutSettingsScreen(
