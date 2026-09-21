@@ -60,128 +60,132 @@ fun AppearanceSettingsScreen(
         modifier = modifier,
     ) {
         item {
-            PreferenceGroup {
-                PreferenceRow(
-                    icon = Icons.Rounded.Style,
-                    title = stringResource(R.string.appearance_theme_title),
-                    subtitle = themeModeLabel(context, uiState.themeMode),
-                    onClick = {
-                        choiceDialog = SettingChoiceDialogState(
-                            title = appearanceThemeTitle,
-                            selected = themeModeLabel(context, uiState.themeMode),
-                            options = listOf(
-                                ThemeMode.SYSTEM,
-                                ThemeMode.DARK,
-                                ThemeMode.LIGHT,
-                            ).map { mode ->
-                                SettingChoiceOption(
-                                    title = themeModeLabel(context, mode),
-                                    subtitle = when (mode) {
-                                        ThemeMode.SYSTEM -> appearanceThemeSystemSubtitle
-                                        ThemeMode.DARK -> appearanceThemeDarkSubtitle
-                                        ThemeMode.LIGHT -> appearanceThemeLightSubtitle
-                                    },
-                                    onSelect = { onThemeModeChanged(mode) },
-                                )
-                            },
-                        )
-                    },
-                )
-                PreferenceDivider()
-                PreferenceRow(
-                    icon = Icons.Rounded.Palette,
-                    title = stringResource(R.string.appearance_accent_title),
-                    subtitle = accentLabel(context, uiState.accentPreset),
-                    onClick = {
-                        val accentOrder = listOf(
-                            AccentPreset.AMBER,
-                            AccentPreset.OCEAN,
-                            AccentPreset.COBALT,
-                            AccentPreset.INDIGO,
-                            AccentPreset.SKY,
-                            AccentPreset.AQUA,
-                            AccentPreset.TEAL,
-                            AccentPreset.MINT,
-                            AccentPreset.EMERALD,
-                            AccentPreset.FOREST,
-                            AccentPreset.ROSE,
-                            AccentPreset.CRIMSON,
-                            AccentPreset.MAGENTA,
-                            AccentPreset.PURPLE,
-                            AccentPreset.YELLOW,
-                            AccentPreset.LIME,
-                            AccentPreset.ORANGE,
-                            AccentPreset.PEACH,
-                            AccentPreset.COPPER,
-                            AccentPreset.MONOCHROME,
-                        )
-                        choiceDialog = SettingChoiceDialogState(
-                            title = appearanceAccentTitle,
-                            selected = accentLabel(context, uiState.accentPreset),
-                            options = accentOrder.map { preset ->
-                                SettingChoiceOption(
-                                    title = accentLabel(context, preset),
-                                    subtitle = accentSubtitle(context, preset),
-                                    onSelect = { onAccentPresetChanged(preset) },
-                                )
-                            },
-                        )
-                    },
-                )
-                PreferenceDivider()
-                PreferenceRow(
-                    icon = Icons.Rounded.Tune,
-                    title = stringResource(R.string.appearance_contrast_title),
-                    subtitle = contrastLabel(context, uiState.contrastMode),
-                    onClick = {
-                        choiceDialog = SettingChoiceDialogState(
-                            title = appearanceContrastTitle,
-                            selected = contrastLabel(context, uiState.contrastMode),
-                            options = ContrastMode.entries.map { mode ->
-                                SettingChoiceOption(
-                                    title = contrastLabel(context, mode),
-                                    subtitle = contrastSubtitle(context, mode),
-                                    onSelect = { onContrastModeChanged(mode) },
-                                )
-                            },
-                        )
-                    },
-                )
-            }
+            PreferenceSubtitle(text = "THEME & STYLING")
         }
         item {
-            PreferenceGroup {
-                PreferenceRow(
-                    icon = Icons.Rounded.Language,
-                    title = stringResource(R.string.appearance_language_title),
-                    subtitle = appLanguageLabel(uiState.languageTag, systemDefaultLabel),
-                    onClick = {
-                        val languageOptions = supportedAppLanguageOptions(interfaceLanguageLabel)
-                        choiceDialog = SettingChoiceDialogState(
-                            title = appearanceLanguageTitle,
-                            selected = appLanguageLabel(uiState.languageTag, systemDefaultLabel),
-                            options = buildList {
-                                add(
+            PreferenceItem(
+                icon = Icons.Rounded.Style,
+                title = stringResource(R.string.appearance_theme_title),
+                description = themeModeLabel(context, uiState.themeMode),
+                onClick = {
+                    choiceDialog = SettingChoiceDialogState(
+                        title = appearanceThemeTitle,
+                        selected = themeModeLabel(context, uiState.themeMode),
+                        options = listOf(
+                            ThemeMode.SYSTEM,
+                            ThemeMode.DARK,
+                            ThemeMode.LIGHT,
+                        ).map { mode ->
+                            SettingChoiceOption(
+                                title = themeModeLabel(context, mode),
+                                subtitle = when (mode) {
+                                    ThemeMode.SYSTEM -> appearanceThemeSystemSubtitle
+                                    ThemeMode.DARK -> appearanceThemeDarkSubtitle
+                                    ThemeMode.LIGHT -> appearanceThemeLightSubtitle
+                                },
+                                onSelect = { onThemeModeChanged(mode) },
+                            )
+                        },
+                    )
+                },
+            )
+        }
+        item {
+            PreferenceItem(
+                icon = Icons.Rounded.Palette,
+                title = stringResource(R.string.appearance_accent_title),
+                description = accentLabel(context, uiState.accentPreset),
+                onClick = {
+                    val accentOrder = listOf(
+                        AccentPreset.AMBER,
+                        AccentPreset.OCEAN,
+                        AccentPreset.COBALT,
+                        AccentPreset.INDIGO,
+                        AccentPreset.SKY,
+                        AccentPreset.AQUA,
+                        AccentPreset.TEAL,
+                        AccentPreset.MINT,
+                        AccentPreset.EMERALD,
+                        AccentPreset.FOREST,
+                        AccentPreset.ROSE,
+                        AccentPreset.CRIMSON,
+                        AccentPreset.MAGENTA,
+                        AccentPreset.PURPLE,
+                        AccentPreset.YELLOW,
+                        AccentPreset.LIME,
+                        AccentPreset.ORANGE,
+                        AccentPreset.PEACH,
+                        AccentPreset.COPPER,
+                        AccentPreset.MONOCHROME,
+                    )
+                    choiceDialog = SettingChoiceDialogState(
+                        title = appearanceAccentTitle,
+                        selected = accentLabel(context, uiState.accentPreset),
+                        options = accentOrder.map { preset ->
+                            SettingChoiceOption(
+                                title = accentLabel(context, preset),
+                                subtitle = accentSubtitle(context, preset),
+                                onSelect = { onAccentPresetChanged(preset) },
+                            )
+                        },
+                    )
+                },
+            )
+        }
+        item {
+            PreferenceItem(
+                icon = Icons.Rounded.Tune,
+                title = stringResource(R.string.appearance_contrast_title),
+                description = contrastLabel(context, uiState.contrastMode),
+                onClick = {
+                    choiceDialog = SettingChoiceDialogState(
+                        title = appearanceContrastTitle,
+                        selected = contrastLabel(context, uiState.contrastMode),
+                        options = ContrastMode.entries.map { mode ->
+                            SettingChoiceOption(
+                                title = contrastLabel(context, mode),
+                                subtitle = contrastSubtitle(context, mode),
+                                onSelect = { onContrastModeChanged(mode) },
+                            )
+                        },
+                    )
+                },
+            )
+        }
+        item {
+            PreferenceSubtitle(text = "LANGUAGE")
+        }
+        item {
+            PreferenceItem(
+                icon = Icons.Rounded.Language,
+                title = stringResource(R.string.appearance_language_title),
+                description = appLanguageLabel(uiState.languageTag, systemDefaultLabel),
+                onClick = {
+                    val languageOptions = supportedAppLanguageOptions(interfaceLanguageLabel)
+                    choiceDialog = SettingChoiceDialogState(
+                        title = appearanceLanguageTitle,
+                        selected = appLanguageLabel(uiState.languageTag, systemDefaultLabel),
+                        options = buildList {
+                            add(
+                                SettingChoiceOption(
+                                    title = systemDefaultLabel,
+                                    subtitle = appearanceLanguageSystemSubtitle,
+                                    onSelect = { onLanguageChanged(SYSTEM_LANGUAGE_TAG) },
+                                ),
+                            )
+                            addAll(
+                                languageOptions.map { option ->
                                     SettingChoiceOption(
-                                        title = systemDefaultLabel,
-                                        subtitle = appearanceLanguageSystemSubtitle,
-                                        onSelect = { onLanguageChanged(SYSTEM_LANGUAGE_TAG) },
-                                    ),
-                                )
-                                addAll(
-                                    languageOptions.map { option ->
-                                        SettingChoiceOption(
-                                            title = option.title,
-                                            subtitle = option.subtitle,
-                                            onSelect = { onLanguageChanged(option.tag) },
-                                        )
-                                    },
-                                )
-                            },
-                        )
-                    },
-                )
-            }
+                                        title = option.title,
+                                        subtitle = option.subtitle,
+                                        onSelect = { onLanguageChanged(option.tag) },
+                                    )
+                                },
+                            )
+                        },
+                    )
+                },
+            )
         }
     }
 }

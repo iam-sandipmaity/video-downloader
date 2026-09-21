@@ -11,11 +11,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.localdownloader.R
-import com.localdownloader.ui.components.PreferenceDivider
-import com.localdownloader.ui.components.PreferenceGroup
+import com.localdownloader.ui.components.PreferenceItem
 import com.localdownloader.ui.components.PreferencePageScaffold
-import com.localdownloader.ui.components.PreferenceRow
-import com.localdownloader.ui.components.PreferenceSwitchRow
+import com.localdownloader.ui.components.PreferenceSubtitle
+import com.localdownloader.ui.components.PreferenceSwitch
 import com.localdownloader.viewmodel.FormatUiState
 
 @Composable
@@ -34,53 +33,60 @@ fun NotificationsSettingsScreen(
         modifier = modifier,
     ) {
         item {
-            PreferenceGroup {
-                PreferenceSwitchRow(
-                    icon = Icons.Rounded.CheckCircle,
-                    title = stringResource(R.string.notifications_completed_title),
-                    checked = uiState.notifyCompletedDownloads,
-                    onCheckedChange = onNotifyCompletedDownloadsChanged,
-                )
-                PreferenceDivider()
-                PreferenceSwitchRow(
-                    icon = Icons.Rounded.ErrorOutline,
-                    title = stringResource(R.string.notifications_errors_title),
-                    checked = uiState.notifyDownloadErrors,
-                    onCheckedChange = onNotifyDownloadErrorsChanged,
-                )
-                PreferenceDivider()
-                PreferenceSwitchRow(
-                    icon = Icons.Rounded.NotificationsOff,
-                    title = stringResource(R.string.notifications_canceled_title),
-                    checked = uiState.notifyCanceledDownloads,
-                    onCheckedChange = onNotifyCanceledDownloadsChanged,
-                )
-                PreferenceDivider()
-                PreferenceSwitchRow(
-                    icon = Icons.Rounded.Campaign,
-                    title = stringResource(R.string.notifications_promotions_title),
-                    subtitle = stringResource(R.string.notifications_promotions_subtitle),
-                    checked = uiState.notifyPromotions,
-                    onCheckedChange = onNotifyPromotionsChanged,
-                )
-            }
+            PreferenceSubtitle(text = "DOWNLOAD ALERTS")
         }
         item {
-            PreferenceGroup {
-                PreferenceRow(
-                    icon = Icons.Rounded.NotificationsActive,
-                    title = stringResource(R.string.notifications_active_title),
-                    subtitle = stringResource(R.string.notifications_active_subtitle),
-                    onClick = null,
-                )
-                PreferenceDivider()
-                PreferenceRow(
-                    icon = Icons.Rounded.MusicNote,
-                    title = stringResource(R.string.notifications_music_title),
-                    subtitle = stringResource(R.string.notifications_music_subtitle),
-                    onClick = null,
-                )
-            }
+            PreferenceSwitch(
+                icon = Icons.Rounded.CheckCircle,
+                title = stringResource(R.string.notifications_completed_title),
+                isChecked = uiState.notifyCompletedDownloads,
+                onClick = { onNotifyCompletedDownloadsChanged(!uiState.notifyCompletedDownloads) },
+            )
+        }
+        item {
+            PreferenceSwitch(
+                icon = Icons.Rounded.ErrorOutline,
+                title = stringResource(R.string.notifications_errors_title),
+                isChecked = uiState.notifyDownloadErrors,
+                onClick = { onNotifyDownloadErrorsChanged(!uiState.notifyDownloadErrors) },
+            )
+        }
+        item {
+            PreferenceSwitch(
+                icon = Icons.Rounded.NotificationsOff,
+                title = stringResource(R.string.notifications_canceled_title),
+                isChecked = uiState.notifyCanceledDownloads,
+                onClick = { onNotifyCanceledDownloadsChanged(!uiState.notifyCanceledDownloads) },
+            )
+        }
+        item {
+            PreferenceSwitch(
+                icon = Icons.Rounded.Campaign,
+                title = stringResource(R.string.notifications_promotions_title),
+                description = stringResource(R.string.notifications_promotions_subtitle),
+                isChecked = uiState.notifyPromotions,
+                onClick = { onNotifyPromotionsChanged(!uiState.notifyPromotions) },
+            )
+        }
+        item {
+            PreferenceSubtitle(text = "FOREGROUND SERVICES")
+        }
+        item {
+            PreferenceItem(
+                icon = Icons.Rounded.NotificationsActive,
+                title = stringResource(R.string.notifications_active_title),
+                description = stringResource(R.string.notifications_active_subtitle),
+                onClick = null,
+            )
+        }
+        item {
+            PreferenceItem(
+                icon = Icons.Rounded.MusicNote,
+                title = stringResource(R.string.notifications_music_title),
+                description = stringResource(R.string.notifications_music_subtitle),
+                onClick = null,
+            )
         }
     }
 }
+

@@ -149,207 +149,222 @@ fun StorageSettingsScreen(
             }
         }
         item {
-            PreferenceGroup {
-                FolderPreferenceRow(
-                    title = stringResource(R.string.storage_root_title),
-                    value = uiState.downloadsRootDisplayPath(
-                        defaultLabel = stringResource(R.string.storage_default_root),
-                    ),
-                    onEditClick = {
-                        textDialog = SettingTextDialogState(
-                            title = storageRootTitle,
-                            value = uiState.downloadsRootPublicPath.ifBlank { uiState.downloadsRootFolderName },
-                            label = storageFolderLabelRoot,
-                            supporting = storageRootSupporting,
-                            confirmLabel = commonSaveLabel,
-                            onConfirm = { value ->
-                                if (value.isPublicStorageRootPath()) {
-                                    onDownloadsRootPublicPathChanged(value)
-                                } else {
-                                    onDownloadsRootFolderNameChanged(value)
-                                }
-                            },
-                        )
-                    },
-                    onBrowseClick = onBrowseDownloadsRootFolder,
-                )
-                PreferenceDivider()
-                FolderPreferenceRow(
-                    title = stringResource(R.string.storage_video_title),
-                    value = uiState.videoSubfolderName.folderPreview(
-                        stringResource(R.string.storage_downloads_root),
-                    ),
-                    onEditClick = {
-                        textDialog = SettingTextDialogState(
-                            title = storageVideoTitle,
-                            value = uiState.videoSubfolderName,
-                            label = storageFolderLabelInsideRoot,
-                            supporting = storageVideoSupporting,
-                            confirmLabel = commonSaveLabel,
-                            onConfirm = onVideoSubfolderNameChanged,
-                        )
-                    },
-                    onBrowseClick = onBrowseVideoFolder,
-                )
-                PreferenceDivider()
-                FolderPreferenceRow(
-                    title = stringResource(R.string.storage_audio_title),
-                    value = uiState.audioSubfolderName.folderPreview(
-                        stringResource(R.string.storage_downloads_root),
-                    ),
-                    onEditClick = {
-                        textDialog = SettingTextDialogState(
-                            title = storageAudioTitle,
-                            value = uiState.audioSubfolderName,
-                            label = storageFolderLabelInsideRoot,
-                            supporting = storageAudioSupporting,
-                            confirmLabel = commonSaveLabel,
-                            onConfirm = onAudioSubfolderNameChanged,
-                        )
-                    },
-                    onBrowseClick = onBrowseAudioFolder,
-                )
-                PreferenceDivider()
-                FolderPreferenceRow(
-                    title = stringResource(R.string.storage_other_title),
-                    value = uiState.otherSubfolderName.folderPreview(
-                        stringResource(R.string.storage_downloads_root),
-                    ),
-                    onEditClick = {
-                        textDialog = SettingTextDialogState(
-                            title = storageOtherTitle,
-                            value = uiState.otherSubfolderName,
-                            label = storageFolderLabelInsideRoot,
-                            supporting = storageOtherSupporting,
-                            confirmLabel = commonSaveLabel,
-                            onConfirm = onOtherSubfolderNameChanged,
-                        )
-                    },
-                    onBrowseClick = onBrowseOtherFolder,
-                )
-                PreferenceDivider()
-                PreferenceRow(
-                    icon = Icons.Rounded.Refresh,
-                    title = stringResource(R.string.storage_reset_folders_title),
-                    onClick = {
-                        onDownloadsRootFolderNameChanged(defaults.downloadsRootFolderName)
-                        onVideoSubfolderNameChanged(defaults.videoSubfolderName)
-                        onAudioSubfolderNameChanged(defaults.audioSubfolderName)
-                        onOtherSubfolderNameChanged(defaults.otherSubfolderName)
-                    },
-                )
-            }
+            PreferenceSubtitle(text = "DOWNLOAD DIRECTORIES")
         }
         item {
-            PreferenceGroup {
-                PreferenceSwitchRow(
-                    icon = Icons.Rounded.AutoDelete,
-                    title = stringResource(R.string.storage_auto_remove_title),
-                    subtitle = stringResource(R.string.storage_auto_remove_subtitle),
-                    checked = uiState.autoRemoveMissingFilesFromLibrary,
-                    onCheckedChange = onAutoRemoveMissingFilesFromLibraryChanged,
-                )
-                PreferenceDivider()
-                PreferenceSwitchRow(
-                    icon = Icons.Rounded.DeleteSweep,
-                    title = stringResource(R.string.storage_delete_storage_title),
-                    subtitle = stringResource(R.string.storage_delete_storage_subtitle),
-                    checked = uiState.deleteFromStorageWhenRemovedInApp,
-                    onCheckedChange = onDeleteFromStorageWhenRemovedInAppChanged,
-                )
-                PreferenceDivider()
-                PreferenceRow(
-                    icon = Icons.Rounded.LibraryBooks,
-                    title = stringResource(R.string.storage_saved_items_title),
-                    value = savedItemsCount.toString(),
-                    onClick = null,
-                )
-                PreferenceDivider()
-                PreferenceRow(
-                    icon = Icons.Rounded.LibraryBooks,
-                    title = "Possible duplicates",
-                    value = duplicateSavedItemsCount.toString(),
-                    onClick = null,
-                )
-                PreferenceDivider()
-                PreferenceRow(
-                    icon = Icons.Rounded.Storage,
-                    title = "Available storage",
-                    value = formatFileSize(availableStorageBytes),
-                    onClick = null,
-                )
-                PreferenceDivider()
-                PreferenceRow(
-                    icon = Icons.Rounded.Storage,
-                    title = stringResource(R.string.storage_temp_cache_title),
-                    value = formatFileSize(cacheSize),
-                    onClick = null,
-                )
-            }
+            FolderPreferenceRow(
+                title = stringResource(R.string.storage_root_title),
+                value = uiState.downloadsRootDisplayPath(
+                    defaultLabel = stringResource(R.string.storage_default_root),
+                ),
+                onEditClick = {
+                    textDialog = SettingTextDialogState(
+                        title = storageRootTitle,
+                        value = uiState.downloadsRootPublicPath.ifBlank { uiState.downloadsRootFolderName },
+                        label = storageFolderLabelRoot,
+                        supporting = storageRootSupporting,
+                        confirmLabel = commonSaveLabel,
+                        onConfirm = { value ->
+                            if (value.isPublicStorageRootPath()) {
+                                onDownloadsRootPublicPathChanged(value)
+                            } else {
+                                onDownloadsRootFolderNameChanged(value)
+                            }
+                        },
+                    )
+                },
+                onBrowseClick = onBrowseDownloadsRootFolder,
+            )
         }
         item {
-            PreferenceGroup {
-                PreferenceRow(
-                    icon = Icons.Rounded.CleaningServices,
-                    title = stringResource(R.string.storage_clear_cache_title),
-                    subtitle = stringResource(R.string.storage_clear_cache_subtitle),
-                    onClick = onClearCache,
-                )
-                PreferenceDivider()
-                PreferenceRow(
-                    icon = Icons.Rounded.DeleteSweep,
-                    title = stringResource(R.string.storage_clear_app_list_title),
-                    subtitle = stringResource(R.string.storage_clear_app_list_subtitle),
-                    onClick = {
-                        confirmDialog = SettingConfirmDialogState(
-                            title = storageClearAppListDialogTitle,
-                            body = storageClearAppListDialogBody,
-                            confirmLabel = commonRemoveEntriesLabel,
-                            onConfirm = {
-                                onClearVideoTabEntries()
-                                confirmDialog = null
-                            },
-                        )
-                    },
-                    enabled = savedItemsCount > 0,
-                )
-                PreferenceDivider()
-                PreferenceRow(
-                    icon = Icons.Rounded.DeleteSweep,
-                    title = stringResource(R.string.storage_delete_all_title),
-                    subtitle = stringResource(R.string.storage_delete_all_subtitle),
-                    onClick = {
-                        confirmDialog = SettingConfirmDialogState(
-                            title = storageDeleteAllDialogTitle,
-                            body = storageDeleteAllDialogBody,
-                            confirmLabel = commonDeleteAllLabel,
-                            destructive = true,
-                            onConfirm = {
-                                onDeleteAllSavedMedia()
-                                confirmDialog = null
-                            },
-                        )
-                    },
-                    enabled = savedItemsCount > 0,
-                )
-                PreferenceDivider()
-                PreferenceRow(
-                    icon = Icons.Rounded.Tune,
-                    title = stringResource(R.string.storage_reset_title),
-                    subtitle = stringResource(R.string.storage_reset_subtitle),
-                    onClick = {
-                        confirmDialog = SettingConfirmDialogState(
-                            title = storageResetDialogTitle,
-                            body = storageResetDialogBody,
-                            confirmLabel = commonResetNowLabel,
-                            onConfirm = {
-                                onResetSettings()
-                                confirmDialog = null
-                            },
-                        )
-                    },
-                )
-            }
+            FolderPreferenceRow(
+                title = stringResource(R.string.storage_video_title),
+                value = uiState.videoSubfolderName.folderPreview(
+                    stringResource(R.string.storage_downloads_root),
+                ),
+                onEditClick = {
+                    textDialog = SettingTextDialogState(
+                        title = storageVideoTitle,
+                        value = uiState.videoSubfolderName,
+                        label = storageFolderLabelInsideRoot,
+                        supporting = storageVideoSupporting,
+                        confirmLabel = commonSaveLabel,
+                        onConfirm = onVideoSubfolderNameChanged,
+                    )
+                },
+                onBrowseClick = onBrowseVideoFolder,
+            )
+        }
+        item {
+            FolderPreferenceRow(
+                title = stringResource(R.string.storage_audio_title),
+                value = uiState.audioSubfolderName.folderPreview(
+                    stringResource(R.string.storage_downloads_root),
+                ),
+                onEditClick = {
+                    textDialog = SettingTextDialogState(
+                        title = storageAudioTitle,
+                        value = uiState.audioSubfolderName,
+                        label = storageFolderLabelInsideRoot,
+                        supporting = storageAudioSupporting,
+                        confirmLabel = commonSaveLabel,
+                        onConfirm = onAudioSubfolderNameChanged,
+                    )
+                },
+                onBrowseClick = onBrowseAudioFolder,
+            )
+        }
+        item {
+            FolderPreferenceRow(
+                title = stringResource(R.string.storage_other_title),
+                value = uiState.otherSubfolderName.folderPreview(
+                    stringResource(R.string.storage_downloads_root),
+                ),
+                onEditClick = {
+                    textDialog = SettingTextDialogState(
+                        title = storageOtherTitle,
+                        value = uiState.otherSubfolderName,
+                        label = storageFolderLabelInsideRoot,
+                        supporting = storageOtherSupporting,
+                        confirmLabel = commonSaveLabel,
+                        onConfirm = onOtherSubfolderNameChanged,
+                    )
+                },
+                onBrowseClick = onBrowseOtherFolder,
+            )
+        }
+        item {
+            PreferenceItem(
+                icon = Icons.Rounded.Refresh,
+                title = stringResource(R.string.storage_reset_folders_title),
+                onClick = {
+                    onDownloadsRootFolderNameChanged(defaults.downloadsRootFolderName)
+                    onVideoSubfolderNameChanged(defaults.videoSubfolderName)
+                    onAudioSubfolderNameChanged(defaults.audioSubfolderName)
+                    onOtherSubfolderNameChanged(defaults.otherSubfolderName)
+                },
+            )
+        }
+        item {
+            PreferenceSubtitle(text = "MEDIA LIBRARY & STORAGE")
+        }
+        item {
+            PreferenceSwitch(
+                icon = Icons.Rounded.AutoDelete,
+                title = stringResource(R.string.storage_auto_remove_title),
+                description = stringResource(R.string.storage_auto_remove_subtitle),
+                isChecked = uiState.autoRemoveMissingFilesFromLibrary,
+                onClick = { onAutoRemoveMissingFilesFromLibraryChanged(!uiState.autoRemoveMissingFilesFromLibrary) },
+            )
+        }
+        item {
+            PreferenceSwitch(
+                icon = Icons.Rounded.DeleteSweep,
+                title = stringResource(R.string.storage_delete_storage_title),
+                description = stringResource(R.string.storage_delete_storage_subtitle),
+                isChecked = uiState.deleteFromStorageWhenRemovedInApp,
+                onClick = { onDeleteFromStorageWhenRemovedInAppChanged(!uiState.deleteFromStorageWhenRemovedInApp) },
+            )
+        }
+        item {
+            PreferenceItem(
+                icon = Icons.Rounded.LibraryBooks,
+                title = stringResource(R.string.storage_saved_items_title),
+                value = savedItemsCount.toString(),
+                onClick = null,
+            )
+        }
+        item {
+            PreferenceItem(
+                icon = Icons.Rounded.LibraryBooks,
+                title = "Possible duplicates",
+                value = duplicateSavedItemsCount.toString(),
+                onClick = null,
+            )
+        }
+        item {
+            PreferenceItem(
+                icon = Icons.Rounded.Storage,
+                title = "Available storage",
+                value = formatFileSize(availableStorageBytes),
+                onClick = null,
+            )
+        }
+        item {
+            PreferenceItem(
+                icon = Icons.Rounded.Storage,
+                title = stringResource(R.string.storage_temp_cache_title),
+                value = formatFileSize(cacheSize),
+                onClick = null,
+            )
+        }
+        item {
+            PreferenceSubtitle(text = "CLEANUP")
+        }
+        item {
+            PreferenceItem(
+                icon = Icons.Rounded.CleaningServices,
+                title = stringResource(R.string.storage_clear_cache_title),
+                description = stringResource(R.string.storage_clear_cache_subtitle),
+                onClick = onClearCache,
+            )
+        }
+        item {
+            PreferenceItem(
+                icon = Icons.Rounded.DeleteSweep,
+                title = stringResource(R.string.storage_clear_app_list_title),
+                description = stringResource(R.string.storage_clear_app_list_subtitle),
+                onClick = {
+                    confirmDialog = SettingConfirmDialogState(
+                        title = storageClearAppListDialogTitle,
+                        body = storageClearAppListDialogBody,
+                        confirmLabel = commonRemoveEntriesLabel,
+                        onConfirm = {
+                            onClearVideoTabEntries()
+                            confirmDialog = null
+                        },
+                    )
+                },
+                enabled = savedItemsCount > 0,
+            )
+        }
+        item {
+            PreferenceItem(
+                icon = Icons.Rounded.DeleteSweep,
+                title = stringResource(R.string.storage_delete_all_title),
+                description = stringResource(R.string.storage_delete_all_subtitle),
+                onClick = {
+                    confirmDialog = SettingConfirmDialogState(
+                        title = storageDeleteAllDialogTitle,
+                        body = storageDeleteAllDialogBody,
+                        confirmLabel = commonDeleteAllLabel,
+                        destructive = true,
+                        onConfirm = {
+                            onDeleteAllSavedMedia()
+                            confirmDialog = null
+                        },
+                    )
+                },
+                enabled = savedItemsCount > 0,
+            )
+        }
+        item {
+            PreferenceItem(
+                icon = Icons.Rounded.Tune,
+                title = stringResource(R.string.storage_reset_title),
+                description = stringResource(R.string.storage_reset_subtitle),
+                onClick = {
+                    confirmDialog = SettingConfirmDialogState(
+                        title = storageResetDialogTitle,
+                        body = storageResetDialogBody,
+                        confirmLabel = commonResetNowLabel,
+                        onConfirm = {
+                            onResetSettings()
+                            confirmDialog = null
+                        },
+                    )
+                },
+            )
         }
     }
 }

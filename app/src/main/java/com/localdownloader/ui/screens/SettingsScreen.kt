@@ -1,26 +1,41 @@
 package com.localdownloader.ui.screens
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.os.PowerManager
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BatteryChargingFull
+import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.CloudDownload
-import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.EnergySavingsLeaf
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.localdownloader.BuildConfig
 import com.localdownloader.R
 import com.localdownloader.ui.components.InlineFeedbackCard
-import com.localdownloader.ui.components.PreferenceDivider
-import com.localdownloader.ui.components.PreferenceGroup
-import com.localdownloader.ui.components.PreferenceNavigationRow
 import com.localdownloader.ui.components.PreferencePageScaffold
+import com.localdownloader.ui.components.PreferencesHintCard
+import com.localdownloader.ui.components.SettingItem
 import com.localdownloader.viewmodel.FormatMessageScope
 import com.localdownloader.viewmodel.FormatUiState
 
@@ -43,6 +58,25 @@ fun SettingsScreen(
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
+    val pm = remember(context) { context.getSystemService(Context.POWER_SERVICE) as? PowerManager }
+    var showBatteryHint by remember {
+        mutableStateOf(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && pm != null) {
+                !pm.isIgnoringBatteryOptimizations(context.packageName)
+            } else {
+                false
+            }
+        )
+    }
+
+    val batteryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult(),
+    ) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && pm != null) {
+            showBatteryHint = !pm.isIgnoringBatteryOptimizations(context.packageName)
+        }
+    }
+
     val settingsInfoMessage = uiState.infoMessageFor(FormatMessageScope.SETTINGS)
     val settingsErrorMessage = uiState.errorMessageFor(FormatMessageScope.SETTINGS)
 
@@ -58,71 +92,98 @@ fun SettingsScreen(
             mediaErrorMessage = mediaErrorMessage,
             onDismissMediaLibraryMessage = onDismissMediaLibraryMessage,
         )
-        item {
-            PreferenceGroup {
-                PreferenceNavigationRow(
-                    icon = Icons.Rounded.Palette,
-                    title = stringResource(R.string.settings_appearance_title),
-                    subtitle = "Theme, accent color, and language",
-                    onClick = onOpenAppearance,
-                )
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            item {
+                AnimatedVisibility(
+                    visible = showBatteryHint,
+                    exit = shrinkVertically() + fadeOut(),
+                ) {
+                    PreferencesHintCard(
+                        title = "Battery optimization",
+                        description = "Disable battery optimization to allow uninterrupted background downloads.",
+                        icon = Icons.Rounded.EnergySavingsLeaf,
+                        onClick = {
+                            runCatching {
+                                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                    data = Uri.parse("package:${context.packageName}")
+                                }
+                                batteryLauncher.launch(intent)
+                            }.onFailure {
+                                runCatching {
+                                    val fallback = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                                    batteryLauncher.launch(fallback)
+                                }
+                            }
+                        },
+                    )
+                }
             }
         }
+
         item {
-            PreferenceGroup {
-                PreferenceNavigationRow(
-                    icon = Icons.Rounded.CloudDownload,
-                    title = stringResource(R.string.settings_download_defaults_title),
-                    subtitle = "Format templates, containers, and queue",
-                    onClick = onOpenDownloads,
-                )
-                PreferenceDivider()
-                PreferenceNavigationRow(
-                    icon = Icons.Rounded.BatteryChargingFull,
-                    title = stringResource(R.string.settings_battery_title),
-                    subtitle = "Threads, eco mode, and optimization",
-                    onClick = onOpenBattery,
-                )
-                PreferenceDivider()
-                PreferenceNavigationRow(
-                    icon = Icons.Rounded.Folder,
-                    title = stringResource(R.string.settings_storage_title),
-                    subtitle = "Storage directories and cache cleanup",
-                    onClick = onOpenStorage,
-                )
-                PreferenceDivider()
-                PreferenceNavigationRow(
-                    icon = Icons.Rounded.NotificationsActive,
-                    title = stringResource(R.string.settings_notifications_title),
-                    subtitle = "Completion and error alerts",
-                    onClick = onOpenNotifications,
-                )
-            }
+            SettingItem(
+                title = stringResource(R.string.settings_download_defaults_title),
+                description = "Format templates, containers, and queue behavior",
+                icon = Icons.Rounded.CloudDownload,
+                onClick = onOpenDownloads,
+            )
         }
         item {
-            PreferenceGroup {
-                PreferenceNavigationRow(
-                    icon = Icons.Rounded.Security,
-                    title = stringResource(R.string.settings_access_title),
-                    subtitle = "Network rules, cookies, and YouTube",
-                    onClick = onOpenAccess,
-                )
-                PreferenceDivider()
-                PreferenceNavigationRow(
-                    icon = Icons.Rounded.Info,
-                    title = stringResource(R.string.settings_about_title),
-                    subtitle = "Version details and project links",
-                    value = BuildConfig.VERSION_NAME,
-                    onClick = onOpenAbout,
-                )
-                PreferenceDivider()
-                PreferenceNavigationRow(
-                    icon = Icons.Rounded.Description,
-                    title = stringResource(R.string.settings_app_log_title),
-                    subtitle = "View and export app logs",
-                    onClick = onOpenAppLog,
-                )
-            }
+            SettingItem(
+                title = stringResource(R.string.settings_storage_title),
+                description = "Storage directories, subfolders, and cache cleanup",
+                icon = Icons.Rounded.Folder,
+                onClick = onOpenStorage,
+            )
+        }
+        item {
+            SettingItem(
+                title = stringResource(R.string.settings_access_title),
+                description = "Network rules, cookies, and YouTube access",
+                icon = Icons.Rounded.Security,
+                onClick = onOpenAccess,
+            )
+        }
+        item {
+            SettingItem(
+                title = stringResource(R.string.settings_appearance_title),
+                description = "Theme mode, accent colors, and app language",
+                icon = Icons.Rounded.Palette,
+                onClick = onOpenAppearance,
+            )
+        }
+        item {
+            SettingItem(
+                title = stringResource(R.string.settings_battery_title),
+                description = "Download threads, eco mode, and power limits",
+                icon = Icons.Rounded.BatteryChargingFull,
+                onClick = onOpenBattery,
+            )
+        }
+        item {
+            SettingItem(
+                title = stringResource(R.string.settings_notifications_title),
+                description = "Completion, error, and status alerts",
+                icon = Icons.Rounded.NotificationsActive,
+                onClick = onOpenNotifications,
+            )
+        }
+        item {
+            SettingItem(
+                title = stringResource(R.string.settings_app_log_title),
+                description = "Application logs, export, and diagnostics",
+                icon = Icons.Rounded.BugReport,
+                onClick = onOpenAppLog,
+            )
+        }
+        item {
+            SettingItem(
+                title = stringResource(R.string.settings_about_title),
+                description = "Version ${BuildConfig.VERSION_NAME}, updates, and info",
+                icon = Icons.Rounded.Info,
+                onClick = onOpenAbout,
+            )
         }
     }
 }

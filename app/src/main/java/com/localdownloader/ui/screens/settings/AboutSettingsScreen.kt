@@ -146,114 +146,116 @@ fun AboutSettingsScreen(
         modifier = modifier,
     ) {
         item {
-            PreferenceGroup {
-                PreferenceRow(
-                    icon = Icons.Rounded.Info,
-                    title = stringResource(R.string.about_package_title),
-                    value = BuildConfig.APPLICATION_ID,
-                    onClick = null,
-                )
-                PreferenceDivider()
-                PreferenceRow(
-                    icon = Icons.Rounded.Info,
-                    title = stringResource(R.string.about_version_title),
-                    value = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
-                    onClick = null,
-                )
-                PreferenceDivider()
-                PreferenceRow(
-                    icon = Icons.Rounded.SystemUpdate,
-                    title = stringResource(R.string.about_updates_title),
-                    subtitle = "App, yt-dlp, and FFmpeg updates",
-                    onClick = onOpenUpdates,
-                )
-            }
+            PreferenceSubtitle(text = "APPLICATION INFO")
         }
         item {
-            PreferenceGroup {
-                PreferenceRow(
-                    icon = Icons.Rounded.Language,
-                    title = stringResource(R.string.about_website_title),
-                    subtitle = "video.sandipmaity.me",
-                    onClick = { openUrl("https://video.sandipmaity.me") },
-                )
-                PreferenceDivider()
-                PreferenceRow(
-                    icon = Icons.Rounded.Code,
-                    title = stringResource(R.string.about_source_title),
-                    subtitle = "github.com/iam-sandipmaity/video-downloader",
-                    onClick = { openUrl("https://github.com/iam-sandipmaity/video-downloader") },
-                )
-                PreferenceDivider()
-                PreferenceRow(
-                    icon = Icons.Rounded.Description,
-                    title = "yt-dlp",
-                    subtitle = "Downloader engine",
-                    onClick = { openUrl("https://github.com/yt-dlp/yt-dlp") },
-                )
-                PreferenceDivider()
-                PreferenceRow(
-                    icon = Icons.Rounded.Description,
-                    title = "FFmpeg",
-                    subtitle = "Media processing runtime",
-                    onClick = { openUrl("https://github.com/FFmpeg/FFmpeg") },
-                )
-                PreferenceDivider()
-                PreferenceRow(
-                    icon = Icons.Rounded.Language,
-                    title = stringResource(R.string.about_developer_github_title),
-                    subtitle = "@iam-sandipmaity",
-                    onClick = { openUrl("https://github.com/iam-sandipmaity") },
-                )
-                PreferenceDivider()
-                AboutAssetRow(
-                    assetPath = "file:///android_asset/platform_logos/x.svg",
-                    imageLoader = svgImageLoader,
-                    title = stringResource(R.string.about_developer_x_title),
-                    subtitle = "@iam_sandipmaity",
-                    onClick = { openUrl("https://x.com/iam_sandipmaity") },
-                )
-            }
-        }
-        item {
-            PreferenceSectionHeader(
-                title = stringResource(R.string.about_credits_title),
+            PreferenceItem(
+                icon = Icons.Rounded.Info,
+                title = stringResource(R.string.about_package_title),
+                value = BuildConfig.APPLICATION_ID,
+                onClick = null,
             )
         }
         item {
-            PreferenceGroup {
-                openSourceCredits.forEachIndexed { index, credit ->
-                    PreferenceRow(
-                        icon = Icons.Rounded.Description,
-                        title = credit.title,
-                        subtitle = credit.subtitle,
-                        onClick = { openUrl(credit.url) },
-                    )
-                    if (index != openSourceCredits.lastIndex) {
-                        PreferenceDivider()
-                    }
-                }
-            }
+            PreferenceItem(
+                icon = Icons.Rounded.Info,
+                title = stringResource(R.string.about_version_title),
+                value = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+                onClick = null,
+            )
         }
         item {
-            PreferenceGroup {
-                PreferenceRow(
-                    icon = Icons.Rounded.RestartAlt,
-                    title = stringResource(R.string.about_reset_title),
-                    subtitle = "Restore all preferences to default",
-                    onClick = {
-                        confirmDialog = SettingConfirmDialogState(
-                            title = resetDialogTitle,
-                            body = resetDialogBody,
-                            confirmLabel = resetNowLabel,
-                            onConfirm = {
-                                onResetSettings()
-                                confirmDialog = null
-                            },
-                        )
-                    },
-                )
-            }
+            PreferenceItem(
+                icon = Icons.Rounded.SystemUpdate,
+                title = stringResource(R.string.about_updates_title),
+                description = "App, yt-dlp, and FFmpeg updates",
+                onClick = onOpenUpdates,
+            )
+        }
+        item {
+            PreferenceSubtitle(text = "COMMUNITY & LINKS")
+        }
+        item {
+            PreferenceItem(
+                icon = Icons.Rounded.Language,
+                title = stringResource(R.string.about_website_title),
+                description = "video.sandipmaity.me",
+                onClick = { openUrl("https://video.sandipmaity.me") },
+            )
+        }
+        item {
+            PreferenceItem(
+                icon = Icons.Rounded.Code,
+                title = stringResource(R.string.about_source_title),
+                description = "github.com/iam-sandipmaity/video-downloader",
+                onClick = { openUrl("https://github.com/iam-sandipmaity/video-downloader") },
+            )
+        }
+        item {
+            PreferenceItem(
+                icon = Icons.Rounded.Description,
+                title = "yt-dlp",
+                description = "Downloader engine",
+                onClick = { openUrl("https://github.com/yt-dlp/yt-dlp") },
+            )
+        }
+        item {
+            PreferenceItem(
+                icon = Icons.Rounded.Description,
+                title = "FFmpeg",
+                description = "Media processing runtime",
+                onClick = { openUrl("https://github.com/FFmpeg/FFmpeg") },
+            )
+        }
+        item {
+            PreferenceItem(
+                icon = Icons.Rounded.Language,
+                title = stringResource(R.string.about_developer_github_title),
+                description = "@iam-sandipmaity",
+                onClick = { openUrl("https://github.com/iam-sandipmaity") },
+            )
+        }
+        item {
+            AboutAssetRow(
+                assetPath = "file:///android_asset/platform_logos/x.svg",
+                imageLoader = svgImageLoader,
+                title = stringResource(R.string.about_developer_x_title),
+                subtitle = "@iam_sandipmaity",
+                onClick = { openUrl("https://x.com/iam_sandipmaity") },
+            )
+        }
+        item {
+            PreferenceSubtitle(text = "OPEN SOURCE CREDITS")
+        }
+        items(openSourceCredits.size) { index ->
+            val credit = openSourceCredits[index]
+            PreferenceItem(
+                icon = Icons.Rounded.Description,
+                title = credit.title,
+                description = credit.subtitle,
+                onClick = { openUrl(credit.url) },
+            )
+        }
+        item {
+            PreferenceSubtitle(text = "RESET")
+        }
+        item {
+            PreferenceItem(
+                icon = Icons.Rounded.RestartAlt,
+                title = stringResource(R.string.about_reset_title),
+                description = "Restore all preferences to default",
+                onClick = {
+                    confirmDialog = SettingConfirmDialogState(
+                        title = resetDialogTitle,
+                        body = resetDialogBody,
+                        confirmLabel = resetNowLabel,
+                        onConfirm = {
+                            onResetSettings()
+                            confirmDialog = null
+                        },
+                    )
+                },
+            )
         }
     }
 }

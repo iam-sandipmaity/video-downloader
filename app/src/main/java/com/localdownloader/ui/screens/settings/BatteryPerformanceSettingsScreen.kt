@@ -114,229 +114,189 @@ fun BatteryPerformanceSettingsScreen(
         onBack = onBack,
         modifier = modifier,
     ) {
-        // System OS Battery Optimization Card
         item {
-            PreferenceGroup {
-                if (isIgnoringOptimizations) {
-                    PreferenceRow(
-                        icon = Icons.Rounded.CheckCircle,
-                        title = stringResource(R.string.battery_system_unrestricted_title),
-                        value = stringResource(R.string.battery_system_status_optimized),
-                        onClick = {
-                            runCatching {
-                                context.startActivity(batteryOptimizationManager.createAppBatterySettingsIntent())
-                            }
-                        },
-                    )
-                } else {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = MaterialTheme.colorScheme.errorContainer,
-                                modifier = Modifier.size(40.dp),
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.BatteryAlert,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.error,
-                                    )
-                                }
-                            }
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = stringResource(R.string.battery_system_restricted_title),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                )
-                                Text(
-                                    text = stringResource(R.string.battery_system_status_restricted),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.error,
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(
-                            text = stringResource(R.string.battery_system_restricted_desc),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Button(
-                            onClick = {
-                                runCatching {
-                                    context.startActivity(batteryOptimizationManager.createIgnoreBatteryOptimizationsIntent())
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text(text = stringResource(R.string.battery_system_restricted_action))
-                        }
-                    }
-                }
-            }
+            PreferenceSubtitle(text = "BATTERY OPTIMIZATION")
         }
-
-        // In-App Battery Saver / Eco Mode
         item {
-            PreferenceGroup {
-                val currentMode = uiState.appSettings.batterySaverMode
-                val autoTitle = stringResource(R.string.battery_saver_mode_auto)
-                val autoDesc = stringResource(R.string.battery_saver_mode_auto_desc)
-                val alwaysOnTitle = stringResource(R.string.battery_saver_mode_always_on)
-                val alwaysOnDesc = stringResource(R.string.battery_saver_mode_always_on_desc)
-                val offTitle = stringResource(R.string.battery_saver_mode_off)
-                val offDesc = stringResource(R.string.battery_saver_mode_off_desc)
-
-                val modeLabel = when (currentMode) {
-                    BatterySaverMode.AUTO -> autoTitle
-                    BatterySaverMode.ALWAYS_ON -> alwaysOnTitle
-                    BatterySaverMode.OFF -> offTitle
-                }
-                PreferenceRow(
-                    icon = Icons.Rounded.EnergySavingsLeaf,
-                    title = saverTitle,
-                    subtitle = modeLabel,
+            if (isIgnoringOptimizations) {
+                PreferenceItem(
+                    icon = Icons.Rounded.CheckCircle,
+                    title = stringResource(R.string.battery_system_unrestricted_title),
+                    value = stringResource(R.string.battery_system_status_optimized),
                     onClick = {
-                        val modeChoices = listOf(
-                            SettingChoiceOption(
-                                title = autoTitle,
-                                subtitle = autoDesc,
-                                onSelect = { onBatterySaverModeChanged(BatterySaverMode.AUTO) },
-                            ),
-                            SettingChoiceOption(
-                                title = alwaysOnTitle,
-                                subtitle = alwaysOnDesc,
-                                onSelect = { onBatterySaverModeChanged(BatterySaverMode.ALWAYS_ON) },
-                            ),
-                            SettingChoiceOption(
-                                title = offTitle,
-                                subtitle = offDesc,
-                                onSelect = { onBatterySaverModeChanged(BatterySaverMode.OFF) },
-                            ),
-                        )
-                        choiceDialog = SettingChoiceDialogState(
-                            title = saverTitle,
-                            selected = modeLabel,
-                            options = modeChoices,
-                        )
+                        runCatching {
+                            context.startActivity(batteryOptimizationManager.createAppBatterySettingsIntent())
+                        }
                     },
                 )
-            }
-        }
-
-        // Concurrency & Threads Tuning
-        item {
-            PreferenceGroup {
-                val currentThreads = uiState.appSettings.defaultConcurrentFragments
-                val threadOptions = listOf(1, 2, 4, 8, 16)
-                val threadOptionLabels = mapOf(
-                    1 to stringResource(R.string.battery_threads_1),
-                    2 to stringResource(R.string.battery_threads_2),
-                    4 to stringResource(R.string.battery_threads_4),
-                    8 to stringResource(R.string.battery_threads_8),
-                    16 to stringResource(R.string.battery_threads_16),
-                )
-                val threadOptionSubtitles = mapOf(
-                    1 to stringResource(R.string.battery_threads_1_desc),
-                    2 to stringResource(R.string.battery_threads_2_desc),
-                    4 to stringResource(R.string.battery_threads_4_desc),
-                    8 to stringResource(R.string.battery_threads_8_desc),
-                    16 to stringResource(R.string.battery_threads_16_desc),
-                )
-
-                PreferenceRow(
-                    icon = Icons.Rounded.Speed,
-                    title = threadsTitle,
-                    subtitle = stringResource(R.string.battery_threads_count, currentThreads),
-                    onClick = {
-                        val choices = threadOptions.map { count ->
-                            SettingChoiceOption(
-                                title = threadOptionLabels[count] ?: "$count threads",
-                                subtitle = threadOptionSubtitles[count],
-                                onSelect = { onDefaultConcurrentFragmentsChanged(count) },
-                            )
-                        }
-                        choiceDialog = SettingChoiceDialogState(
-                            title = threadsTitle,
-                            selected = threadOptionLabels[currentThreads] ?: "$currentThreads threads",
-                            options = choices,
-                        )
-                    },
-                )
-                PreferenceDivider()
-                PreferenceRow(
-                    icon = Icons.Rounded.Queue,
-                    title = concurrentTitle,
-                    subtitle = "${uiState.maxConcurrentDownloads} slots",
-                    onClick = {
-                        val slotChoices = (1..4).map { slotCount ->
-                            SettingChoiceOption(
-                                title = slotCount.toString(),
-                                subtitle = slotSubtitles.getValue(slotCount),
-                                onSelect = { onMaxConcurrentDownloadsChanged(slotCount) },
-                            )
-                        }
-                        choiceDialog = SettingChoiceDialogState(
-                            title = concurrentTitle,
-                            selected = uiState.maxConcurrentDownloads.toString(),
-                            options = slotChoices,
-                        )
-                    },
-                )
-            }
-        }
-
-        // Power Rules
-        item {
-            PreferenceGroup {
-                PreferenceSwitchRow(
-                    icon = Icons.Rounded.Power,
-                    title = stringResource(R.string.battery_charging_only_title),
-                    subtitle = stringResource(R.string.battery_charging_only_subtitle),
-                    checked = uiState.appSettings.downloadOnlyWhileCharging,
-                    onCheckedChange = onDownloadOnlyWhileChargingChanged,
-                )
-                PreferenceDivider()
-                PreferenceSwitchRow(
+            } else {
+                PreferencesHintCard(
+                    title = stringResource(R.string.battery_system_restricted_title),
+                    description = stringResource(R.string.battery_system_restricted_desc),
                     icon = Icons.Rounded.BatteryAlert,
-                    title = stringResource(R.string.battery_pause_low_title),
-                    checked = uiState.appSettings.pauseDownloadsOnLowBattery,
-                    onCheckedChange = onPauseDownloadsOnLowBatteryChanged,
+                    onClick = {
+                        runCatching {
+                            context.startActivity(batteryOptimizationManager.createIgnoreBatteryOptimizationsIntent())
+                        }
+                    },
                 )
-                if (uiState.appSettings.pauseDownloadsOnLowBattery) {
-                    PreferenceDivider()
-                    val thresholdOptions = listOf(10, 15, 20, 25)
-                    val currentThreshold = uiState.appSettings.lowBatteryThresholdPercent
-                    PreferenceRow(
-                        icon = Icons.Rounded.Tune,
-                        title = lowThresholdTitle,
-                        subtitle = "$currentThreshold%",
-                        onClick = {
-                            val thresholdChoices = thresholdOptions.map { pct ->
-                                SettingChoiceOption(
-                                    title = "$pct%",
-                                    subtitle = if (pct == 15) "Recommended" else null,
-                                    onSelect = { onLowBatteryThresholdPercentChanged(pct) },
-                                )
-                            }
-                            choiceDialog = SettingChoiceDialogState(
-                                title = lowThresholdTitle,
-                                selected = "$currentThreshold%",
-                                options = thresholdChoices,
-                            )
-                        },
+            }
+        }
+
+        item {
+            PreferenceSubtitle(text = "ECO MODE")
+        }
+        item {
+            val currentMode = uiState.appSettings.batterySaverMode
+            val autoTitle = stringResource(R.string.battery_saver_mode_auto)
+            val autoDesc = stringResource(R.string.battery_saver_mode_auto_desc)
+            val alwaysOnTitle = stringResource(R.string.battery_saver_mode_always_on)
+            val alwaysOnDesc = stringResource(R.string.battery_saver_mode_always_on_desc)
+            val offTitle = stringResource(R.string.battery_saver_mode_off)
+            val offDesc = stringResource(R.string.battery_saver_mode_off_desc)
+
+            val modeLabel = when (currentMode) {
+                BatterySaverMode.AUTO -> autoTitle
+                BatterySaverMode.ALWAYS_ON -> alwaysOnTitle
+                BatterySaverMode.OFF -> offTitle
+            }
+            PreferenceItem(
+                icon = Icons.Rounded.EnergySavingsLeaf,
+                title = saverTitle,
+                description = modeLabel,
+                onClick = {
+                    val modeChoices = listOf(
+                        SettingChoiceOption(
+                            title = autoTitle,
+                            subtitle = autoDesc,
+                            onSelect = { onBatterySaverModeChanged(BatterySaverMode.AUTO) },
+                        ),
+                        SettingChoiceOption(
+                            title = alwaysOnTitle,
+                            subtitle = alwaysOnDesc,
+                            onSelect = { onBatterySaverModeChanged(BatterySaverMode.ALWAYS_ON) },
+                        ),
+                        SettingChoiceOption(
+                            title = offTitle,
+                            subtitle = offDesc,
+                            onSelect = { onBatterySaverModeChanged(BatterySaverMode.OFF) },
+                        ),
                     )
-                }
+                    choiceDialog = SettingChoiceDialogState(
+                        title = saverTitle,
+                        selected = modeLabel,
+                        options = modeChoices,
+                    )
+                },
+            )
+        }
+
+        item {
+            PreferenceSubtitle(text = "CONCURRENCY & THREADS")
+        }
+        item {
+            val currentThreads = uiState.appSettings.defaultConcurrentFragments
+            val threadOptions = listOf(1, 2, 4, 8, 16)
+            val threadOptionLabels = mapOf(
+                1 to stringResource(R.string.battery_threads_1),
+                2 to stringResource(R.string.battery_threads_2),
+                4 to stringResource(R.string.battery_threads_4),
+                8 to stringResource(R.string.battery_threads_8),
+                16 to stringResource(R.string.battery_threads_16),
+            )
+            val threadOptionSubtitles = mapOf(
+                1 to stringResource(R.string.battery_threads_1_desc),
+                2 to stringResource(R.string.battery_threads_2_desc),
+                4 to stringResource(R.string.battery_threads_4_desc),
+                8 to stringResource(R.string.battery_threads_8_desc),
+                16 to stringResource(R.string.battery_threads_16_desc),
+            )
+
+            PreferenceItem(
+                icon = Icons.Rounded.Speed,
+                title = threadsTitle,
+                description = stringResource(R.string.battery_threads_count, currentThreads),
+                onClick = {
+                    val choices = threadOptions.map { count ->
+                        SettingChoiceOption(
+                            title = threadOptionLabels[count] ?: "$count threads",
+                            subtitle = threadOptionSubtitles[count],
+                            onSelect = { onDefaultConcurrentFragmentsChanged(count) },
+                        )
+                    }
+                    choiceDialog = SettingChoiceDialogState(
+                        title = threadsTitle,
+                        selected = threadOptionLabels[currentThreads] ?: "$currentThreads threads",
+                        options = choices,
+                    )
+                },
+            )
+        }
+        item {
+            PreferenceItem(
+                icon = Icons.Rounded.Queue,
+                title = concurrentTitle,
+                description = "${uiState.maxConcurrentDownloads} slots",
+                onClick = {
+                    val slotChoices = (1..4).map { slotCount ->
+                        SettingChoiceOption(
+                            title = slotCount.toString(),
+                            subtitle = slotSubtitles.getValue(slotCount),
+                            onSelect = { onMaxConcurrentDownloadsChanged(slotCount) },
+                        )
+                    }
+                    choiceDialog = SettingChoiceDialogState(
+                        title = concurrentTitle,
+                        selected = uiState.maxConcurrentDownloads.toString(),
+                        options = slotChoices,
+                    )
+                },
+            )
+        }
+
+        item {
+            PreferenceSubtitle(text = "POWER RULES")
+        }
+        item {
+            PreferenceSwitch(
+                icon = Icons.Rounded.Power,
+                title = stringResource(R.string.battery_charging_only_title),
+                description = stringResource(R.string.battery_charging_only_subtitle),
+                isChecked = uiState.appSettings.downloadOnlyWhileCharging,
+                onClick = { onDownloadOnlyWhileChargingChanged(!uiState.appSettings.downloadOnlyWhileCharging) },
+            )
+        }
+        item {
+            PreferenceSwitch(
+                icon = Icons.Rounded.BatteryAlert,
+                title = stringResource(R.string.battery_pause_low_title),
+                isChecked = uiState.appSettings.pauseDownloadsOnLowBattery,
+                onClick = { onPauseDownloadsOnLowBatteryChanged(!uiState.appSettings.pauseDownloadsOnLowBattery) },
+            )
+        }
+        if (uiState.appSettings.pauseDownloadsOnLowBattery) {
+            item {
+                val thresholdOptions = listOf(10, 15, 20, 25)
+                val currentThreshold = uiState.appSettings.lowBatteryThresholdPercent
+                PreferenceItem(
+                    icon = Icons.Rounded.Tune,
+                    title = lowThresholdTitle,
+                    description = "$currentThreshold%",
+                    onClick = {
+                        val thresholdChoices = thresholdOptions.map { pct ->
+                            SettingChoiceOption(
+                                title = "$pct%",
+                                subtitle = if (pct == 15) "Recommended" else null,
+                                onSelect = { onLowBatteryThresholdPercentChanged(pct) },
+                            )
+                        }
+                        choiceDialog = SettingChoiceDialogState(
+                            title = lowThresholdTitle,
+                            selected = "$currentThreshold%",
+                            options = thresholdChoices,
+                        )
+                    },
+                )
             }
         }
     }
