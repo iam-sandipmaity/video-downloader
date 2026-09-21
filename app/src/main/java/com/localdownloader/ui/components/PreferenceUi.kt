@@ -31,7 +31,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeTopAppBar
+import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -48,10 +48,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.localdownloader.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,13 +73,15 @@ fun PreferencePageScaffold(
         modifier = modifier
             .fillMaxSize()
             .nestedScroll(scrollBehavior.nestedScrollConnection),
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
-            LargeTopAppBar(
+            MediumTopAppBar(
                 title = {
                     Text(
                         text = title,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
+                        fontWeight = FontWeight.SemiBold,
                     )
                 },
                 navigationIcon = {
@@ -85,19 +89,27 @@ fun PreferencePageScaffold(
                         IconButton(onClick = onBack) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                                contentDescription = "Back",
+                                contentDescription = stringResource(R.string.common_back),
                             )
                         }
                     }
                 },
                 actions = actions,
                 scrollBehavior = scrollBehavior,
+                windowInsets = WindowInsets(0, 0, 0, 0),
+                colors = TopAppBarDefaults.mediumTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                ),
             )
         },
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = innerPadding,
+            contentPadding = PaddingValues(
+                top = innerPadding.calculateTopPadding(),
+                bottom = innerPadding.calculateBottomPadding() + 24.dp,
+            ),
             content = content,
         )
     }
@@ -177,6 +189,7 @@ fun PreferenceItem(
     modifier: Modifier = Modifier,
     description: String? = null,
     icon: ImageVector? = null,
+    iconTint: Color = MaterialTheme.colorScheme.primary,
     enabled: Boolean = true,
     value: String? = null,
     trailingContent: (@Composable () -> Unit)? = null,
@@ -184,6 +197,7 @@ fun PreferenceItem(
 ) {
     val contentColor = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
     val descColor = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+    val effectiveIconTint = if (enabled) iconTint else iconTint.copy(alpha = 0.38f)
 
     Surface(
         modifier = modifier.clickable(enabled = enabled && onClick != null) { onClick?.invoke() },
@@ -192,7 +206,7 @@ fun PreferenceItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = if (description.isNullOrBlank()) 12.dp else 14.dp),
+                .padding(horizontal = 16.dp, vertical = if (description.isNullOrBlank()) 14.dp else 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             icon?.let {
@@ -202,13 +216,13 @@ fun PreferenceItem(
                     modifier = Modifier
                         .padding(start = 4.dp, end = 18.dp)
                         .size(24.dp),
-                    tint = descColor,
+                    tint = effectiveIconTint,
                 )
             }
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(start = if (icon == null) 8.dp else 0.dp, end = 8.dp),
+                    .padding(start = if (icon == null) 4.dp else 0.dp, end = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(
@@ -252,11 +266,13 @@ fun PreferenceSwitch(
     modifier: Modifier = Modifier,
     description: String? = null,
     icon: ImageVector? = null,
+    iconTint: Color = MaterialTheme.colorScheme.primary,
     enabled: Boolean = true,
     onClick: () -> Unit = {},
 ) {
     val contentColor = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
     val descColor = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+    val effectiveIconTint = if (enabled) iconTint else iconTint.copy(alpha = 0.38f)
 
     Surface(
         modifier = modifier.clickable(enabled = enabled) { onClick() },
@@ -265,7 +281,7 @@ fun PreferenceSwitch(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = if (description.isNullOrBlank()) 10.dp else 12.dp),
+                .padding(horizontal = 16.dp, vertical = if (description.isNullOrBlank()) 12.dp else 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             icon?.let {
@@ -275,13 +291,13 @@ fun PreferenceSwitch(
                     modifier = Modifier
                         .padding(start = 4.dp, end = 18.dp)
                         .size(24.dp),
-                    tint = descColor,
+                    tint = effectiveIconTint,
                 )
             }
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(start = if (icon == null) 8.dp else 0.dp, end = 12.dp),
+                    .padding(start = if (icon == null) 4.dp else 0.dp, end = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(
@@ -317,12 +333,14 @@ fun PreferenceSwitchWithDivider(
     modifier: Modifier = Modifier,
     description: String? = null,
     icon: ImageVector? = null,
+    iconTint: Color = MaterialTheme.colorScheme.primary,
     enabled: Boolean = true,
     onClick: () -> Unit = {},
     onChecked: () -> Unit = {},
 ) {
     val contentColor = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
     val descColor = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+    val effectiveIconTint = if (enabled) iconTint else iconTint.copy(alpha = 0.38f)
 
     Surface(
         modifier = modifier.clickable(enabled = enabled, onClick = onClick),
@@ -342,13 +360,13 @@ fun PreferenceSwitchWithDivider(
                     modifier = Modifier
                         .padding(start = 4.dp, end = 18.dp)
                         .size(24.dp),
-                    tint = descColor,
+                    tint = effectiveIconTint,
                 )
             }
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(start = if (icon == null) 8.dp else 0.dp, end = 8.dp),
+                    .padding(start = if (icon == null) 4.dp else 0.dp, end = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(
@@ -545,6 +563,7 @@ fun PreferenceRow(
     modifier: Modifier = Modifier,
     subtitle: String? = null,
     value: String? = null,
+    iconTint: Color = MaterialTheme.colorScheme.primary,
     enabled: Boolean = true,
     showChevron: Boolean = false,
     onClick: (() -> Unit)? = null,
@@ -552,6 +571,7 @@ fun PreferenceRow(
 ) {
     PreferenceItem(
         icon = icon,
+        iconTint = iconTint,
         title = title,
         description = subtitle,
         value = value,
@@ -570,10 +590,12 @@ fun PreferenceNavigationRow(
     modifier: Modifier = Modifier,
     subtitle: String? = null,
     value: String? = null,
+    iconTint: Color = MaterialTheme.colorScheme.primary,
     enabled: Boolean = true,
 ) {
     PreferenceItem(
         icon = icon,
+        iconTint = iconTint,
         title = title,
         description = subtitle,
         value = value,
@@ -598,10 +620,12 @@ fun PreferenceSwitchRow(
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     subtitle: String? = null,
+    iconTint: Color = MaterialTheme.colorScheme.primary,
     enabled: Boolean = true,
 ) {
     PreferenceSwitch(
         icon = icon,
+        iconTint = iconTint,
         title = title,
         description = subtitle,
         isChecked = checked,

@@ -177,7 +177,7 @@ object CookieTextCodec {
         return runCatching { URI(normalizeUrl(url)).host.orEmpty().removePrefix(".") }.getOrDefault("")
     }
 
-    private fun extractCookieLines(rawText: String): List<String> {
+    fun extractCookieLines(rawText: String): List<String> {
         return rawText.lineSequence()
             .map { it.trim() }
             .filter { line ->
@@ -187,6 +187,8 @@ object CookieTextCodec {
             }
             .toList()
     }
+
+    fun countCookies(rawText: String): Int = extractCookieLines(rawText).size
 
     private fun isYoutubeFamilyHost(host: String): Boolean {
         return YOUTUBE_RELATED_HOSTS.any { related ->
