@@ -38,7 +38,6 @@ fun NotificationsSettingsScreen(
                 PreferenceSwitchRow(
                     icon = Icons.Rounded.CheckCircle,
                     title = stringResource(R.string.notifications_completed_title),
-                    subtitle = stringResource(R.string.notifications_completed_subtitle),
                     checked = uiState.notifyCompletedDownloads,
                     onCheckedChange = onNotifyCompletedDownloadsChanged,
                 )
@@ -46,7 +45,6 @@ fun NotificationsSettingsScreen(
                 PreferenceSwitchRow(
                     icon = Icons.Rounded.ErrorOutline,
                     title = stringResource(R.string.notifications_errors_title),
-                    subtitle = stringResource(R.string.notifications_errors_subtitle),
                     checked = uiState.notifyDownloadErrors,
                     onCheckedChange = onNotifyDownloadErrorsChanged,
                 )
@@ -54,7 +52,6 @@ fun NotificationsSettingsScreen(
                 PreferenceSwitchRow(
                     icon = Icons.Rounded.NotificationsOff,
                     title = stringResource(R.string.notifications_canceled_title),
-                    subtitle = stringResource(R.string.notifications_canceled_subtitle),
                     checked = uiState.notifyCanceledDownloads,
                     onCheckedChange = onNotifyCanceledDownloadsChanged,
                 )

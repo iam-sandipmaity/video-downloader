@@ -48,28 +48,28 @@ fun MoreScreen(
                 PreferenceNavigationRow(
                     icon = Icons.Rounded.CloudDownload,
                     title = stringResource(R.string.more_queue_title),
-                    subtitle = stringResource(R.string.more_queue_subtitle),
+                    subtitle = "Active, paused, and queued tasks",
                     onClick = onOpenQueue,
                 )
                 PreferenceDivider()
                 PreferenceNavigationRow(
                     icon = Icons.Rounded.History,
                     title = stringResource(R.string.more_history_title),
-                    subtitle = stringResource(R.string.more_history_subtitle),
+                    subtitle = "Completed download history",
                     onClick = onOpenHistory,
                 )
                 PreferenceDivider()
                 PreferenceNavigationRow(
                     icon = Icons.Filled.Lock,
                     title = stringResource(R.string.more_vault_title),
-                    subtitle = stringResource(R.string.more_vault_subtitle),
+                    subtitle = "PIN-protected local storage",
                     onClick = onOpenVault,
                 )
                 PreferenceDivider()
                 PreferenceNavigationRow(
                     icon = Icons.Rounded.Settings,
                     title = stringResource(R.string.common_settings),
-                    subtitle = stringResource(R.string.more_settings_subtitle),
+                    subtitle = "Preferences and configuration",
                     onClick = onOpenSettings,
                 )
             }
@@ -79,28 +79,28 @@ fun MoreScreen(
                 PreferenceNavigationRow(
                     icon = Icons.Rounded.Web,
                     title = stringResource(R.string.more_cookies_title),
-                    subtitle = stringResource(R.string.more_cookies_subtitle),
+                    subtitle = "Saved website sessions",
                     onClick = onOpenCookies,
                 )
                 PreferenceDivider()
                 PreferenceNavigationRow(
                     icon = Icons.Rounded.Shield,
                     title = stringResource(R.string.more_youtube_access_title),
-                    subtitle = stringResource(R.string.more_youtube_access_subtitle),
+                    subtitle = "YouTube login and session hints",
                     onClick = onOpenYoutubeAccess,
                 )
                 PreferenceDivider()
                 PreferenceNavigationRow(
                     icon = Icons.Rounded.SystemUpdate,
                     title = stringResource(R.string.more_updates_title),
-                    subtitle = stringResource(R.string.more_updates_subtitle),
+                    subtitle = "App, yt-dlp, and FFmpeg updates",
                     onClick = onOpenUpdates,
                 )
                 PreferenceDivider()
                 PreferenceNavigationRow(
                     icon = Icons.Rounded.HelpOutline,
                     title = stringResource(R.string.common_help),
-                    subtitle = stringResource(R.string.more_help_subtitle),
+                    subtitle = "Guides and troubleshooting",
                     onClick = onOpenHelp,
                 )
             }
@@ -110,28 +110,28 @@ fun MoreScreen(
                 PreferenceNavigationRow(
                     icon = Icons.Outlined.PlayCircle,
                     title = stringResource(R.string.more_video_player_title),
-                    subtitle = stringResource(R.string.more_video_player_subtitle),
+                    subtitle = "Built-in video player",
                     onClick = onOpenVideo,
                 )
                 PreferenceDivider()
                 PreferenceNavigationRow(
                     icon = Icons.Rounded.MusicNote,
                     title = stringResource(R.string.more_music_player_title),
-                    subtitle = stringResource(R.string.more_music_player_subtitle),
+                    subtitle = "Built-in audio player",
                     onClick = onOpenMusic,
                 )
                 PreferenceDivider()
                 PreferenceNavigationRow(
                     icon = Icons.Rounded.SwapHoriz,
                     title = stringResource(R.string.more_converter_title),
-                    subtitle = stringResource(R.string.more_converter_subtitle),
+                    subtitle = "Convert media formats",
                     onClick = onOpenConvert,
                 )
                 PreferenceDivider()
                 PreferenceNavigationRow(
                     icon = Icons.Rounded.Transform,
                     title = stringResource(R.string.more_compressor_title),
-                    subtitle = stringResource(R.string.more_compressor_subtitle),
+                    subtitle = "Compress video files",
                     onClick = onOpenCompress,
                 )
             }

@@ -150,7 +150,6 @@ fun AboutSettingsScreen(
                 PreferenceRow(
                     icon = Icons.Rounded.Info,
                     title = stringResource(R.string.about_package_title),
-                    subtitle = stringResource(R.string.about_package_subtitle),
                     value = BuildConfig.APPLICATION_ID,
                     onClick = null,
                 )
@@ -158,7 +157,6 @@ fun AboutSettingsScreen(
                 PreferenceRow(
                     icon = Icons.Rounded.Info,
                     title = stringResource(R.string.about_version_title),
-                    subtitle = stringResource(R.string.about_version_subtitle),
                     value = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
                     onClick = null,
                 )
@@ -166,7 +164,7 @@ fun AboutSettingsScreen(
                 PreferenceRow(
                     icon = Icons.Rounded.SystemUpdate,
                     title = stringResource(R.string.about_updates_title),
-                    subtitle = stringResource(R.string.about_updates_subtitle),
+                    subtitle = "App, yt-dlp, and FFmpeg updates",
                     onClick = onOpenUpdates,
                 )
             }
@@ -190,14 +188,14 @@ fun AboutSettingsScreen(
                 PreferenceRow(
                     icon = Icons.Rounded.Description,
                     title = "yt-dlp",
-                    subtitle = stringResource(R.string.about_ytdlp_subtitle),
+                    subtitle = "Downloader engine",
                     onClick = { openUrl("https://github.com/yt-dlp/yt-dlp") },
                 )
                 PreferenceDivider()
                 PreferenceRow(
                     icon = Icons.Rounded.Description,
                     title = "FFmpeg",
-                    subtitle = stringResource(R.string.about_ffmpeg_subtitle),
+                    subtitle = "Media processing runtime",
                     onClick = { openUrl("https://github.com/FFmpeg/FFmpeg") },
                 )
                 PreferenceDivider()
@@ -220,7 +218,6 @@ fun AboutSettingsScreen(
         item {
             PreferenceSectionHeader(
                 title = stringResource(R.string.about_credits_title),
-                subtitle = stringResource(R.string.about_credits_subtitle),
             )
         }
         item {
@@ -243,7 +240,7 @@ fun AboutSettingsScreen(
                 PreferenceRow(
                     icon = Icons.Rounded.RestartAlt,
                     title = stringResource(R.string.about_reset_title),
-                    subtitle = stringResource(R.string.about_reset_subtitle),
+                    subtitle = "Restore all preferences to default",
                     onClick = {
                         confirmDialog = SettingConfirmDialogState(
                             title = resetDialogTitle,

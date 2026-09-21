@@ -152,7 +152,6 @@ fun StorageSettingsScreen(
             PreferenceGroup {
                 FolderPreferenceRow(
                     title = stringResource(R.string.storage_root_title),
-                    subtitle = stringResource(R.string.storage_root_subtitle),
                     value = uiState.downloadsRootDisplayPath(
                         defaultLabel = stringResource(R.string.storage_default_root),
                     ),
@@ -177,7 +176,6 @@ fun StorageSettingsScreen(
                 PreferenceDivider()
                 FolderPreferenceRow(
                     title = stringResource(R.string.storage_video_title),
-                    subtitle = stringResource(R.string.storage_video_subtitle),
                     value = uiState.videoSubfolderName.folderPreview(
                         stringResource(R.string.storage_downloads_root),
                     ),
@@ -196,7 +194,6 @@ fun StorageSettingsScreen(
                 PreferenceDivider()
                 FolderPreferenceRow(
                     title = stringResource(R.string.storage_audio_title),
-                    subtitle = stringResource(R.string.storage_audio_subtitle),
                     value = uiState.audioSubfolderName.folderPreview(
                         stringResource(R.string.storage_downloads_root),
                     ),
@@ -215,7 +212,6 @@ fun StorageSettingsScreen(
                 PreferenceDivider()
                 FolderPreferenceRow(
                     title = stringResource(R.string.storage_other_title),
-                    subtitle = stringResource(R.string.storage_other_subtitle),
                     value = uiState.otherSubfolderName.folderPreview(
                         stringResource(R.string.storage_downloads_root),
                     ),
@@ -235,7 +231,6 @@ fun StorageSettingsScreen(
                 PreferenceRow(
                     icon = Icons.Rounded.Refresh,
                     title = stringResource(R.string.storage_reset_folders_title),
-                    subtitle = stringResource(R.string.storage_reset_folders_subtitle),
                     onClick = {
                         onDownloadsRootFolderNameChanged(defaults.downloadsRootFolderName)
                         onVideoSubfolderNameChanged(defaults.videoSubfolderName)
@@ -266,7 +261,6 @@ fun StorageSettingsScreen(
                 PreferenceRow(
                     icon = Icons.Rounded.LibraryBooks,
                     title = stringResource(R.string.storage_saved_items_title),
-                    subtitle = stringResource(R.string.storage_saved_items_subtitle),
                     value = savedItemsCount.toString(),
                     onClick = null,
                 )
@@ -274,7 +268,6 @@ fun StorageSettingsScreen(
                 PreferenceRow(
                     icon = Icons.Rounded.LibraryBooks,
                     title = "Possible duplicates",
-                    subtitle = "Saved files with the same name or source are grouped here before cleanup.",
                     value = duplicateSavedItemsCount.toString(),
                     onClick = null,
                 )
@@ -282,7 +275,6 @@ fun StorageSettingsScreen(
                 PreferenceRow(
                     icon = Icons.Rounded.Storage,
                     title = "Available storage",
-                    subtitle = "Check free device storage before queueing large downloads.",
                     value = formatFileSize(availableStorageBytes),
                     onClick = null,
                 )
@@ -290,7 +282,6 @@ fun StorageSettingsScreen(
                 PreferenceRow(
                     icon = Icons.Rounded.Storage,
                     title = stringResource(R.string.storage_temp_cache_title),
-                    subtitle = stringResource(R.string.storage_temp_cache_subtitle),
                     value = formatFileSize(cacheSize),
                     onClick = null,
                 )
@@ -392,7 +383,6 @@ private fun String.isPublicStorageRootPath(): Boolean {
 @Composable
 private fun FolderPreferenceRow(
     title: String,
-    subtitle: String,
     value: String,
     onEditClick: () -> Unit,
     onBrowseClick: () -> Unit,
@@ -400,25 +390,13 @@ private fun FolderPreferenceRow(
     PreferenceRow(
         icon = Icons.Rounded.Folder,
         title = title,
-        subtitle = subtitle,
+        subtitle = value,
         onClick = onEditClick,
         trailing = {
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(
-                    text = value,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                PreferencePillButton(
-                    text = stringResource(R.string.common_browse),
-                    onClick = onBrowseClick,
-                )
-            }
+            PreferencePillButton(
+                text = stringResource(R.string.common_browse),
+                onClick = onBrowseClick,
+            )
         },
     )
 }

@@ -317,8 +317,8 @@ fun PreferenceDivider(
 fun PreferenceRow(
     icon: ImageVector,
     title: String,
-    subtitle: String,
     modifier: Modifier = Modifier,
+    subtitle: String? = null,
     value: String? = null,
     enabled: Boolean = true,
     showChevron: Boolean = false,
@@ -340,7 +340,7 @@ fun PreferenceRow(
         modifier = modifier
             .fillMaxWidth()
             .clickable(enabled = enabled && onClick != null) { onClick?.invoke() }
-            .padding(horizontal = 18.dp, vertical = 16.dp),
+            .padding(horizontal = 18.dp, vertical = if (subtitle.isNullOrBlank()) 12.dp else 14.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -350,7 +350,7 @@ fun PreferenceRow(
         )
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(3.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             Text(
                 text = title,
@@ -358,11 +358,13 @@ fun PreferenceRow(
                 fontWeight = FontWeight.Medium,
                 color = contentColor,
             )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = supportingColor,
-            )
+            if (!subtitle.isNullOrBlank()) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = supportingColor,
+                )
+            }
         }
         when {
             trailing != null -> trailing()
@@ -398,9 +400,9 @@ fun PreferenceRow(
 fun PreferenceNavigationRow(
     icon: ImageVector,
     title: String,
-    subtitle: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    subtitle: String? = null,
     value: String? = null,
     enabled: Boolean = true,
 ) {
@@ -420,10 +422,10 @@ fun PreferenceNavigationRow(
 fun PreferenceSwitchRow(
     icon: ImageVector,
     title: String,
-    subtitle: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    subtitle: String? = null,
     enabled: Boolean = true,
 ) {
     PreferenceRow(

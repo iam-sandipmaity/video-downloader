@@ -50,7 +50,6 @@ fun AccessSettingsScreen(
                 PreferenceSwitchRow(
                     icon = Icons.Rounded.Cookie,
                     title = stringResource(R.string.access_use_cookies_title),
-                    subtitle = stringResource(R.string.access_use_cookies_subtitle),
                     checked = uiState.cookiesEnabled,
                     onCheckedChange = onCookiesEnabledChanged,
                 )
@@ -58,7 +57,6 @@ fun AccessSettingsScreen(
                 PreferenceSwitchRow(
                     icon = Icons.Rounded.Security,
                     title = stringResource(R.string.access_user_agent_title),
-                    subtitle = stringResource(R.string.access_user_agent_subtitle),
                     checked = uiState.cookieUserAgentEnabled,
                     onCheckedChange = onCookieUserAgentEnabledChanged,
                 )
@@ -66,16 +64,7 @@ fun AccessSettingsScreen(
                 PreferenceNavigationRow(
                     icon = Icons.Rounded.OpenInNew,
                     title = stringResource(R.string.access_saved_cookies_title),
-                    subtitle = if (cookieCount == 0) {
-                        stringResource(R.string.access_saved_cookies_empty)
-                    } else {
-                        pluralStringResource(
-                            R.plurals.access_saved_cookies_count,
-                            cookieCount,
-                            cookieCount,
-                        )
-                    },
-                    value = if (cookieCount == 0) stringResource(R.string.common_open) else "$cookieCount",
+                    value = if (cookieCount == 0) stringResource(R.string.common_open) else "$cookieCount saved",
                     onClick = onOpenCookies,
                 )
             }
@@ -85,11 +74,6 @@ fun AccessSettingsScreen(
                 PreferenceNavigationRow(
                     icon = Icons.Rounded.Shield,
                     title = stringResource(R.string.more_youtube_access_title),
-                    subtitle = if (youtubeConfigured) {
-                        stringResource(R.string.access_youtube_configured)
-                    } else {
-                        stringResource(R.string.access_youtube_missing)
-                    },
                     value = if (youtubeConfigured) {
                         if (uiState.youtubeAuthConfig.enabled) {
                             stringResource(R.string.common_enabled)

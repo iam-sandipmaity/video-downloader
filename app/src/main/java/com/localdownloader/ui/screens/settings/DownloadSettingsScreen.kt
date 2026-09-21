@@ -113,8 +113,7 @@ fun DownloadSettingsScreen(
                 PreferenceRow(
                     icon = Icons.Rounded.Description,
                     title = stringResource(R.string.download_defaults_filename_video_title),
-                    subtitle = stringResource(R.string.download_defaults_filename_video_subtitle),
-                    value = uiState.outputTemplate,
+                    subtitle = uiState.outputTemplate,
                     onClick = {
                         filenameTemplateDialog = FilenameTemplateDialogState(
                             title = videoFilenameTitle,
@@ -130,8 +129,7 @@ fun DownloadSettingsScreen(
                 PreferenceRow(
                     icon = Icons.Rounded.AudioFile,
                     title = stringResource(R.string.download_defaults_filename_audio_title),
-                    subtitle = stringResource(R.string.download_defaults_filename_audio_subtitle),
-                    value = uiState.audioOutputTemplate,
+                    subtitle = uiState.audioOutputTemplate,
                     onClick = {
                         filenameTemplateDialog = FilenameTemplateDialogState(
                             title = audioFilenameTitle,
@@ -147,8 +145,7 @@ fun DownloadSettingsScreen(
                 PreferenceRow(
                     icon = Icons.Rounded.VideoFile,
                     title = stringResource(R.string.download_defaults_video_container_title),
-                    subtitle = stringResource(R.string.download_defaults_video_container_subtitle),
-                    value = containerDisplayLabel(context, uiState.selectedContainer),
+                    subtitle = containerDisplayLabel(context, uiState.selectedContainer),
                     onClick = {
                         val containers = listOf("auto", "mp4", "webm", "mkv", "mov")
                         choiceDialog = SettingChoiceDialogState(
@@ -168,8 +165,7 @@ fun DownloadSettingsScreen(
                 PreferenceRow(
                     icon = Icons.Rounded.AudioFile,
                     title = stringResource(R.string.download_defaults_audio_container_title),
-                    subtitle = stringResource(R.string.download_defaults_audio_container_subtitle),
-                    value = uiState.selectedAudioFormat.uppercase(),
+                    subtitle = uiState.selectedAudioFormat.uppercase(),
                     onClick = {
                         val audioFormats = listOf("mp3", "m4a", "aac", "opus", "flac", "wav")
                         choiceDialog = SettingChoiceDialogState(
@@ -192,7 +188,6 @@ fun DownloadSettingsScreen(
                 PreferenceSwitchRow(
                     icon = Icons.Rounded.Subtitles,
                     title = stringResource(R.string.download_defaults_subtitles_title),
-                    subtitle = stringResource(R.string.download_defaults_subtitles_subtitle),
                     checked = uiState.downloadSubtitles,
                     onCheckedChange = onDefaultDownloadSubtitlesChanged,
                 )
@@ -200,7 +195,6 @@ fun DownloadSettingsScreen(
                 PreferenceSwitchRow(
                     icon = Icons.Rounded.Subtitles,
                     title = stringResource(R.string.download_defaults_embed_subtitles_title),
-                    subtitle = stringResource(R.string.download_defaults_embed_subtitles_subtitle),
                     checked = uiState.embedSubtitles,
                     onCheckedChange = onDefaultEmbedSubtitlesChanged,
                 )
@@ -208,7 +202,6 @@ fun DownloadSettingsScreen(
                 PreferenceSwitchRow(
                     icon = Icons.Rounded.Description,
                     title = stringResource(R.string.download_defaults_embed_metadata_title),
-                    subtitle = stringResource(R.string.download_defaults_embed_metadata_subtitle),
                     checked = uiState.embedMetadata,
                     onCheckedChange = onDefaultEmbedMetadataChanged,
                 )
@@ -216,7 +209,6 @@ fun DownloadSettingsScreen(
                 PreferenceSwitchRow(
                     icon = Icons.Rounded.PhotoSizeSelectActual,
                     title = stringResource(R.string.download_defaults_embed_thumbnail_title),
-                    subtitle = stringResource(R.string.download_defaults_embed_thumbnail_subtitle),
                     checked = uiState.embedThumbnail,
                     onCheckedChange = onDefaultEmbedThumbnailChanged,
                 )
@@ -227,8 +219,7 @@ fun DownloadSettingsScreen(
                 PreferenceRow(
                     icon = Icons.Rounded.ViewAgenda,
                     title = selectorStyleTitle,
-                    subtitle = stringResource(R.string.download_defaults_selector_style_subtitle),
-                    value = when (uiState.appSettings.formatSelectorStyle) {
+                    subtitle = when (uiState.appSettings.formatSelectorStyle) {
                         FormatSelectorStyle.BOTTOM_SHEET -> selectorStyleSheetTitle
                         FormatSelectorStyle.DROPDOWN -> selectorStyleDropdownTitle
                     },
@@ -259,7 +250,6 @@ fun DownloadSettingsScreen(
                 PreferenceSwitchRow(
                     icon = Icons.Rounded.Speed,
                     title = stringResource(R.string.download_defaults_show_fps_title),
-                    subtitle = stringResource(R.string.download_defaults_show_fps_subtitle),
                     checked = uiState.appSettings.showFormatFps,
                     onCheckedChange = onShowFormatFpsChanged,
                 )
@@ -267,7 +257,6 @@ fun DownloadSettingsScreen(
                 PreferenceSwitchRow(
                     icon = Icons.Rounded.Tune,
                     title = stringResource(R.string.download_defaults_show_codec_title),
-                    subtitle = stringResource(R.string.download_defaults_show_codec_subtitle),
                     checked = uiState.appSettings.showFormatCodec,
                     onCheckedChange = onShowFormatCodecChanged,
                 )
@@ -275,7 +264,6 @@ fun DownloadSettingsScreen(
                 PreferenceSwitchRow(
                     icon = Icons.Rounded.Equalizer,
                     title = stringResource(R.string.download_defaults_show_bitrate_title),
-                    subtitle = stringResource(R.string.download_defaults_show_bitrate_subtitle),
                     checked = uiState.appSettings.showFormatBitrate,
                     onCheckedChange = onShowFormatBitrateChanged,
                 )
@@ -304,8 +292,7 @@ fun DownloadSettingsScreen(
                 PreferenceRow(
                     icon = Icons.Rounded.Speed,
                     title = threadsTitle,
-                    subtitle = stringResource(R.string.battery_threads_subtitle),
-                    value = stringResource(R.string.battery_threads_count, currentThreads),
+                    subtitle = stringResource(R.string.battery_threads_count, currentThreads),
                     onClick = {
                         val choices = threadOptions.map { count ->
                             SettingChoiceOption(
@@ -325,8 +312,7 @@ fun DownloadSettingsScreen(
                 PreferenceRow(
                     icon = Icons.Rounded.Queue,
                     title = stringResource(R.string.download_defaults_concurrent_title),
-                    subtitle = stringResource(R.string.download_defaults_concurrent_subtitle),
-                    value = uiState.maxConcurrentDownloads.toString(),
+                    subtitle = "${uiState.maxConcurrentDownloads} slots",
                     onClick = {
                         val slotChoices = (1..4).map { slotCount ->
                             SettingChoiceOption(
@@ -349,7 +335,6 @@ fun DownloadSettingsScreen(
                 PreferenceSwitchRow(
                     icon = Icons.Rounded.Description,
                     title = stringResource(R.string.download_defaults_keep_links_title),
-                    subtitle = stringResource(R.string.download_defaults_keep_links_subtitle),
                     checked = uiState.appSettings.keepAnalyzedLinkHistory,
                     onCheckedChange = onKeepAnalyzedLinkHistoryChanged,
                 )
@@ -358,12 +343,7 @@ fun DownloadSettingsScreen(
                     PreferenceRow(
                         icon = Icons.Rounded.Queue,
                         title = stringResource(R.string.download_defaults_retention_title),
-                        subtitle = stringResource(R.string.download_defaults_retention_subtitle),
-                        value = pluralStringResource(
-                            R.plurals.common_days,
-                            uiState.appSettings.analyzedLinkHistoryRetentionDays,
-                            uiState.appSettings.analyzedLinkHistoryRetentionDays,
-                        ),
+                        subtitle = selectedRetentionLabel,
                         onClick = {
                             choiceDialog = SettingChoiceDialogState(
                                 title = retentionTitle,

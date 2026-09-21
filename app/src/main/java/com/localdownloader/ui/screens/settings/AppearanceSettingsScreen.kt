@@ -64,8 +64,7 @@ fun AppearanceSettingsScreen(
                 PreferenceRow(
                     icon = Icons.Rounded.Style,
                     title = stringResource(R.string.appearance_theme_title),
-                    subtitle = stringResource(R.string.appearance_theme_subtitle),
-                    value = themeModeLabel(context, uiState.themeMode),
+                    subtitle = themeModeLabel(context, uiState.themeMode),
                     onClick = {
                         choiceDialog = SettingChoiceDialogState(
                             title = appearanceThemeTitle,
@@ -92,8 +91,7 @@ fun AppearanceSettingsScreen(
                 PreferenceRow(
                     icon = Icons.Rounded.Palette,
                     title = stringResource(R.string.appearance_accent_title),
-                    subtitle = stringResource(R.string.appearance_accent_subtitle),
-                    value = accentLabel(context, uiState.accentPreset),
+                    subtitle = accentLabel(context, uiState.accentPreset),
                     onClick = {
                         val accentOrder = listOf(
                             AccentPreset.AMBER,
@@ -134,8 +132,7 @@ fun AppearanceSettingsScreen(
                 PreferenceRow(
                     icon = Icons.Rounded.Tune,
                     title = stringResource(R.string.appearance_contrast_title),
-                    subtitle = stringResource(R.string.appearance_contrast_subtitle),
-                    value = contrastLabel(context, uiState.contrastMode),
+                    subtitle = contrastLabel(context, uiState.contrastMode),
                     onClick = {
                         choiceDialog = SettingChoiceDialogState(
                             title = appearanceContrastTitle,
@@ -157,8 +154,7 @@ fun AppearanceSettingsScreen(
                 PreferenceRow(
                     icon = Icons.Rounded.Language,
                     title = stringResource(R.string.appearance_language_title),
-                    subtitle = stringResource(R.string.appearance_language_subtitle),
-                    value = appLanguageLabel(uiState.languageTag, systemDefaultLabel),
+                    subtitle = appLanguageLabel(uiState.languageTag, systemDefaultLabel),
                     onClick = {
                         val languageOptions = supportedAppLanguageOptions(interfaceLanguageLabel)
                         choiceDialog = SettingChoiceDialogState(

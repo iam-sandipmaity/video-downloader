@@ -63,7 +63,7 @@ fun SettingsScreen(
                 PreferenceNavigationRow(
                     icon = Icons.Rounded.Palette,
                     title = stringResource(R.string.settings_appearance_title),
-                    subtitle = stringResource(R.string.settings_appearance_subtitle),
+                    subtitle = "Theme, accent color, and language",
                     onClick = onOpenAppearance,
                 )
             }
@@ -73,28 +73,28 @@ fun SettingsScreen(
                 PreferenceNavigationRow(
                     icon = Icons.Rounded.CloudDownload,
                     title = stringResource(R.string.settings_download_defaults_title),
-                    subtitle = stringResource(R.string.settings_download_defaults_subtitle),
+                    subtitle = "Format templates, containers, and queue",
                     onClick = onOpenDownloads,
                 )
                 PreferenceDivider()
                 PreferenceNavigationRow(
                     icon = Icons.Rounded.BatteryChargingFull,
                     title = stringResource(R.string.settings_battery_title),
-                    subtitle = stringResource(R.string.settings_battery_subtitle),
+                    subtitle = "Threads, eco mode, and optimization",
                     onClick = onOpenBattery,
                 )
                 PreferenceDivider()
                 PreferenceNavigationRow(
                     icon = Icons.Rounded.Folder,
                     title = stringResource(R.string.settings_storage_title),
-                    subtitle = stringResource(R.string.settings_storage_subtitle),
+                    subtitle = "Storage directories and cache cleanup",
                     onClick = onOpenStorage,
                 )
                 PreferenceDivider()
                 PreferenceNavigationRow(
                     icon = Icons.Rounded.NotificationsActive,
                     title = stringResource(R.string.settings_notifications_title),
-                    subtitle = stringResource(R.string.settings_notifications_subtitle),
+                    subtitle = "Completion and error alerts",
                     onClick = onOpenNotifications,
                 )
             }
@@ -104,14 +104,14 @@ fun SettingsScreen(
                 PreferenceNavigationRow(
                     icon = Icons.Rounded.Security,
                     title = stringResource(R.string.settings_access_title),
-                    subtitle = buildAccessSummary(uiState, context),
+                    subtitle = "Network rules, cookies, and YouTube",
                     onClick = onOpenAccess,
                 )
                 PreferenceDivider()
                 PreferenceNavigationRow(
                     icon = Icons.Rounded.Info,
                     title = stringResource(R.string.settings_about_title),
-                    subtitle = stringResource(R.string.settings_about_subtitle),
+                    subtitle = "Version details and project links",
                     value = BuildConfig.VERSION_NAME,
                     onClick = onOpenAbout,
                 )
@@ -119,7 +119,7 @@ fun SettingsScreen(
                 PreferenceNavigationRow(
                     icon = Icons.Rounded.Description,
                     title = stringResource(R.string.settings_app_log_title),
-                    subtitle = stringResource(R.string.settings_app_log_subtitle),
+                    subtitle = "View and export app logs",
                     onClick = onOpenAppLog,
                 )
             }

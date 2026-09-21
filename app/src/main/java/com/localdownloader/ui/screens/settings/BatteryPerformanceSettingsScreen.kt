@@ -121,7 +121,6 @@ fun BatteryPerformanceSettingsScreen(
                     PreferenceRow(
                         icon = Icons.Rounded.CheckCircle,
                         title = stringResource(R.string.battery_system_unrestricted_title),
-                        subtitle = stringResource(R.string.battery_system_unrestricted_subtitle),
                         value = stringResource(R.string.battery_system_status_optimized),
                         onClick = {
                             runCatching {
@@ -206,8 +205,7 @@ fun BatteryPerformanceSettingsScreen(
                 PreferenceRow(
                     icon = Icons.Rounded.EnergySavingsLeaf,
                     title = saverTitle,
-                    subtitle = stringResource(R.string.battery_saver_mode_subtitle),
-                    value = modeLabel,
+                    subtitle = modeLabel,
                     onClick = {
                         val modeChoices = listOf(
                             SettingChoiceOption(
@@ -259,8 +257,7 @@ fun BatteryPerformanceSettingsScreen(
                 PreferenceRow(
                     icon = Icons.Rounded.Speed,
                     title = threadsTitle,
-                    subtitle = stringResource(R.string.battery_threads_subtitle),
-                    value = stringResource(R.string.battery_threads_count, currentThreads),
+                    subtitle = stringResource(R.string.battery_threads_count, currentThreads),
                     onClick = {
                         val choices = threadOptions.map { count ->
                             SettingChoiceOption(
@@ -280,8 +277,7 @@ fun BatteryPerformanceSettingsScreen(
                 PreferenceRow(
                     icon = Icons.Rounded.Queue,
                     title = concurrentTitle,
-                    subtitle = stringResource(R.string.download_defaults_concurrent_subtitle),
-                    value = uiState.maxConcurrentDownloads.toString(),
+                    subtitle = "${uiState.maxConcurrentDownloads} slots",
                     onClick = {
                         val slotChoices = (1..4).map { slotCount ->
                             SettingChoiceOption(
@@ -314,7 +310,6 @@ fun BatteryPerformanceSettingsScreen(
                 PreferenceSwitchRow(
                     icon = Icons.Rounded.BatteryAlert,
                     title = stringResource(R.string.battery_pause_low_title),
-                    subtitle = stringResource(R.string.battery_pause_low_subtitle),
                     checked = uiState.appSettings.pauseDownloadsOnLowBattery,
                     onCheckedChange = onPauseDownloadsOnLowBatteryChanged,
                 )
@@ -325,8 +320,7 @@ fun BatteryPerformanceSettingsScreen(
                     PreferenceRow(
                         icon = Icons.Rounded.Tune,
                         title = lowThresholdTitle,
-                        subtitle = stringResource(R.string.battery_low_threshold_subtitle),
-                        value = "$currentThreshold%",
+                        subtitle = "$currentThreshold%",
                         onClick = {
                             val thresholdChoices = thresholdOptions.map { pct ->
                                 SettingChoiceOption(
