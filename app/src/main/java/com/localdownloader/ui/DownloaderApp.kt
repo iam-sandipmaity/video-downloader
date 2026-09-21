@@ -14,6 +14,9 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.Home
@@ -520,9 +523,13 @@ fun DownloaderApp(
     }
 
     val showBottomBar = currentRoute in primaryDestinations.map { it.route }
+    val focusManager = LocalFocusManager.current
 
     Scaffold(
-        modifier = modifier,
+        modifier = modifier.clickable(
+            interactionSource = remember { MutableInteractionSource() },
+            indication = null,
+        ) { focusManager.clearFocus() },
         bottomBar = {
             AnimatedVisibility(
                 visible = showBottomBar,

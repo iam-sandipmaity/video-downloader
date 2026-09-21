@@ -1069,7 +1069,7 @@ private fun DownloadTaskHeroCard(
                     task = task,
                     accent = accent,
                     statusIcon = taskStatusIcon,
-                    showStatusBadge = sourceVisual != null,
+                    showStatusBadge = false,
                 )
                 Box(
                     modifier = Modifier
@@ -2002,6 +2002,9 @@ private fun buildTaskFooterMessageEnhanced(
     powerConstraint: PowerConstraintType? = null,
 ): String? {
     task.errorMessage?.takeIf { it.isNotBlank() }?.let { return it }
+    if (task.status == DownloadStatus.COMPLETED) {
+        return task.outputPath?.let { "Saved as ${java.io.File(it).name}" } ?: "Saved to your downloads library."
+    }
     if (isPotentiallyStuck(task, currentTimeMs)) {
         return "No progress update for ${formatElapsedLabel(currentTimeMs - task.updatedAtEpochMs)}. This item may be stuck."
     }

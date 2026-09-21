@@ -321,12 +321,15 @@ fun UpdatesScreen(
             )
         }
         if (shouldShowFfmpegInstallRow(uiState.ffmpeg)) {
+            val formattedFfmpegVersion = uiState.ffmpeg.latestVersion?.let { ver ->
+                if (ver.startsWith("v", ignoreCase = true)) ver else "v$ver"
+            }.orEmpty()
             item {
                 PreferenceItem(
                     icon = Icons.Rounded.Download,
                     title = when {
                         uiState.ffmpeg.latestCheck?.requiresInitialInstall == true && uiState.ffmpeg.updateAvailable ->
-                            "Install FFmpeg ${uiState.ffmpeg.latestVersion?.let { "v$it" }.orEmpty()}".trim()
+                            "Install FFmpeg $formattedFfmpegVersion".trim()
                         uiState.ffmpeg.latestCheck?.requiresInitialInstall == true ->
                             stringResource(R.string.updates_install_ffmpeg)
                         else ->
@@ -369,10 +372,13 @@ private fun buildInstallSubtitle(
     hasPreparedInstall: Boolean = false,
     isInitialInstall: Boolean = false,
 ): String {
+    val formattedVersion = section.latestVersion?.let { ver ->
+        if (ver.startsWith("v", ignoreCase = true)) ver else "v$ver"
+    } ?: ""
     return when {
         section.isInstalling && section.progressPercent != null -> "Downloading... ${section.progressPercent}%"
         hasPreparedInstall -> "The update APK is already downloaded and ready to install."
-        section.updateAvailable && isInitialInstall -> "Install managed runtime package v${section.latestVersion ?: ""} for direct in-app updates."
+        section.updateAvailable && isInitialInstall -> "Install managed runtime package $formattedVersion for direct in-app updates."
         section.updateAvailable -> "Install version ${section.latestVersion ?: "the latest version"}"
         isInitialInstall -> "Install the optional managed runtime so FFmpeg can be updated directly in the app."
         else -> section.summary
