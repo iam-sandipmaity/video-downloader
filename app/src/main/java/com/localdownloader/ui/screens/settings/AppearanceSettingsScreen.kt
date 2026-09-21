@@ -17,6 +17,7 @@ import com.localdownloader.R
 import com.localdownloader.domain.models.AccentPreset
 import com.localdownloader.domain.models.ContrastMode
 import com.localdownloader.domain.models.SYSTEM_LANGUAGE_TAG
+import com.localdownloader.domain.models.ThemeMode
 import com.localdownloader.ui.components.PreferenceItem
 import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.ui.components.PreferenceSubtitle
