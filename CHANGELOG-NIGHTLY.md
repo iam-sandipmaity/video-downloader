@@ -2,6 +2,17 @@
 
 Nightly builds are rolling prereleases published from the `nightly` release tag. This file tracks changes that are available in nightly before they are promoted into the stable changelog.
 
+## [2.0.2.9] - 2026-09-22
+
+### Fixed
+- **Download Queue & History Margins and Spacing** - Fixed edge-to-edge layout clipping, margins, and card item vertical spacing across the Download Queue and Download History screens by providing structured content padding and vertical spacing.
+- **Search Bar & Text Input Focus Dismissal** - Added background touch handlers so tapping outside active search bars or text fields immediately deactivates focus and dismisses the keyboard.
+- **FFmpeg Version String Formatting** - Corrected version prefix handling to avoid duplicated `vv` prefixes in update titles and managed runtime install descriptions.
+- **Download Hero Card Thumbnail Overlay** - Removed duplicate status circle badge overlaying card text on hero thumbnail cards and enhanced completed task footer messages with clean saved filenames.
+
+### Changed
+- **Nightly Version Bump** - Release metadata updated to `2.0.2.9` (`NIGHTLY_VERSION_CODE` `53`).
+
 ## [2.0.2.8] - 2026-09-21
 
 ### Added

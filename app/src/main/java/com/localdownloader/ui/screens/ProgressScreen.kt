@@ -426,6 +426,8 @@ fun ProgressScreen(
             title = stringResource(R.string.queue_title),
             onBack = onBack,
             modifier = modifier,
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
             actions = {
                 Box {
                     IconButton(onClick = { showTopMenu = true }) {
