@@ -1,10 +1,17 @@
 package com.localdownloader.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,21 +23,34 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.ClosedCaption
 import androidx.compose.material.icons.outlined.Subtitles
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.InputChip
+import androidx.compose.material3.InputChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -43,6 +63,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -51,6 +72,7 @@ import androidx.compose.ui.unit.sp
 import com.localdownloader.R
 import com.localdownloader.domain.models.SubtitleTrack
 
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun SubtitleSelectionDialog(
     availableSubtitles: List<SubtitleTrack>,
@@ -61,6 +83,10 @@ fun SubtitleSelectionDialog(
 ) {
     var searchQuery by remember { mutableStateOf("") }
     val selectedCodes = remember { mutableStateListOf<String>().apply { addAll(selectedLanguages) } }
+
+    val allTracks = remember(availableSubtitles, availableAutoCaptions) {
+        (availableSubtitles + availableAutoCaptions).distinctBy { it.code }
+    }
 
     val filteredSuggested = remember(availableSubtitles, searchQuery) {
         if (searchQuery.isBlank()) availableSubtitles
@@ -78,27 +104,133 @@ fun SubtitleSelectionDialog(
         }
     }
 
-    val totalTracksCount = availableSubtitles.size + availableAutoCaptions.size
-
     AlertDialog(
         onDismissRequest = onDismissRequest,
-        icon = {
-            Icon(
-                imageVector = Icons.Outlined.Subtitles,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-            )
-        },
+        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
         title = {
-            Text(
-                text = stringResource(R.string.subtitle_selection_title),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(38.dp),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Outlined.Subtitles,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                }
+                Column {
+                    Text(
+                        text = stringResource(R.string.subtitle_selection_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = "${allTracks.size} available tracks",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         },
         text = {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                if (totalTracksCount > 4) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .animateContentSize(),
+            ) {
+                // Top section: Currently Selected Languages with quick opt-out
+                AnimatedVisibility(
+                    visible = selectedCodes.isNotEmpty(),
+                    enter = fadeIn(),
+                    exit = fadeOut(),
+                ) {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 10.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                        tonalElevation = 1.dp,
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = "Selected (${selectedCodes.size})",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                                TextButton(
+                                    onClick = { selectedCodes.clear() },
+                                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                                    modifier = Modifier.height(26.dp),
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.subtitle_clear_all),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                selectedCodes.forEach { code ->
+                                    val matchedTrack = allTracks.firstOrNull { it.code == code }
+                                    val label = matchedTrack?.displayName ?: code
+                                    InputChip(
+                                        selected = true,
+                                        onClick = { selectedCodes.remove(code) },
+                                        label = {
+                                            Text(
+                                                text = label,
+                                                style = MaterialTheme.typography.labelMedium,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                            )
+                                        },
+                                        trailingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Remove $label",
+                                                modifier = Modifier.size(14.dp),
+                                            )
+                                        },
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = InputChipDefaults.inputChipColors(
+                                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                                            selectedTrailingIconColor = MaterialTheme.colorScheme.onPrimary,
+                                        ),
+                                        modifier = Modifier.height(28.dp),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Search field
+                if (allTracks.size > 3) {
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
@@ -115,7 +247,7 @@ fun SubtitleSelectionDialog(
                             Icon(
                                 imageVector = Icons.Default.Search,
                                 contentDescription = null,
-                                modifier = Modifier.size(20.dp),
+                                modifier = Modifier.size(18.dp),
                             )
                         },
                         trailingIcon = {
@@ -124,85 +256,132 @@ fun SubtitleSelectionDialog(
                                     Icon(
                                         imageVector = Icons.Default.Clear,
                                         contentDescription = "Clear search",
-                                        modifier = Modifier.size(18.dp),
+                                        modifier = Modifier.size(16.dp),
                                     )
                                 }
                             }
                         },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
+                        ),
                     )
                 }
 
+                // Quick action bar (Select all suggested / Clear)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 4.dp),
+                        .padding(horizontal = 2.dp, vertical = 2.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        text = stringResource(R.string.subtitle_selected_count, selectedCodes.size),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Row {
+                    if (availableSubtitles.isNotEmpty()) {
                         TextButton(
                             onClick = {
-                                val allCodes = (availableSubtitles + availableAutoCaptions).map { it.code }.distinct()
-                                selectedCodes.clear()
-                                selectedCodes.addAll(allCodes)
+                                val suggestedCodes = availableSubtitles.map { it.code }
+                                suggestedCodes.forEach { code ->
+                                    if (!selectedCodes.contains(code)) selectedCodes.add(code)
+                                }
                             },
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                            modifier = Modifier.height(28.dp),
                         ) {
-                            Text(text = stringResource(R.string.subtitle_select_all), style = MaterialTheme.typography.labelSmall)
+                            Text(
+                                text = "Select suggested",
+                                style = MaterialTheme.typography.labelSmall,
+                            )
                         }
-                        Spacer(modifier = Modifier.width(4.dp))
-                        TextButton(
-                            onClick = { selectedCodes.clear() },
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                        ) {
-                            Text(text = stringResource(R.string.subtitle_clear_all), style = MaterialTheme.typography.labelSmall)
-                        }
+                    }
+                    TextButton(
+                        onClick = {
+                            val allCodes = allTracks.map { it.code }
+                            selectedCodes.clear()
+                            selectedCodes.addAll(allCodes)
+                        },
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                        modifier = Modifier.height(28.dp),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.subtitle_select_all),
+                            style = MaterialTheme.typography.labelSmall,
+                        )
                     }
                 }
 
-                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 4.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                )
 
+                // Subtitle list
                 if (filteredSuggested.isEmpty() && filteredAuto.isEmpty()) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = 100.dp),
+                            .heightIn(min = 120.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text(
-                            text = stringResource(R.string.subtitle_no_subtitles_found),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.ClosedCaption,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.outline,
+                                modifier = Modifier.size(32.dp),
+                            )
+                            Text(
+                                text = stringResource(R.string.subtitle_no_subtitles_found),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 } else {
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(max = 340.dp),
-                        contentPadding = PaddingValues(vertical = 4.dp),
+                            .heightIn(max = 280.dp),
+                        contentPadding = PaddingValues(vertical = 2.dp),
+                        verticalArrangement = Arrangement.spacedBy(3.dp),
                     ) {
                         if (filteredSuggested.isNotEmpty()) {
                             item(key = "header_suggested") {
-                                Text(
-                                    text = stringResource(R.string.subtitle_suggested_header),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp),
-                                )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 6.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.subtitle_suggested_header),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary,
+                                    )
+                                    Surface(
+                                        shape = RoundedCornerShape(4.dp),
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                    ) {
+                                        Text(
+                                            text = "${filteredSuggested.size}",
+                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                                        )
+                                    }
+                                }
                             }
                             items(filteredSuggested, key = { "sub_${it.code}" }) { track ->
-                                SubtitleCheckboxRow(
+                                SubtitleTrackItemCard(
                                     track = track,
-                                    isChecked = selectedCodes.contains(track.code),
+                                    isSelected = selectedCodes.contains(track.code),
                                     onToggle = { isChecked ->
                                         if (isChecked) {
                                             if (!selectedCodes.contains(track.code)) selectedCodes.add(track.code)
@@ -216,18 +395,37 @@ fun SubtitleSelectionDialog(
 
                         if (filteredAuto.isNotEmpty()) {
                             item(key = "header_auto") {
-                                Text(
-                                    text = stringResource(R.string.subtitle_auto_header),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp),
-                                )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 6.dp, end = 6.dp, top = 10.dp, bottom = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.subtitle_auto_header),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.secondary,
+                                    )
+                                    Surface(
+                                        shape = RoundedCornerShape(4.dp),
+                                        color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f),
+                                    ) {
+                                        Text(
+                                            text = "${filteredAuto.size}",
+                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                                            color = MaterialTheme.colorScheme.secondary,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                                        )
+                                    }
+                                }
                             }
                             items(filteredAuto, key = { "auto_${it.code}" }) { track ->
-                                SubtitleCheckboxRow(
+                                SubtitleTrackItemCard(
                                     track = track,
-                                    isChecked = selectedCodes.contains(track.code),
+                                    isSelected = selectedCodes.contains(track.code),
                                     onToggle = { isChecked ->
                                         if (isChecked) {
                                             if (!selectedCodes.contains(track.code)) selectedCodes.add(track.code)
@@ -248,12 +446,16 @@ fun SubtitleSelectionDialog(
                     onConfirm(selectedCodes.toList())
                     onDismissRequest()
                 },
+                shape = RoundedCornerShape(12.dp),
             ) {
                 Text(text = stringResource(android.R.string.ok))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismissRequest) {
+            TextButton(
+                onClick = onDismissRequest,
+                shape = RoundedCornerShape(12.dp),
+            ) {
                 Text(text = stringResource(android.R.string.cancel))
             }
         },
@@ -262,51 +464,66 @@ fun SubtitleSelectionDialog(
 }
 
 @Composable
-private fun SubtitleCheckboxRow(
+private fun SubtitleTrackItemCard(
     track: SubtitleTrack,
-    isChecked: Boolean,
+    isSelected: Boolean,
     onToggle: (Boolean) -> Unit,
 ) {
-    Row(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .clickable { onToggle(!isChecked) }
-            .padding(horizontal = 6.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { onToggle(!isSelected) },
+        color = if (isSelected) {
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.5f)
+        },
+        shape = RoundedCornerShape(12.dp),
     ) {
-        Checkbox(
-            checked = isChecked,
-            onCheckedChange = onToggle,
-            modifier = Modifier.size(36.dp),
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = track.displayName,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = if (isChecked) FontWeight.SemiBold else FontWeight.Normal,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Checkbox(
+                checked = isSelected,
+                onCheckedChange = onToggle,
+                modifier = Modifier.size(24.dp),
+                colors = CheckboxDefaults.colors(
+                    checkedColor = MaterialTheme.colorScheme.primary,
+                ),
             )
-            Text(
-                text = track.code,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        if (track.isAutoGenerated) {
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
-                modifier = Modifier.padding(start = 6.dp),
-            ) {
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "AUTO",
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    text = track.displayName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
+                Text(
+                    text = track.code.uppercase(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.outline,
+                )
+            }
+            if (track.isAutoGenerated) {
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f),
+                    modifier = Modifier.padding(start = 6.dp),
+                ) {
+                    Text(
+                        text = "AUTO",
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
+                    )
+                }
             }
         }
     }

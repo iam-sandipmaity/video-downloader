@@ -36,22 +36,51 @@ fun LocalVideoThumbnail(
             if (filePath.isNullOrBlank()) {
                 null
             } else {
-                runCatching {
-                    val retriever = MediaMetadataRetriever()
-                    try {
-                        if (filePath.startsWith("content://", ignoreCase = true)) {
-                            retriever.setDataSource(context, filePath.toUri())
-                        } else {
-                            retriever.setDataSource(filePath)
+                // 1. Check for companion sidecar thumbnail image (.png, .jpg, .jpeg, .webp)
+                val sidecarBitmap = runCatching {
+                    val primaryFile = java.io.File(filePath)
+                    if (primaryFile.exists()) {
+                        val parent = primaryFile.parentFile
+                        val stem = primaryFile.nameWithoutExtension
+                        val sidecarImage = parent?.listFiles()?.firstOrNull { candidate ->
+                            candidate.isFile &&
+                                candidate.nameWithoutExtension == stem &&
+                                candidate.extension.lowercase() in listOf("jpg", "jpeg", "png", "webp") &&
+                                candidate.length() > 0L
                         }
-                        retriever.frameAtTime
-                            ?: retriever.embeddedPicture?.let { bytes ->
-                                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                        if (sidecarImage != null) {
+                            val options = BitmapFactory.Options().apply {
+                                inSampleSize = 1
                             }
-                    } finally {
-                        retriever.release()
+                            BitmapFactory.decodeFile(sidecarImage.absolutePath, options)
+                        } else {
+                            null
+                        }
+                    } else {
+                        null
                     }
                 }.getOrNull()
+
+                if (sidecarBitmap != null) {
+                    sidecarBitmap
+                } else {
+                    // 2. Fall back to embedded picture or video frame extraction
+                    runCatching {
+                        val retriever = MediaMetadataRetriever()
+                        try {
+                            if (filePath.startsWith("content://", ignoreCase = true)) {
+                                retriever.setDataSource(context, filePath.toUri())
+                            } else {
+                                retriever.setDataSource(filePath)
+                            }
+                            retriever.embeddedPicture?.let { bytes ->
+                                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                            } ?: retriever.frameAtTime
+                        } finally {
+                            retriever.release()
+                        }
+                    }.getOrNull()
+                }
             }
         }
     }.value

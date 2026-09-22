@@ -96,10 +96,8 @@ class DownloadEngine @Inject constructor(
         if (options.shouldEmbedThumbnail) {
             args += "--embed-thumbnail"
         }
-        if (options.shouldWriteThumbnail) {
-            args += "--write-thumbnail"
-        }
         if (options.shouldWriteThumbnail || options.shouldEmbedThumbnail) {
+            args += "--write-thumbnail"
             args += listOf("--convert-thumbnails", "png")
         }
 
