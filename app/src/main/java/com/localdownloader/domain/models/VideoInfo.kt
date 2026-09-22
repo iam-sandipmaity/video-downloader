@@ -16,4 +16,7 @@ data class VideoInfo(
     val isPlaylist: Boolean,
     val playlistCount: Int?,
     val playlistEntries: List<PlaylistEntry> = emptyList(),
+    val subtitles: List<SubtitleTrack> = emptyList(),
+    val automaticCaptions: List<SubtitleTrack> = emptyList(),
 )
+

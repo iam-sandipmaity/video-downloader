@@ -87,6 +87,11 @@ data class FormatUiState(
     // Advanced options
     val downloadSubtitles: Boolean = false,
     val embedSubtitles: Boolean = false,
+    val selectedSubtitleLanguages: List<String> = emptyList(),
+    val autoSubtitles: Boolean = false,
+    val autoTranslatedSubtitles: Boolean = false,
+    val subtitleConvertFormat: String = "srt",
+    val showSubtitleSelectionDialog: Boolean = false,
     val embedMetadata: Boolean = true,
     val embedThumbnail: Boolean = true,
     val writeThumbnail: Boolean = false,

@@ -676,7 +676,19 @@ class DownloadWorker @AssistedInject constructor(
                     taskId = taskId,
                 )
             }
-            if (outputPath != null && options.shouldDownloadSubtitles && !options.shouldEmbedSubtitles) {
+            val hasExistingSubtitles = outputPath?.let { path ->
+                val primaryFile = File(path)
+                val parent = primaryFile.parentFile
+                val stem = primaryFile.nameWithoutExtension
+                parent?.listFiles()?.any { candidate ->
+                    candidate.isFile &&
+                        candidate.name != primaryFile.name &&
+                        candidate.name.startsWith("$stem.") &&
+                        isSupportedSubtitlePath(candidate.name)
+                } == true
+            } ?: false
+
+            if (outputPath != null && options.shouldDownloadSubtitles && !options.shouldEmbedSubtitles && !hasExistingSubtitles) {
                 val subtitleTemplate = buildOutputTemplateForExistingFile(outputPath!!)
                 appendDebugTrace(taskId, "Downloading subtitle sidecars for completed media")
                 val subtitleResult = downloadEngine.runSubtitleDownload(
@@ -2631,6 +2643,11 @@ class DownloadWorker @AssistedInject constructor(
             isPlaylistEnabled = inputData.getBoolean(WorkerKeys.PLAYLIST_ENABLED, false),
             shouldDownloadSubtitles = inputData.getBoolean(WorkerKeys.DOWNLOAD_SUBTITLES, false),
             shouldEmbedSubtitles = inputData.getBoolean(WorkerKeys.EMBED_SUBTITLES, false),
+            subtitleLanguages = inputData.getString(WorkerKeys.SUBTITLE_LANGUAGES)?.split(",")?.filter { it.isNotBlank() }.orEmpty(),
+            autoSubtitles = inputData.getBoolean(WorkerKeys.AUTO_SUBTITLES, false),
+            autoTranslatedSubtitles = inputData.getBoolean(WorkerKeys.AUTO_TRANSLATED_SUBTITLES, false),
+            subtitleConvertFormat = inputData.getString(WorkerKeys.SUBTITLE_CONVERT_FORMAT) ?: "srt",
+            keepSubtitleFiles = inputData.getBoolean(WorkerKeys.KEEP_SUBTITLE_FILES, true),
             shouldEmbedMetadata = inputData.getBoolean(WorkerKeys.EMBED_METADATA, true),
             shouldEmbedThumbnail = inputData.getBoolean(WorkerKeys.EMBED_THUMBNAIL, false),
             shouldWriteThumbnail = inputData.getBoolean(WorkerKeys.WRITE_THUMBNAIL, false),

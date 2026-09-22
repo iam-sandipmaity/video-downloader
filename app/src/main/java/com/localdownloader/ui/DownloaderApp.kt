@@ -616,6 +616,8 @@ fun DownloaderApp(
                     onAudioBitrateChanged = formatViewModel::onAudioBitrateChanged,
                     onDownloadSubtitlesChanged = formatViewModel::onDownloadSubtitlesChanged,
                     onEmbedSubtitlesChanged = formatViewModel::onEmbedSubtitlesChanged,
+                    onShowSubtitleSelectionDialogChanged = formatViewModel::onShowSubtitleSelectionDialogChanged,
+                    onSubtitleLanguagesChanged = formatViewModel::onSubtitleLanguagesChanged,
                     onEmbedMetadataChanged = formatViewModel::onEmbedMetadataChanged,
                     onEmbedThumbnailChanged = formatViewModel::onEmbedThumbnailChanged,
                     onWriteThumbnailChanged = formatViewModel::onWriteThumbnailChanged,
