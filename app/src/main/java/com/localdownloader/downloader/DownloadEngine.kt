@@ -93,7 +93,7 @@ class DownloadEngine @Inject constructor(
         if (shouldRequestMetadataEmbedding(options)) {
             args += "--embed-metadata"
         }
-        if (options.shouldEmbedThumbnail) {
+        if (shouldRequestThumbnailEmbedding(options)) {
             args += "--embed-thumbnail"
         }
         if (options.shouldWriteThumbnail || options.shouldEmbedThumbnail) {
@@ -261,6 +261,19 @@ class DownloadEngine @Inject constructor(
         return true
     }
 
+    private fun shouldRequestThumbnailEmbedding(options: DownloadOptions): Boolean {
+        if (!options.shouldEmbedThumbnail) return false
+        val normalizedContainer = options.mergeOutputFormat?.trim()?.lowercase().orEmpty()
+        if (normalizedContainer == "webm") {
+            logger.i(
+                "DownloadEngine",
+                "Skipping yt-dlp thumbnail embedding for WebM output because WebM container does not support embedded thumbnail tags",
+            )
+            return false
+        }
+        return true
+    }
+
     internal fun subtitleArgs(options: DownloadOptions): List<String> = buildSubtitleArgs(options)
 
     private fun preferredYoutubeSubtitleLanguages(): String {
@@ -319,6 +332,7 @@ internal fun buildSubtitleArgs(options: DownloadOptions): List<String> {
     }
 
     return buildList {
+        add("--no-abort-on-error")
         if (options.autoSubtitles || requestedLangs.isEmpty() || requestedLangs.any { it.contains("-orig") || it.contains("auto") }) {
             add("--write-auto-subs")
             if (!options.autoTranslatedSubtitles) {

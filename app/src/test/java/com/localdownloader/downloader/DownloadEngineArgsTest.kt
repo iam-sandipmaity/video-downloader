@@ -105,6 +105,7 @@ class DownloadEngineArgsTest {
         )
 
         val args = buildSubtitleArgs(options)
+        assertTrue(args.contains("--no-abort-on-error"))
         assertTrue(args.contains("--sub-langs"))
         val subLangsIndex = args.indexOf("--sub-langs")
         org.junit.Assert.assertEquals("en,hi,es", args[subLangsIndex + 1])
@@ -126,6 +127,7 @@ class DownloadEngineArgsTest {
         )
 
         val args = buildSubtitleArgs(options)
+        assertTrue(args.contains("--no-abort-on-error"))
         assertTrue(args.contains("--embed-subs"))
         assertTrue(args.contains("--write-subs"))
     }

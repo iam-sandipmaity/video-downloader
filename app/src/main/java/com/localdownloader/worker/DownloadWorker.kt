@@ -361,6 +361,16 @@ class DownloadWorker @AssistedInject constructor(
             }
         }
 
+        if (!result.isSuccess && (options.shouldDownloadSubtitles || options.shouldEmbedSubtitles) && isSubtitleDownloadFailure(result.stderr)) {
+            appendDebugTrace(taskId, "Subtitle download failed (e.g. rate limit/429); retrying download without subtitles to preserve media")
+            val noSubtitleOptions = options.asFreshDownloadRetry().copy(
+                shouldDownloadSubtitles = false,
+                shouldEmbedSubtitles = false,
+                subtitleLanguages = emptyList(),
+            )
+            result = runDownloadAttempt(noSubtitleOptions)
+        }
+
         if (!result.isSuccess && shouldRetryWithFallbackExtractor(options, result.stderr)) {
             appendDebugTrace(taskId, "Retrying with analyzed YouTube extractor args after initial failure")
             val fallbackOptions = options.asFreshDownloadRetry().copy(
@@ -1405,6 +1415,15 @@ class DownloadWorker @AssistedInject constructor(
         return mentionsThumbnail && mentionsFileError
     }
 
+    private fun isSubtitleDownloadFailure(stderr: String): Boolean {
+        val lower = stderr.lowercase()
+        return lower.contains("unable to download video subtitles") ||
+            lower.contains("unable to download subtitles") ||
+            lower.contains("error downloading subtitles") ||
+            lower.contains("subtitlesconvertor") ||
+            (lower.contains("subtitles") && (lower.contains("429") || lower.contains("too many requests") || lower.contains("404") || lower.contains("http error")))
+    }
+
     private fun cleanupThumbnailSidecars(primaryPath: String) {
         val primaryFile = File(primaryPath)
         val parent = primaryFile.parentFile ?: return
@@ -1979,6 +1998,7 @@ class DownloadWorker @AssistedInject constructor(
         return lower.contains("postprocessing:") ||
             lower.contains("thumbnailsconvertor") ||
             lower.contains("embedthumbnail") ||
+            lower.contains("subtitlesconvertor") ||
             lower.contains("stream #1:0 -> #0:1 (copy)") ||
             (lower.contains("stream #") && lower.contains("(copy)"))
     }
