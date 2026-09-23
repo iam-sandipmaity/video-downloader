@@ -730,18 +730,18 @@ fun PlayerScreen(
 
             if (showSubtitleStyleDialog) {
                 PlayerSubtitleStyleDialog(
-                    settings = uiState.subtitleViewSettings,
-                    onSettingsChanged = { updated ->
+                    currentSettings = uiState.subtitleViewSettings,
+                    syncOffsetMs = uiState.subtitleSyncOffsetMs,
+                    onSaveSettings = { updated ->
                         playerViewModel.updateSubtitleViewSettings(updated)
                     },
-                    syncOffsetMs = uiState.subtitleSyncOffsetMs,
-                    onAdjustSyncOffsetMs = { delta ->
+                    onAdjustSyncOffset = { delta ->
                         playerViewModel.adjustSubtitleSyncOffsetMs(delta)
                     },
                     onResetSyncOffset = {
                         playerViewModel.resetSubtitleSyncOffset()
                     },
-                    onDismiss = { showSubtitleStyleDialog = false },
+                    onDismissRequest = { showSubtitleStyleDialog = false },
                 )
             }
 
@@ -2145,22 +2145,32 @@ private const val DOUBLE_TAP_RIGHT_ZONE_FRACTION = 0.65f
 
 private fun applySubtitleViewSettings(subtitleView: SubtitleView?, settings: SubtitleViewSettings) {
     if (subtitleView == null) return
-    val fgColor = parseColorSafely(settings.textColorHex, android.graphics.Color.WHITE)
-    val bgColor = parseColorSafely(settings.backgroundColorHex, android.graphics.Color.argb(178, 0, 0, 0))
-    val edgeColor = parseColorSafely(settings.edgeColorHex, android.graphics.Color.BLACK)
+    val fgColor = when (settings.textColor.lowercase()) {
+        "yellow" -> android.graphics.Color.YELLOW
+        "cyan" -> android.graphics.Color.CYAN
+        "green" -> android.graphics.Color.GREEN
+        "magenta" -> android.graphics.Color.MAGENTA
+        "black" -> android.graphics.Color.BLACK
+        else -> android.graphics.Color.WHITE
+    }
+    val bgColor = when (settings.backgroundColor.lowercase()) {
+        "semitransparentblack" -> android.graphics.Color.argb(136, 0, 0, 0)
+        "solidblack" -> android.graphics.Color.BLACK
+        "translucentyellow" -> android.graphics.Color.argb(102, 255, 193, 7)
+        else -> android.graphics.Color.TRANSPARENT
+    }
     val edge = when (settings.edgeType.lowercase()) {
         "outline" -> CaptionStyleCompat.EDGE_TYPE_OUTLINE
-        "drop_shadow", "shadow" -> CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW
+        "dropshadow", "drop_shadow", "shadow" -> CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW
         "raised" -> CaptionStyleCompat.EDGE_TYPE_RAISED
         "depressed" -> CaptionStyleCompat.EDGE_TYPE_DEPRESSED
         else -> CaptionStyleCompat.EDGE_TYPE_NONE
     }
-    val tf = when (settings.fontFamily.lowercase()) {
+    val edgeColor = if (fgColor == android.graphics.Color.BLACK) android.graphics.Color.WHITE else android.graphics.Color.BLACK
+    val tf = when (settings.typeface.lowercase()) {
         "serif" -> android.graphics.Typeface.SERIF
-        "sans_serif", "sans-serif" -> android.graphics.Typeface.SANS_SERIF
+        "sansserif", "sans_serif", "sans-serif" -> android.graphics.Typeface.SANS_SERIF
         "monospace" -> android.graphics.Typeface.MONOSPACE
-        "casual" -> android.graphics.Typeface.create("casual", android.graphics.Typeface.NORMAL)
-        "cursive" -> android.graphics.Typeface.create("cursive", android.graphics.Typeface.NORMAL)
         else -> android.graphics.Typeface.DEFAULT
     }
     val captionStyle = CaptionStyleCompat(
@@ -2172,15 +2182,6 @@ private fun applySubtitleViewSettings(subtitleView: SubtitleView?, settings: Sub
         tf,
     )
     subtitleView.setStyle(captionStyle)
-    subtitleView.setFractionalTextSize(SubtitleView.DEFAULT_TEXT_SIZE_FRACTION * settings.fontScale)
-    subtitleView.setApplyEmbeddedStyles(settings.applyEmbeddedStyles)
-    subtitleView.setBottomPaddingFraction(SubtitleView.DEFAULT_BOTTOM_PADDING_FRACTION * (settings.bottomPaddingDp / 24f))
-}
-
-private fun parseColorSafely(hex: String, defaultColor: Int): Int {
-    return try {
-        android.graphics.Color.parseColor(hex)
-    } catch (_: Exception) {
-        defaultColor
-    }
+    subtitleView.setFractionalTextSize(SubtitleView.DEFAULT_TEXT_SIZE_FRACTION * settings.fontSizeScale)
+    subtitleView.setBottomPaddingFraction(settings.bottomOffsetFraction)
 }
