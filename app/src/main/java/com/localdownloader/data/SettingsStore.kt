@@ -96,6 +96,7 @@ class SettingsStore @Inject constructor(
         val formatSelectorStyle = stringPreferencesKey("format_selector_style")
         val darkTheme = booleanPreferencesKey("dark_theme")
         val vaultSettings = stringPreferencesKey("vault_settings_json")
+        val subtitleViewSettings = stringPreferencesKey("subtitle_view_settings_json")
     }
 
     fun observeSettings(): Flow<AppSettings> {
@@ -157,6 +158,7 @@ class SettingsStore @Inject constructor(
                     formatSelectorStyle = prefs[Keys.formatSelectorStyle]?.toEnumOrDefault(FormatSelectorStyle.BOTTOM_SHEET) ?: FormatSelectorStyle.BOTTOM_SHEET,
                     darkTheme = prefs[Keys.darkTheme] ?: false,
                     vaultSettings = decodeVaultSettings(prefs[Keys.vaultSettings]),
+                    subtitleViewSettings = decodeSubtitleViewSettings(prefs[Keys.subtitleViewSettings]),
                 )
             }
     }
@@ -213,10 +215,11 @@ class SettingsStore @Inject constructor(
             prefs[Keys.formatSelectorStyle] = settings.formatSelectorStyle.name
             prefs[Keys.darkTheme] = settings.darkTheme
             prefs[Keys.vaultSettings] = json.encodeToString(settings.vaultSettings)
+            prefs[Keys.subtitleViewSettings] = json.encodeToString(settings.subtitleViewSettings)
         }
     }
 
-suspend fun getVaultSettings(): VaultSettings {
+    suspend fun getVaultSettings(): VaultSettings {
         return context.settingsDataStore.data
             .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
             .map { it[Keys.vaultSettings]?.let { json.decodeFromString<VaultSettings>(it) } ?: VaultSettings() }
@@ -227,6 +230,13 @@ suspend fun getVaultSettings(): VaultSettings {
         context.settingsDataStore.edit { prefs ->
             prefs[Keys.vaultSettings] = json.encodeToString(settings)
         }
+    }
+
+    private fun decodeSubtitleViewSettings(raw: String?): com.localdownloader.domain.models.SubtitleViewSettings {
+        val payload = raw?.trim().orEmpty()
+        if (payload.isBlank()) return com.localdownloader.domain.models.SubtitleViewSettings()
+        return runCatching { json.decodeFromString<com.localdownloader.domain.models.SubtitleViewSettings>(payload) }
+            .getOrDefault(com.localdownloader.domain.models.SubtitleViewSettings())
     }
 
     private fun decodeCookieProfiles(raw: String?): List<CookieProfile> {

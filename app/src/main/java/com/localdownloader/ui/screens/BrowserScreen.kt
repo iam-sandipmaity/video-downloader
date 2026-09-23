@@ -110,6 +110,7 @@ import com.localdownloader.domain.models.effectiveOutputStreamType
 import androidx.compose.material.icons.outlined.Subtitles
 import com.localdownloader.ui.components.FormatSelectionBottomSheet
 import com.localdownloader.ui.components.InlineFeedbackCard
+import com.localdownloader.ui.components.SubtitleSelectionCard
 import com.localdownloader.ui.components.SubtitleSelectionDialog
 import com.localdownloader.ui.model.toReadableSize
 import com.localdownloader.viewmodel.FormatMessageScope
@@ -641,53 +642,20 @@ fun BrowserScreen(
                                     modifier = Modifier.fillMaxWidth(),
                                     singleLine = true,
                                 )
-                                val subtitleSummary = when {
-                                    uiState.selectedSubtitleLanguages.isEmpty() && !uiState.downloadSubtitles -> stringResource(R.string.subtitle_none_selected)
-                                    uiState.selectedSubtitleLanguages.isEmpty() && uiState.downloadSubtitles -> stringResource(R.string.subtitle_all_languages)
-                                    uiState.selectedSubtitleLanguages.size == 1 -> uiState.selectedSubtitleLanguages.first()
-                                    else -> stringResource(R.string.subtitle_selected_count, uiState.selectedSubtitleLanguages.size)
-                                }
-                                Surface(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .clickable { onShowSubtitleSelectionDialogChanged(true) },
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically,
-                                    ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(
-                                                imageVector = Icons.Outlined.Subtitles,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(20.dp),
-                                            )
-                                            Spacer(modifier = Modifier.width(10.dp))
-                                            Text(
-                                                text = stringResource(R.string.subtitle_selection_title),
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                fontWeight = FontWeight.Medium,
-                                            )
-                                        }
-                                        Text(
-                                            text = subtitleSummary,
-                                            style = MaterialTheme.typography.labelLarge,
-                                            color = MaterialTheme.colorScheme.primary,
-                                            fontWeight = FontWeight.SemiBold,
-                                        )
-                                    }
-                                }
+                                SubtitleSelectionCard(
+                                    downloadSubtitles = uiState.downloadSubtitles,
+                                    onDownloadSubtitlesChanged = onDownloadSubtitlesChanged,
+                                    selectedSubtitleLanguages = uiState.selectedSubtitleLanguages,
+                                    onSubtitleLanguagesChanged = onSubtitleLanguagesChanged,
+                                    availableSubtitles = uiState.availableSubtitles,
+                                    availableAutoCaptions = uiState.availableAutoCaptions,
+                                    onOpenSubtitleDialog = { onShowSubtitleSelectionDialogChanged(true) },
+                                    embedSubtitles = uiState.embedSubtitles,
+                                    onEmbedSubtitlesChanged = onEmbedSubtitlesChanged,
+                                    isAudioOnly = effectiveStreamType == StreamType.AUDIO_ONLY,
+                                )
                                 ToggleChipRow(
                                     items = buildList {
-                                        if (effectiveStreamType != StreamType.AUDIO_ONLY) {
-                                            add(ToggleConfig(stringResource(R.string.browser_toggle_embed_subs), uiState.embedSubtitles, onEmbedSubtitlesChanged))
-                                        }
                                         add(ToggleConfig(stringResource(R.string.browser_toggle_metadata), uiState.embedMetadata, onEmbedMetadataChanged))
                                         add(ToggleConfig(stringResource(R.string.browser_toggle_embed_thumb), uiState.embedThumbnail, onEmbedThumbnailChanged))
                                         add(ToggleConfig(stringResource(R.string.browser_toggle_write_thumb), uiState.writeThumbnail, onWriteThumbnailChanged))
@@ -821,53 +789,20 @@ fun BrowserScreen(
                                 uiState.selectedOutputTransform,
                             )
                             OptionSectionCard(title = stringResource(R.string.browser_section_extras)) {
-                                val subtitleSummary = when {
-                                    uiState.selectedSubtitleLanguages.isEmpty() && !uiState.downloadSubtitles -> stringResource(R.string.subtitle_none_selected)
-                                    uiState.selectedSubtitleLanguages.isEmpty() && uiState.downloadSubtitles -> stringResource(R.string.subtitle_all_languages)
-                                    uiState.selectedSubtitleLanguages.size == 1 -> uiState.selectedSubtitleLanguages.first()
-                                    else -> stringResource(R.string.subtitle_selected_count, uiState.selectedSubtitleLanguages.size)
-                                }
-                                Surface(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .clickable { onShowSubtitleSelectionDialogChanged(true) },
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically,
-                                    ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(
-                                                imageVector = Icons.Outlined.Subtitles,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(20.dp),
-                                            )
-                                            Spacer(modifier = Modifier.width(10.dp))
-                                            Text(
-                                                text = stringResource(R.string.subtitle_selection_title),
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                fontWeight = FontWeight.Medium,
-                                            )
-                                        }
-                                        Text(
-                                            text = subtitleSummary,
-                                            style = MaterialTheme.typography.labelLarge,
-                                            color = MaterialTheme.colorScheme.primary,
-                                            fontWeight = FontWeight.SemiBold,
-                                        )
-                                    }
-                                }
+                                SubtitleSelectionCard(
+                                    downloadSubtitles = uiState.downloadSubtitles,
+                                    onDownloadSubtitlesChanged = onDownloadSubtitlesChanged,
+                                    selectedSubtitleLanguages = uiState.selectedSubtitleLanguages,
+                                    onSubtitleLanguagesChanged = onSubtitleLanguagesChanged,
+                                    availableSubtitles = uiState.availableSubtitles,
+                                    availableAutoCaptions = uiState.availableAutoCaptions,
+                                    onOpenSubtitleDialog = { onShowSubtitleSelectionDialogChanged(true) },
+                                    embedSubtitles = uiState.embedSubtitles,
+                                    onEmbedSubtitlesChanged = onEmbedSubtitlesChanged,
+                                    isAudioOnly = effectiveStreamType == StreamType.AUDIO_ONLY,
+                                )
                                 ToggleChipRow(
                                     items = buildList {
-                                        if (effectiveStreamType != StreamType.AUDIO_ONLY) {
-                                            add(ToggleConfig(stringResource(R.string.browser_toggle_embed_subs), uiState.embedSubtitles, onEmbedSubtitlesChanged))
-                                        }
                                         add(ToggleConfig(stringResource(R.string.browser_toggle_metadata), uiState.embedMetadata, onEmbedMetadataChanged))
                                         add(ToggleConfig(stringResource(R.string.browser_toggle_embed_thumb), uiState.embedThumbnail, onEmbedThumbnailChanged))
                                         add(ToggleConfig(stringResource(R.string.browser_toggle_write_thumb), uiState.writeThumbnail, onWriteThumbnailChanged))
