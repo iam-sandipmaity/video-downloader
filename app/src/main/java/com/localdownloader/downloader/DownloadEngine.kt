@@ -315,18 +315,9 @@ internal fun shouldPassAudioQuality(options: DownloadOptions): Boolean {
 
 internal fun buildSubtitleArgs(options: DownloadOptions): List<String> {
     val url = options.url
-    val isYoutube = url.lowercase().contains("youtube.com") || url.lowercase().contains("youtu.be")
     val requestedLangs = options.subtitleLanguages.filter { it.isNotBlank() }
     val langs = if (requestedLangs.isNotEmpty()) {
         requestedLangs.joinToString(",")
-    } else if (isYoutube) {
-        val locale = Locale.getDefault()
-        val candidates = linkedSetOf<String>()
-        locale.toLanguageTag().trim().takeIf { it.isNotBlank() && !it.equals("und", ignoreCase = true) }?.let(candidates::add)
-        locale.language.trim().takeIf { it.isNotBlank() && !it.equals("und", ignoreCase = true) }?.let(candidates::add)
-        candidates += "en"
-        candidates += "en-orig"
-        candidates.joinToString(",")
     } else {
         "all,-live_chat"
     }
