@@ -237,7 +237,7 @@ class Logger @Inject constructor(
         val maxSizeBytes = if (latestSettings.appLogMaxSizeBytes > 0) {
             latestSettings.appLogMaxSizeBytes
         } else {
-            DEFAULT_MAX_LOG_FILE_SIZE_BYTES
+            MAX_LOG_FILE_SIZE_BYTES
         }
         if (!logFile.exists() || logFile.length() < maxSizeBytes) return
 
@@ -314,7 +314,7 @@ class Logger @Inject constructor(
         val maxSizeBytes = if (latestSettings.appLogMaxSizeBytes > 0) {
             latestSettings.appLogMaxSizeBytes * 2
         } else {
-            DEFAULT_MAX_LOG_FILE_SIZE_BYTES * 2
+            MAX_LOG_FILE_SIZE_BYTES * 2
         }
         var totalBytes = (appLogFiles() + crashLogFamilyFiles()).distinct().sumOf { it.length() }
         if (totalBytes > maxSizeBytes) {
