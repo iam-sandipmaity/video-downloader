@@ -110,15 +110,19 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.PlayerView
+import androidx.media3.ui.SubtitleView
 import com.localdownloader.MainActivity
 import com.localdownloader.R
 import com.localdownloader.domain.models.DownloadTask
+import com.localdownloader.domain.models.SubtitleViewSettings
 import com.localdownloader.media.PlayerResizeModes
 import com.localdownloader.media.builtInPlaybackCompatibilityLabel
 import com.localdownloader.media.isLikelyAudioPath
 import com.localdownloader.media.isLikelyVideoPath
 import com.localdownloader.media.resolvePreferredMediaMimeType
+import com.localdownloader.ui.components.PlayerSubtitleStyleDialog
 import com.localdownloader.viewmodel.PlayerTrackOption
 import com.localdownloader.viewmodel.PlayerUiState
 import com.localdownloader.viewmodel.PlayerViewModel
@@ -168,6 +172,7 @@ fun PlayerScreen(
     val canSeek = uiState.isSeekable && uiState.durationMs > 0L
 
     var isFullscreen by rememberSaveable { mutableStateOf(false) }
+    var showSubtitleStyleDialog by rememberSaveable { mutableStateOf(false) }
     var controlsVisible by rememberSaveable { mutableStateOf(true) }
     var gestureFeedback by rememberSaveable { mutableStateOf<String?>(null) }
     var swipeHintVisible by rememberSaveable { mutableStateOf(true) }
@@ -371,6 +376,7 @@ fun PlayerScreen(
                         useController = false
                         keepScreenOn = true
                         resizeMode = media3ResizeMode(uiState.resizeMode)
+                        applySubtitleViewSettings(subtitleView, uiState.subtitleViewSettings)
                     }
                 },
                 modifier = Modifier
@@ -388,6 +394,7 @@ fun PlayerScreen(
                 update = { playerView ->
                     playerView.player = playerViewModel.player
                     playerView.resizeMode = media3ResizeMode(uiState.resizeMode)
+                    applySubtitleViewSettings(playerView.subtitleView, uiState.subtitleViewSettings)
                 },
             )
 
@@ -707,6 +714,10 @@ fun PlayerScreen(
                     onSetVolumeBoostMb = {
                         playerViewModel.setVolumeBoostMb(it)
                     },
+                    onOpenSubtitleStyleDialog = {
+                        showSubtitleStyleDialog = true
+                        activePanelName = PlayerPanel.NONE.name
+                    },
                     isZoomed = zoomScale > 1.02f,
                     onResetZoom = {
                         zoomScale = 1f
@@ -714,6 +725,23 @@ fun PlayerScreen(
                         panOffsetY = 0f
                         activePanelName = PlayerPanel.NONE.name
                     },
+                )
+            }
+
+            if (showSubtitleStyleDialog) {
+                PlayerSubtitleStyleDialog(
+                    currentSettings = uiState.subtitleViewSettings,
+                    syncOffsetMs = uiState.subtitleSyncOffsetMs,
+                    onSaveSettings = { updated ->
+                        playerViewModel.updateSubtitleViewSettings(updated)
+                    },
+                    onAdjustSyncOffset = { delta ->
+                        playerViewModel.adjustSubtitleSyncOffsetMs(delta)
+                    },
+                    onResetSyncOffset = {
+                        playerViewModel.resetSubtitleSyncOffset()
+                    },
+                    onDismissRequest = { showSubtitleStyleDialog = false },
                 )
             }
 
@@ -1486,6 +1514,7 @@ private fun PlayerOptionPanel(
     onSelectSubtitleTrack: (PlayerTrackOption?) -> Unit,
     onSelectResizeMode: (Int) -> Unit,
     onSetVolumeBoostMb: (Int) -> Unit,
+    onOpenSubtitleStyleDialog: () -> Unit,
     isZoomed: Boolean,
     onResetZoom: () -> Unit,
 ) {
@@ -1575,6 +1604,13 @@ private fun PlayerOptionPanel(
                 }
 
                 PlayerPanel.SUBTITLES -> {
+                    PanelOptionRow(
+                        title = "Appearance & Sync",
+                        subtitle = "Font, color, box & timing",
+                        selected = false,
+                        onClick = onOpenSubtitleStyleDialog,
+                    )
+                    PanelSectionLabel("Tracks")
                     PanelOptionRow(
                         title = "None",
                         subtitle = null,
@@ -2106,3 +2142,46 @@ private const val MAX_SWIPE_SEEK_SECONDS = 180f
 private const val DEFAULT_MAX_SWIPE_SEEK_SECONDS = 90f
 private const val DOUBLE_TAP_LEFT_ZONE_FRACTION = 0.35f
 private const val DOUBLE_TAP_RIGHT_ZONE_FRACTION = 0.65f
+
+private fun applySubtitleViewSettings(subtitleView: SubtitleView?, settings: SubtitleViewSettings) {
+    if (subtitleView == null) return
+    val fgColor = when (settings.textColor.lowercase()) {
+        "yellow" -> android.graphics.Color.YELLOW
+        "cyan" -> android.graphics.Color.CYAN
+        "green" -> android.graphics.Color.GREEN
+        "magenta" -> android.graphics.Color.MAGENTA
+        "black" -> android.graphics.Color.BLACK
+        else -> android.graphics.Color.WHITE
+    }
+    val bgColor = when (settings.backgroundColor.lowercase()) {
+        "semitransparentblack" -> android.graphics.Color.argb(136, 0, 0, 0)
+        "solidblack" -> android.graphics.Color.BLACK
+        "translucentyellow" -> android.graphics.Color.argb(102, 255, 193, 7)
+        else -> android.graphics.Color.TRANSPARENT
+    }
+    val edge = when (settings.edgeType.lowercase()) {
+        "outline" -> CaptionStyleCompat.EDGE_TYPE_OUTLINE
+        "dropshadow", "drop_shadow", "shadow" -> CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW
+        "raised" -> CaptionStyleCompat.EDGE_TYPE_RAISED
+        "depressed" -> CaptionStyleCompat.EDGE_TYPE_DEPRESSED
+        else -> CaptionStyleCompat.EDGE_TYPE_NONE
+    }
+    val edgeColor = if (fgColor == android.graphics.Color.BLACK) android.graphics.Color.WHITE else android.graphics.Color.BLACK
+    val tf = when (settings.typeface.lowercase()) {
+        "serif" -> android.graphics.Typeface.SERIF
+        "sansserif", "sans_serif", "sans-serif" -> android.graphics.Typeface.SANS_SERIF
+        "monospace" -> android.graphics.Typeface.MONOSPACE
+        else -> android.graphics.Typeface.DEFAULT
+    }
+    val captionStyle = CaptionStyleCompat(
+        fgColor,
+        bgColor,
+        android.graphics.Color.TRANSPARENT,
+        edge,
+        edgeColor,
+        tf,
+    )
+    subtitleView.setStyle(captionStyle)
+    subtitleView.setFractionalTextSize(SubtitleView.DEFAULT_TEXT_SIZE_FRACTION * settings.fontSizeScale)
+    subtitleView.setBottomPaddingFraction(settings.bottomOffsetFraction)
+}

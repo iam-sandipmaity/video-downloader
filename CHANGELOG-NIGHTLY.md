@@ -2,6 +2,21 @@
 
 Nightly builds are rolling prereleases published from the `nightly` release tag. This file tracks changes that are available in nightly before they are promoted into the stable changelog.
 
+## [2.0.3.0] - 2026-09-26
+
+### Added
+- **Subtitle Selection Card & Sheet Redesign** - Completely redesigned the subtitle selection experience with modern Material 3 cards, quick presets (*All Native*, *English*, *Custom*), removable language chips, and video container embedding controls (embed directly in MP4/MKV or save as external `.srt`/`.vtt` sidecars).
+- **Interactive Subtitle Selection Dialog** - Added a dedicated multi-select subtitle modal dialog with real-time language search, category filter tabs (*All*, *Native*, *Auto*), horizontal selected carousel, track type badges (`NATIVE`, `ORIGINAL`, `AUTO`), format tags, and bulk actions (*Select All*, *Native Only*, *Clear*).
+- **In-Player Subtitle Appearance & Time-Sync Settings** - Added configurable subtitle styling in the video player with customizable text colors, background opacity, font scaling, edge styles, and live subtitle time-sync offset adjustments.
+- **Reliable Thumbnail Conversion & Sidecar Extraction** - Added automatic thumbnail conversion to PNG and resilient sidecar extraction.
+
+### Fixed
+- **YouTube Machine-Translated Subtitle Bloat & Rate Limiting** - Filtered out synthetic auto-translated caption bloat (which previously generated hundreds or 3,000+ machine-translated entries on YouTube and multi-audio channels like MrBeast) by adding `--extractor-args "youtube:skip=translated_subs"` to analysis and download commands, preserving only genuine creator-provided subtitles and original spoken auto-captions (`*-orig`).
+- **Enhanced Subtitle Language Names** - Improved subtitle display names to render clean, readable language names (e.g. *English (Original)*, *Spanish (Latin America)*, *Chinese (Simplified)*) instead of raw internal codes.
+
+### Changed
+- **Nightly Version Bump** - Release metadata updated to `2.0.3.0` (`NIGHTLY_VERSION_CODE` `54`).
+
 ## [2.0.2.9] - 2026-09-22
 
 ### Fixed

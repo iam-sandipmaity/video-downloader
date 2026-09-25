@@ -361,6 +361,16 @@ class DownloadWorker @AssistedInject constructor(
             }
         }
 
+        if (!result.isSuccess && (options.shouldDownloadSubtitles || options.shouldEmbedSubtitles) && isSubtitleDownloadFailure(result.stderr)) {
+            appendDebugTrace(taskId, "Subtitle download failed (e.g. rate limit/429); retrying download without subtitles to preserve media")
+            val noSubtitleOptions = options.asFreshDownloadRetry().copy(
+                shouldDownloadSubtitles = false,
+                shouldEmbedSubtitles = false,
+                subtitleLanguages = emptyList(),
+            )
+            result = runDownloadAttempt(noSubtitleOptions)
+        }
+
         if (!result.isSuccess && shouldRetryWithFallbackExtractor(options, result.stderr)) {
             appendDebugTrace(taskId, "Retrying with analyzed YouTube extractor args after initial failure")
             val fallbackOptions = options.asFreshDownloadRetry().copy(
@@ -676,7 +686,19 @@ class DownloadWorker @AssistedInject constructor(
                     taskId = taskId,
                 )
             }
-            if (outputPath != null && options.shouldDownloadSubtitles && !options.shouldEmbedSubtitles) {
+            val hasExistingSubtitles = outputPath?.let { path ->
+                val primaryFile = File(path)
+                val parent = primaryFile.parentFile
+                val stem = primaryFile.nameWithoutExtension
+                parent?.listFiles()?.any { candidate ->
+                    candidate.isFile &&
+                        candidate.name != primaryFile.name &&
+                        candidate.name.startsWith("$stem.") &&
+                        isSupportedSubtitlePath(candidate.name)
+                } == true
+            } ?: false
+
+            if (outputPath != null && options.shouldDownloadSubtitles && !options.shouldEmbedSubtitles && !hasExistingSubtitles) {
                 val subtitleTemplate = buildOutputTemplateForExistingFile(outputPath!!)
                 appendDebugTrace(taskId, "Downloading subtitle sidecars for completed media")
                 val subtitleResult = downloadEngine.runSubtitleDownload(
@@ -1393,6 +1415,15 @@ class DownloadWorker @AssistedInject constructor(
         return mentionsThumbnail && mentionsFileError
     }
 
+    private fun isSubtitleDownloadFailure(stderr: String): Boolean {
+        val lower = stderr.lowercase()
+        return lower.contains("unable to download video subtitles") ||
+            lower.contains("unable to download subtitles") ||
+            lower.contains("error downloading subtitles") ||
+            lower.contains("subtitlesconvertor") ||
+            (lower.contains("subtitles") && (lower.contains("429") || lower.contains("too many requests") || lower.contains("404") || lower.contains("http error")))
+    }
+
     private fun cleanupThumbnailSidecars(primaryPath: String) {
         val primaryFile = File(primaryPath)
         val parent = primaryFile.parentFile ?: return
@@ -1967,6 +1998,7 @@ class DownloadWorker @AssistedInject constructor(
         return lower.contains("postprocessing:") ||
             lower.contains("thumbnailsconvertor") ||
             lower.contains("embedthumbnail") ||
+            lower.contains("subtitlesconvertor") ||
             lower.contains("stream #1:0 -> #0:1 (copy)") ||
             (lower.contains("stream #") && lower.contains("(copy)"))
     }
@@ -2631,6 +2663,11 @@ class DownloadWorker @AssistedInject constructor(
             isPlaylistEnabled = inputData.getBoolean(WorkerKeys.PLAYLIST_ENABLED, false),
             shouldDownloadSubtitles = inputData.getBoolean(WorkerKeys.DOWNLOAD_SUBTITLES, false),
             shouldEmbedSubtitles = inputData.getBoolean(WorkerKeys.EMBED_SUBTITLES, false),
+            subtitleLanguages = inputData.getString(WorkerKeys.SUBTITLE_LANGUAGES)?.split(",")?.filter { it.isNotBlank() }.orEmpty(),
+            autoSubtitles = inputData.getBoolean(WorkerKeys.AUTO_SUBTITLES, false),
+            autoTranslatedSubtitles = inputData.getBoolean(WorkerKeys.AUTO_TRANSLATED_SUBTITLES, false),
+            subtitleConvertFormat = inputData.getString(WorkerKeys.SUBTITLE_CONVERT_FORMAT) ?: "srt",
+            keepSubtitleFiles = inputData.getBoolean(WorkerKeys.KEEP_SUBTITLE_FILES, true),
             shouldEmbedMetadata = inputData.getBoolean(WorkerKeys.EMBED_METADATA, true),
             shouldEmbedThumbnail = inputData.getBoolean(WorkerKeys.EMBED_THUMBNAIL, false),
             shouldWriteThumbnail = inputData.getBoolean(WorkerKeys.WRITE_THUMBNAIL, false),

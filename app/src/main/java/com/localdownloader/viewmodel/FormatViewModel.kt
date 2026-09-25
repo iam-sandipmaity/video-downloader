@@ -629,6 +629,31 @@ class FormatViewModel @Inject constructor(
         }
     }
 
+    fun onShowSubtitleSelectionDialogChanged(value: Boolean) {
+        _uiState.update { state -> state.copy(showSubtitleSelectionDialog = value) }
+    }
+
+    fun onSubtitleLanguagesChanged(languages: List<String>) {
+        _uiState.update { state ->
+            state.copy(
+                selectedSubtitleLanguages = languages,
+                downloadSubtitles = languages.isNotEmpty() || state.downloadSubtitles,
+            )
+        }
+    }
+
+    fun onAutoSubtitlesChanged(value: Boolean) {
+        _uiState.update { state -> state.copy(autoSubtitles = value) }
+    }
+
+    fun onAutoTranslatedSubtitlesChanged(value: Boolean) {
+        _uiState.update { state -> state.copy(autoTranslatedSubtitles = value) }
+    }
+
+    fun onSubtitleConvertFormatChanged(value: String) {
+        _uiState.update { state -> state.copy(subtitleConvertFormat = value) }
+    }
+
     fun onEmbedMetadataChanged(value: Boolean) {
         _uiState.update { state -> state.copy(embedMetadata = value) }
     }
@@ -1837,8 +1862,13 @@ class FormatViewModel @Inject constructor(
                     expectedDurationSeconds = sourceDurationSeconds,
                     downloadVideoOnly = resolvedSourceStreamType == StreamType.VIDEO_ONLY,
                     isPlaylistEnabled = info.isPlaylist || state.enablePlaylist,
-                    shouldDownloadSubtitles = !isAudioOnly && (state.downloadSubtitles || state.embedSubtitles),
+                    shouldDownloadSubtitles = state.downloadSubtitles || state.selectedSubtitleLanguages.isNotEmpty(),
                     shouldEmbedSubtitles = state.embedSubtitles && !isAudioOnly && !shouldBypassMediaPostProcessing,
+                    subtitleLanguages = state.selectedSubtitleLanguages,
+                    autoSubtitles = state.autoSubtitles,
+                    autoTranslatedSubtitles = state.autoTranslatedSubtitles,
+                    subtitleConvertFormat = state.subtitleConvertFormat,
+                    keepSubtitleFiles = state.downloadSubtitles || !state.embedSubtitles,
                     shouldEmbedMetadata = state.embedMetadata && !shouldBypassMediaPostProcessing,
                     shouldEmbedThumbnail = state.embedThumbnail && !shouldBypassMediaPostProcessing,
                     shouldWriteThumbnail = state.writeThumbnail,

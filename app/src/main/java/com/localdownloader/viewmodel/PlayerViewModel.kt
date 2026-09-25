@@ -39,6 +39,10 @@ import kotlinx.coroutines.launch
 import java.io.File
 import javax.inject.Inject
 
+import com.localdownloader.data.SettingsStore
+import com.localdownloader.domain.models.SubtitleViewSettings
+import kotlinx.coroutines.flow.first
+
 @HiltViewModel
 @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 class PlayerViewModel @Inject constructor(
@@ -48,9 +52,18 @@ class PlayerViewModel @Inject constructor(
     private val logger: Logger,
     private val playbackConflictManager: PlaybackConflictManager,
     private val fileUtils: FileUtils,
+    private val settingsStore: SettingsStore,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(PlayerUiState())
     val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            settingsStore.observeSettings().collect { settings ->
+                _uiState.update { it.copy(subtitleViewSettings = settings.subtitleViewSettings) }
+            }
+        }
+    }
 
     val player: ExoPlayer = ExoPlayer.Builder(context)
         .setLoadControl(
@@ -415,6 +428,25 @@ class PlayerViewModel @Inject constructor(
         updateTrackOptions(player.currentTracks)
     }
 
+    fun updateSubtitleViewSettings(newSettings: SubtitleViewSettings) {
+        _uiState.update { it.copy(subtitleViewSettings = newSettings) }
+        viewModelScope.launch {
+            val currentSettings = settingsStore.observeSettings().first()
+            settingsStore.updateSettings(currentSettings.copy(subtitleViewSettings = newSettings))
+        }
+    }
+
+    fun adjustSubtitleSyncOffsetMs(deltaMs: Long) {
+        _uiState.update { state ->
+            val newOffset = (state.subtitleSyncOffsetMs + deltaMs).coerceIn(-10_000L, 10_000L)
+            state.copy(subtitleSyncOffsetMs = newOffset)
+        }
+    }
+
+    fun resetSubtitleSyncOffset() {
+        _uiState.update { it.copy(subtitleSyncOffsetMs = 0L) }
+    }
+
     fun onAppForegrounded() {
         if (shouldResumeOnForeground && uiState.value.isAvailable) {
             playbackConflictManager.onVideoPlaybackStarting()
@@ -749,6 +781,8 @@ data class PlayerUiState(
     val subtitlesDisabled: Boolean = false,
     val audioTracks: List<PlayerTrackOption> = emptyList(),
     val subtitleTracks: List<PlayerTrackOption> = emptyList(),
+    val subtitleViewSettings: SubtitleViewSettings = SubtitleViewSettings(),
+    val subtitleSyncOffsetMs: Long = 0L,
     val errorMessage: String? = null,
 )
 

@@ -86,21 +86,19 @@ class DownloadEngine @Inject constructor(
             args += listOf("--merge-output-format", requireNotNull(options.mergeOutputFormat))
         }
 
-        if ((options.shouldDownloadSubtitles || options.shouldEmbedSubtitles) && !options.extractAudio) {
-            args += subtitleArgs(
-                url = options.url,
-                embedSubtitles = options.shouldEmbedSubtitles,
-            )
+        if (options.shouldDownloadSubtitles || options.shouldEmbedSubtitles) {
+            args += subtitleArgs(options)
         }
 
         if (shouldRequestMetadataEmbedding(options)) {
             args += "--embed-metadata"
         }
-        if (options.shouldEmbedThumbnail) {
+        if (shouldRequestThumbnailEmbedding(options)) {
             args += "--embed-thumbnail"
         }
-        if (options.shouldWriteThumbnail) {
+        if (options.shouldWriteThumbnail || options.shouldEmbedThumbnail) {
             args += "--write-thumbnail"
+            args += listOf("--convert-thumbnails", "png")
         }
 
         if (options.extractAudio) {
@@ -207,10 +205,7 @@ class DownloadEngine @Inject constructor(
             args += listOf("--playlist-items", index.toString())
         }
 
-        args += subtitleArgs(
-            url = options.url,
-            embedSubtitles = false,
-        )
+        args += subtitleArgs(options.copy(shouldDownloadSubtitles = true, shouldEmbedSubtitles = false))
         args += options.url
 
         logger.i(
@@ -266,28 +261,20 @@ class DownloadEngine @Inject constructor(
         return true
     }
 
-    private fun subtitleArgs(
-        url: String,
-        embedSubtitles: Boolean,
-    ): List<String> {
-        return buildList {
-            add("--write-subs")
-            add("--write-auto-subs")
-            add("--sub-langs")
-            add(
-                if (isYoutubeUrl(url)) {
-                    preferredYoutubeSubtitleLanguages()
-                } else {
-                    "all,-live_chat"
-                },
+    private fun shouldRequestThumbnailEmbedding(options: DownloadOptions): Boolean {
+        if (!options.shouldEmbedThumbnail) return false
+        val normalizedContainer = options.mergeOutputFormat?.trim()?.lowercase().orEmpty()
+        if (normalizedContainer == "webm") {
+            logger.i(
+                "DownloadEngine",
+                "Skipping yt-dlp thumbnail embedding for WebM output because WebM container does not support embedded thumbnail tags",
             )
-            add("--convert-subs")
-            add("srt")
-            if (embedSubtitles) {
-                add("--embed-subs")
-            }
+            return false
         }
+        return true
     }
+
+    internal fun subtitleArgs(options: DownloadOptions): List<String> = buildSubtitleArgs(options)
 
     private fun preferredYoutubeSubtitleLanguages(): String {
         val locale = Locale.getDefault()
@@ -325,3 +312,42 @@ internal fun shouldPassAudioQuality(options: DownloadOptions): Boolean {
         options.audioBitrateKbps != null &&
         audioFormatSupportsBitrateControl(options.audioFormat)
 }
+
+internal fun buildSubtitleArgs(options: DownloadOptions): List<String> {
+    val url = options.url
+    val requestedLangs = options.subtitleLanguages.filter { it.isNotBlank() }
+    val langs = if (requestedLangs.isNotEmpty()) {
+        requestedLangs.joinToString(",")
+    } else {
+        "all,-live_chat"
+    }
+
+    return buildList {
+        add("--no-abort-on-error")
+        if (options.autoSubtitles || requestedLangs.isEmpty() || requestedLangs.any { it.contains("-orig") || it.contains("auto") }) {
+            add("--write-auto-subs")
+            if (!options.autoTranslatedSubtitles) {
+                add("--extractor-args")
+                add("youtube:skip=translated_subs")
+            }
+        }
+        if (langs.isNotBlank()) {
+            add("--sub-langs")
+            add(langs)
+        }
+        if (options.shouldEmbedSubtitles && !options.extractAudio) {
+            add("--embed-subs")
+            if (options.keepSubtitleFiles || options.shouldDownloadSubtitles) {
+                add("--write-subs")
+            }
+        } else {
+            add("--write-subs")
+        }
+        val convertFmt = options.subtitleConvertFormat.trim().lowercase()
+        if (convertFmt in listOf("srt", "ass", "vtt", "lrc")) {
+            add("--convert-subs")
+            add(convertFmt)
+        }
+    }
+}
+

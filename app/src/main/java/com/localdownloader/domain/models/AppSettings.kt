@@ -56,6 +56,18 @@ data class AppSettings(
     val formatSelectorStyle: FormatSelectorStyle = FormatSelectorStyle.BOTTOM_SHEET,
     val darkTheme: Boolean = false,
     val vaultSettings: VaultSettings = VaultSettings(),
+    val subtitleViewSettings: SubtitleViewSettings = SubtitleViewSettings(),
+)
+
+@kotlinx.serialization.Serializable
+data class SubtitleViewSettings(
+    val fontSizeScale: Float = 1.0f,
+    val textColor: String = "White",
+    val backgroundColor: String = "SemiTransparentBlack",
+    val edgeType: String = "Outline",
+    val edgeColor: String = "Black",
+    val typeface: String = "Default",
+    val bottomOffsetFraction: Float = 0.08f,
 )
 
 enum class BatterySaverMode {

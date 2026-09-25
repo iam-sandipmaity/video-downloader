@@ -62,6 +62,16 @@
     <string name="browser_file_name">File name</string>
     <string name="browser_toggle_subtitles">Subtitles</string>
     <string name="browser_toggle_embed_subs">Embed subs</string>
+    <string name="subtitle_selection_title">Subtitle Languages</string>
+    <string name="subtitle_search_placeholder">Search language or code…</string>
+    <string name="subtitle_suggested_header">Suggested Subtitles</string>
+    <string name="subtitle_auto_header">Auto-Generated Captions</string>
+    <string name="subtitle_no_subtitles_found">No subtitle tracks found</string>
+    <string name="subtitle_select_all">Select all</string>
+    <string name="subtitle_clear_all">Clear</string>
+    <string name="subtitle_selected_count">%1$d selected</string>
+    <string name="subtitle_none_selected">None</string>
+    <string name="subtitle_all_languages">All</string>
     <string name="browser_toggle_metadata">Metadata</string>
     <string name="browser_toggle_embed_thumb">Embed thumb</string>
     <string name="browser_toggle_write_thumb">Write thumb</string>

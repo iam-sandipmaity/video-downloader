@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,6 +28,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -105,8 +107,11 @@ import com.localdownloader.domain.models.AnalyzedLinkRecord
 import com.localdownloader.domain.models.audioFormatSupportsBitrateControl
 import com.localdownloader.domain.models.choicesForStreamType
 import com.localdownloader.domain.models.effectiveOutputStreamType
+import androidx.compose.material.icons.outlined.Subtitles
 import com.localdownloader.ui.components.FormatSelectionBottomSheet
 import com.localdownloader.ui.components.InlineFeedbackCard
+import com.localdownloader.ui.components.SubtitleSelectionCard
+import com.localdownloader.ui.components.SubtitleSelectionDialog
 import com.localdownloader.ui.model.toReadableSize
 import com.localdownloader.viewmodel.FormatMessageScope
 import com.localdownloader.viewmodel.FormatUiState
@@ -134,6 +139,8 @@ fun BrowserScreen(
     onAudioBitrateChanged: (Int) -> Unit,
     onDownloadSubtitlesChanged: (Boolean) -> Unit,
     onEmbedSubtitlesChanged: (Boolean) -> Unit,
+    onShowSubtitleSelectionDialogChanged: (Boolean) -> Unit = {},
+    onSubtitleLanguagesChanged: (List<String>) -> Unit = {},
     onEmbedMetadataChanged: (Boolean) -> Unit,
     onEmbedThumbnailChanged: (Boolean) -> Unit,
     onWriteThumbnailChanged: (Boolean) -> Unit,
@@ -210,6 +217,18 @@ fun BrowserScreen(
                 TextButton(onClick = onQueueWhenWifiAvailable) {
                     Text(stringResource(R.string.browser_wait_for_wifi))
                 }
+            },
+        )
+    }
+
+    if (uiState.showSubtitleSelectionDialog && uiState.videoInfo != null) {
+        SubtitleSelectionDialog(
+            availableSubtitles = uiState.videoInfo.subtitles,
+            availableAutoCaptions = uiState.videoInfo.automaticCaptions,
+            selectedLanguages = uiState.selectedSubtitleLanguages,
+            onDismissRequest = { onShowSubtitleSelectionDialogChanged(false) },
+            onConfirm = { langs ->
+                onSubtitleLanguagesChanged(langs)
             },
         )
     }
@@ -623,12 +642,20 @@ fun BrowserScreen(
                                     modifier = Modifier.fillMaxWidth(),
                                     singleLine = true,
                                 )
+                                SubtitleSelectionCard(
+                                    downloadSubtitles = uiState.downloadSubtitles,
+                                    onDownloadSubtitlesChanged = onDownloadSubtitlesChanged,
+                                    selectedSubtitleLanguages = uiState.selectedSubtitleLanguages,
+                                    onSubtitleLanguagesChanged = onSubtitleLanguagesChanged,
+                                    availableSubtitles = uiState.videoInfo?.subtitles ?: emptyList(),
+                                    availableAutoCaptions = uiState.videoInfo?.automaticCaptions ?: emptyList(),
+                                    onOpenSubtitleDialog = { onShowSubtitleSelectionDialogChanged(true) },
+                                    embedSubtitles = uiState.embedSubtitles,
+                                    onEmbedSubtitlesChanged = onEmbedSubtitlesChanged,
+                                    isAudioOnly = effectiveStreamType == StreamType.AUDIO_ONLY,
+                                )
                                 ToggleChipRow(
                                     items = buildList {
-                                        if (effectiveStreamType != StreamType.AUDIO_ONLY) {
-                                            add(ToggleConfig(stringResource(R.string.browser_toggle_subtitles), uiState.downloadSubtitles, onDownloadSubtitlesChanged))
-                                            add(ToggleConfig(stringResource(R.string.browser_toggle_embed_subs), uiState.embedSubtitles, onEmbedSubtitlesChanged))
-                                        }
                                         add(ToggleConfig(stringResource(R.string.browser_toggle_metadata), uiState.embedMetadata, onEmbedMetadataChanged))
                                         add(ToggleConfig(stringResource(R.string.browser_toggle_embed_thumb), uiState.embedThumbnail, onEmbedThumbnailChanged))
                                         add(ToggleConfig(stringResource(R.string.browser_toggle_write_thumb), uiState.writeThumbnail, onWriteThumbnailChanged))
@@ -762,12 +789,20 @@ fun BrowserScreen(
                                 uiState.selectedOutputTransform,
                             )
                             OptionSectionCard(title = stringResource(R.string.browser_section_extras)) {
+                                SubtitleSelectionCard(
+                                    downloadSubtitles = uiState.downloadSubtitles,
+                                    onDownloadSubtitlesChanged = onDownloadSubtitlesChanged,
+                                    selectedSubtitleLanguages = uiState.selectedSubtitleLanguages,
+                                    onSubtitleLanguagesChanged = onSubtitleLanguagesChanged,
+                                    availableSubtitles = uiState.videoInfo?.subtitles ?: emptyList(),
+                                    availableAutoCaptions = uiState.videoInfo?.automaticCaptions ?: emptyList(),
+                                    onOpenSubtitleDialog = { onShowSubtitleSelectionDialogChanged(true) },
+                                    embedSubtitles = uiState.embedSubtitles,
+                                    onEmbedSubtitlesChanged = onEmbedSubtitlesChanged,
+                                    isAudioOnly = effectiveStreamType == StreamType.AUDIO_ONLY,
+                                )
                                 ToggleChipRow(
                                     items = buildList {
-                                        if (effectiveStreamType != StreamType.AUDIO_ONLY) {
-                                            add(ToggleConfig(stringResource(R.string.browser_toggle_subtitles), uiState.downloadSubtitles, onDownloadSubtitlesChanged))
-                                            add(ToggleConfig(stringResource(R.string.browser_toggle_embed_subs), uiState.embedSubtitles, onEmbedSubtitlesChanged))
-                                        }
                                         add(ToggleConfig(stringResource(R.string.browser_toggle_metadata), uiState.embedMetadata, onEmbedMetadataChanged))
                                         add(ToggleConfig(stringResource(R.string.browser_toggle_embed_thumb), uiState.embedThumbnail, onEmbedThumbnailChanged))
                                         add(ToggleConfig(stringResource(R.string.browser_toggle_write_thumb), uiState.writeThumbnail, onWriteThumbnailChanged))

@@ -92,4 +92,43 @@ class DownloadEngineArgsTest {
 
         assertTrue(shouldPassAudioQuality(options))
     }
+
+    @Test
+    fun buildSubtitleArgs_honorsCustomLanguagesAndSrtConversion() {
+        val options = DownloadOptions(
+            url = "https://example.com/watch",
+            formatId = "best",
+            subtitleLanguages = listOf("en", "hi", "es"),
+            subtitleConvertFormat = "srt",
+            shouldDownloadSubtitles = true,
+            shouldEmbedSubtitles = false,
+        )
+
+        val args = buildSubtitleArgs(options)
+        assertTrue(args.contains("--no-abort-on-error"))
+        assertTrue(args.contains("--sub-langs"))
+        val subLangsIndex = args.indexOf("--sub-langs")
+        org.junit.Assert.assertEquals("en,hi,es", args[subLangsIndex + 1])
+        assertTrue(args.contains("--write-subs"))
+        assertTrue(args.contains("--convert-subs"))
+        val convertIndex = args.indexOf("--convert-subs")
+        org.junit.Assert.assertEquals("srt", args[convertIndex + 1])
+    }
+
+    @Test
+    fun buildSubtitleArgs_handlesEmbeddingAndPreservingSidecars() {
+        val options = DownloadOptions(
+            url = "https://example.com/watch",
+            formatId = "best",
+            subtitleLanguages = listOf("en"),
+            shouldEmbedSubtitles = true,
+            keepSubtitleFiles = true,
+            extractAudio = false,
+        )
+
+        val args = buildSubtitleArgs(options)
+        assertTrue(args.contains("--no-abort-on-error"))
+        assertTrue(args.contains("--embed-subs"))
+        assertTrue(args.contains("--write-subs"))
+    }
 }
