@@ -1209,16 +1209,19 @@ internal fun ensureYoutubeSkipTranslatedSubs(extractorArgs: String?): String {
 }
 
 internal fun formatLanguageDisplayName(code: String): String {
-    val cleanCode = code.substringBefore("-orig").substringBefore("-")
-    val locale: Locale? = runCatching { Locale.forLanguageTag(code) }.getOrNull()
-        ?: runCatching { Locale(cleanCode) }.getOrNull()
+    val cleanCode = code.substringBefore("-orig").trim()
+    val locale: Locale? = runCatching { Locale.forLanguageTag(cleanCode) }.getOrNull()
+        ?: runCatching { Locale.forLanguageTag(cleanCode.substringBefore("-")) }.getOrNull()
+        ?: runCatching { Locale(cleanCode.substringBefore("-")) }.getOrNull()
     val defaultName = locale?.getDisplayName(Locale.getDefault())
     val englishName = locale?.getDisplayName(Locale.ENGLISH)
-    val name = defaultName?.takeIf { it.isNotBlank() && !it.equals(code, ignoreCase = true) }
-        ?: englishName?.takeIf { it.isNotBlank() && !it.equals(code, ignoreCase = true) }
+    val name = defaultName?.takeIf { it.isNotBlank() && !it.equals(cleanCode, ignoreCase = true) }
+        ?: englishName?.takeIf { it.isNotBlank() && !it.equals(cleanCode, ignoreCase = true) }
+    val isOrig = code.contains("-orig") || code.endsWith("orig")
     return when {
-        name != null && code.contains("-orig") -> "$name (Original)"
+        name != null && isOrig -> "$name (Original)"
         name != null -> name
+        isOrig -> "$cleanCode (Original)"
         else -> code
     }
 }

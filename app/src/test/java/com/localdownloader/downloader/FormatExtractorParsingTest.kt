@@ -115,5 +115,13 @@ class FormatExtractorParsingTest {
         assertEquals("youtube:skip=translated_subs;player_client=default,mweb", ensureYoutubeSkipTranslatedSubs("youtube:player_client=default,mweb"))
         assertEquals("youtube:skip=translated_subs;player_client=default", ensureYoutubeSkipTranslatedSubs("youtube:skip=translated_subs;player_client=default"))
     }
+
+    @Test
+    fun formatLanguageDisplayName_resolvesProperNames() {
+        assertEquals("English", formatLanguageDisplayName("en"))
+        assertEquals("English (Original)", formatLanguageDisplayName("en-orig"))
+        assertEquals("Spanish", formatLanguageDisplayName("es"))
+    }
 }
+
 

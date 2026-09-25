@@ -22,12 +22,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.outlined.ClosedCaption
-import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.Subtitles
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.InputChipDefaults
@@ -79,19 +82,21 @@ fun SubtitleSelectionCard(
     }
 
     val totalCount = allTracks.size
+    val isAllSelected = downloadSubtitles && selectedSubtitleLanguages.isEmpty()
+    val isCustomSelected = downloadSubtitles && selectedSubtitleLanguages.isNotEmpty()
 
     Surface(
         modifier = modifier
             .fillMaxWidth()
             .animateContentSize(),
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.55f),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f),
         border = BorderStroke(
             width = 1.dp,
             color = if (downloadSubtitles) {
-                MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
             } else {
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
             },
         ),
     ) {
@@ -99,9 +104,9 @@ fun SubtitleSelectionCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            // Header Row: Icon + Title + Total Available Badge + Master Switch
+            // Header Row: Subtitle Icon + Title & Summary + Available Badge + Master Switch
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -112,13 +117,13 @@ fun SubtitleSelectionCard(
                     modifier = Modifier.weight(1f),
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(12.dp),
                         color = if (downloadSubtitles) {
                             MaterialTheme.colorScheme.primaryContainer
                         } else {
                             MaterialTheme.colorScheme.surfaceContainerHighest
                         },
-                        modifier = Modifier.size(36.dp),
+                        modifier = Modifier.size(38.dp),
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
@@ -133,7 +138,7 @@ fun SubtitleSelectionCard(
                             )
                         }
                     }
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -151,26 +156,33 @@ fun SubtitleSelectionCard(
                                 ) {
                                     Text(
                                         text = "$totalCount available",
-                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold),
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                        ),
                                         color = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                     )
                                 }
                             }
                         }
                         Text(
-                            text = if (!downloadSubtitles) {
-                                "Subtitles disabled"
-                            } else if (selectedSubtitleLanguages.isEmpty()) {
-                                "All available languages"
-                            } else if (selectedSubtitleLanguages.size == 1) {
-                                val track = allTracks.firstOrNull { it.code == selectedSubtitleLanguages.first() }
-                                track?.displayName ?: selectedSubtitleLanguages.first()
-                            } else {
-                                "${selectedSubtitleLanguages.size} languages selected"
+                            text = when {
+                                !downloadSubtitles -> "Disabled"
+                                totalCount == 0 -> "No subtitle tracks found"
+                                isAllSelected -> "All available native languages"
+                                selectedSubtitleLanguages.size == 1 -> {
+                                    val matched = allTracks.firstOrNull { it.code == selectedSubtitleLanguages.first() }
+                                    matched?.displayName ?: selectedSubtitleLanguages.first()
+                                }
+                                else -> "${selectedSubtitleLanguages.size} languages selected"
                             },
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (downloadSubtitles) {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            } else {
+                                MaterialTheme.colorScheme.outline
+                            },
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -194,167 +206,219 @@ fun SubtitleSelectionCard(
                 exit = fadeOut(),
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 4.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    // Quick Preset Chips (None, Native/Original, English, All)
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                    )
+
+                    // Presets Row (All Native / English / Custom Manage)
                     if (totalCount > 0) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text(
-                                text = "Presets:",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.outline,
-                                modifier = Modifier.padding(end = 2.dp),
-                            )
-
-                            if (nativeTracks.isNotEmpty()) {
-                                val nativeCodes = nativeTracks.map { it.code }.toSet()
-                                val isNativeSelected = selectedSubtitleLanguages.isNotEmpty() &&
-                                    selectedSubtitleLanguages.toSet() == nativeCodes
-                                FilterChip(
-                                    selected = isNativeSelected,
-                                    onClick = {
-                                        onSubtitleLanguagesChanged(nativeTracks.map { it.code })
-                                    },
-                                    label = { Text("Native", style = MaterialTheme.typography.labelSmall) },
-                                    shape = RoundedCornerShape(8.dp),
-                                    modifier = Modifier.height(28.dp),
-                                )
-                            }
-
-                            val englishTrack = allTracks.firstOrNull { it.code.startsWith("en", ignoreCase = true) }
-                            if (englishTrack != null) {
-                                val isEnglishSelected = selectedSubtitleLanguages.size == 1 &&
-                                    selectedSubtitleLanguages.first() == englishTrack.code
-                                FilterChip(
-                                    selected = isEnglishSelected,
-                                    onClick = {
-                                        onSubtitleLanguagesChanged(listOf(englishTrack.code))
-                                    },
-                                    label = { Text("English", style = MaterialTheme.typography.labelSmall) },
-                                    shape = RoundedCornerShape(8.dp),
-                                    modifier = Modifier.height(28.dp),
-                                )
-                            }
-
-                            val isAllSelected = selectedSubtitleLanguages.isEmpty()
+                            // "All Native" chip
                             FilterChip(
                                 selected = isAllSelected,
                                 onClick = {
                                     onSubtitleLanguagesChanged(emptyList())
                                 },
-                                label = { Text("All", style = MaterialTheme.typography.labelSmall) },
+                                label = {
+                                    Text(
+                                        text = "All Native",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = if (isAllSelected) FontWeight.Bold else FontWeight.Medium,
+                                    )
+                                },
+                                leadingIcon = if (isAllSelected) {
+                                    {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(14.dp),
+                                        )
+                                    }
+                                } else null,
                                 shape = RoundedCornerShape(8.dp),
-                                modifier = Modifier.height(28.dp),
+                                modifier = Modifier.height(32.dp),
                             )
+
+                            // "English" chip if available
+                            val englishTrack = allTracks.firstOrNull { it.code.startsWith("en", ignoreCase = true) }
+                            if (englishTrack != null) {
+                                val isEnglishOnly = selectedSubtitleLanguages.size == 1 &&
+                                    selectedSubtitleLanguages.first() == englishTrack.code
+                                FilterChip(
+                                    selected = isEnglishOnly,
+                                    onClick = {
+                                        onSubtitleLanguagesChanged(listOf(englishTrack.code))
+                                    },
+                                    label = {
+                                        Text(
+                                            text = "English",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = if (isEnglishOnly) FontWeight.Bold else FontWeight.Medium,
+                                        )
+                                    },
+                                    leadingIcon = if (isEnglishOnly) {
+                                        {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(14.dp),
+                                            )
+                                        }
+                                    } else null,
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.height(32.dp),
+                                )
+                            }
+
+                            // "Customize" button
+                            Surface(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable(onClick = onOpenSubtitleDialog),
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isCustomSelected) {
+                                    MaterialTheme.colorScheme.primaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceContainerHighest
+                                },
+                                border = BorderStroke(
+                                    width = 1.dp,
+                                    color = if (isCustomSelected) {
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                                    } else {
+                                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                                    },
+                                ),
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Tune,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp),
+                                        tint = if (isCustomSelected) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        },
+                                    )
+                                    Text(
+                                        text = if (isCustomSelected) {
+                                            "Custom (${selectedSubtitleLanguages.size})"
+                                        } else {
+                                            "Choose…"
+                                        },
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = if (isCustomSelected) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        },
+                                    )
+                                }
+                            }
                         }
                     }
 
-                    // Selected Language Chips Row + Add Button
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        selectedSubtitleLanguages.forEach { code ->
-                            val matched = allTracks.firstOrNull { it.code == code }
-                            val label = matched?.displayName ?: code
-                            InputChip(
-                                selected = true,
-                                onClick = {
-                                    val updated = selectedSubtitleLanguages.filter { it != code }
-                                    onSubtitleLanguagesChanged(updated)
-                                },
-                                label = {
-                                    Text(
-                                        text = label,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                },
-                                trailingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "Remove",
-                                        modifier = Modifier.size(12.dp),
-                                    )
-                                },
-                                shape = RoundedCornerShape(8.dp),
-                                colors = InputChipDefaults.inputChipColors(
-                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    selectedTrailingIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                ),
-                                modifier = Modifier.height(28.dp),
-                            )
-                        }
-
-                        // Open Dialog Button Pill
-                        Surface(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable(onClick = onOpenSubtitleDialog),
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                    // Display selected languages chips if custom list is selected
+                    if (selectedSubtitleLanguages.isNotEmpty()) {
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            ) {
-                                Icon(
-                                    imageVector = if (selectedSubtitleLanguages.isEmpty()) Icons.Outlined.Language else Icons.Default.Add,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(14.dp),
-                                    tint = MaterialTheme.colorScheme.primary,
-                                )
-                                Text(
-                                    text = if (selectedSubtitleLanguages.isEmpty()) "Select Languages" else "More",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.primary,
+                            selectedSubtitleLanguages.forEach { code ->
+                                val matched = allTracks.firstOrNull { it.code == code }
+                                val label = matched?.displayName ?: code
+                                InputChip(
+                                    selected = true,
+                                    onClick = {
+                                        val updated = selectedSubtitleLanguages.filter { it != code }
+                                        onSubtitleLanguagesChanged(updated)
+                                    },
+                                    label = {
+                                        Text(
+                                            text = label,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    },
+                                    trailingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Remove $label",
+                                            modifier = Modifier.size(13.dp),
+                                        )
+                                    },
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = InputChipDefaults.inputChipColors(
+                                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        selectedTrailingIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    ),
+                                    modifier = Modifier.height(28.dp),
                                 )
                             }
                         }
                     }
 
-                    // Options: Embed in container vs Sidecar files
+                    // Options: Embed subtitles inside container vs external sidecar files (.srt/.vtt)
                     if (!isAudioOnly) {
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
+                            border = BorderStroke(
+                                1.dp,
+                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+                            ),
                         ) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = stringResource(R.string.browser_toggle_embed_subs),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        fontWeight = FontWeight.Medium,
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Layers,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(18.dp),
                                     )
-                                    Text(
-                                        text = if (embedSubtitles) {
-                                            "Embedded directly inside video container"
-                                        } else {
-                                            "Saved as separate subtitle files (.srt/.vtt)"
-                                        },
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.outline,
-                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(
+                                            text = stringResource(R.string.browser_toggle_embed_subs),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontWeight = FontWeight.SemiBold,
+                                        )
+                                        Text(
+                                            text = if (embedSubtitles) {
+                                                "Muxed directly inside video file"
+                                            } else {
+                                                "Saved as separate .srt/.vtt sidecar files"
+                                            },
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.outline,
+                                        )
+                                    }
                                 }
                                 Switch(
                                     checked = embedSubtitles,
@@ -369,3 +433,4 @@ fun SubtitleSelectionCard(
         }
     }
 }
+
