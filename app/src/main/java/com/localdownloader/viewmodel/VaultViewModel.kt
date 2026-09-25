@@ -244,6 +244,15 @@ class VaultViewModel @Inject constructor(
         }
     }
 
+    fun unlockVaultDirectly(vaultId: String) {
+        _uiState.value = _uiState.value.copy(
+            activeVaultId = vaultId,
+            unlockingVaultId = null,
+            showSetup = false,
+            errorMessage = null,
+        )
+    }
+
     fun setBiometricEnabled(enabled: Boolean) {
         viewModelScope.launch {
             runCatching {
@@ -252,6 +261,21 @@ class VaultViewModel @Inject constructor(
                 repository.updateVaultSettings(updated).getOrThrow()
             }.onFailure { error ->
                 logger.e("VaultViewModel", "setBiometricEnabled failed", error)
+            }
+        }
+    }
+
+    fun setVaultBiometricEnabled(vaultId: String, enabled: Boolean) {
+        viewModelScope.launch {
+            runCatching {
+                val current = repository.getVaultSettings()
+                val updatedVaults = current.vaults.map {
+                    if (it.id == vaultId) it.copy(isBiometricEnabled = enabled) else it
+                }
+                val updatedSettings = current.copy(vaults = updatedVaults, isBiometricEnabled = enabled)
+                repository.updateVaultSettings(updatedSettings).getOrThrow()
+            }.onFailure { error ->
+                logger.e("VaultViewModel", "setVaultBiometricEnabled failed", error)
             }
         }
     }

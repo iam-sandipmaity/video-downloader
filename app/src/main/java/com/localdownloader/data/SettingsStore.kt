@@ -75,6 +75,7 @@ class SettingsStore @Inject constructor(
         val backupLogsToDevice = booleanPreferencesKey("backup_logs_to_device")
         val autoDeleteOldAppLogs = booleanPreferencesKey("auto_delete_old_app_logs")
         val appLogRetentionDays = intPreferencesKey("app_log_retention_days")
+        val appLogMaxSizeBytes = longPreferencesKey("app_log_max_size_bytes")
         val keepAnalyzedLinkHistory = booleanPreferencesKey("keep_analyzed_link_history")
         val analyzedLinkHistoryRetentionDays = intPreferencesKey("analyzed_link_history_retention_days")
         val downloadHistoryRetentionDays = intPreferencesKey("download_history_retention_days")
@@ -137,6 +138,7 @@ class SettingsStore @Inject constructor(
                     backupLogsToDevice = prefs[Keys.backupLogsToDevice] ?: false,
                     autoDeleteOldAppLogs = prefs[Keys.autoDeleteOldAppLogs] ?: false,
                     appLogRetentionDays = prefs[Keys.appLogRetentionDays] ?: 15,
+                    appLogMaxSizeBytes = prefs[Keys.appLogMaxSizeBytes] ?: (2L * 1024L * 1024L),
                     keepAnalyzedLinkHistory = prefs[Keys.keepAnalyzedLinkHistory] ?: true,
                     analyzedLinkHistoryRetentionDays = prefs[Keys.analyzedLinkHistoryRetentionDays] ?: 15,
                     downloadHistoryRetentionDays = prefs[Keys.downloadHistoryRetentionDays] ?: 30,
@@ -194,6 +196,7 @@ class SettingsStore @Inject constructor(
             prefs[Keys.backupLogsToDevice] = settings.backupLogsToDevice
             prefs[Keys.autoDeleteOldAppLogs] = settings.autoDeleteOldAppLogs
             prefs[Keys.appLogRetentionDays] = settings.appLogRetentionDays
+            prefs[Keys.appLogMaxSizeBytes] = settings.appLogMaxSizeBytes
             prefs[Keys.keepAnalyzedLinkHistory] = settings.keepAnalyzedLinkHistory
             prefs[Keys.analyzedLinkHistoryRetentionDays] = settings.analyzedLinkHistoryRetentionDays
             prefs[Keys.downloadHistoryRetentionDays] = settings.downloadHistoryRetentionDays
