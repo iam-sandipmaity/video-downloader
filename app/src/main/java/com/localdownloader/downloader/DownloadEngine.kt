@@ -324,7 +324,8 @@ internal fun buildSubtitleArgs(options: DownloadOptions): List<String> {
 
     return buildList {
         add("--no-abort-on-error")
-        if (options.autoSubtitles || requestedLangs.isEmpty() || requestedLangs.any { it.contains("-orig") || it.contains("auto") }) {
+        val hasAutoLang = requestedLangs.any { it.contains("-orig") || it.contains("auto") }
+        if (options.autoSubtitles || hasAutoLang) {
             add("--write-auto-subs")
             if (!options.autoTranslatedSubtitles) {
                 add("--extractor-args")

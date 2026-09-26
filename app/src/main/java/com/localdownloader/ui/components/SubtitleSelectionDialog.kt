@@ -279,19 +279,25 @@ fun SubtitleSelectionDialog(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        if (nativeCodes.isNotEmpty() && selectedCodes.toSet() != nativeCodes.toSet()) {
+                        if (nativeCodes.isNotEmpty()) {
+                            val isNativeSelected = selectedCodes.toSet() == nativeCodes.toSet()
                             TextButton(
                                 onClick = {
-                                    selectedCodes.clear()
-                                    selectedCodes.addAll(nativeCodes)
+                                    if (isNativeSelected) {
+                                        selectedCodes.clear()
+                                    } else {
+                                        selectedCodes.clear()
+                                        selectedCodes.addAll(nativeCodes)
+                                    }
                                 },
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                                 modifier = Modifier.height(28.dp),
                             ) {
                                 Text(
-                                    text = "Native",
+                                    text = if (isNativeSelected) "Deselect Native" else "Native (${nativeCodes.size})",
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.SemiBold,
+                                    color = if (isNativeSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }

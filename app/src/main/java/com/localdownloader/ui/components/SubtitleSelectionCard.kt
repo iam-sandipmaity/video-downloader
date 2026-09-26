@@ -78,12 +78,17 @@ fun SubtitleSelectionCard(
     val nativeTracks = remember(availableSubtitles, availableAutoCaptions) {
         val nativeList = availableSubtitles
         val origAutoList = availableAutoCaptions.filter { it.isOriginal }
-        (nativeList + origAutoList).distinctBy { it.code }
+        val combined = (nativeList + origAutoList).distinctBy { it.code }
+        if (combined.isNotEmpty()) combined else availableSubtitles.ifEmpty { availableAutoCaptions.take(1) }
+    }
+    val nativeCodes = remember(nativeTracks) {
+        nativeTracks.map { it.code }.distinct()
     }
 
     val totalCount = allTracks.size
-    val isAllSelected = downloadSubtitles && selectedSubtitleLanguages.isEmpty()
-    val isCustomSelected = downloadSubtitles && selectedSubtitleLanguages.isNotEmpty()
+    val isAllNativeSelected = downloadSubtitles && nativeCodes.isNotEmpty() &&
+        selectedSubtitleLanguages.toSet() == nativeCodes.toSet()
+    val isCustomSelected = downloadSubtitles && !isAllNativeSelected && selectedSubtitleLanguages.isNotEmpty()
 
     Surface(
         modifier = modifier
@@ -170,11 +175,12 @@ fun SubtitleSelectionCard(
                             text = when {
                                 !downloadSubtitles -> "Disabled"
                                 totalCount == 0 -> "No subtitle tracks found"
-                                isAllSelected -> "All available native languages"
+                                isAllNativeSelected -> if (nativeCodes.size > 1) "All native languages (${nativeCodes.size})" else "Native language selected"
                                 selectedSubtitleLanguages.size == 1 -> {
                                     val matched = allTracks.firstOrNull { it.code == selectedSubtitleLanguages.first() }
                                     matched?.displayName ?: selectedSubtitleLanguages.first()
                                 }
+                                selectedSubtitleLanguages.isEmpty() -> "No language selected"
                                 else -> "${selectedSubtitleLanguages.size} languages selected"
                             },
                             style = MaterialTheme.typography.bodySmall,
@@ -222,18 +228,22 @@ fun SubtitleSelectionCard(
                         ) {
                             // "All Native" chip
                             FilterChip(
-                                selected = isAllSelected,
+                                selected = isAllNativeSelected,
                                 onClick = {
-                                    onSubtitleLanguagesChanged(emptyList())
+                                    if (isAllNativeSelected) {
+                                        onSubtitleLanguagesChanged(emptyList())
+                                    } else {
+                                        onSubtitleLanguagesChanged(nativeCodes)
+                                    }
                                 },
                                 label = {
                                     Text(
-                                        text = "All Native",
+                                        text = if (nativeCodes.size > 1) "All Native (${nativeCodes.size})" else "All Native",
                                         style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = if (isAllSelected) FontWeight.Bold else FontWeight.Medium,
+                                        fontWeight = if (isAllNativeSelected) FontWeight.Bold else FontWeight.Medium,
                                     )
                                 },
-                                leadingIcon = if (isAllSelected) {
+                                leadingIcon = if (isAllNativeSelected) {
                                     {
                                         Icon(
                                             imageVector = Icons.Default.Check,
@@ -254,7 +264,11 @@ fun SubtitleSelectionCard(
                                 FilterChip(
                                     selected = isEnglishOnly,
                                     onClick = {
-                                        onSubtitleLanguagesChanged(listOf(englishTrack.code))
+                                        if (isEnglishOnly) {
+                                            onSubtitleLanguagesChanged(emptyList())
+                                        } else {
+                                            onSubtitleLanguagesChanged(listOf(englishTrack.code))
+                                        }
                                     },
                                     label = {
                                         Text(

@@ -289,10 +289,19 @@ class FormatViewModel @Inject constructor(
                             audioFormat = state.selectedAudioFormat,
                             audioBitrateKbps = state.audioBitrateKbps,
                         )
+                        val resolvedSubtitleLangs = if (state.downloadSubtitles && state.selectedSubtitleLanguages.isEmpty()) {
+                            val nativeList = info.subtitles.map { it.code }
+                            val origAutoList = info.automaticCaptions.filter { it.isOriginal }.map { it.code }
+                            val nativeCodes = (nativeList + origAutoList).distinct()
+                            nativeCodes
+                        } else {
+                            state.selectedSubtitleLanguages
+                        }
                         state.copy(
                             isAnalyzing = false,
                             messageScope = FormatMessageScope.BROWSER,
                             videoInfo = info,
+                            selectedSubtitleLanguages = resolvedSubtitleLangs,
                             availableVideoAudioChoices = choiceBundle.videoAudioChoices,
                             availableVideoOnlyChoices = choiceBundle.videoOnlyChoices,
                             availableAudioOnlyChoices = choiceBundle.audioOnlyChoices,
@@ -614,8 +623,27 @@ class FormatViewModel @Inject constructor(
 
     fun onDownloadSubtitlesChanged(value: Boolean) {
         _uiState.update { state ->
+            val defaultLangs = if (value && state.selectedSubtitleLanguages.isEmpty()) {
+                val nativeList = state.videoInfo?.subtitles ?: emptyList()
+                val origAutoList = state.videoInfo?.automaticCaptions?.filter { it.isOriginal } ?: emptyList()
+                val nativeCodes = (nativeList + origAutoList).map { it.code }.distinct()
+                if (nativeCodes.isNotEmpty()) {
+                    nativeCodes
+                } else if (nativeList.isNotEmpty()) {
+                    nativeList.map { it.code }
+                } else if (!state.videoInfo?.automaticCaptions.isNullOrEmpty()) {
+                    listOf(state.videoInfo.automaticCaptions.first().code)
+                } else {
+                    emptyList()
+                }
+            } else if (!value) {
+                emptyList()
+            } else {
+                state.selectedSubtitleLanguages
+            }
             state.copy(
                 downloadSubtitles = value,
+                selectedSubtitleLanguages = defaultLangs,
                 embedSubtitles = if (value) state.embedSubtitles else false,
             )
         }
