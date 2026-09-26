@@ -3,7 +3,7 @@ package com.localdownloader.ui.screens
 import android.content.Context
 import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,9 +23,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.BatteryChargingFull
 import androidx.compose.material.icons.outlined.BugReport
@@ -35,26 +38,32 @@ import androidx.compose.material.icons.outlined.Cookie
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.HelpOutline
+import androidx.compose.material.icons.outlined.HighQuality
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.MusicNote
+import androidx.compose.material.icons.outlined.PlaylistPlay
 import androidx.compose.material.icons.outlined.RocketLaunch
+import androidx.compose.material.icons.outlined.SdCard
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.SmartDisplay
+import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Subtitles
 import androidx.compose.material.icons.outlined.SwapHoriz
+import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.Transform
 import androidx.compose.material.icons.outlined.WarningAmber
-import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.material.icons.outlined.Wifi
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
@@ -67,6 +76,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -83,7 +93,6 @@ import com.localdownloader.ui.components.PreferenceSubtitle
 import com.localdownloader.ui.support.openSupportIssue
 import com.localdownloader.ui.support.shareAppLogs
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun HelpScreen(
     onBack: () -> Unit,
@@ -162,17 +171,17 @@ fun HelpScreen(
             )
         }
 
-        // Category Filter Chips
+        // Category Filter Chips - Clean Single-Row Horizontal Scroll!
         item {
             PreferenceSubtitle(text = "BROWSE BY CATEGORY")
         }
         item {
-            FlowRow(
+            LazyRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(horizontal = 2.dp),
             ) {
-                HelpCategory.entries.forEach { category ->
+                items(HelpCategory.entries) { category ->
                     FilterChip(
                         selected = selectedCategory == category,
                         onClick = { selectedCategory = category },
@@ -184,7 +193,7 @@ fun HelpScreen(
 
         // Topics Accordion List
         item {
-            PreferenceSubtitle(text = "TOPICS & GUIDES (${filteredTopics.size})")
+            PreferenceSubtitle(text = "GUIDES & TOPICS (${filteredTopics.size})")
         }
 
         if (filteredTopics.isEmpty()) {
@@ -227,6 +236,9 @@ fun HelpScreen(
                         onToggle = {
                             expandedTopicId = if (expandedTopicId == topic.id) null else topic.id
                         },
+                        onOpenCookies = onOpenCookies,
+                        onOpenYoutubeAccess = onOpenYoutubeAccess,
+                        onExportLogs = { shareAppLogs(context) },
                     )
                 }
             }
@@ -359,15 +371,23 @@ private fun HelpTopicCard(
     topic: HelpTopic,
     isExpanded: Boolean,
     onToggle: () -> Unit,
+    onOpenCookies: () -> Unit,
+    onOpenYoutubeAccess: () -> Unit,
+    onExportLogs: () -> Unit,
 ) {
+    val chevronRotation by animateFloatAsState(
+        targetValue = if (isExpanded) 180f else 0f,
+        animationSpec = tween(durationMillis = 200),
+        label = "chevronRotation",
+    )
+
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .clickable(onClick = onToggle)
-            .animateContentSize(animationSpec = tween(250)),
+            .clickable(onClick = onToggle),
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
@@ -413,16 +433,17 @@ private fun HelpTopicCard(
                 }
 
                 Icon(
-                    imageVector = if (isExpanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
+                    imageVector = Icons.Rounded.ExpandMore,
                     contentDescription = if (isExpanded) "Collapse" else "Expand",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.rotate(chevronRotation),
                 )
             }
 
             AnimatedVisibility(
                 visible = isExpanded,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically(),
+                enter = fadeIn(tween(180)) + expandVertically(tween(220)),
+                exit = fadeOut(tween(140)) + shrinkVertically(tween(180)),
             ) {
                 Column(
                     modifier = Modifier.padding(top = 4.dp),
@@ -471,6 +492,43 @@ private fun HelpTopicCard(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
+                            }
+                        }
+                    }
+
+                    // Action Shortcut button if topic has a corresponding feature
+                    when (topic.id) {
+                        "youtube_access" -> {
+                            OutlinedButton(
+                                onClick = onOpenYoutubeAccess,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                            ) {
+                                Icon(imageVector = Icons.Outlined.Security, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Open YouTube Access Settings")
+                            }
+                        }
+                        "cookies_manager" -> {
+                            OutlinedButton(
+                                onClick = onOpenCookies,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                            ) {
+                                Icon(imageVector = Icons.Outlined.Cookie, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Open Cookie Hub")
+                            }
+                        }
+                        "troubleshooting_429" -> {
+                            OutlinedButton(
+                                onClick = onExportLogs,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                            ) {
+                                Icon(imageVector = Icons.Outlined.BugReport, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Export Logs for Support")
                             }
                         }
                     }
@@ -558,6 +616,7 @@ enum class HelpCategory(val displayName: String) {
     BATTERY("Battery & Background"),
     ACCESS("YouTube & Cookies"),
     TOOLS("Media Tools"),
+    STORAGE("Storage & SD Card"),
     TROUBLESHOOTING("Troubleshooting"),
 }
 
@@ -579,12 +638,49 @@ private fun getHelpTopics(): List<HelpTopic> = listOf(
         icon = Icons.Outlined.RocketLaunch,
         title = "How to Download Videos & Audio",
         summary = "Paste links from YouTube, Instagram, TikTok, Reddit, X (Twitter), Facebook, and 1000+ sites.",
-        body = "1. Copy the video or playlist link from any app or browser.\n2. Open Local Downloader and paste the URL into the search box on the Home tab.\n3. Tap 'Analyze'. You will see available resolutions (4K, 1080p, 720p, etc.) and audio streams.\n4. Select your preferred format, subtitle languages, or audio tracks, and tap 'Start Download'.\n\nYou can also share links directly to Local Downloader using Android's system Share Sheet!",
+        body = "1. Copy the video or playlist link from any app or browser.\n2. Open Local Downloader and paste the URL into the search box on the Home tab.\n3. Tap 'Analyze'. You will see available resolutions (4K, 1080p, 720p, etc.) and audio streams.\n4. Select your preferred format, subtitle languages, or audio tracks, and tap 'Start Download'.\n\nYou can also share links directly to Local Downloader using Android's system Share Sheet without manually copying links!",
         tips = listOf(
             "Use Quick Download presets in Settings for one-tap default quality downloading.",
             "You can analyze full playlists and download specific tracks or the entire collection.",
         ),
         tags = listOf("download", "quick", "analyze", "paste", "share", "start", "playlist"),
+    ),
+    HelpTopic(
+        id = "playlists_and_batches",
+        category = HelpCategory.STARTING,
+        icon = Icons.Outlined.PlaylistPlay,
+        title = "Downloading Full Playlists & Channels",
+        summary = "Select specific items or download whole YouTube & SoundCloud playlists in batches.",
+        body = "When analyzing a playlist link:\n1. The app displays all videos in the playlist with checkboxes.\n2. Tap 'Select All' or handpick individual songs/episodes.\n3. Configure your target quality or choose 'Audio (MP3)' for music playlists.\n4. The batch download will queue each item sequentially with multi-connection acceleration.",
+        tips = listOf(
+            "Adjust 'Max concurrent downloads' in Settings -> Battery & Performance to run 2 to 4 items simultaneously.",
+        ),
+        tags = listOf("playlist", "channel", "batch", "multiple", "all", "queue"),
+    ),
+    HelpTopic(
+        id = "video_and_audio_formats",
+        category = HelpCategory.DOWNLOADS,
+        icon = Icons.Outlined.HighQuality,
+        title = "Selecting Resolutions (4K, 1080p, 60fps, HDR) & Audio",
+        summary = "Understand video containers (MP4, MKV, WebM) and audio codecs (MP3, M4A, FLAC, Opus).",
+        body = "• Best Quality (Auto): Automatically combines the highest available video stream with the highest bitrate audio track using FFmpeg.\n• 60fps & HDR: Supported formats are indicated with badges in the format sheet.\n• MP4 vs MKV: MP4 offers maximum compatibility with gallery apps and TV players. MKV allows embedding multiple subtitle languages and dual audio dubs into one file.\n• Audio Only: Choose MP3, M4A (AAC), or Opus for podcast and music downloads with embedded album artwork.",
+        tips = listOf(
+            "Turn on 'Show FPS, Codec & Bitrate' in Settings -> Downloads for detailed stream specs.",
+            "If your player stutters with AV1 video, select an H.264 or H.265 (HEVC) stream.",
+        ),
+        tags = listOf("format", "resolution", "4k", "1080p", "60fps", "hdr", "mp4", "mkv", "mp3", "opus"),
+    ),
+    HelpTopic(
+        id = "custom_filenames",
+        category = HelpCategory.DOWNLOADS,
+        icon = Icons.Outlined.Transform,
+        title = "Custom Output File Naming Templates",
+        summary = "Customize downloaded filenames with title, uploader, upload date, resolution, and ID.",
+        body = "Go to Settings -> Downloads -> Filename template.\n\nYou can use dynamic placeholders:\n• `%(title)s` : Video title\n• `%(uploader)s` : Channel or creator name\n• `%(upload_date)s` : Date published (YYYYMMDD)\n• `%(resolution)s` : Quality tag (e.g. 1080p)\n• `%(id)s` : Unique video identifier\n• `%(ext)s` : File extension (always keep this at the end!)\n\nExample: `%(uploader)s - %(title)s [%(id)s].%(ext)s`",
+        tips = listOf(
+            "Tap 'Quick presets' inside the filename dialog for recommended patterns.",
+        ),
+        tags = listOf("filename", "template", "naming", "tags", "uploader", "custom"),
     ),
     HelpTopic(
         id = "subtitles_and_audio",
@@ -605,10 +701,10 @@ private fun getHelpTopics(): List<HelpTopic> = listOf(
         icon = Icons.Outlined.Lock,
         title = "Private Vault & PIN Protection",
         summary = "Encrypt and hide sensitive downloads from the public gallery and files apps.",
-        body = "The Private Vault stores your media in isolated app-private storage, preventing photos and file managers from indexing them.\n\n• PIN Security: Secure your vault with a 4–8 digit PIN and enable biometric fingerprint unlock.\n• Multiple Vaults: Create separate vaults for different projects or categories.\n• Auto-Move Rules: Add URL domain rules (e.g. specific websites) so matching downloads automatically route directly into your private vault without touching public storage.",
+        body = "The Private Vault stores your media in isolated app-private storage, preventing photos and file managers from indexing them.\n\n• PIN Security: Secure your vault with a 4–8 digit PIN and enable biometric fingerprint unlock.\n• Multiple Vaults: Create separate vaults for different projects or categories.\n• Auto-Move Rules: Add URL domain rules (e.g. specific websites) so matching downloads automatically route directly into your private vault without touching public storage.\n• File Player: Play encrypted vault files directly within the app without ever exporting them to public gallery.",
         tips = listOf(
-            "Files inside the vault can be played directly with the built-in encrypted media player.",
-            "You can move files between public Downloads and Private Vault at any time.",
+            "Files inside the vault are completely hidden from gallery apps and file browsers.",
+            "You can move files between public Downloads and Private Vault at any time with one tap.",
         ),
         tags = listOf("vault", "pin", "lock", "security", "private", "biometric", "hide", "gallery"),
     ),
@@ -647,9 +743,21 @@ private fun getHelpTopics(): List<HelpTopic> = listOf(
         body = "Local Downloader utilizes robust Android Foreground Services and WorkManager to keep large downloads active when you switch apps or turn off your screen.\n\n• Battery Optimization: On some OEMs (Xiaomi/MIUI, Samsung OneUI, Huawei), exclude Local Downloader from aggressive battery killers in device Settings -> Battery -> Unrestricted.\n• Charging Constraint: Enable 'Download only while charging' in Battery settings if downloading huge batches.\n• Low Battery Pause: Automatically pause downloads when battery dips below 15%.",
         tips = listOf(
             "Turn on 'Allow metered downloads' if you want to download over mobile data cellular plans.",
-            "Set concurrent fragments to 4 or 8 for faster multi-connection download speeds.",
+            "Set concurrent fragments to 4 or 8 in Settings for faster multi-connection download speeds.",
         ),
         tags = listOf("battery", "background", "pause", "charging", "foreground", "service", "power", "wifi"),
+    ),
+    HelpTopic(
+        id = "storage_and_sdcard",
+        category = HelpCategory.STORAGE,
+        icon = Icons.Outlined.SdCard,
+        title = "Custom Storage Folders & SD Card Support",
+        summary = "Choose where downloads are saved or store files directly on an external SD card.",
+        body = "By default, files are saved in `Download/LocalDownloader` with dedicated subfolders for Videos, Audio, and Files.\n\n• Changing Root Folder: Go to Settings -> Storage -> Root folder to select any device directory or SD card folder using Android Storage Access Framework (SAF).\n• Automatic Subfolder Sorting: Keep your library tidy by automatically routing MP3s to Audio and MP4s to Videos.",
+        tips = listOf(
+            "If saving to an external SD card, grant write permissions when prompted by the system folder picker.",
+        ),
+        tags = listOf("storage", "sdcard", "folder", "path", "directory", "external", "library"),
     ),
     HelpTopic(
         id = "media_tools",
@@ -676,5 +784,17 @@ private fun getHelpTopics(): List<HelpTopic> = listOf(
             "Updating yt-dlp to the latest channel release fixes extractor breakage quickly.",
         ),
         tags = listOf("429", "error", "rate limit", "drm", "timeout", "failed", "broken", "yt-dlp"),
+    ),
+    HelpTopic(
+        id = "updating_engines",
+        category = HelpCategory.TROUBLESHOOTING,
+        icon = Icons.Outlined.Sync,
+        title = "Updating yt-dlp & FFmpeg Engines",
+        summary = "Keep extractors up to date to support newly changed website streaming formats.",
+        body = "Websites like YouTube and Instagram constantly modify their web players.\n\n• Check Updates: Go to Settings -> Updates & Engines.\n• One-Tap Update: You can update the yt-dlp extraction script independently without needing a whole new app update!\n• Auto-Update: Enable 'Check updates on startup' to always stay on the latest extraction version.",
+        tips = listOf(
+            "Switching yt-dlp to the 'Nightly' channel gives you bleeding-edge fixes for new site changes.",
+        ),
+        tags = listOf("update", "yt-dlp", "ffmpeg", "nightly", "engine", "extractor", "broken"),
     ),
 )

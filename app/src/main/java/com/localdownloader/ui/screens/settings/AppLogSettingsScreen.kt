@@ -6,59 +6,74 @@ import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.FolderZip
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material.icons.outlined.WrapText
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -78,19 +93,19 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import com.localdownloader.BuildConfig
 import com.localdownloader.ui.components.InlineFeedbackCard
-import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.utils.SensitiveDataSanitizer
 import com.localdownloader.viewmodel.AppLogEntry
 import com.localdownloader.viewmodel.AppLogEntryCategory
 import com.localdownloader.viewmodel.AppLogOutcomeFilter
 import com.localdownloader.viewmodel.AppLogUiState
 import com.localdownloader.viewmodel.formatAppLogDayLabel
+import kotlinx.coroutines.launch
 import java.io.File
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppLogSettingsScreen(
     uiState: AppLogUiState,
@@ -110,6 +125,8 @@ fun AppLogSettingsScreen(
 ) {
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
+    val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
 
     val filteredText = remember(uiState.filteredEntries) {
         uiState.filteredEntries.joinToString("\n\n") { it.rawText.trimEnd() }.trim()
@@ -127,7 +144,9 @@ fun AppLogSettingsScreen(
 
     var copied by remember { mutableStateOf(false) }
     var wrapLines by remember { mutableStateOf(true) }
+    var isSearchVisible by remember { mutableStateOf(false) }
     var showClearConfirmDialog by remember { mutableStateOf(false) }
+    var showSettingsSheet by remember { mutableStateOf(false) }
     var choiceDialog by remember { mutableStateOf<SettingChoiceDialogState?>(null) }
 
     LaunchedEffect(filteredText) {
@@ -154,7 +173,7 @@ fun AppLogSettingsScreen(
             title = { Text("Clear all app logs?") },
             text = {
                 Text(
-                    "This will immediately erase active and rotated log files from device storage. This action cannot be undone.",
+                    "This will immediately wipe app.log, crash.log, and all historical rotated archives from disk.",
                 )
             },
             confirmButton = {
@@ -176,312 +195,238 @@ fun AppLogSettingsScreen(
         )
     }
 
-    PreferencePageScaffold(
-        title = "App log & Diagnostics",
-        onBack = onBack,
-        modifier = modifier,
-        actions = {
-            IconButton(onClick = onRefresh) {
-                Icon(
-                    imageVector = Icons.Outlined.Refresh,
-                    contentDescription = "Refresh log",
-                )
-            }
-            IconButton(
-                onClick = {
-                    clipboardManager.setText(
-                        AnnotatedString(
-                            filteredText.ifBlank { "No app.log lines match the current filters." },
-                        ),
-                    )
-                    copied = true
-                },
-            ) {
-                Icon(
-                    imageVector = if (copied) Icons.Outlined.Check else Icons.Outlined.ContentCopy,
-                    contentDescription = "Copy log",
-                    tint = if (copied) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                )
-            }
-            IconButton(
-                onClick = {
+    if (showSettingsSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showSettingsSheet = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        ) {
+            StorageSettingsSheetContent(
+                uiState = uiState,
+                onAutoDeleteOldAppLogsChanged = onAutoDeleteOldAppLogsChanged,
+                onMaxLogSizeBytesChanged = onMaxLogSizeBytesChanged,
+                onAppLogRetentionDaysChanged = onAppLogRetentionDaysChanged,
+                onBackupLogsToDeviceChanged = onBackupLogsToDeviceChanged,
+                onBackupNow = onBackupNow,
+                onOpenChoiceDialog = { choiceDialog = it },
+                onExportDiagnostics = {
                     exportLogText(
                         context = context,
-                        fileName = "app-log-${System.currentTimeMillis()}.txt",
-                        text = filteredText.ifBlank { "No app.log lines match the current filters." },
+                        fileName = "troubleshooting-report.txt",
+                        text = buildTroubleshootingReport(uiState.entries),
                     )
-                },
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Share,
-                    contentDescription = "Export log",
-                )
-            }
-        },
-    ) {
-        // Status overview badges
-        item {
-            AppLogTerminalHeaderBadgeStrip(
-                totalCount = uiState.entries.size,
-                failedCount = failedCount,
-                warnCount = warnCount,
-                successfulCount = successfulCount,
-                totalSizeBytes = uiState.totalLogSizeBytes,
-                statusText = when {
-                    copied -> "Copied to clipboard"
-                    uiState.lastUpdatedAt != null -> "Updated ${formatLogRefreshTime(uiState.lastUpdatedAt)}"
-                    else -> "Ready"
                 },
             )
         }
+    }
 
-        // Search and Toolbar
-        item {
-            AppLogPanel {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    // Search Bar
-                    OutlinedTextField(
-                        value = uiState.searchQuery,
-                        onValueChange = onSearchQueryChanged,
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Search logs, errors, tags, threads...") },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Outlined.Search,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        },
-                        trailingIcon = {
-                            if (uiState.searchQuery.isNotEmpty()) {
-                                IconButton(onClick = { onSearchQueryChanged("") }) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Close,
-                                        contentDescription = "Clear search",
-                                    )
-                                }
-                            }
-                        },
-                        singleLine = true,
-                        shape = RoundedCornerShape(16.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                            focusedContainerColor = MaterialTheme.colorScheme.surface,
-                        ),
-                    )
-
-                    // Filter chips: Level & Day
-                    AppLogChipGroup(
-                        label = "Log Level",
-                        chips = AppLogOutcomeFilter.entries.map { filter ->
-                            AppLogFilterChip(
-                                label = filter.label,
-                                selected = uiState.selectedOutcome == filter,
-                                badgeColor = when (filter) {
-                                    AppLogOutcomeFilter.FAILED -> TerminalColors.ErrorRed
-                                    AppLogOutcomeFilter.WARNINGS -> TerminalColors.WarnAmber
-                                    AppLogOutcomeFilter.SUCCESSFUL -> TerminalColors.SuccessGreen
-                                    AppLogOutcomeFilter.INFO -> TerminalColors.InfoCyan
-                                    AppLogOutcomeFilter.DEBUG -> TerminalColors.DebugLavender
-                                    AppLogOutcomeFilter.ALL -> null
-                                },
-                                onClick = { onOutcomeFilterChanged(filter) },
-                            )
-                        },
-                    )
-
-                    if (uiState.availableDays.isNotEmpty()) {
-                        AppLogChipGroup(
-                            label = "Day",
-                            chips = buildList {
-                                add(
-                                    AppLogFilterChip(
-                                        label = "All days",
-                                        selected = uiState.selectedDay == null,
-                                        onClick = { onDayFilterChanged(null) },
-                                    ),
-                                )
-                                uiState.availableDays.forEach { day ->
-                                    add(
-                                        AppLogFilterChip(
-                                            label = formatAppLogDayLabel(day),
-                                            selected = uiState.selectedDay == day,
-                                            onClick = { onDayFilterChanged(day) },
-                                        ),
-                                    )
-                                }
-                            },
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        topBar = {
+            TopAppBar(
+                title = {
+                    Column {
+                        Text(
+                            text = "App Log & Terminal",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            text = "Disk: ${formatLogSizeLabel(uiState.totalLogSizeBytes)} · ${uiState.entries.size} lines",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-
-                    // Terminal Viewport Controls & Instant Cleanup Actions
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        OutlinedButton(
-                            onClick = { wrapLines = !wrapLines },
-                            shape = RoundedCornerShape(12.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.WrapText,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(if (wrapLines) "Wrap: ON" else "Wrap: OFF", style = MaterialTheme.typography.labelMedium)
-                        }
-
-                        OutlinedButton(
-                            onClick = { showClearConfirmDialog = true },
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = MaterialTheme.colorScheme.error,
-                            ),
-                            shape = RoundedCornerShape(12.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.DeleteOutline,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Clear logs", style = MaterialTheme.typography.labelMedium)
-                        }
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
-                }
-            }
-        }
-
-        // Auto Cleanup & Storage Threshold Settings
-        item {
-            AppLogPanel {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        text = "Storage & Auto-Cleanup Controls",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-
-                    AppLogSwitchRow(
-                        title = "Auto-delete threshold",
-                        subtitle = "Automatically rotate and trim logs when threshold or retention expires",
-                        checked = uiState.autoDeleteOldAppLogs,
-                        onCheckedChange = onAutoDeleteOldAppLogsChanged,
-                    )
-
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                },
+                actions = {
+                    IconButton(onClick = { isSearchVisible = !isSearchVisible }) {
+                        Icon(
+                            imageVector = Icons.Outlined.Search,
+                            contentDescription = "Search logs",
+                            tint = if (isSearchVisible || uiState.searchQuery.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                    IconButton(onClick = onRefresh) {
+                        Icon(imageVector = Icons.Outlined.Refresh, contentDescription = "Refresh")
+                    }
+                    IconButton(onClick = { wrapLines = !wrapLines }) {
+                        Icon(
+                            imageVector = Icons.Outlined.WrapText,
+                            contentDescription = "Toggle wrap",
+                            tint = if (wrapLines) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            clipboardManager.setText(
+                                AnnotatedString(
+                                    filteredText.ifBlank { "No app.log lines match the current filters." },
+                                ),
+                            )
+                            copied = true
+                        },
                     ) {
-                        // Max Size Threshold Picker
-                        FilledTonalButton(
-                            onClick = {
-                                choiceDialog = SettingChoiceDialogState(
-                                    title = "Log size threshold",
-                                    selected = formatLogSizeLabel(uiState.appLogMaxSizeBytes),
-                                    options = listOf(
-                                        500L * 1024L to "500 KB (Minimal)",
-                                        1L * 1024L * 1024L to "1 MB (Light)",
-                                        2L * 1024L * 1024L to "2 MB (Default)",
-                                        5L * 1024L * 1024L to "5 MB (Standard)",
-                                        10L * 1024L * 1024L to "10 MB (Extended)",
-                                        25L * 1024L * 1024L to "25 MB (Heavy)",
-                                        0L to "Unlimited (No auto-cap)",
-                                    ).map { (bytes, label) ->
-                                        SettingChoiceOption(
-                                            title = label,
-                                            subtitle = if (bytes > 0) "Prunes logs beyond ${formatLogSizeLabel(bytes)}" else "Keep all lines until manual clear",
-                                            onSelect = { onMaxLogSizeBytesChanged(bytes) },
-                                        )
-                                    },
-                                )
-                            },
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Size Limit", style = MaterialTheme.typography.labelSmall)
-                                Text(
-                                    text = formatLogSizeLabel(uiState.appLogMaxSizeBytes),
-                                    fontWeight = FontWeight.Bold,
+                        Icon(
+                            imageVector = if (copied) Icons.Outlined.Check else Icons.Outlined.ContentCopy,
+                            contentDescription = "Copy",
+                            tint = if (copied) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            exportLogText(
+                                context = context,
+                                fileName = "app-log-${System.currentTimeMillis()}.txt",
+                                text = filteredText.ifBlank { "No app.log lines match the current filters." },
+                            )
+                        },
+                    ) {
+                        Icon(imageVector = Icons.Outlined.Share, contentDescription = "Share")
+                    }
+                    IconButton(onClick = { showSettingsSheet = true }) {
+                        Icon(imageVector = Icons.Outlined.Settings, contentDescription = "Storage Settings")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                ),
+            )
+        },
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            // Collapsible Search Bar
+            AnimatedVisibility(visible = isSearchVisible || uiState.searchQuery.isNotBlank()) {
+                OutlinedTextField(
+                    value = uiState.searchQuery,
+                    onValueChange = onSearchQueryChanged,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 4.dp),
+                    placeholder = { Text("Search logs, error traces, tags, threads...") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Outlined.Search,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    },
+                    trailingIcon = {
+                        if (uiState.searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { onSearchQueryChanged("") }) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Close,
+                                    contentDescription = "Clear search",
                                 )
                             }
                         }
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    ),
+                )
+            }
 
-                        // Retention Days Picker
-                        FilledTonalButton(
-                            onClick = {
-                                choiceDialog = SettingChoiceDialogState(
-                                    title = "App log retention",
-                                    selected = "${uiState.appLogRetentionDays} days",
-                                    options = listOf(3, 7, 15, 30, 60, 90).map { days ->
-                                        SettingChoiceOption(
-                                            title = "$days days",
-                                            subtitle = when {
-                                                days <= 7 -> "Smaller storage footprint"
-                                                days <= 30 -> "Balanced history"
-                                                else -> "Longer diagnostic history"
-                                            },
-                                            onSelect = { onAppLogRetentionDaysChanged(days) },
-                                        )
-                                    },
-                                )
-                            },
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Retention", style = MaterialTheme.typography.labelSmall)
-                                Text(
-                                    text = "${uiState.appLogRetentionDays} days",
-                                    fontWeight = FontWeight.Bold,
-                                )
-                            }
-                        }
-                    }
-
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-
-                    AppLogSwitchRow(
-                        title = "Backup to device storage",
-                        subtitle = "Save snapshots of rotated logs to Download/LocalDownloader/Logs",
-                        checked = uiState.backupLogsToDevice,
-                        onCheckedChange = onBackupLogsToDeviceChanged,
+            // Quick Level Filter Chips - Single Horizontal Scroll Row!
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(horizontal = 2.dp),
+            ) {
+                item {
+                    FilterChip(
+                        selected = uiState.selectedOutcome == AppLogOutcomeFilter.ALL,
+                        onClick = { onOutcomeFilterChanged(AppLogOutcomeFilter.ALL) },
+                        label = { Text("All (${uiState.entries.size})") },
                     )
+                }
+                item {
+                    FilterChip(
+                        selected = uiState.selectedOutcome == AppLogOutcomeFilter.FAILED,
+                        onClick = { onOutcomeFilterChanged(AppLogOutcomeFilter.FAILED) },
+                        label = {
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(TerminalColors.ErrorRed))
+                                Text("Errors ($failedCount)")
+                            }
+                        },
+                    )
+                }
+                item {
+                    FilterChip(
+                        selected = uiState.selectedOutcome == AppLogOutcomeFilter.WARNINGS,
+                        onClick = { onOutcomeFilterChanged(AppLogOutcomeFilter.WARNINGS) },
+                        label = {
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(TerminalColors.WarnAmber))
+                                Text("Warnings ($warnCount)")
+                            }
+                        },
+                    )
+                }
+                item {
+                    FilterChip(
+                        selected = uiState.selectedOutcome == AppLogOutcomeFilter.SUCCESSFUL,
+                        onClick = { onOutcomeFilterChanged(AppLogOutcomeFilter.SUCCESSFUL) },
+                        label = {
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(TerminalColors.SuccessGreen))
+                                Text("Success ($successfulCount)")
+                            }
+                        },
+                    )
+                }
+                item {
+                    FilterChip(
+                        selected = uiState.selectedOutcome == AppLogOutcomeFilter.INFO,
+                        onClick = { onOutcomeFilterChanged(AppLogOutcomeFilter.INFO) },
+                        label = {
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(TerminalColors.InfoCyan))
+                                Text("Info")
+                            }
+                        },
+                    )
+                }
+                item {
+                    FilterChip(
+                        selected = uiState.selectedOutcome == AppLogOutcomeFilter.DEBUG,
+                        onClick = { onOutcomeFilterChanged(AppLogOutcomeFilter.DEBUG) },
+                        label = {
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(TerminalColors.DebugLavender))
+                                Text("Debug")
+                            }
+                        },
+                    )
+                }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        FilledTonalButton(
-                            onClick = onBackupNow,
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Text("Back up now")
-                        }
-
-                        FilledTonalButton(
+                if (uiState.availableDays.isNotEmpty()) {
+                    items(uiState.availableDays) { day ->
+                        FilterChip(
+                            selected = uiState.selectedDay == day,
                             onClick = {
-                                exportLogText(
-                                    context = context,
-                                    fileName = "troubleshooting-report.txt",
-                                    text = buildTroubleshootingReport(uiState.entries),
-                                )
+                                if (uiState.selectedDay == day) onDayFilterChanged(null) else onDayFilterChanged(day)
                             },
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Text("Diagnostics report")
-                        }
+                            label = { Text(formatAppLogDayLabel(day)) },
+                        )
                     }
                 }
             }
-        }
 
-        if (!uiState.infoMessage.isNullOrBlank()) {
-            item {
+            if (!uiState.infoMessage.isNullOrBlank()) {
                 InlineFeedbackCard(
                     label = "App log",
                     message = uiState.infoMessage,
@@ -489,10 +434,8 @@ fun AppLogSettingsScreen(
                     onDismiss = onDismissFeedback,
                 )
             }
-        }
 
-        if (!uiState.errorMessage.isNullOrBlank()) {
-            item {
+            if (!uiState.errorMessage.isNullOrBlank()) {
                 InlineFeedbackCard(
                     label = "App log",
                     message = uiState.errorMessage,
@@ -500,121 +443,124 @@ fun AppLogSettingsScreen(
                     onDismiss = onDismissFeedback,
                 )
             }
-        }
 
-        // Terminal Output Section
-        item {
-            TerminalViewport(
-                isLoading = uiState.isLoading,
-                entries = uiState.filteredEntries,
-                wrapLines = wrapLines,
-                searchQuery = uiState.searchQuery,
-            )
-        }
-    }
-}
-
-@Composable
-private fun TerminalViewport(
-    isLoading: Boolean,
-    entries: List<AppLogEntry>,
-    wrapLines: Boolean,
-    searchQuery: String,
-) {
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = TerminalColors.Background,
-        border = androidx.compose.foundation.BorderStroke(1.dp, TerminalColors.Border),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column {
-            // Terminal Window Titlebar
-            Row(
+            // Hero Full-Screen Terminal Viewport
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = TerminalColors.Background,
+                border = BorderStroke(1.dp, TerminalColors.Border),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(TerminalColors.TitleBar)
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
+                    .weight(1f),
             ) {
-                // Window traffic dots
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(Color(0xFFFF5F56)))
-                    Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(Color(0xFFFFBD2E)))
-                    Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(Color(0xFF27C93F)))
-                }
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Terminal,
-                        contentDescription = null,
-                        tint = TerminalColors.MutedGray,
-                        modifier = Modifier.size(14.dp),
-                    )
-                    Text(
-                        text = "localdownloader@system:~/app.log",
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 11.sp,
-                        color = TerminalColors.MutedGray,
-                        fontWeight = FontWeight.Medium,
-                    )
-                }
-
-                Text(
-                    text = "${entries.size} lines",
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 11.sp,
-                    color = TerminalColors.PromptGreen,
-                )
-            }
-
-            HorizontalDivider(color = TerminalColors.Border)
-
-            // Terminal Content Body
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-            ) {
-                if (isLoading) {
-                    Text(
-                        text = "$ Reading app logs...\n$ Please wait...",
-                        fontFamily = FontFamily.Monospace,
-                        color = TerminalColors.PromptGreen,
-                        fontSize = 12.sp,
-                    )
-                } else if (entries.isEmpty()) {
-                    Text(
-                        text = if (searchQuery.isNotBlank()) {
-                            "$ No log records matching query \"$searchQuery\"."
-                        } else {
-                            "$ app.log is currently empty.\n$ Operations and tasks will stream here live."
-                        },
-                        fontFamily = FontFamily.Monospace,
-                        color = TerminalColors.MutedGray,
-                        fontSize = 12.sp,
-                    )
-                } else {
-                    SelectionContainer {
-                        val scrollModifier = if (!wrapLines) {
-                            Modifier.horizontalScroll(rememberScrollState())
-                        } else {
-                            Modifier.fillMaxWidth()
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // Terminal Header Bar
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(TerminalColors.TitleBar)
+                            .padding(horizontal = 14.dp, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(Color(0xFFFF5F56)))
+                            Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(Color(0xFFFFBD2E)))
+                            Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(Color(0xFF27C93F)))
                         }
 
-                        Column(
-                            modifier = scrollModifier,
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            entries.forEachIndexed { index, entry ->
-                                TerminalLogEntryRow(
-                                    entry = entry,
-                                    lineNumber = index + 1,
-                                    wrapLines = wrapLines,
-                                )
+                            Icon(
+                                imageVector = Icons.Outlined.Terminal,
+                                contentDescription = null,
+                                tint = TerminalColors.MutedGray,
+                                modifier = Modifier.size(13.dp),
+                            )
+                            Text(
+                                text = "localdownloader@system:~/app.log",
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 11.sp,
+                                color = TerminalColors.MutedGray,
+                                fontWeight = FontWeight.Medium,
+                            )
+                        }
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = "${uiState.filteredEntries.size} lines",
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 11.sp,
+                                color = TerminalColors.PromptGreen,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Icon(
+                                imageVector = Icons.Outlined.DeleteOutline,
+                                contentDescription = "Clear logs",
+                                tint = TerminalColors.ErrorRed,
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .clickable { showClearConfirmDialog = true },
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(color = TerminalColors.Border)
+
+                    // Terminal Logs Body
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                    ) {
+                        if (uiState.isLoading) {
+                            Text(
+                                text = "$ Reading log stream...\n$ Please wait...",
+                                fontFamily = FontFamily.Monospace,
+                                color = TerminalColors.PromptGreen,
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(8.dp),
+                            )
+                        } else if (uiState.filteredEntries.isEmpty()) {
+                            Text(
+                                text = if (uiState.searchQuery.isNotBlank()) {
+                                    "$ No log entries matching query \"${uiState.searchQuery}\"."
+                                } else {
+                                    "$ app.log is currently empty.\n$ Operations and events will stream here live."
+                                },
+                                fontFamily = FontFamily.Monospace,
+                                color = TerminalColors.MutedGray,
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(8.dp),
+                            )
+                        } else {
+                            SelectionContainer {
+                                val scrollModifier = if (!wrapLines) {
+                                    Modifier
+                                        .fillMaxSize()
+                                        .horizontalScroll(rememberScrollState())
+                                } else {
+                                    Modifier.fillMaxSize()
+                                }
+
+                                LazyColumn(
+                                    state = listState,
+                                    modifier = scrollModifier,
+                                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                                ) {
+                                    itemsIndexed(uiState.filteredEntries) { index, entry ->
+                                        TerminalLogLineItem(
+                                            entry = entry,
+                                            lineNumber = index + 1,
+                                            wrapLines = wrapLines,
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -625,7 +571,7 @@ private fun TerminalViewport(
 }
 
 @Composable
-private fun TerminalLogEntryRow(
+private fun TerminalLogLineItem(
     entry: AppLogEntry,
     lineNumber: Int,
     wrapLines: Boolean,
@@ -650,9 +596,9 @@ private fun TerminalLogEntryRow(
     }
 
     val annotatedText = buildAnnotatedString {
-        // Line number
+        // Gutter Line Number with sleek separator
         withStyle(SpanStyle(color = TerminalColors.LineNumber, fontWeight = FontWeight.Normal)) {
-            append("%3d ".format(lineNumber))
+            append("%3d │ ".format(lineNumber))
         }
 
         // Timestamp
@@ -690,7 +636,7 @@ private fun TerminalLogEntryRow(
         if (!entry.details.isNullOrBlank()) {
             append("\n")
             withStyle(SpanStyle(color = TerminalColors.StackTraceRed)) {
-                append(entry.details)
+                append("     │ ${entry.details.replace("\n", "\n     │ ")}")
             }
         }
     }
@@ -698,127 +644,159 @@ private fun TerminalLogEntryRow(
     Text(
         text = annotatedText,
         fontFamily = FontFamily.Monospace,
-        fontSize = 12.sp,
+        fontSize = 11.5.sp,
         lineHeight = 16.sp,
         softWrap = wrapLines,
     )
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun AppLogTerminalHeaderBadgeStrip(
-    totalCount: Int,
-    failedCount: Int,
-    warnCount: Int,
-    successfulCount: Int,
-    totalSizeBytes: Long,
-    statusText: String,
+private fun StorageSettingsSheetContent(
+    uiState: AppLogUiState,
+    onAutoDeleteOldAppLogsChanged: (Boolean) -> Unit,
+    onMaxLogSizeBytesChanged: (Long) -> Unit,
+    onAppLogRetentionDaysChanged: (Int) -> Unit,
+    onBackupLogsToDeviceChanged: (Boolean) -> Unit,
+    onBackupNow: () -> Unit,
+    onOpenChoiceDialog: (SettingChoiceDialogState) -> Unit,
+    onExportDiagnostics: () -> Unit,
 ) {
-    FlowRow(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        TerminalBadge(label = "$totalCount entries", color = MaterialTheme.colorScheme.surfaceContainerHigh)
-        if (failedCount > 0) {
-            TerminalBadge(label = "$failedCount failed", color = Color(0x33EF4444), textColor = Color(0xFFEF4444))
-        }
-        if (warnCount > 0) {
-            TerminalBadge(label = "$warnCount warnings", color = Color(0x33F59E0B), textColor = Color(0xFFF59E0B))
-        }
-        if (successfulCount > 0) {
-            TerminalBadge(label = "$successfulCount success", color = Color(0x3322C55E), textColor = Color(0xFF22C55E))
-        }
-        if (totalSizeBytes > 0) {
-            TerminalBadge(label = "Disk: ${formatLogSizeLabel(totalSizeBytes)}", color = MaterialTheme.colorScheme.surfaceContainerHigh)
-        }
-        TerminalBadge(label = statusText, color = MaterialTheme.colorScheme.surfaceContainerLow)
-    }
-}
-
-@Composable
-private fun TerminalBadge(
-    label: String,
-    color: Color,
-    textColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
-) {
-    Surface(
-        shape = RoundedCornerShape(999.dp),
-        color = color,
-    ) {
-        Text(
-            text = label,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Medium,
-            color = textColor,
-        )
-    }
-}
-
-private data class AppLogFilterChip(
-    val label: String,
-    val selected: Boolean,
-    val badgeColor: Color? = null,
-    val onClick: () -> Unit,
-)
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun AppLogChipGroup(
-    label: String,
-    chips: List<AppLogFilterChip>,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            chips.forEach { chip ->
-                FilterChip(
-                    selected = chip.selected,
-                    onClick = chip.onClick,
-                    label = {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            if (chip.badgeColor != null) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(8.dp)
-                                        .clip(CircleShape)
-                                        .background(chip.badgeColor),
-                                )
-                            }
-                            Text(chip.label)
-                        }
-                    },
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = "Storage & Auto-Cleanup",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = "Current Disk Usage: ${formatLogSizeLabel(uiState.totalLogSizeBytes)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
-    }
-}
 
-@Composable
-private fun AppLogPanel(
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            content = content,
+        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+        AppLogSwitchRow(
+            title = "Auto-delete threshold",
+            subtitle = "Automatically rotate and trim logs when threshold or retention expires",
+            checked = uiState.autoDeleteOldAppLogs,
+            onCheckedChange = onAutoDeleteOldAppLogsChanged,
         )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            // Size threshold picker
+            FilledTonalButton(
+                onClick = {
+                    onOpenChoiceDialog(
+                        SettingChoiceDialogState(
+                            title = "Log size threshold",
+                            selected = formatLogSizeLabel(uiState.appLogMaxSizeBytes),
+                            options = listOf(
+                                500L * 1024L to "500 KB (Minimal)",
+                                1L * 1024L * 1024L to "1 MB (Light)",
+                                2L * 1024L * 1024L to "2 MB (Default)",
+                                5L * 1024L * 1024L to "5 MB (Standard)",
+                                10L * 1024L * 1024L to "10 MB (Extended)",
+                                25L * 1024L * 1024L to "25 MB (Heavy)",
+                                0L to "Unlimited (No auto-cap)",
+                            ).map { (bytes, label) ->
+                                SettingChoiceOption(
+                                    title = label,
+                                    subtitle = if (bytes > 0) "Prunes logs beyond ${formatLogSizeLabel(bytes)}" else "Keep all lines until manual clear",
+                                    onSelect = { onMaxLogSizeBytesChanged(bytes) },
+                                )
+                            },
+                        ),
+                    )
+                },
+                modifier = Modifier.weight(1f),
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Size Limit", style = MaterialTheme.typography.labelSmall)
+                    Text(
+                        text = formatLogSizeLabel(uiState.appLogMaxSizeBytes),
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+
+            // Retention days picker
+            FilledTonalButton(
+                onClick = {
+                    onOpenChoiceDialog(
+                        SettingChoiceDialogState(
+                            title = "App log retention",
+                            selected = "${uiState.appLogRetentionDays} days",
+                            options = listOf(3, 7, 15, 30, 60, 90).map { days ->
+                                SettingChoiceOption(
+                                    title = "$days days",
+                                    subtitle = when {
+                                        days <= 7 -> "Smaller storage footprint"
+                                        days <= 30 -> "Balanced history"
+                                        else -> "Longer diagnostic history"
+                                    },
+                                    onSelect = { onAppLogRetentionDaysChanged(days) },
+                                )
+                            },
+                        ),
+                    )
+                },
+                modifier = Modifier.weight(1f),
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Retention", style = MaterialTheme.typography.labelSmall)
+                    Text(
+                        text = "${uiState.appLogRetentionDays} days",
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+        }
+
+        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+
+        AppLogSwitchRow(
+            title = "Backup to device storage",
+            subtitle = "Save snapshots of rotated logs to Download/LocalDownloader/Logs",
+            checked = uiState.backupLogsToDevice,
+            onCheckedChange = onBackupLogsToDeviceChanged,
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            FilledTonalButton(
+                onClick = onBackupNow,
+                modifier = Modifier.weight(1f),
+            ) {
+                Text("Back up now")
+            }
+
+            FilledTonalButton(
+                onClick = onExportDiagnostics,
+                modifier = Modifier.weight(1f),
+            ) {
+                Text("Diagnostics report")
+            }
+        }
     }
 }
 
@@ -880,12 +858,6 @@ private fun formatLogSizeLabel(bytes: Long): String {
         bytes < 1024L * 1024L -> "${bytes / 1024L} KB"
         else -> String.format(java.util.Locale.US, "%.1f MB", bytes / (1024f * 1024f))
     }
-}
-
-private fun formatLogRefreshTime(epochMs: Long): String {
-    return Instant.ofEpochMilli(epochMs)
-        .atZone(ZoneId.systemDefault())
-        .format(DateTimeFormatter.ofPattern("dd MMM HH:mm:ss"))
 }
 
 private fun exportLogText(
