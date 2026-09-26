@@ -101,15 +101,15 @@ object BiometricHelper {
                 0,
                 cancellationSignalCompat,
                 object : FingerprintManagerCompat.AuthenticationCallback() {
-                    override fun onAuthenticationSucceeded(result: FingerprintManagerCompat.AuthenticationResult?) {
+                    override fun onAuthenticationSucceeded(result: FingerprintManagerCompat.AuthenticationResult) {
                         onSuccess()
                     }
 
-                    override fun onAuthenticationError(errMsgId: Int, errString: CharSequence?) {
+                    override fun onAuthenticationError(errMsgId: Int, errString: CharSequence) {
                         if (errMsgId == 5 /* FINGERPRINT_ERROR_CANCELED */) {
                             onCancel()
                         } else {
-                            onError(errString?.toString() ?: "Fingerprint error")
+                            onError(errString.toString())
                         }
                     }
 

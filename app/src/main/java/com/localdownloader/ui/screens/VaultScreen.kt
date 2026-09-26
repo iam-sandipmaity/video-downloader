@@ -1411,6 +1411,7 @@ private fun VaultSettingsModal(
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val context = LocalContext.current
     var choiceDialog by remember { mutableStateOf<SettingChoiceDialogState?>(null) }
     var showChangePinDialog by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
