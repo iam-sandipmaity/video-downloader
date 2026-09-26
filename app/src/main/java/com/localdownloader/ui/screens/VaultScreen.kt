@@ -1,6 +1,7 @@
 package com.localdownloader.ui.screens
 
 import android.widget.Toast
+import java.io.File
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -304,14 +305,14 @@ private fun VaultSetupScreen(
                 ) {
                     SetupStepChip(stepNumber = 1, label = "PIN", isActive = step == 1, isCompleted = step > 1)
                     Icon(
-                        imageVector = Icons.AutoMirrored.rounded.KeyboardArrowRight,
+                        imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.outlineVariant,
                         modifier = Modifier.size(16.dp),
                     )
                     SetupStepChip(stepNumber = 2, label = "Confirm", isActive = step == 2, isCompleted = step > 2)
                     Icon(
-                        imageVector = Icons.AutoMirrored.rounded.KeyboardArrowRight,
+                        imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.outlineVariant,
                         modifier = Modifier.size(16.dp),
@@ -987,7 +988,7 @@ private fun VaultSelectorScreen(
                     }
 
                     Icon(
-                        imageVector = Icons.AutoMirrored.rounded.KeyboardArrowRight,
+                        imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -1050,10 +1051,12 @@ private fun VaultContentScreen(
         }
 
         when (activeVaultSettings?.sortOrder) {
-            "oldest" -> filtered.sortedBy { it.createdAt }
+            "oldest" -> filtered.sortedBy { it.createdAtEpochMs }
             "name" -> filtered.sortedBy { it.title.lowercase() }
-            "size" -> filtered.sortedByDescending { it.fileSizeBytes }
-            else -> filtered.sortedByDescending { it.createdAt }
+            "size" -> filtered.sortedByDescending { item ->
+                item.outputPath?.let { File(it).length() } ?: 0L
+            }
+            else -> filtered.sortedByDescending { it.createdAtEpochMs }
         }
     }
 
