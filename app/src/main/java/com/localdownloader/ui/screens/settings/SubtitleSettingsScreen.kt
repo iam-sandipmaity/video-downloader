@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -120,8 +121,8 @@ fun SubtitleSettingsScreen(
                 icon = Icons.Rounded.Subtitles,
                 title = "Auto-download subtitles",
                 description = "Automatically query and download subtitles during analysis.",
-                checked = uiState.appSettings.autoDownloadSubtitles,
-                onCheckedChange = onAutoDownloadSubtitlesChanged,
+                isChecked = uiState.appSettings.autoDownloadSubtitles,
+                onClick = { onAutoDownloadSubtitlesChanged(!uiState.appSettings.autoDownloadSubtitles) },
             )
         }
         item {
@@ -129,8 +130,8 @@ fun SubtitleSettingsScreen(
                 icon = Icons.Rounded.ClosedCaption,
                 title = "Auto-embed into video",
                 description = "Mux downloaded subtitles into MP4/MKV container so video players can toggle them.",
-                checked = uiState.appSettings.autoEmbedSubtitles,
-                onCheckedChange = onAutoEmbedSubtitlesChanged,
+                isChecked = uiState.appSettings.autoEmbedSubtitles,
+                onClick = { onAutoEmbedSubtitlesChanged(!uiState.appSettings.autoEmbedSubtitles) },
             )
         }
 
