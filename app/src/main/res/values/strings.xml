@@ -271,6 +271,8 @@
     <string name="settings_appearance_subtitle">Theme mode, accent palette, contrast, and language.</string>
     <string name="settings_download_defaults_title">Download defaults</string>
     <string name="settings_download_defaults_subtitle">Templates, containers, subtitles, metadata, artwork, and queue slot preference.</string>
+    <string name="settings_subtitles_title">Subtitles &amp; Captions</string>
+    <string name="settings_subtitles_subtitle">Auto-download, embedding, subtitle font styling, colors, and live display preview.</string>
     <string name="settings_battery_title">Battery and performance</string>
     <string name="settings_battery_subtitle">Eco mode, download threads, and Android battery optimization.</string>
     <string name="battery_section_system_title">System battery optimization</string>

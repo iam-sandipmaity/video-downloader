@@ -930,6 +930,16 @@ class FormatViewModel @Inject constructor(
         persistSettingsSilently()
     }
 
+    fun onSubtitleViewSettingsChanged(newSettings: SubtitleViewSettings) {
+        val updated = uiState.value.appSettings.copy(subtitleViewSettings = newSettings)
+        _uiState.update { state ->
+            state.copy(appSettings = updated)
+        }
+        viewModelScope.launch {
+            runCatching { repository.updateSettings(updated) }
+        }
+    }
+
     fun onLanguageChanged(value: String) {
         _uiState.update { state -> state.copy(languageTag = value.ifBlank { SYSTEM_LANGUAGE_TAG }) }
         persistSettingsSilently()
