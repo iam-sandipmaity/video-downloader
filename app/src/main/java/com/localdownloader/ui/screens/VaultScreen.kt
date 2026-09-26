@@ -112,6 +112,7 @@ import com.localdownloader.ui.components.PreferenceSwitch
 import com.localdownloader.ui.screens.settings.SettingChoiceDialog
 import com.localdownloader.ui.screens.settings.SettingChoiceDialogState
 import com.localdownloader.ui.screens.settings.SettingChoiceOption
+import com.localdownloader.utils.BiometricHelper
 import com.localdownloader.viewmodel.DownloadUiState
 import com.localdownloader.viewmodel.DownloadViewModel
 import com.localdownloader.viewmodel.VaultUiState
@@ -165,7 +166,7 @@ fun VaultScreen(
                 onUnlock = { pin ->
                     vaultViewModel.unlockVault(targetVaultId, pin) { _ -> }
                 },
-                onBiometricUnlock = {
+                onBiometricSuccess = {
                     vaultViewModel.unlockVaultDirectly(targetVaultId)
                 },
             )
@@ -532,14 +533,51 @@ private fun VaultUnlockScreen(
     errorMessage: String?,
     onCancel: () -> Unit,
     onUnlock: (String) -> Unit,
-    onBiometricUnlock: () -> Unit,
+    onBiometricSuccess: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val activity = remember(context) { BiometricHelper.findActivity(context) }
+    val isBiometricAvailable = remember(context) { BiometricHelper.isBiometricAvailable(context) }
     var pin by remember { mutableStateOf("") }
+    var localError by remember { mutableStateOf<String?>(null) }
     val shakeOffset = remember { Animatable(0f) }
     val coroutineScope = rememberCoroutineScope()
 
-    LaunchedEffect(errorMessage) {
-        if (!errorMessage.isNullOrBlank()) {
+    val displayError = errorMessage ?: localError
+
+    val triggerBiometricAuth: () -> Unit = {
+        if (activity != null && isBiometricAllowed && isBiometricAvailable) {
+            localError = null
+            BiometricHelper.authenticate(
+                activity = activity,
+                title = "Unlock $vaultName",
+                subtitle = "Touch the fingerprint sensor or verify your biometric identity",
+                negativeButtonText = "Use PIN",
+                onSuccess = {
+                    localError = null
+                    onBiometricSuccess()
+                },
+                onError = { error ->
+                    localError = error
+                },
+                onCancel = {
+                    // User canceled biometric prompt or opted for PIN; let them use PIN keypad
+                },
+            )
+        } else if (isBiometricAllowed && !isBiometricAvailable) {
+            localError = "Biometric authentication not enrolled on this device"
+        }
+    }
+
+    // Auto-prompt biometric dialog on screen entry if biometric is enabled
+    LaunchedEffect(Unit) {
+        if (isBiometricAllowed && isBiometricAvailable && activity != null) {
+            triggerBiometricAuth()
+        }
+    }
+
+    LaunchedEffect(displayError) {
+        if (!displayError.isNullOrBlank()) {
             pin = ""
             coroutineScope.launch {
                 shakeOffset.animateTo(
@@ -600,7 +638,11 @@ private fun VaultUnlockScreen(
                         fontWeight = FontWeight.Bold,
                     )
                     Text(
-                        text = "Enter your PIN to access protected files",
+                        text = if (isBiometricAllowed && isBiometricAvailable) {
+                            "Use fingerprint or enter your PIN to access files"
+                        } else {
+                            "Enter your PIN to access protected files"
+                        },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -610,12 +652,12 @@ private fun VaultUnlockScreen(
                 PinDotsIndicator(
                     pinLength = pin.length,
                     maxExpectedLength = 6,
-                    isError = errorMessage != null,
+                    isError = displayError != null,
                 )
 
-                if (errorMessage != null) {
+                if (displayError != null) {
                     Text(
-                        text = errorMessage,
+                        text = displayError,
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
@@ -625,6 +667,7 @@ private fun VaultUnlockScreen(
                 // Keypad
                 PinKeypad(
                     onDigitClick = { digit ->
+                        localError = null
                         if (pin.length < 8) {
                             val nextPin = pin + digit
                             pin = nextPin
@@ -634,13 +677,15 @@ private fun VaultUnlockScreen(
                         }
                     },
                     onBackspaceClick = {
+                        localError = null
                         if (pin.isNotEmpty()) pin = pin.dropLast(1)
                     },
                     onClearClick = {
+                        localError = null
                         pin = ""
                     },
                     showBiometricButton = isBiometricAllowed,
-                    onBiometricClick = onBiometricUnlock,
+                    onBiometricClick = triggerBiometricAuth,
                 )
 
                 TextButton(
@@ -1568,10 +1613,44 @@ private fun VaultSettingsModal(
                 PreferenceSwitch(
                     icon = Icons.Outlined.Fingerprint,
                     title = "Biometric unlock",
-                    description = "Unlock using device fingerprint or face verification",
+                    description = if (vault.isBiometricEnabled) {
+                        "Fingerprint or face verification enabled"
+                    } else {
+                        "Unlock using device fingerprint or face verification"
+                    },
                     isChecked = vault.isBiometricEnabled,
                     onClick = {
-                        vaultViewModel.setVaultBiometricEnabled(vault.id, !vault.isBiometricEnabled)
+                        val willEnable = !vault.isBiometricEnabled
+                        if (willEnable) {
+                            if (!BiometricHelper.isBiometricAvailable(context)) {
+                                Toast.makeText(
+                                    context,
+                                    "No enrolled biometric hardware found on this device",
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                            } else {
+                                val activity = BiometricHelper.findActivity(context)
+                                if (activity != null) {
+                                    BiometricHelper.authenticate(
+                                        activity = activity,
+                                        title = "Enable Biometric Unlock",
+                                        subtitle = "Verify your biometric identity to enable for ${vault.name}",
+                                        negativeButtonText = "Cancel",
+                                        onSuccess = {
+                                            vaultViewModel.setVaultBiometricEnabled(vault.id, true)
+                                            Toast.makeText(context, "Biometric unlock enabled", Toast.LENGTH_SHORT).show()
+                                        },
+                                        onError = { err ->
+                                            Toast.makeText(context, err, Toast.LENGTH_SHORT).show()
+                                        },
+                                    )
+                                } else {
+                                    vaultViewModel.setVaultBiometricEnabled(vault.id, true)
+                                }
+                            }
+                        } else {
+                            vaultViewModel.setVaultBiometricEnabled(vault.id, false)
+                        }
                     },
                 )
             }
