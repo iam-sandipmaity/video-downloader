@@ -249,16 +249,11 @@ class DownloadEngine @Inject constructor(
     private fun shouldRequestMetadataEmbedding(options: DownloadOptions): Boolean {
         if (!options.shouldEmbedMetadata) return false
 
-        val normalizedContainer = options.mergeOutputFormat?.trim()?.lowercase().orEmpty()
-        if (normalizedContainer == "mkv") {
-            logger.i(
-                "DownloadEngine",
-                "Skipping yt-dlp metadata embedding for MKV output because the current runtime does not provide ffprobe",
-            )
-            return false
-        }
-
-        return true
+        // Embedded Android libffmpeg runtime does not include the ffmetadata demuxer
+        // required by yt-dlp's FFmpegMetadataPP. Passing --embed-metadata causes FFmpeg to fail
+        // with "Error opening input files: Invalid data found when processing input" and crash
+        // yt-dlp before subtitle/thumbnail postprocessors can run.
+        return false
     }
 
     private fun shouldRequestThumbnailEmbedding(options: DownloadOptions): Boolean {
