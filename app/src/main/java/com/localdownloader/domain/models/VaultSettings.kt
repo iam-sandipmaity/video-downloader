@@ -9,6 +9,10 @@ data class SingleVaultSettings(
     val pinHash: String,
     val isBiometricEnabled: Boolean = false,
     val autoMoveUrlRules: List<String> = emptyList(),
+    val autoLockTimeoutSeconds: Int = 0, // 0 = Immediately on background, 30, 60, 300, -1 = Never
+    val secureScreen: Boolean = true, // Hide app preview in recent apps switcher
+    val autoDeleteOriginal: Boolean = true, // Remove original file from public storage after moving to vault
+    val sortOrder: String = "newest", // newest, oldest, name, size
 )
 
 @Serializable

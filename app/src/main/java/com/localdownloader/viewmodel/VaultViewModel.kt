@@ -280,6 +280,84 @@ class VaultViewModel @Inject constructor(
         }
     }
 
+    fun updateVaultPin(vaultId: String, newPin: String) {
+        viewModelScope.launch {
+            runCatching {
+                val pinHash = hashPin(newPin)
+                val current = repository.getVaultSettings()
+                val updatedVaults = current.vaults.map {
+                    if (it.id == vaultId) it.copy(pinHash = pinHash) else it
+                }
+                val updatedSettings = current.copy(vaults = updatedVaults)
+                repository.updateVaultSettings(updatedSettings).getOrThrow()
+                _uiState.value = _uiState.value.copy(successMessage = "PIN updated successfully")
+            }.onFailure { error ->
+                logger.e("VaultViewModel", "updateVaultPin failed", error)
+                _uiState.value = _uiState.value.copy(errorMessage = "Failed to update PIN")
+            }
+        }
+    }
+
+    fun setVaultAutoLockTimeout(vaultId: String, timeoutSeconds: Int) {
+        viewModelScope.launch {
+            runCatching {
+                val current = repository.getVaultSettings()
+                val updatedVaults = current.vaults.map {
+                    if (it.id == vaultId) it.copy(autoLockTimeoutSeconds = timeoutSeconds) else it
+                }
+                val updatedSettings = current.copy(vaults = updatedVaults)
+                repository.updateVaultSettings(updatedSettings).getOrThrow()
+            }.onFailure { error ->
+                logger.e("VaultViewModel", "setVaultAutoLockTimeout failed", error)
+            }
+        }
+    }
+
+    fun setVaultSecureScreen(vaultId: String, enabled: Boolean) {
+        viewModelScope.launch {
+            runCatching {
+                val current = repository.getVaultSettings()
+                val updatedVaults = current.vaults.map {
+                    if (it.id == vaultId) it.copy(secureScreen = enabled) else it
+                }
+                val updatedSettings = current.copy(vaults = updatedVaults)
+                repository.updateVaultSettings(updatedSettings).getOrThrow()
+            }.onFailure { error ->
+                logger.e("VaultViewModel", "setVaultSecureScreen failed", error)
+            }
+        }
+    }
+
+    fun setVaultAutoDeleteOriginal(vaultId: String, enabled: Boolean) {
+        viewModelScope.launch {
+            runCatching {
+                val current = repository.getVaultSettings()
+                val updatedVaults = current.vaults.map {
+                    if (it.id == vaultId) it.copy(autoDeleteOriginal = enabled) else it
+                }
+                val updatedSettings = current.copy(vaults = updatedVaults)
+                repository.updateVaultSettings(updatedSettings).getOrThrow()
+            }.onFailure { error ->
+                logger.e("VaultViewModel", "setVaultAutoDeleteOriginal failed", error)
+            }
+        }
+    }
+
+    fun setVaultSortOrder(vaultId: String, sortOrder: String) {
+        viewModelScope.launch {
+            runCatching {
+                val current = repository.getVaultSettings()
+                val updatedVaults = current.vaults.map {
+                    if (it.id == vaultId) it.copy(sortOrder = sortOrder) else it
+                }
+                val updatedSettings = current.copy(vaults = updatedVaults)
+                repository.updateVaultSettings(updatedSettings).getOrThrow()
+            }.onFailure { error ->
+                logger.e("VaultViewModel", "setVaultSortOrder failed", error)
+            }
+        }
+    }
+
     fun setVaultName(name: String) {
         viewModelScope.launch {
             runCatching {
