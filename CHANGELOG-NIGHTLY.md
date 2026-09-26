@@ -2,6 +2,21 @@
 
 Nightly builds are rolling prereleases published from the `nightly` release tag. This file tracks changes that are available in nightly before they are promoted into the stable changelog.
 
+## [2.0.3.1] - 2026-09-27
+
+### Added
+- **Interactive FAQ & Help Center** - Added an expandable FAQ accordion, categorized troubleshooting guides (Troubleshooting, Performance, Subtitles & Audio, Private Vault), troubleshooting diagnostic wizard, copyable help items, and app version / runtime details.
+- **Private Vault UI Redesign & Settings Hub** - Completely modernized the Private Vault interface with structured folder management, Biometric Prompt verification via `BiometricHelper`, configurable auto-lock timeout options, and custom auto-move URL rules.
+- **Logs & Diagnostics UI Redesign** - Modern Material 3 log cards with direct quick actions (Copy, Share, Clear, Export), tag filters, sticky search, live statistics banner, and timestamp formatting.
+
+### Fixed
+- **Postprocessing Metadata Demuxer Crash** - Resolved `Error opening input files: Invalid data found when processing input` by preventing `--embed-metadata` from being passed to yt-dlp on Android (since bundled `libffmpeg.so` does not include the `ffmetadata` demuxer), allowing yt-dlp to smoothly complete container merging, thumbnail embedding via mutagen, and subtitle muxing without error.
+- **Intelligent Subtitle Defaults for Multi-Language Videos** - Added `resolveDefaultSubtitleLanguages` to intelligently default to the user's preferred language / original track on videos with dozens of native tracks (such as MrBeast uploads), preventing unwanted floods of 26+ subtitle files while keeping "All Native" available as a one-tap preset.
+- **Biometric Authentication Enforcement** - Fixed an issue where selecting biometric authentication previously unlocked the vault without triggering the biometric prompt.
+
+### Changed
+- **Nightly Version Bump** - Release metadata updated to `2.0.3.1` (`NIGHTLY_VERSION_CODE` `55`).
+
 ## [2.0.3.0] - 2026-09-26
 
 ### Added

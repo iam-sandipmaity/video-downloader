@@ -38,7 +38,9 @@ class AppLogViewModel @Inject constructor(
                         backupLogsToDevice = settings.backupLogsToDevice,
                         autoDeleteOldAppLogs = settings.autoDeleteOldAppLogs,
                         appLogRetentionDays = settings.appLogRetentionDays.coerceIn(MIN_RETENTION_DAYS, MAX_RETENTION_DAYS),
+                        appLogMaxSizeBytes = settings.appLogMaxSizeBytes,
                         deviceBackupPath = logger.deviceLogBackupDirPath(),
+                        totalLogSizeBytes = logger.totalLogSizeBytes(),
                     )
                 }
             }
@@ -69,6 +71,8 @@ class AppLogViewModel @Inject constructor(
                 }.distinct().sortedDescending()
                 val selectedDay = _uiState.value.selectedDay?.takeIf { it in availableDays }
                 val selectedOutcome = _uiState.value.selectedOutcome
+                val searchQuery = _uiState.value.searchQuery
+                val totalSizeBytes = logger.totalLogSizeBytes()
                 AppLogUiState(
                     isLoading = false,
                     entries = entries,
@@ -76,15 +80,19 @@ class AppLogViewModel @Inject constructor(
                         entries = entries,
                         outcome = selectedOutcome,
                         day = selectedDay,
+                        query = searchQuery,
                     ),
                     availableDays = availableDays,
                     selectedOutcome = selectedOutcome,
                     selectedDay = selectedDay,
+                    searchQuery = searchQuery,
                     errorMessage = null,
                     lastUpdatedAt = System.currentTimeMillis(),
                     backupLogsToDevice = _uiState.value.backupLogsToDevice,
                     autoDeleteOldAppLogs = _uiState.value.autoDeleteOldAppLogs,
                     appLogRetentionDays = _uiState.value.appLogRetentionDays,
+                    appLogMaxSizeBytes = _uiState.value.appLogMaxSizeBytes,
+                    totalLogSizeBytes = totalSizeBytes,
                     deviceBackupPath = logger.deviceLogBackupDirPath(),
                     infoMessage = _uiState.value.infoMessage,
                 )
@@ -101,6 +109,20 @@ class AppLogViewModel @Inject constructor(
         }
     }
 
+    fun setSearchQuery(query: String) {
+        _uiState.update { state ->
+            state.copy(
+                searchQuery = query,
+                filteredEntries = filterEntries(
+                    entries = state.entries,
+                    outcome = state.selectedOutcome,
+                    day = state.selectedDay,
+                    query = query,
+                ),
+            )
+        }
+    }
+
     fun setOutcomeFilter(filter: AppLogOutcomeFilter) {
         _uiState.update { state ->
             state.copy(
@@ -109,6 +131,7 @@ class AppLogViewModel @Inject constructor(
                     entries = state.entries,
                     outcome = filter,
                     day = state.selectedDay,
+                    query = state.searchQuery,
                 ),
             )
         }
@@ -122,8 +145,31 @@ class AppLogViewModel @Inject constructor(
                     entries = state.entries,
                     outcome = state.selectedOutcome,
                     day = day,
+                    query = state.searchQuery,
                 ),
             )
+        }
+    }
+
+    fun clearLogsNow() {
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching {
+                logger.clearAllLogs()
+            }.onSuccess {
+                _uiState.update { state ->
+                    state.copy(
+                        infoMessage = "All app logs have been cleared.",
+                        errorMessage = null,
+                    )
+                }
+                refresh()
+            }.onFailure { error ->
+                _uiState.update { state ->
+                    state.copy(
+                        errorMessage = error.message ?: "Unable to clear logs.",
+                    )
+                }
+            }
         }
     }
 
@@ -156,6 +202,15 @@ class AppLogViewModel @Inject constructor(
             update = { settings -> settings.copy(appLogRetentionDays = normalizedDays) },
             successMessage = "App logs will keep rotated history for $normalizedDays days.",
             runMaintenanceAfterSave = latestSettings.autoDeleteOldAppLogs,
+        )
+    }
+
+    fun setMaxLogSizeBytes(bytes: Long) {
+        val normalizedBytes = bytes.coerceAtLeast(0L)
+        persistLogSettings(
+            update = { settings -> settings.copy(appLogMaxSizeBytes = normalizedBytes) },
+            successMessage = "Log size limit updated.",
+            runMaintenanceAfterSave = true,
         )
     }
 
@@ -226,15 +281,25 @@ class AppLogViewModel @Inject constructor(
         entries: List<AppLogEntry>,
         outcome: AppLogOutcomeFilter,
         day: String?,
+        query: String,
     ): List<AppLogEntry> {
+        val trimmedQuery = query.trim().lowercase()
         return entries.filter { entry ->
             val matchesOutcome = when (outcome) {
                 AppLogOutcomeFilter.ALL -> true
-                AppLogOutcomeFilter.FAILED -> entry.category == AppLogEntryCategory.FAILED
+                AppLogOutcomeFilter.FAILED -> entry.category == AppLogEntryCategory.FAILED || entry.level == "E"
+                AppLogOutcomeFilter.WARNINGS -> entry.level == "W"
                 AppLogOutcomeFilter.SUCCESSFUL -> entry.category == AppLogEntryCategory.SUCCESSFUL
+                AppLogOutcomeFilter.INFO -> entry.level == "I"
+                AppLogOutcomeFilter.DEBUG -> entry.level == "D"
             }
             val matchesDay = day == null || entry.day == day
-            matchesOutcome && matchesDay
+            val matchesQuery = trimmedQuery.isBlank() ||
+                entry.rawText.contains(trimmedQuery, ignoreCase = true) ||
+                entry.tag?.contains(trimmedQuery, ignoreCase = true) == true ||
+                entry.message.contains(trimmedQuery, ignoreCase = true) ||
+                entry.details?.contains(trimmedQuery, ignoreCase = true) == true
+            matchesOutcome && matchesDay && matchesQuery
         }
     }
 
@@ -315,7 +380,7 @@ class AppLogViewModel @Inject constructor(
     private fun classifyEntry(level: String?, text: String): AppLogEntryCategory {
         val normalized = text.lowercase()
         return when {
-            level == "E" || level == "W" ||
+            level == "E" ||
                 normalized.contains(" failed") ||
                 normalized.contains("error") ||
                 normalized.contains("exception") ||
@@ -354,12 +419,15 @@ data class AppLogUiState(
     val availableDays: List<String> = emptyList(),
     val selectedOutcome: AppLogOutcomeFilter = AppLogOutcomeFilter.ALL,
     val selectedDay: String? = null,
+    val searchQuery: String = "",
     val infoMessage: String? = null,
     val errorMessage: String? = null,
     val lastUpdatedAt: Long? = null,
     val backupLogsToDevice: Boolean = false,
     val autoDeleteOldAppLogs: Boolean = false,
     val appLogRetentionDays: Int = 15,
+    val appLogMaxSizeBytes: Long = 2L * 1024L * 1024L,
+    val totalLogSizeBytes: Long = 0L,
     val deviceBackupPath: String? = null,
 )
 
@@ -377,8 +445,11 @@ data class AppLogEntry(
 
 enum class AppLogOutcomeFilter(val label: String) {
     ALL("All"),
-    FAILED("Failed"),
-    SUCCESSFUL("Successful"),
+    FAILED("Errors"),
+    WARNINGS("Warnings"),
+    SUCCESSFUL("Success"),
+    INFO("Info"),
+    DEBUG("Debug"),
 }
 
 enum class AppLogEntryCategory {

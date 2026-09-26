@@ -23,6 +23,7 @@ import com.localdownloader.domain.models.OutputTransform
 import com.localdownloader.domain.models.PlaylistDownloadRequest
 import com.localdownloader.domain.models.SYSTEM_LANGUAGE_TAG
 import com.localdownloader.domain.models.StreamType
+import com.localdownloader.domain.models.SubtitleViewSettings
 import com.localdownloader.domain.models.ThemeMode
 import com.localdownloader.domain.models.VideoInfo
 import com.localdownloader.domain.models.VideoQuality
@@ -51,6 +52,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.File
+import java.util.Locale
 import java.util.UUID
 import javax.inject.Inject
 
@@ -288,10 +290,16 @@ class FormatViewModel @Inject constructor(
                             audioFormat = state.selectedAudioFormat,
                             audioBitrateKbps = state.audioBitrateKbps,
                         )
+                        val resolvedSubtitleLangs = if (state.downloadSubtitles && state.selectedSubtitleLanguages.isEmpty()) {
+                            resolveDefaultSubtitleLanguages(info)
+                        } else {
+                            state.selectedSubtitleLanguages
+                        }
                         state.copy(
                             isAnalyzing = false,
                             messageScope = FormatMessageScope.BROWSER,
                             videoInfo = info,
+                            selectedSubtitleLanguages = resolvedSubtitleLangs,
                             availableVideoAudioChoices = choiceBundle.videoAudioChoices,
                             availableVideoOnlyChoices = choiceBundle.videoOnlyChoices,
                             availableAudioOnlyChoices = choiceBundle.audioOnlyChoices,
@@ -613,11 +621,57 @@ class FormatViewModel @Inject constructor(
 
     fun onDownloadSubtitlesChanged(value: Boolean) {
         _uiState.update { state ->
+            val defaultLangs = if (value && state.selectedSubtitleLanguages.isEmpty()) {
+                resolveDefaultSubtitleLanguages(state.videoInfo)
+            } else if (!value) {
+                emptyList()
+            } else {
+                state.selectedSubtitleLanguages
+            }
             state.copy(
                 downloadSubtitles = value,
+                selectedSubtitleLanguages = defaultLangs,
                 embedSubtitles = if (value) state.embedSubtitles else false,
             )
         }
+    }
+
+    private fun resolveDefaultSubtitleLanguages(info: VideoInfo?): List<String> {
+        if (info == null) return emptyList()
+        val nativeList = info.subtitles
+        val origAutoList = info.automaticCaptions.filter { it.isOriginal }
+        val nativeTracks = (nativeList + origAutoList).distinctBy { it.code }
+        val nativeCodes = nativeTracks.map { it.code }.distinct()
+
+        if (nativeCodes.isEmpty()) {
+            val firstAuto = info.automaticCaptions.firstOrNull()?.code
+            return if (firstAuto != null) listOf(firstAuto) else emptyList()
+        }
+
+        if (nativeCodes.size <= 2) {
+            return nativeCodes
+        }
+
+        val userLang = Locale.getDefault().language.lowercase()
+        val userTag = Locale.getDefault().toLanguageTag().lowercase()
+
+        val matchedUserLang = nativeCodes.firstOrNull { code ->
+            val lower = code.lowercase()
+            lower == userTag || lower == userLang || lower.startsWith("$userLang-") || lower.startsWith("${userLang}_")
+        }
+        if (matchedUserLang != null) {
+            return listOf(matchedUserLang)
+        }
+
+        val englishTrack = nativeCodes.firstOrNull { code ->
+            val lower = code.lowercase()
+            lower == "en" || lower == "en-orig" || lower.startsWith("en-") || lower.startsWith("en_")
+        }
+        if (englishTrack != null) {
+            return listOf(englishTrack)
+        }
+
+        return listOf(nativeCodes.first())
     }
 
     fun onEmbedSubtitlesChanged(value: Boolean) {
@@ -928,6 +982,16 @@ class FormatViewModel @Inject constructor(
     fun onDefaultEmbedThumbnailChanged(value: Boolean) {
         _uiState.update { state -> state.copy(embedThumbnail = value) }
         persistSettingsSilently()
+    }
+
+    fun onSubtitleViewSettingsChanged(newSettings: SubtitleViewSettings) {
+        val updated = uiState.value.appSettings.copy(subtitleViewSettings = newSettings)
+        _uiState.update { state ->
+            state.copy(appSettings = updated)
+        }
+        viewModelScope.launch {
+            runCatching { repository.updateSettings(updated) }
+        }
     }
 
     fun onLanguageChanged(value: String) {

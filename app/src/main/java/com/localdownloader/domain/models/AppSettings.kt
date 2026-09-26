@@ -35,6 +35,7 @@ data class AppSettings(
     val backupLogsToDevice: Boolean = false,
     val autoDeleteOldAppLogs: Boolean = false,
     val appLogRetentionDays: Int = 15,
+    val appLogMaxSizeBytes: Long = 2L * 1024L * 1024L,
     val keepAnalyzedLinkHistory: Boolean = true,
     val analyzedLinkHistoryRetentionDays: Int = 15,
     val downloadHistoryRetentionDays: Int = 30,

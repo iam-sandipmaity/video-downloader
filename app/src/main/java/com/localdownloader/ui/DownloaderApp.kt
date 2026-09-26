@@ -87,6 +87,7 @@ import com.localdownloader.ui.screens.settings.CreditsSettingsScreen
 import com.localdownloader.ui.screens.settings.DownloadSettingsScreen
 import com.localdownloader.ui.screens.settings.NotificationsSettingsScreen
 import com.localdownloader.ui.screens.settings.StorageSettingsScreen
+import com.localdownloader.ui.screens.settings.SubtitleSettingsScreen
 import com.localdownloader.utils.BatteryOptimizationManager
 import com.localdownloader.utils.Logger
 import com.localdownloader.viewmodel.AppLogViewModel
@@ -854,12 +855,22 @@ fun DownloaderApp(
                     onDismissMediaLibraryMessage = downloadViewModel::dismissMessage,
                     onOpenAppearance = { navController.navigate(Routes.SettingsAppearance) },
                     onOpenDownloads = { navController.navigate(Routes.SettingsDownloads) },
+                    onOpenSubtitles = { navController.navigate(Routes.SettingsSubtitles) },
                     onOpenBattery = { navController.navigate(Routes.SettingsBattery) },
                     onOpenStorage = { navController.navigate(Routes.SettingsStorage) },
                     onOpenNotifications = { navController.navigate(Routes.SettingsNotifications) },
                     onOpenAccess = { navController.navigate(Routes.SettingsAccess) },
                     onOpenAbout = { navController.navigate(Routes.SettingsAbout) },
                     onOpenAppLog = { navController.navigate(Routes.SettingsAppLog) },
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable(Routes.SettingsSubtitles) {
+                SubtitleSettingsScreen(
+                    uiState = formatState,
+                    onAutoDownloadSubtitlesChanged = formatViewModel::onDefaultDownloadSubtitlesChanged,
+                    onAutoEmbedSubtitlesChanged = formatViewModel::onDefaultEmbedSubtitlesChanged,
+                    onSubtitleViewSettingsChanged = formatViewModel::onSubtitleViewSettingsChanged,
                     onBack = { navController.popBackStack() },
                 )
             }
@@ -993,6 +1004,9 @@ fun DownloaderApp(
                     onRefresh = appLogViewModel::refresh,
                     onOutcomeFilterChanged = appLogViewModel::setOutcomeFilter,
                     onDayFilterChanged = appLogViewModel::setDayFilter,
+                    onSearchQueryChanged = appLogViewModel::setSearchQuery,
+                    onClearAllLogs = appLogViewModel::clearLogsNow,
+                    onMaxLogSizeBytesChanged = appLogViewModel::setMaxLogSizeBytes,
                     onBackupLogsToDeviceChanged = appLogViewModel::setBackupLogsToDevice,
                     onAutoDeleteOldAppLogsChanged = appLogViewModel::setAutoDeleteOldAppLogs,
                     onAppLogRetentionDaysChanged = appLogViewModel::setAppLogRetentionDays,
@@ -1244,6 +1258,7 @@ object Routes {
     const val Settings = "settings"
     const val SettingsAppearance = "settings/appearance"
     const val SettingsDownloads = "settings/downloads"
+    const val SettingsSubtitles = "settings/subtitles"
     const val SettingsBattery = "settings/battery"
     const val SettingsStorage = "settings/storage"
     const val SettingsNotifications = "settings/notifications"

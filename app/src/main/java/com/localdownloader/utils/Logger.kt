@@ -126,6 +126,27 @@ class Logger @Inject constructor(
         }
     }
 
+    fun totalLogSizeBytes(): Long {
+        val logsDir = File(context.filesDir, LOG_DIR_NAME)
+        return logsDir.listFiles()?.filter { it.isFile }?.sumOf { it.length() } ?: 0L
+    }
+
+    suspend fun clearAllLogs() {
+        fileMutex.withLock {
+            runCatching {
+                val logsDir = File(context.filesDir, LOG_DIR_NAME)
+                logsDir.listFiles()?.forEach { file ->
+                    if (file.isFile) {
+                        file.delete()
+                    }
+                }
+                ensureActiveFilesExistLocked()
+            }.onFailure { error ->
+                Log.e("Logger", "Failed to clear all logs", error)
+            }
+        }
+    }
+
     suspend fun backupLogsToDevice(): File {
         return fileMutex.withLock {
             ensureActiveFilesExistLocked()
@@ -213,7 +234,12 @@ class Logger @Inject constructor(
     }
 
     private fun rotateIfNeeded(logFile: File) {
-        if (!logFile.exists() || logFile.length() < MAX_LOG_FILE_SIZE_BYTES) return
+        val maxSizeBytes = if (latestSettings.appLogMaxSizeBytes > 0) {
+            latestSettings.appLogMaxSizeBytes
+        } else {
+            MAX_LOG_FILE_SIZE_BYTES
+        }
+        if (!logFile.exists() || logFile.length() < maxSizeBytes) return
 
         val archivedLog = createArchivedLogFile(logFile)
         val rotated = logFile.renameTo(archivedLog)
@@ -283,6 +309,25 @@ class Logger @Inject constructor(
             .forEach { file ->
                 runCatching { file.delete() }
             }
+
+        // Size-based cleanup: if total active + archived logs exceed limit, drop oldest archived files
+        val maxSizeBytes = if (latestSettings.appLogMaxSizeBytes > 0) {
+            latestSettings.appLogMaxSizeBytes * 2
+        } else {
+            MAX_LOG_FILE_SIZE_BYTES * 2
+        }
+        var totalBytes = (appLogFiles() + crashLogFamilyFiles()).distinct().sumOf { it.length() }
+        if (totalBytes > maxSizeBytes) {
+            val remainingArchives = (archivedAppLogFiles() + archivedCrashLogFiles())
+                .sortedBy { it.lastModified() }
+            for (archive in remainingArchives) {
+                if (totalBytes <= maxSizeBytes) break
+                val size = archive.length()
+                if (archive.delete()) {
+                    totalBytes -= size
+                }
+            }
+        }
     }
 
     private fun pruneArchivedLogHistoryCountLocked() {

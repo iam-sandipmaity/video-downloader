@@ -22,6 +22,7 @@ import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Security
+import androidx.compose.material.icons.rounded.Subtitles
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,6 +50,7 @@ fun SettingsScreen(
     onDismissMediaLibraryMessage: () -> Unit = {},
     onOpenAppearance: () -> Unit,
     onOpenDownloads: () -> Unit,
+    onOpenSubtitles: () -> Unit,
     onOpenBattery: () -> Unit,
     onOpenStorage: () -> Unit,
     onOpenNotifications: () -> Unit,
@@ -127,6 +129,14 @@ fun SettingsScreen(
                 description = "Format templates, containers, and queue behavior",
                 icon = Icons.Rounded.CloudDownload,
                 onClick = onOpenDownloads,
+            )
+        }
+        item {
+            SettingItem(
+                title = stringResource(R.string.settings_subtitles_title),
+                description = "Subtitle auto-download, embedding, styling, and preview",
+                icon = Icons.Rounded.Subtitles,
+                onClick = onOpenSubtitles,
             )
         }
         item {
