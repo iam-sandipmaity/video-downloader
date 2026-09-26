@@ -8,6 +8,44 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 Nightly-only changes are tracked separately in [CHANGELOG-NIGHTLY.md](CHANGELOG-NIGHTLY.md).
 
+## [1.7.5.1] - 2026-09-27
+
+### Added
+- **Interactive FAQ & Help Center** - Added an expandable FAQ accordion, categorized troubleshooting guides (Troubleshooting, Performance, Subtitles & Audio, Private Vault), troubleshooting diagnostic wizard, copyable help items, and live app version/runtime diagnostics.
+- **Private Vault UI Redesign & Biometric Authentication** - Completely modernized the Private Vault interface with structured folder management, Biometric Prompt verification via `BiometricHelper`, configurable auto-lock timeout options, and custom auto-move URL rules.
+- **Logs & Diagnostics UI Redesign** - Modern Material 3 log cards with direct quick actions (Copy, Share, Clear, Export), tag filters, sticky search, live statistics banner, and timestamp formatting.
+- **Subtitle Selection Experience & Player Subtitle Customization** - Completely redesigned subtitle selection with dedicated Material 3 cards, quick presets (*All Native*, *English*, *Custom*), removable language chips, and video container embedding controls (embed directly in MP4/MKV or save as external `.srt`/`.vtt` sidecars).
+- **Interactive Subtitle Selection Dialog** - Added a dedicated multi-select subtitle modal dialog with real-time language search, category filter tabs (*All*, *Native*, *Auto*), horizontal selected carousel, track type badges (`NATIVE`, `ORIGINAL`, `AUTO`), format tags, and bulk actions (*Select All*, *Native Only*, *Clear*).
+- **In-Player Subtitle Appearance & Time-Sync Settings** - Added configurable subtitle styling in the video player with customizable text colors, background opacity, font scaling, edge styles, and live subtitle time-sync offset adjustments.
+- **Modern Quick Download Share Sheet Overlay** - Redesigned the quick download link share flow into a modern Material 3 Modal Bottom Sheet with rich media artwork, floating duration badge, 2-line title, uploader/domain tags, and an inline title edit modal.
+- **Immediate Categorized Audio & Video Grids** - Replaced nested menus in Quick Share with direct 2-column selectable cards for Music/Audio (MP3 320k HQ, 128k, M4A, FLAC) and Video (4K, 1080p 60fps, 720p HD, 480p, 360p) with live container badges, HQ pills, and estimated file sizes.
+- **Playlist & Album Batch Download in Quick Share Overlay** - Extended the Quick Download share bottom sheet to seamlessly handle full playlists and albums with item selection and batch queue generation.
+- **Modern Format Selection Modal Sheet & Selector Style Setting** - Introduced a modern Material 3 bottom sheet format selector with visual quality badges, stream indicator tags, FPS pills, container badges, codec and bitrate metadata, exact/estimated size highlights, and interactive stream-type filter chips (Video + Audio, Video Only, Audio Only), with configurable presentation styles (Modal Sheet vs Compact Dropdown).
+- **Battery & Performance Settings Hub** - Added dedicated Battery & Performance settings screen with configurable Battery Saver mode (`Off`, `Auto`, `Always On`), low battery pause threshold (5%–35%), customizable fragment download threads (1–16), and power-aware scheduling.
+- **Power-Aware Download Constraints & Queue Pause Banners** - Added support for "Download only while charging" and "Pause downloads on low battery" with live status banners in the Download Queue.
+- **Android OS Battery Optimization Management** - Integrated Android OS battery optimization status tracking and deep-links to request unrestricted background execution or configure system battery profiles directly.
+- **Startup Update Availability Popup** - Automatically checks for App, yt-dlp, and FFmpeg updates on app launch and displays a unified startup update dialog with "Remind Later" and version dismissal options.
+- **Cancel All Confirmation Dialog** - Added a confirmation popup when selecting the "Cancel All" batch option in the progress queue to prevent accidental cancellations.
+
+### Fixed
+- **Postprocessing Metadata Demuxer Crash** - Resolved `Error opening input files: Invalid data found when processing input` by preventing `--embed-metadata` from being passed to yt-dlp on Android (since bundled `libffmpeg.so` lacks the `ffmetadata` demuxer), allowing yt-dlp to smoothly complete container merging, thumbnail embedding via mutagen, and subtitle muxing without error.
+- **Intelligent Subtitle Defaults & Synthetic Caption Filtering** - Added `resolveDefaultSubtitleLanguages` to intelligently default to the user's preferred language / original track on videos with dozens of native tracks (such as MrBeast uploads), preventing unwanted floods of 26+ subtitle files while keeping "All Native" available as a one-tap preset. Added `--extractor-args "youtube:skip=translated_subs"` to eliminate thousands of auto-translated synthetic caption entries and prevent API rate-limiting.
+- **Enhanced Subtitle Language Names** - Improved subtitle display names to render clean, readable language names (e.g. *English (Original)*, *Spanish (Latin America)*, *Chinese (Simplified)*) instead of raw internal codes.
+- **Invalid Merge Output Format for Audio & Share Popups** - Resolved an issue where selecting audio streams or sharing links with non-container formats passed `--merge-output-format m4a` to `yt-dlp`. Added strict merge container validation ensuring only valid container formats (`mp4`, `mkv`, `webm`, etc.) are passed.
+- **Long Unicode Filenames & Filesystem Errors** - Fixed `Errno 2: No such file or directory` / `File name too long` errors on platforms like Twitter/X with mathematical bold Unicode titles by adding `--windows-filenames` and `--trim-filenames 160` to yt-dlp arguments and ensuring target parent directories exist prior to download.
+- **Thumbnail Write Failure Recovery** - Added resilient fallback retry logic in `DownloadWorker` when thumbnail writing fails during the initial download phase, falling back to seamless poster-frame generation using Android native `MediaMetadataRetriever`.
+- **Download Queue & History Layout Margins** - Fixed edge-to-edge layout clipping, margins, and card item vertical spacing across the Download Queue and Download History screens.
+- **Search Bar & Text Input Focus Dismissal** - Added background touch handlers so tapping outside active search bars or text fields immediately deactivates focus and dismisses the keyboard.
+- **Harden Vault Transactions & Media Isolation** - Rewrote the file moving pipeline (`moveToVault` and `moveFromVault`) to run atomically as a `Result` with automatic rollback, migrating all sidecar files (subtitles, thumbnails, info metadata) together and isolating media playback within the vault.
+- **Room Migration 4→5 Hardening** - Hardened Room migration 4→5 to specify `is_in_vault` as `NOT NULL DEFAULT 0` and aligned `DownloadTaskEntity` column configurations to resolve database creation and upgrade crashes.
+- **ProGuard & Minification Keeps** - Added ProGuard keep rules for `com.yausername.youtubedl_android`, Apache Commons Compress, and XZ to prevent obfuscation crashes in minified release builds.
+
+### Changed
+- **Refined Preference Navigation & Dialog Affordances** - Differentiated subpage navigation rows (`PreferenceNavigationRow`, showing `>`) from dialog picker and action rows (`PreferenceRow`, displaying clean values without misleading navigation chevrons) across all settings screens.
+- **FFmpeg Version String Formatting** - Corrected version prefix handling to avoid duplicated `vv` prefixes in update titles and simplified version display labels.
+- **App Version Bump** - Release metadata updated to `1.7.5.1` (`APP_VERSION_CODE` `34`).
+- **Nightly Promotion** - Summarized and promoted the `2.0.1.8` through `2.0.3.1` nightly changes into the stable release changelog.
+
 ## [1.7.5.0] - 2026-07-05
 
 ### Added
