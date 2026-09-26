@@ -9,6 +9,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -125,13 +126,15 @@ fun HelpScreen(
         onBack = onBack,
         modifier = modifier,
     ) {
-        // Search Bar
+        // Search Bar with 16dp margins
         item {
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Search topics (e.g. subtitles, 429, cookies, vault)...") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                placeholder = { Text("Search help topics (e.g. subtitles, 429, cookies, vault)...") },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Outlined.Search,
@@ -154,6 +157,8 @@ fun HelpScreen(
                 colors = OutlinedTextFieldDefaults.colors(
                     unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                     focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
                 ),
             )
         }
@@ -168,10 +173,11 @@ fun HelpScreen(
                 onOpenYoutubeAccess = onOpenYoutubeAccess,
                 onExportLogs = { shareAppLogs(context) },
                 onReportIssue = { openSupportIssue(context) },
+                modifier = Modifier.padding(horizontal = 16.dp),
             )
         }
 
-        // Category Filter Chips - Clean Single-Row Horizontal Scroll!
+        // Category Filter Chips - Clean Single-Row Horizontal Scroll with 16dp content padding!
         item {
             PreferenceSubtitle(text = "BROWSE BY CATEGORY")
         }
@@ -179,7 +185,7 @@ fun HelpScreen(
             LazyRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(horizontal = 2.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp),
             ) {
                 items(HelpCategory.entries) { category ->
                     FilterChip(
@@ -199,9 +205,12 @@ fun HelpScreen(
         if (filteredTopics.isEmpty()) {
             item {
                 Surface(
-                    shape = RoundedCornerShape(20.dp),
+                    shape = RoundedCornerShape(18.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
-                    modifier = Modifier.fillMaxWidth(),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
                 ) {
                     Column(
                         modifier = Modifier.padding(24.dp),
@@ -260,8 +269,12 @@ private fun HelpActionGrid(
     onOpenYoutubeAccess: () -> Unit,
     onExportLogs: () -> Unit,
     onReportIssue: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -327,9 +340,12 @@ private fun HelpActionTile(
     modifier: Modifier = Modifier,
 ) {
     Surface(
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(18.dp),
         color = containerColor,
-        modifier = modifier.clickable(onClick = onClick),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+        modifier = modifier
+            .clip(RoundedCornerShape(18.dp))
+            .clickable(onClick = onClick),
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
@@ -382,11 +398,13 @@ private fun HelpTopicCard(
     )
 
     Surface(
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(18.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(18.dp))
             .clickable(onClick = onToggle),
     ) {
         Column(
@@ -541,9 +559,12 @@ private fun HelpTopicCard(
 @Composable
 private fun SystemDiagnosticsCard() {
     Surface(
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(18.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
-        modifier = Modifier.fillMaxWidth(),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
     ) {
         Column(
             modifier = Modifier.padding(16.dp),

@@ -1,5 +1,6 @@
 package com.localdownloader.ui.screens.settings
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -21,12 +22,15 @@ import androidx.compose.material.icons.outlined.ColorLens
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.FormatColorText
 import androidx.compose.material.icons.outlined.FormatSize
+import androidx.compose.material.icons.outlined.Hd
 import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.LineWeight
+import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material.icons.outlined.VerticalAlignBottom
+import androidx.compose.material.icons.outlined.VolumeUp
 import androidx.compose.material.icons.rounded.ClosedCaption
 import androidx.compose.material.icons.rounded.FormatColorText
 import androidx.compose.material.icons.rounded.FormatSize
@@ -53,6 +57,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.text.TextStyle
@@ -323,53 +328,104 @@ private fun SubtitleLivePreviewBox(
     settings: SubtitleViewSettings,
 ) {
     Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = Color(0xFF0D1117),
+        shape = RoundedCornerShape(22.dp),
+        color = Color(0xFF090D16),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
         modifier = Modifier
             .fillMaxWidth()
-            .height(160.dp),
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .height(195.dp),
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // Simulated video background with gradient and playback icon
+            // Simulated cinematic realistic video frame background
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
-                        androidx.compose.ui.graphics.Brush.verticalGradient(
-                            colors = listOf(Color(0xFF1E293B), Color(0xFF0F172A), Color(0xFF020617)),
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color(0xFF0B132B),
+                                Color(0xFF1C2541),
+                                Color(0xFF243B55),
+                                Color(0xFF141E30),
+                                Color(0xFF050811),
+                            ),
                         ),
                     ),
             )
 
+            // Ambient lighting horizon effect
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(90.dp)
+                    .align(Alignment.Center)
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                Color(0x334F46E5),
+                                Color(0x1A38BDF8),
+                                Color.Transparent,
+                            ),
+                            radius = 400f,
+                        ),
+                    ),
+            )
+
+            // Center subtle playback watermark
             Icon(
                 imageVector = Icons.Outlined.PlayCircle,
                 contentDescription = null,
-                tint = Color.White.copy(alpha = 0.12f),
+                tint = Color.White.copy(alpha = 0.10f),
                 modifier = Modifier
-                    .size(72.dp)
+                    .size(76.dp)
                     .align(Alignment.Center),
             )
 
-            // Header watermark
+            // Top Video Player HUD (Title, Resolution, Audio track)
             Row(
                 modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(Color(0xCC000000), Color.Transparent),
+                        ),
+                    )
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF22C55E)),
-                )
-                Text(
-                    text = "Player Subtitle Display Preview",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White.copy(alpha = 0.5f),
-                    fontFamily = FontFamily.Monospace,
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF22C55E)),
+                    )
+                    Text(
+                        text = "1080p 60fps • Video Preview",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.85f),
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = Color.White.copy(alpha = 0.15f),
+                ) {
+                    Text(
+                        text = "CC LIVE",
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    )
+                }
             }
 
             // Subtitle text rendered with the chosen settings!
@@ -395,12 +451,14 @@ private fun SubtitleLivePreviewBox(
                 modifier = Modifier
                     .align(if (settings.bottomOffsetFraction > 0.5f) Alignment.TopCenter else Alignment.BottomCenter)
                     .padding(
-                        bottom = if (settings.bottomOffsetFraction > 0.5f) 0.dp else (settings.bottomOffsetFraction * 140).dp.coerceIn(8.dp, 36.dp),
-                        top = if (settings.bottomOffsetFraction > 0.5f) 28.dp else 0.dp,
+                        bottom = if (settings.bottomOffsetFraction > 0.5f) 0.dp else ((settings.bottomOffsetFraction * 130) + 38).dp.coerceIn(38.dp, 80.dp),
+                        top = if (settings.bottomOffsetFraction > 0.5f) 38.dp else 0.dp,
+                        start = 16.dp,
+                        end = 16.dp,
                     )
                     .clip(RoundedCornerShape(6.dp))
                     .background(subtitleBg)
-                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                    .padding(horizontal = 10.dp, vertical = 4.dp),
             ) {
                 Text(
                     text = "The quick brown fox jumps over the lazy dog.",
@@ -411,6 +469,80 @@ private fun SubtitleLivePreviewBox(
                     textAlign = TextAlign.Center,
                     style = TextStyle(shadow = textShadow),
                 )
+            }
+
+            // Bottom Realistic Player Controls Bar (Timecode, Scrubber & Controls)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(Color.Transparent, Color(0xEE000000)),
+                        ),
+                    )
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                // Mini Scrubber Progress Bar
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(Color.White.copy(alpha = 0.2f)),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(0.38f)
+                            .height(3.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(MaterialTheme.colorScheme.primary),
+                    )
+                }
+
+                // Controls row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.PlayArrow,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Text(
+                            text = "01:24 / 03:45",
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                            color = Color.White.copy(alpha = 0.75f),
+                            fontFamily = FontFamily.Monospace,
+                        )
+                    }
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.VolumeUp,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.75f),
+                            modifier = Modifier.size(15.dp),
+                        )
+                        Icon(
+                            imageVector = Icons.Outlined.Hd,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.75f),
+                            modifier = Modifier.size(15.dp),
+                        )
+                    }
+                }
             }
         }
     }
