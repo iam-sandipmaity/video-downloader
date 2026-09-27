@@ -24,10 +24,18 @@ Useful test command:
 ./gradlew :app:testStandardDebugUnitTest
 ```
 
+## Branching & Release Model
+
+Development uses a **3-tier branch model**:
+
+- **`nightly`**: Staging / bleeding-edge branch. Pull requests for features (`feat/*`) and bug fixes (`fix/*`) should branch off and target `nightly`.
+- **`main`**: Production stable branch. Receives merges from `nightly` when versions are promoted to stable releases.
+
+For details, see [Branching Strategy](https://github.com/iam-sandipmaity/video-downloader/blob/main/docs/BRANCHING_STRATEGY.md).
+
 ## Current Development Posture
 
-The project currently treats the `1.7.2` UI structure as a stable baseline.
-That means the best work usually falls into these groups:
+The project is on a stable `1.7.5.1` baseline. The best work usually falls into these groups:
 
 - fixing downloader or runtime regressions
 - tightening queue and recovery behavior

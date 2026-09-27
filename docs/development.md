@@ -26,10 +26,18 @@ If you are working on custom FFmpeg ABI packaging, also review
 ./gradlew :app:testStandardDebugUnitTest
 ```
 
+## Branching & Release Lifecycle
+
+Development follows a **3-tier branch model**:
+
+- **`nightly`**: Active staging branch. Feature branches (`feat/*`) and bug fixes (`fix/*`) should branch from and target `nightly` via Pull Request.
+- **`main`**: Production stable branch. Receives tested merges from `nightly` for stable releases.
+
+For comprehensive details on branches and release automation, see [BRANCHING_STRATEGY.md](BRANCHING_STRATEGY.md).
+
 ## Working Style For This Repo
 
-This project is currently on a stable `1.7.2` baseline. Most good work falls
-into one of these groups:
+This project is on a stable `1.7.5.1` baseline. Most work falls into one of these groups:
 
 - fixing downloader/runtime regressions
 - tightening queue and recovery behavior

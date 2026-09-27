@@ -104,7 +104,7 @@ Stable downloads use GitHub's latest release endpoint, which tracks the newest n
 </p>
 
 <p align="center">
-  <strong>Rolling nightly release tag</strong> — always points to the newest successful <code>main</code> debug build
+  <strong>Rolling nightly release tag</strong> — always points to the newest successful nightly build
 </p>
 
 Nightly downloads use the rolling `nightly` release tag, which is separate from stable releases. Nightly-only changes are tracked in [CHANGELOG-NIGHTLY.md](CHANGELOG-NIGHTLY.md).
@@ -369,6 +369,7 @@ app/build/outputs/apk/repoSafe/debug/app-repoSafe-debug.apk
 - [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)
 - [SECURITY.md](SECURITY.md)
 - [CONTRIBUTING.md](CONTRIBUTING.md)
+- [docs/BRANCHING_STRATEGY.md](docs/BRANCHING_STRATEGY.md)
 - [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 - [PROJECT_AUDIT.md](PROJECT_AUDIT.md)
 - [future-plan.md](future-plan.md)

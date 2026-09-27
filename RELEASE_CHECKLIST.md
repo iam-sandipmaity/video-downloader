@@ -1,43 +1,49 @@
 # Release Checklist
 
-Use this checklist before tagging or publishing a new app release.
+Use this checklist before publishing a new app release or promoting Nightly changes to Stable.
+For full details on the branching workflow, see [docs/BRANCHING_STRATEGY.md](docs/BRANCHING_STRATEGY.md).
 
-## Metadata
+---
 
-- confirm `APP_VERSION_CODE` is incremented
-- confirm `APP_VERSION_NAME` matches the intended release
-- confirm `CHANGELOG.md` has the correct release entry and date
+## 🌙 Nightly Pre-release Checklist
 
-## Build And Runtime
+Nightly builds are automatically generated and published on every merge to `nightly` (and via daily 03:00 UTC cron).
 
-- run `gradle :app:assembleDebug`
-- run unit tests when practical
-- confirm update flows still gate correctly while downloads are active
-- confirm no new runtime-selection regressions in `yt-dlp` or FFmpeg paths
+- [ ] Confirm changes are merged into the `nightly` branch
+- [ ] If bumping nightly version, update `NIGHTLY_VERSION_CODE` and `NIGHTLY_VERSION_NAME` in `gradle.properties`
+- [ ] Document new features and bugfixes in `CHANGELOG-NIGHTLY.md`
+- [ ] Verify GitHub Actions `release-nightly` completes successfully and updates the `nightly` release tag
 
-## UI And Product Check
+---
 
-- verify Home / Browse still analyzes and opens the download sheet
-- verify single-file download flow
-- verify playlist download flow
-- verify queue, history, and downloads screens
-- verify Cookies and YouTube access screens
-- verify converter and compressor basic flows
+## 🚀 Stable Release Checklist (Promoting Nightly to Main)
 
-## Localization
+### 1. Metadata & Versioning
+- [ ] Merge tested changes from `nightly` into a release PR targeting `main`
+- [ ] Increment `APP_VERSION_CODE` in `gradle.properties` (must be strictly greater than previous release)
+- [ ] Set `APP_VERSION_NAME` to the new stable version (e.g. `1.7.6.0`)
+- [ ] Move/summarize recent entries from `CHANGELOG-NIGHTLY.md` into `CHANGELOG.md` under `## [X.Y.Z] - YYYY-MM-DD`
 
-- check supported languages for obvious fallback-to-English regressions
-- check long titles, buttons, and empty states for clipping
-- check plural/count strings where recent changes touched them
+### 2. Build & Automated Tests
+- [ ] Run `./gradlew :app:assembleStandardDebug`
+- [ ] Run `./gradlew :app:testStandardDebugUnitTest`
+- [ ] Confirm no minification/ProGuard issues with `./gradlew :app:assembleStandardRelease`
+- [ ] Confirm update flows still gate correctly while downloads are active
+- [ ] Confirm no new runtime-selection regressions in `yt-dlp` or FFmpeg paths
 
-## Docs And Repo
+### 3. UI & Core Feature Verification
+- [ ] Verify Home / Browse analysis and download bottom sheet
+- [ ] Verify single-file and playlist download flows
+- [ ] Verify queue, history, and vault screens
+- [ ] Verify subtitle selection and in-player rendering
+- [ ] Verify converter and compressor basic flows
 
-- confirm README screenshots match the current UI
-- confirm README / compatibility / implementation notes are still accurate
-- confirm `LICENSE`, `SECURITY.md`, `CONTRIBUTING.md`, and issue/PR templates are present
+### 4. Localization & Documentation
+- [ ] Check supported languages for fallback-to-English regressions
+- [ ] Check long titles, buttons, and empty states for clipping
+- [ ] Confirm README screenshots and compatibility notes are still accurate
 
-## Release Confidence
-
-- review exported logs only if troubleshooting was needed
-- verify no secrets, cookies, personal logs, or keystore files are staged
-- verify the working tree is clean before tagging or pushing release commits
+### 5. Release Publication
+- [ ] Merge the release PR into `main`
+- [ ] GitHub Actions `release-main` will automatically build the signed release APK and create the GitHub release
+- [ ] Sync `main` back into `nightly` (`git checkout nightly && git merge main && git push origin nightly`)

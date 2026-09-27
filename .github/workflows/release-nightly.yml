@@ -89,7 +89,7 @@ jobs:
           mv "$APK_SOURCE" "$APK_DIR/nightly-${VERSION}.apk"
 
       - name: Refresh nightly tag
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: github.event_name != 'pull_request'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -97,7 +97,7 @@ jobs:
           git push origin refs/tags/nightly --force
 
       - name: Create nightly GitHub prerelease
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
         with:
           tag_name: nightly
@@ -107,7 +107,7 @@ jobs:
           files: app/build/outputs/apk/standard/nightly/nightly-*.apk
 
       - name: Update nightly release notes
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.version_name }}

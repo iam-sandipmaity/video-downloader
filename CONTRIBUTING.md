@@ -2,8 +2,7 @@
 
 Thanks for contributing to Video Downloader.
 
-The current stable public release is `1.7.2`. The main UI and screen structure
-are considered settled for now, so most near-term work should improve one of
+The current stable public release baseline is `1.7.5.1`. Most work improves one of
 these areas:
 
 - download compatibility and extractor regressions
@@ -12,24 +11,26 @@ these areas:
 - documentation accuracy
 - test coverage and internal logic hardening
 
-## Versioning Flow
+## Branching & Release Model
 
-Ongoing work on top of the stable `1.7.2` line may appear first as:
+We use a **3-tier branch structure**:
 
-- `1.7.2.0`, `1.7.2.1`, and similar patch-line builds
-- optionally suffixed builds such as `1.7.2.0-alpha`, `1.7.2.0-beta`, or `1.7.2.0-test`
+```
+Feature / Fix Branch  ──►  nightly (Staging)  ──►  main (Production Stable)
+```
 
-Once a change set is considered tested and stable enough for normal users, the
-next stable release moves forward to `1.7.3`.
+- **Target `nightly` for all Pull Requests**: Feature branches and bug fixes should branch off `nightly` and target `nightly` in Pull Requests.
+- **Nightly Releases**: Merges to `nightly` trigger automated nightly APK builds published under the rolling `nightly` pre-release tag.
+- **Stable Releases**: Merges from `nightly` into `main` trigger production releases after testing and version bumps.
 
-In short: patch-line prereleases can move within the current stable family, and
-the stable number only advances after that work is validated.
+For full details and maintainer release checklists, see [docs/BRANCHING_STRATEGY.md](docs/BRANCHING_STRATEGY.md).
 
 ## Before You Start
 
 Please read these first:
 
 - [README.md](README.md)
+- [docs/BRANCHING_STRATEGY.md](docs/BRANCHING_STRATEGY.md)
 - [SECURITY.md](SECURITY.md)
 - [COMPATIBILITY.md](COMPATIBILITY.md)
 - [docs/development.md](docs/development.md)
@@ -56,7 +57,8 @@ Please read these first:
 ```bash
 git clone https://github.com/iam-sandipmaity/video-downloader
 cd video-downloader
-gradle :app:assembleDebug
+git checkout nightly
+./gradlew :app:assembleStandardDebug
 ```
 
 If you are working on a custom FFmpeg ABI or runtime packaging scenario, also
@@ -79,8 +81,8 @@ A good PR usually includes:
 Before opening a PR, run what is practical for the change:
 
 ```bash
-gradle :app:assembleDebug
-gradle :app:testDebugUnitTest
+./gradlew :app:assembleStandardDebug
+./gradlew :app:testStandardDebugUnitTest
 ```
 
 If you cannot run one of those locally, say so in the PR.
