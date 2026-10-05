@@ -2159,7 +2159,7 @@ private fun LyricsSheet(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                text = "Timing offset: " + (if (syncOffsetMs >= 0) "+" + str(syncOffsetMs) else str(syncOffsetMs)) + "ms",
+                                text = "Timing offset: ${if (syncOffsetMs >= 0) "+$syncOffsetMs" else "$syncOffsetMs"}ms",
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.onSurface,
