@@ -1296,7 +1296,7 @@ class DownloadWorker @AssistedInject constructor(
 
     private fun isSupportedSubtitlePath(path: String): Boolean {
         return when (File(path).extension.lowercase()) {
-            "srt", "vtt", "webvtt", "ass", "ssa", "ttml", "dfxp", "xml" -> true
+            "lrc", "srt", "vtt", "webvtt", "ass", "ssa", "ttml", "dfxp", "xml" -> true
             else -> false
         }
     }
