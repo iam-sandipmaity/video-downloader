@@ -39,7 +39,26 @@ data class LyricsDocument(
         }
         return candidate
     }
+
+    fun getLyricWindow(centerIndex: Int, radius: Int = 3): List<WindowedLyric> {
+        val effectiveCenter = if (centerIndex >= 0) centerIndex else 0
+        return (-radius..radius).map { offset ->
+            val idx = effectiveCenter + offset
+            val lyricLine = lines.getOrNull(idx)
+            WindowedLyric(
+                relativeOffset = offset,
+                lineIndex = idx,
+                line = lyricLine,
+            )
+        }
+    }
 }
+
+data class WindowedLyric(
+    val relativeOffset: Int,
+    val lineIndex: Int,
+    val line: LyricLine?,
+)
 
 data class LyricsTrackOption(
     val id: String,

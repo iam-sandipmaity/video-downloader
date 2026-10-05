@@ -48,6 +48,7 @@ import androidx.compose.material.icons.outlined.PauseCircle
 import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material.icons.outlined.QueueMusic
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -56,6 +57,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.outlined.Launch
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.RepeatOne
 import androidx.compose.material.icons.outlined.Edit
@@ -132,7 +134,9 @@ import com.localdownloader.viewmodel.DownloadUiState
 import com.localdownloader.viewmodel.MusicSourceUiState
 import com.localdownloader.viewmodel.MusicTrimUiState
 import java.io.File
+import kotlin.math.abs
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -331,6 +335,55 @@ fun MusicPlayerScreen(
     }
     val queueDisplayAudioItems = remember(queueDisplayItems) { queueDisplayItems.toAudioQueueItems() }
 
+    val matchingTask = remember(currentItem, uiState.tasks) {
+        currentItem?.let { item ->
+            uiState.tasks.firstOrNull { it.id == item.appTaskId || it.id == item.id }
+        }
+    }
+    val explicitSubtitlePaths = remember(matchingTask) {
+        matchingTask?.subtitlePaths.orEmpty()
+    }
+
+    var discoveredLyricsTracks by remember(currentItem?.id) { mutableStateOf<List<LyricsTrackOption>>(emptyList()) }
+    var selectedLyricsTrackId by remember(currentItem?.id) { mutableStateOf<String?>(null) }
+    var customLyricsUri by remember(currentItem?.id) { mutableStateOf<Uri?>(null) }
+    var lyricsDoc by remember(currentItem?.id, selectedLyricsTrackId, customLyricsUri) { mutableStateOf<LyricsDocument?>(null) }
+    var isLyricsLoading by remember { mutableStateOf(false) }
+    var lyricsSyncOffsetMs by remember(currentItem?.id) { mutableLongStateOf(0L) }
+
+    LaunchedEffect(currentItem?.id, explicitSubtitlePaths) {
+        val current = currentItem ?: return@LaunchedEffect
+        val tracks = withContext(Dispatchers.IO) {
+            LyricsResolver.discoverLyricsTracks(current, explicitSubtitlePaths)
+        }
+        discoveredLyricsTracks = tracks
+        if (customLyricsUri == null && (selectedLyricsTrackId == null || tracks.none { it.id == selectedLyricsTrackId })) {
+            selectedLyricsTrackId = tracks.firstOrNull()?.id
+        }
+    }
+
+    LaunchedEffect(currentItem?.id, selectedLyricsTrackId, customLyricsUri) {
+        val targetPath = when {
+            customLyricsUri != null -> customLyricsUri.toString()
+            selectedLyricsTrackId != null -> discoveredLyricsTracks.firstOrNull { it.id == selectedLyricsTrackId }?.filePath
+            else -> null
+        }
+        if (targetPath != null) {
+            isLyricsLoading = true
+            lyricsDoc = withContext(Dispatchers.IO) {
+                LyricsResolver.loadLyrics(context, targetPath)
+            }
+            isLyricsLoading = false
+        } else {
+            lyricsDoc = null
+        }
+    }
+
+    val effectiveLyricsPosition = (audioPlaybackState.positionMs + lyricsSyncOffsetMs).coerceAtLeast(0L)
+    val activeLyricIndex = remember(lyricsDoc, effectiveLyricsPosition) {
+        lyricsDoc?.getActiveIndex(effectiveLyricsPosition) ?: -1
+    }
+
     if (activeSheet == PlayerSheet.Source) {
         MusicSourceSheet(
             musicSourceState = musicSourceState,
@@ -384,10 +437,22 @@ fun MusicPlayerScreen(
                 },
             )
             PlayerSheet.Lyrics -> {
-                val matchingTask = uiState.tasks.firstOrNull { it.id == currentItem.appTaskId || it.id == currentItem.id }
                 LyricsSheet(
                     item = currentItem,
-                    explicitSubtitlePaths = matchingTask?.subtitlePaths.orEmpty(),
+                    discoveredTracks = discoveredLyricsTracks,
+                    selectedTrackId = selectedLyricsTrackId,
+                    onSelectTrackId = {
+                        customLyricsUri = null
+                        selectedLyricsTrackId = it
+                    },
+                    lyricsDoc = lyricsDoc,
+                    isLoading = isLyricsLoading,
+                    syncOffsetMs = lyricsSyncOffsetMs,
+                    onUpdateSyncOffsetMs = { lyricsSyncOffsetMs = it },
+                    onImportLyricsUri = {
+                        customLyricsUri = it
+                        selectedLyricsTrackId = null
+                    },
                     currentPositionMs = audioPlaybackState.positionMs,
                     isPlaying = audioPlaybackState.isPlaying,
                     onSeekAudioTo = onSeekAudioTo,
@@ -593,6 +658,10 @@ fun MusicPlayerScreen(
                 onOptions = { activeSheet = PlayerSheet.More },
                 onBack = onBack,
                 onDismissAudioError = onDismissAudioError,
+                lyricsDoc = lyricsDoc,
+                activeLyricIndex = activeLyricIndex,
+                lyricsSyncOffsetMs = lyricsSyncOffsetMs,
+                isLyricsLoading = isLyricsLoading,
                 showSourcePicker = !isPlayingFromVault,
             )
 
@@ -638,6 +707,10 @@ private fun NowPlayingDeck(
     onOptions: () -> Unit,
     onBack: () -> Unit,
     onDismissAudioError: () -> Unit,
+    lyricsDoc: LyricsDocument?,
+    activeLyricIndex: Int,
+    lyricsSyncOffsetMs: Long,
+    isLyricsLoading: Boolean,
     showSourcePicker: Boolean = true,
 ) {
     val title = item?.title ?: "Music player"
@@ -915,6 +988,16 @@ private fun NowPlayingDeck(
                         onClick = onCycleAudioRepeatMode,
                     )
                 }
+
+                DockedLyricsCard(
+                    lyricsDoc = lyricsDoc,
+                    activeLyricIndex = activeLyricIndex,
+                    syncOffsetMs = lyricsSyncOffsetMs,
+                    isLoading = isLyricsLoading,
+                    accentColor = accentColor,
+                    onSeekAudioTo = onSeekAudioTo,
+                    onOpenLyrics = onOpenLyrics,
+                )
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1645,27 +1728,246 @@ private fun PlayerOptionsSheet(
     }
 }
 
+@Composable
+private fun DockedLyricsCard(
+    lyricsDoc: LyricsDocument?,
+    activeLyricIndex: Int,
+    syncOffsetMs: Long,
+    isLoading: Boolean,
+    accentColor: Color,
+    onSeekAudioTo: (Long) -> Unit,
+    onOpenLyrics: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp)),
+        color = Color.White.copy(alpha = 0.07f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.GraphicEq,
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text(
+                        text = "Lyrics",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                    )
+                    if (lyricsDoc?.isSynced == true) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = accentColor.copy(alpha = 0.22f),
+                        ) {
+                            Text(
+                                text = "Synced",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    }
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(onClick = onOpenLyrics)
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                ) {
+                    Text(
+                        text = "Full View",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.75f),
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Icon(
+                        imageVector = Icons.Outlined.Launch,
+                        contentDescription = "Expand lyrics",
+                        tint = Color.White.copy(alpha = 0.75f),
+                        modifier = Modifier.size(14.dp),
+                    )
+                }
+            }
+
+            when {
+                isLoading -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(180.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = accentColor,
+                            strokeWidth = 2.dp,
+                        )
+                    }
+                }
+                lyricsDoc == null || lyricsDoc.isEmpty -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable(onClick = onOpenLyrics)
+                            .padding(vertical = 18.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text(
+                            text = "No synced lyrics available",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White.copy(alpha = 0.60f),
+                        )
+                        Text(
+                            text = "Tap to import or view full sheet",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = accentColor,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
+                lyricsDoc.isSynced -> {
+                    val window = lyricsDoc.getLyricWindow(centerIndex = activeLyricIndex, radius = 3)
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        window.forEach { windowItem ->
+                            val isCurrent = windowItem.relativeOffset == 0
+                            val alpha = when (abs(windowItem.relativeOffset)) {
+                                0 -> 1.0f
+                                1 -> 0.60f
+                                2 -> 0.38f
+                                3 -> 0.20f
+                                else -> 0.15f
+                            }
+                            val line = windowItem.line
+                            val lineText = line?.text?.ifBlank { "♪  ♪  ♪" } ?: " "
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(
+                                        if (isCurrent) accentColor.copy(alpha = 0.26f)
+                                        else Color.Transparent
+                                    )
+                                    .then(
+                                        if (line != null) {
+                                            Modifier.clickable {
+                                                val target = (line.startTimeMs - syncOffsetMs).coerceAtLeast(0L)
+                                                onSeekAudioTo(target)
+                                            }
+                                        } else Modifier
+                                    )
+                                    .padding(horizontal = 10.dp, vertical = if (isCurrent) 6.dp else 3.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = lineText,
+                                    style = if (isCurrent) {
+                                        MaterialTheme.typography.titleMedium
+                                    } else if (abs(windowItem.relativeOffset) == 1) {
+                                        MaterialTheme.typography.bodyMedium
+                                    } else {
+                                        MaterialTheme.typography.bodySmall
+                                    },
+                                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isCurrent) Color.White else Color.White.copy(alpha = alpha),
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.alpha(if (isCurrent) 1.0f else alpha),
+                                )
+                            }
+                        }
+                    }
+                }
+                else -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable(onClick = onOpenLyrics)
+                            .padding(vertical = 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        lyricsDoc.lines.take(5).forEach { line ->
+                            Text(
+                                text = line.text,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.White.copy(alpha = 0.70f),
+                                textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        Text(
+                            text = "Tap for full lyrics",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = accentColor,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LyricsSheet(
     item: MusicLibraryTrack,
-    explicitSubtitlePaths: List<String>,
+    discoveredTracks: List<LyricsTrackOption>,
+    selectedTrackId: String?,
+    onSelectTrackId: (String) -> Unit,
+    lyricsDoc: LyricsDocument?,
+    isLoading: Boolean,
+    syncOffsetMs: Long,
+    onUpdateSyncOffsetMs: (Long) -> Unit,
+    onImportLyricsUri: (Uri) -> Unit,
     currentPositionMs: Long,
     isPlaying: Boolean,
     onSeekAudioTo: (Long) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
-    var discoveredTracks by remember(item.id) { mutableStateOf<List<LyricsTrackOption>>(emptyList()) }
-    var selectedTrackId by remember(item.id) { mutableStateOf<String?>(null) }
-    var customLyricsUri by remember(item.id) { mutableStateOf<Uri?>(null) }
-    var lyricsDoc by remember(item.id, selectedTrackId, customLyricsUri) { mutableStateOf<LyricsDocument?>(null) }
-    var isLoading by remember { mutableStateOf(false) }
-    var syncOffsetMs by remember(item.id) { mutableLongStateOf(0L) }
     var showOffsetControls by remember { mutableStateOf(false) }
     var showTrackMenu by remember { mutableStateOf(false) }
-    var autoScrollEnabled by remember { mutableStateOf(true) }
+    var userScrolledManually by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
+    val isDragged by listState.interactionSource.collectIsDraggedAsState()
 
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
@@ -1677,34 +1979,15 @@ private fun LyricsSheet(
                 Intent.FLAG_GRANT_READ_URI_PERMISSION,
             )
         }
-        customLyricsUri = uri
-        selectedTrackId = null
+        onImportLyricsUri(uri)
     }
 
-    LaunchedEffect(item.id, explicitSubtitlePaths) {
-        val tracks = withContext(Dispatchers.IO) {
-            LyricsResolver.discoverLyricsTracks(item, explicitSubtitlePaths)
-        }
-        discoveredTracks = tracks
-        if (customLyricsUri == null && (selectedTrackId == null || tracks.none { it.id == selectedTrackId })) {
-            selectedTrackId = tracks.firstOrNull()?.id
-        }
-    }
-
-    LaunchedEffect(item.id, selectedTrackId, customLyricsUri) {
-        val targetPath = when {
-            customLyricsUri != null -> customLyricsUri.toString()
-            selectedTrackId != null -> discoveredTracks.firstOrNull { it.id == selectedTrackId }?.filePath
-            else -> null
-        }
-        if (targetPath != null) {
-            isLoading = true
-            lyricsDoc = withContext(Dispatchers.IO) {
-                LyricsResolver.loadLyrics(context, targetPath)
-            }
-            isLoading = false
-        } else {
-            lyricsDoc = null
+    LaunchedEffect(isDragged) {
+        if (isDragged) {
+            userScrolledManually = true
+        } else if (userScrolledManually) {
+            delay(3000L)
+            userScrolledManually = false
         }
     }
 
@@ -1713,18 +1996,12 @@ private fun LyricsSheet(
         lyricsDoc?.getActiveIndex(effectivePosition) ?: -1
     }
 
-    LaunchedEffect(activeIndex, autoScrollEnabled, isPlaying) {
-        if (autoScrollEnabled && activeIndex >= 0 && lyricsDoc?.isSynced == true && !listState.isScrollInProgress) {
+    LaunchedEffect(activeIndex, userScrolledManually, isPlaying) {
+        if (!userScrolledManually && activeIndex >= 0 && lyricsDoc?.isSynced == true) {
             listState.animateScrollToItem(
                 index = (activeIndex - 2).coerceAtLeast(0),
                 scrollOffset = 0,
             )
-        }
-    }
-
-    LaunchedEffect(listState.isScrollInProgress) {
-        if (listState.isScrollInProgress) {
-            autoScrollEnabled = false
         }
     }
 
@@ -1820,8 +2097,7 @@ private fun LyricsSheet(
                                             }
                                         },
                                         onClick = {
-                                            customLyricsUri = null
-                                            selectedTrackId = track.id
+                                            onSelectTrackId(track.id)
                                             showTrackMenu = false
                                         },
                                     )
@@ -1883,14 +2159,14 @@ private fun LyricsSheet(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                text = "Timing offset: ${if (syncOffsetMs >= 0) "+$syncOffsetMs" else "$syncOffsetMs"}ms",
+                                text = "Timing offset: " + (if (syncOffsetMs >= 0) "+" + str(syncOffsetMs) else str(syncOffsetMs)) + "ms",
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
                             if (syncOffsetMs != 0L) {
                                 TextButton(
-                                    onClick = { syncOffsetMs = 0L },
+                                    onClick = { onUpdateSyncOffsetMs(0L) },
                                     contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 0.dp),
                                 ) {
                                     Text("Reset", style = MaterialTheme.typography.labelSmall)
@@ -1902,28 +2178,28 @@ private fun LyricsSheet(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             OutlinedButton(
-                                onClick = { syncOffsetMs -= 500L },
+                                onClick = { onUpdateSyncOffsetMs(syncOffsetMs - 500L) },
                                 modifier = Modifier.weight(1f).height(32.dp),
                                 contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
                             ) {
                                 Text("-0.5s", style = MaterialTheme.typography.labelSmall)
                             }
                             OutlinedButton(
-                                onClick = { syncOffsetMs -= 100L },
+                                onClick = { onUpdateSyncOffsetMs(syncOffsetMs - 100L) },
                                 modifier = Modifier.weight(1f).height(32.dp),
                                 contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
                             ) {
                                 Text("-0.1s", style = MaterialTheme.typography.labelSmall)
                             }
                             OutlinedButton(
-                                onClick = { syncOffsetMs += 100L },
+                                onClick = { onUpdateSyncOffsetMs(syncOffsetMs + 100L) },
                                 modifier = Modifier.weight(1f).height(32.dp),
                                 contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
                             ) {
                                 Text("+0.1s", style = MaterialTheme.typography.labelSmall)
                             }
                             OutlinedButton(
-                                onClick = { syncOffsetMs += 500L },
+                                onClick = { onUpdateSyncOffsetMs(syncOffsetMs + 500L) },
                                 modifier = Modifier.weight(1f).height(32.dp),
                                 contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
                             ) {
@@ -1944,7 +2220,7 @@ private fun LyricsSheet(
                     isLoading -> {
                         CircularProgressIndicator(modifier = Modifier.size(36.dp))
                     }
-                    lyricsDoc == null || lyricsDoc?.isEmpty == true -> {
+                    lyricsDoc == null || lyricsDoc.isEmpty -> {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -1986,8 +2262,7 @@ private fun LyricsSheet(
                             }
                         }
                     }
-                    lyricsDoc?.isSynced == true -> {
-                        val doc = lyricsDoc!!
+                    lyricsDoc.isSynced -> {
                         Box(modifier = Modifier.fillMaxSize()) {
                             LazyColumn(
                                 state = listState,
@@ -2000,7 +2275,7 @@ private fun LyricsSheet(
                                     end = 4.dp,
                                 ),
                             ) {
-                                itemsIndexed(doc.lines) { index, line ->
+                                itemsIndexed(lyricsDoc.lines) { index, line ->
                                     val isActive = index == activeIndex
                                     val alpha by animateFloatAsState(
                                         targetValue = if (isActive) 1.0f else 0.42f,
@@ -2018,7 +2293,7 @@ private fun LyricsSheet(
                                             .clickable {
                                                 val target = (line.startTimeMs - syncOffsetMs).coerceAtLeast(0L)
                                                 onSeekAudioTo(target)
-                                                autoScrollEnabled = true
+                                                userScrolledManually = false
                                             }
                                             .padding(horizontal = 14.dp, vertical = 10.dp),
                                     ) {
@@ -2033,7 +2308,7 @@ private fun LyricsSheet(
                                 }
                             }
 
-                            if (!autoScrollEnabled && activeIndex >= 0) {
+                            if (userScrolledManually && activeIndex >= 0) {
                                 Surface(
                                     shape = CircleShape,
                                     color = MaterialTheme.colorScheme.primary,
@@ -2042,7 +2317,7 @@ private fun LyricsSheet(
                                         .align(Alignment.BottomCenter)
                                         .padding(bottom = 12.dp)
                                         .clickable {
-                                            autoScrollEnabled = true
+                                            userScrolledManually = false
                                         },
                                 ) {
                                     Row(
@@ -2068,7 +2343,6 @@ private fun LyricsSheet(
                         }
                     }
                     else -> {
-                        val doc = lyricsDoc!!
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -2076,7 +2350,7 @@ private fun LyricsSheet(
                                 .padding(vertical = 12.dp, horizontal = 8.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
-                            doc.lines.forEach { line ->
+                            lyricsDoc.lines.forEach { line ->
                                 Text(
                                     text = line.text,
                                     style = MaterialTheme.typography.bodyLarge,

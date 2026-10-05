@@ -156,4 +156,27 @@ class LyricsParserTest {
         assertEquals(2, doc.getActiveIndex(10000L))
         assertEquals(2, doc.getActiveIndex(20000L))
     }
+
+    @Test
+    fun lyricsDocument_getLyricWindow_returns7ItemsCentered() {
+        val lines = (0..10).map { i -> LyricLine(startTimeMs = i * 1000L, text = "Line $i") }
+        val doc = LyricsDocument(lines = lines, isSynced = true)
+
+        val window = doc.getLyricWindow(centerIndex = 5, radius = 3)
+        assertEquals(7, window.size)
+        assertEquals(-3, window[0].relativeOffset)
+        assertEquals("Line 2", window[0].line?.text)
+        assertEquals(0, window[3].relativeOffset)
+        assertEquals("Line 5", window[3].line?.text)
+        assertEquals(3, window[6].relativeOffset)
+        assertEquals("Line 8", window[6].line?.text)
+
+        val startWindow = doc.getLyricWindow(centerIndex = 0, radius = 3)
+        assertEquals(7, startWindow.size)
+        assertEquals(null, startWindow[0].line) // index -3 is null
+        assertEquals(null, startWindow[1].line) // index -2 is null
+        assertEquals(null, startWindow[2].line) // index -1 is null
+        assertEquals("Line 0", startWindow[3].line?.text)
+        assertEquals("Line 1", startWindow[4].line?.text)
+    }
 }
