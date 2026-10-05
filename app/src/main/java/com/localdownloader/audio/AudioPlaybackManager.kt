@@ -421,7 +421,7 @@ class AudioPlaybackManager @Inject constructor(
     }
 
     companion object {
-        private const val PROGRESS_UPDATE_MS = 1_000L
+        private const val PROGRESS_UPDATE_MS = 250L
         const val SEEK_INCREMENT_MS = 10_000L
     }
 }

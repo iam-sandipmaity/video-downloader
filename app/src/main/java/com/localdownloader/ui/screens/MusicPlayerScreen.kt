@@ -47,6 +47,17 @@ import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.PauseCircle
 import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material.icons.outlined.QueueMusic
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.FileOpen
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.outlined.Launch
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.RepeatOne
 import androidx.compose.material.icons.outlined.Edit
@@ -54,7 +65,13 @@ import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Shuffle
 import androidx.compose.material.icons.outlined.SkipNext
 import androidx.compose.material.icons.outlined.SkipPrevious
+import androidx.compose.material.icons.outlined.Subtitles
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -71,12 +88,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.localdownloader.media.lyrics.LyricLine
+import com.localdownloader.media.lyrics.LyricsDocument
+import com.localdownloader.media.lyrics.LyricsParser
+import com.localdownloader.media.lyrics.LyricsResolver
+import com.localdownloader.media.lyrics.LyricsTrackOption
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
@@ -111,7 +134,9 @@ import com.localdownloader.viewmodel.DownloadUiState
 import com.localdownloader.viewmodel.MusicSourceUiState
 import com.localdownloader.viewmodel.MusicTrimUiState
 import java.io.File
+import kotlin.math.abs
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -310,6 +335,55 @@ fun MusicPlayerScreen(
     }
     val queueDisplayAudioItems = remember(queueDisplayItems) { queueDisplayItems.toAudioQueueItems() }
 
+    val matchingTask = remember(currentItem, uiState.tasks) {
+        currentItem?.let { item ->
+            uiState.tasks.firstOrNull { it.id == item.appTaskId || it.id == item.id }
+        }
+    }
+    val explicitSubtitlePaths = remember(matchingTask) {
+        matchingTask?.subtitlePaths.orEmpty()
+    }
+
+    var discoveredLyricsTracks by remember(currentItem?.id) { mutableStateOf<List<LyricsTrackOption>>(emptyList()) }
+    var selectedLyricsTrackId by remember(currentItem?.id) { mutableStateOf<String?>(null) }
+    var customLyricsUri by remember(currentItem?.id) { mutableStateOf<Uri?>(null) }
+    var lyricsDoc by remember(currentItem?.id, selectedLyricsTrackId, customLyricsUri) { mutableStateOf<LyricsDocument?>(null) }
+    var isLyricsLoading by remember { mutableStateOf(false) }
+    var lyricsSyncOffsetMs by remember(currentItem?.id) { mutableLongStateOf(0L) }
+
+    LaunchedEffect(currentItem?.id, explicitSubtitlePaths) {
+        val current = currentItem ?: return@LaunchedEffect
+        val tracks = withContext(Dispatchers.IO) {
+            LyricsResolver.discoverLyricsTracks(current, explicitSubtitlePaths)
+        }
+        discoveredLyricsTracks = tracks
+        if (customLyricsUri == null && (selectedLyricsTrackId == null || tracks.none { it.id == selectedLyricsTrackId })) {
+            selectedLyricsTrackId = tracks.firstOrNull()?.id
+        }
+    }
+
+    LaunchedEffect(currentItem?.id, selectedLyricsTrackId, customLyricsUri) {
+        val targetPath = when {
+            customLyricsUri != null -> customLyricsUri.toString()
+            selectedLyricsTrackId != null -> discoveredLyricsTracks.firstOrNull { it.id == selectedLyricsTrackId }?.filePath
+            else -> null
+        }
+        if (targetPath != null) {
+            isLyricsLoading = true
+            lyricsDoc = withContext(Dispatchers.IO) {
+                LyricsResolver.loadLyrics(context, targetPath)
+            }
+            isLyricsLoading = false
+        } else {
+            lyricsDoc = null
+        }
+    }
+
+    val effectiveLyricsPosition = (audioPlaybackState.positionMs + lyricsSyncOffsetMs).coerceAtLeast(0L)
+    val activeLyricIndex = remember(lyricsDoc, effectiveLyricsPosition) {
+        lyricsDoc?.getActiveIndex(effectiveLyricsPosition) ?: -1
+    }
+
     if (activeSheet == PlayerSheet.Source) {
         MusicSourceSheet(
             musicSourceState = musicSourceState,
@@ -362,10 +436,29 @@ fun MusicPlayerScreen(
                     activeSheet = null
                 },
             )
-            PlayerSheet.Lyrics -> LyricsSheet(
-                item = currentItem,
-                onDismiss = { activeSheet = null },
-            )
+            PlayerSheet.Lyrics -> {
+                LyricsSheet(
+                    item = currentItem,
+                    discoveredTracks = discoveredLyricsTracks,
+                    selectedTrackId = selectedLyricsTrackId,
+                    onSelectTrackId = {
+                        customLyricsUri = null
+                        selectedLyricsTrackId = it
+                    },
+                    lyricsDoc = lyricsDoc,
+                    isLoading = isLyricsLoading,
+                    syncOffsetMs = lyricsSyncOffsetMs,
+                    onUpdateSyncOffsetMs = { lyricsSyncOffsetMs = it },
+                    onImportLyricsUri = {
+                        customLyricsUri = it
+                        selectedLyricsTrackId = null
+                    },
+                    currentPositionMs = audioPlaybackState.positionMs,
+                    isPlaying = audioPlaybackState.isPlaying,
+                    onSeekAudioTo = onSeekAudioTo,
+                    onDismiss = { activeSheet = null },
+                )
+            }
             PlayerSheet.Queue -> PlayingQueueSheet(
                 audioItems = queueDisplayItems,
                 audioPlaybackState = audioPlaybackState,
@@ -565,6 +658,10 @@ fun MusicPlayerScreen(
                 onOptions = { activeSheet = PlayerSheet.More },
                 onBack = onBack,
                 onDismissAudioError = onDismissAudioError,
+                lyricsDoc = lyricsDoc,
+                activeLyricIndex = activeLyricIndex,
+                lyricsSyncOffsetMs = lyricsSyncOffsetMs,
+                isLyricsLoading = isLyricsLoading,
                 showSourcePicker = !isPlayingFromVault,
             )
 
@@ -610,6 +707,10 @@ private fun NowPlayingDeck(
     onOptions: () -> Unit,
     onBack: () -> Unit,
     onDismissAudioError: () -> Unit,
+    lyricsDoc: LyricsDocument?,
+    activeLyricIndex: Int,
+    lyricsSyncOffsetMs: Long,
+    isLyricsLoading: Boolean,
     showSourcePicker: Boolean = true,
 ) {
     val title = item?.title ?: "Music player"
@@ -887,6 +988,16 @@ private fun NowPlayingDeck(
                         onClick = onCycleAudioRepeatMode,
                     )
                 }
+
+                DockedLyricsCard(
+                    lyricsDoc = lyricsDoc,
+                    activeLyricIndex = activeLyricIndex,
+                    syncOffsetMs = lyricsSyncOffsetMs,
+                    isLoading = isLyricsLoading,
+                    accentColor = accentColor,
+                    onSeekAudioTo = onSeekAudioTo,
+                    onOpenLyrics = onOpenLyrics,
+                )
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1617,12 +1728,283 @@ private fun PlayerOptionsSheet(
     }
 }
 
+@Composable
+private fun DockedLyricsCard(
+    lyricsDoc: LyricsDocument?,
+    activeLyricIndex: Int,
+    syncOffsetMs: Long,
+    isLoading: Boolean,
+    accentColor: Color,
+    onSeekAudioTo: (Long) -> Unit,
+    onOpenLyrics: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp)),
+        color = Color.White.copy(alpha = 0.07f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.GraphicEq,
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text(
+                        text = "Lyrics",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                    )
+                    if (lyricsDoc?.isSynced == true) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = accentColor.copy(alpha = 0.22f),
+                        ) {
+                            Text(
+                                text = "Synced",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    }
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(onClick = onOpenLyrics)
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                ) {
+                    Text(
+                        text = "Full View",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.75f),
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Icon(
+                        imageVector = Icons.Outlined.Launch,
+                        contentDescription = "Expand lyrics",
+                        tint = Color.White.copy(alpha = 0.75f),
+                        modifier = Modifier.size(14.dp),
+                    )
+                }
+            }
+
+            when {
+                isLoading -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(180.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = accentColor,
+                            strokeWidth = 2.dp,
+                        )
+                    }
+                }
+                lyricsDoc == null || lyricsDoc.isEmpty -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable(onClick = onOpenLyrics)
+                            .padding(vertical = 18.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text(
+                            text = "No synced lyrics available",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White.copy(alpha = 0.60f),
+                        )
+                        Text(
+                            text = "Tap to import or view full sheet",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = accentColor,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
+                lyricsDoc.isSynced -> {
+                    val window = lyricsDoc.getLyricWindow(centerIndex = activeLyricIndex, radius = 3)
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        window.forEach { windowItem ->
+                            val isCurrent = windowItem.relativeOffset == 0
+                            val alpha = when (abs(windowItem.relativeOffset)) {
+                                0 -> 1.0f
+                                1 -> 0.60f
+                                2 -> 0.38f
+                                3 -> 0.20f
+                                else -> 0.15f
+                            }
+                            val line = windowItem.line
+                            val lineText = line?.text?.ifBlank { "♪  ♪  ♪" } ?: " "
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(
+                                        if (isCurrent) accentColor.copy(alpha = 0.26f)
+                                        else Color.Transparent
+                                    )
+                                    .then(
+                                        if (line != null) {
+                                            Modifier.clickable {
+                                                val target = (line.startTimeMs - syncOffsetMs).coerceAtLeast(0L)
+                                                onSeekAudioTo(target)
+                                            }
+                                        } else Modifier
+                                    )
+                                    .padding(horizontal = 10.dp, vertical = if (isCurrent) 6.dp else 3.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = lineText,
+                                    style = if (isCurrent) {
+                                        MaterialTheme.typography.titleMedium
+                                    } else if (abs(windowItem.relativeOffset) == 1) {
+                                        MaterialTheme.typography.bodyMedium
+                                    } else {
+                                        MaterialTheme.typography.bodySmall
+                                    },
+                                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isCurrent) Color.White else Color.White.copy(alpha = alpha),
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.alpha(if (isCurrent) 1.0f else alpha),
+                                )
+                            }
+                        }
+                    }
+                }
+                else -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable(onClick = onOpenLyrics)
+                            .padding(vertical = 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        lyricsDoc.lines.take(5).forEach { line ->
+                            Text(
+                                text = line.text,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.White.copy(alpha = 0.70f),
+                                textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        Text(
+                            text = "Tap for full lyrics",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = accentColor,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LyricsSheet(
     item: MusicLibraryTrack,
+    discoveredTracks: List<LyricsTrackOption>,
+    selectedTrackId: String?,
+    onSelectTrackId: (String) -> Unit,
+    lyricsDoc: LyricsDocument?,
+    isLoading: Boolean,
+    syncOffsetMs: Long,
+    onUpdateSyncOffsetMs: (Long) -> Unit,
+    onImportLyricsUri: (Uri) -> Unit,
+    currentPositionMs: Long,
+    isPlaying: Boolean,
+    onSeekAudioTo: (Long) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val context = LocalContext.current
+    var showOffsetControls by remember { mutableStateOf(false) }
+    var showTrackMenu by remember { mutableStateOf(false) }
+    var userScrolledManually by remember { mutableStateOf(false) }
+    val listState = rememberLazyListState()
+    val isDragged by listState.interactionSource.collectIsDraggedAsState()
+
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        runCatching {
+            context.contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION,
+            )
+        }
+        onImportLyricsUri(uri)
+    }
+
+    LaunchedEffect(isDragged) {
+        if (isDragged) {
+            userScrolledManually = true
+        } else if (userScrolledManually) {
+            delay(3000L)
+            userScrolledManually = false
+        }
+    }
+
+    val effectivePosition = (currentPositionMs + syncOffsetMs).coerceAtLeast(0L)
+    val activeIndex = remember(lyricsDoc, effectivePosition) {
+        lyricsDoc?.getActiveIndex(effectivePosition) ?: -1
+    }
+
+    LaunchedEffect(activeIndex, userScrolledManually, isPlaying) {
+        if (!userScrolledManually && activeIndex >= 0 && lyricsDoc?.isSynced == true) {
+            listState.animateScrollToItem(
+                index = (activeIndex - 2).coerceAtLeast(0),
+                scrollOffset = 0,
+            )
+        }
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -1631,20 +2013,355 @@ private fun LyricsSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             SheetTrackHeader(item = item)
             HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.14f))
-            Text(
-                text = "Lyrics",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = "No synced lyrics are attached to this local audio yet.",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = "Lyrics",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    if (lyricsDoc?.isSynced == true) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                        ) {
+                            Text(
+                                text = "Synced",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    }
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    if (discoveredTracks.size > 1) {
+                        Box {
+                            val currentTrack = discoveredTracks.firstOrNull { it.id == selectedTrackId }
+                            FilterChip(
+                                selected = false,
+                                onClick = { showTrackMenu = true },
+                                label = {
+                                    Text(
+                                        text = currentTrack?.label ?: "Tracks",
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        style = MaterialTheme.typography.labelMedium,
+                                    )
+                                },
+                                trailingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowDropDown,
+                                        contentDescription = "Select track",
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                },
+                            )
+                            DropdownMenu(
+                                expanded = showTrackMenu,
+                                onDismissRequest = { showTrackMenu = false },
+                            ) {
+                                discoveredTracks.forEach { track ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            ) {
+                                                Text(track.label)
+                                                if (track.id == selectedTrackId) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Check,
+                                                        contentDescription = "Selected",
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(16.dp),
+                                                    )
+                                                }
+                                            }
+                                        },
+                                        onClick = {
+                                            onSelectTrackId(track.id)
+                                            showTrackMenu = false
+                                        },
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    if (lyricsDoc?.isSynced == true) {
+                        IconButton(
+                            onClick = { showOffsetControls = !showOffsetControls },
+                            modifier = Modifier.size(36.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Tune,
+                                contentDescription = "Adjust sync offset",
+                                tint = if (showOffsetControls || syncOffsetMs != 0L) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                    }
+
+                    IconButton(
+                        onClick = {
+                            filePickerLauncher.launch(
+                                arrayOf(
+                                    "text/plain",
+                                    "application/x-subrip",
+                                    "text/vtt",
+                                    "*/*",
+                                )
+                            )
+                        },
+                        modifier = Modifier.size(36.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FileOpen,
+                            contentDescription = "Import lyrics file",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                }
+            }
+
+            AnimatedVisibility(visible = showOffsetControls && lyricsDoc?.isSynced == true) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.7f),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = "Timing offset: ${if (syncOffsetMs >= 0) "+$syncOffsetMs" else "$syncOffsetMs"}ms",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            if (syncOffsetMs != 0L) {
+                                TextButton(
+                                    onClick = { onUpdateSyncOffsetMs(0L) },
+                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                                ) {
+                                    Text("Reset", style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            OutlinedButton(
+                                onClick = { onUpdateSyncOffsetMs(syncOffsetMs - 500L) },
+                                modifier = Modifier.weight(1f).height(32.dp),
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                            ) {
+                                Text("-0.5s", style = MaterialTheme.typography.labelSmall)
+                            }
+                            OutlinedButton(
+                                onClick = { onUpdateSyncOffsetMs(syncOffsetMs - 100L) },
+                                modifier = Modifier.weight(1f).height(32.dp),
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                            ) {
+                                Text("-0.1s", style = MaterialTheme.typography.labelSmall)
+                            }
+                            OutlinedButton(
+                                onClick = { onUpdateSyncOffsetMs(syncOffsetMs + 100L) },
+                                modifier = Modifier.weight(1f).height(32.dp),
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                            ) {
+                                Text("+0.1s", style = MaterialTheme.typography.labelSmall)
+                            }
+                            OutlinedButton(
+                                onClick = { onUpdateSyncOffsetMs(syncOffsetMs + 500L) },
+                                modifier = Modifier.weight(1f).height(32.dp),
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                            ) {
+                                Text("+0.5s", style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    }
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(380.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                when {
+                    isLoading -> {
+                        CircularProgressIndicator(modifier = Modifier.size(36.dp))
+                    }
+                    lyricsDoc == null || lyricsDoc.isEmpty -> {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.padding(horizontal = 24.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Subtitles,
+                                contentDescription = null,
+                                modifier = Modifier.size(48.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            )
+                            Text(
+                                text = "No lyrics found for this audio",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                textAlign = TextAlign.Center,
+                            )
+                            Text(
+                                text = "Download music with subtitles/captions enabled, or import an external .lrc or .srt file.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                            )
+                            OutlinedButton(
+                                onClick = {
+                                    filePickerLauncher.launch(
+                                        arrayOf(
+                                            "text/plain",
+                                            "application/x-subrip",
+                                            "text/vtt",
+                                            "*/*",
+                                        )
+                                    )
+                                },
+                            ) {
+                                Icon(Icons.Default.FileOpen, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text("Import .lrc / .srt file")
+                            }
+                        }
+                    }
+                    lyricsDoc.isSynced -> {
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            LazyColumn(
+                                state = listState,
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                                    top = 20.dp,
+                                    bottom = 80.dp,
+                                    start = 4.dp,
+                                    end = 4.dp,
+                                ),
+                            ) {
+                                itemsIndexed(lyricsDoc.lines) { index, line ->
+                                    val isActive = index == activeIndex
+                                    val alpha by animateFloatAsState(
+                                        targetValue = if (isActive) 1.0f else 0.42f,
+                                        label = "lyricAlpha",
+                                    )
+
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(
+                                                if (isActive) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.38f)
+                                                else Color.Transparent
+                                            )
+                                            .clickable {
+                                                val target = (line.startTimeMs - syncOffsetMs).coerceAtLeast(0L)
+                                                onSeekAudioTo(target)
+                                                userScrolledManually = false
+                                            }
+                                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                                    ) {
+                                        Text(
+                                            text = line.text,
+                                            style = if (isActive) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyLarge,
+                                            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                            modifier = Modifier.alpha(alpha),
+                                        )
+                                    }
+                                }
+                            }
+
+                            if (userScrolledManually && activeIndex >= 0) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    shadowElevation = 6.dp,
+                                    modifier = Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .padding(bottom = 12.dp)
+                                        .clickable {
+                                            userScrolledManually = false
+                                        },
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Sync,
+                                            contentDescription = "Sync",
+                                            tint = MaterialTheme.colorScheme.onPrimary,
+                                            modifier = Modifier.size(16.dp),
+                                        )
+                                        Text(
+                                            text = "Jump to current",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onPrimary,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else -> {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState())
+                                .padding(vertical = 12.dp, horizontal = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            lyricsDoc.lines.forEach { line ->
+                                Text(
+                                    text = line.text,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             Spacer(Modifier.height(12.dp))
         }
     }

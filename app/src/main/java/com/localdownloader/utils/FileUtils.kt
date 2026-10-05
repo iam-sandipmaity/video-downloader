@@ -876,6 +876,7 @@ class FileUtils @Inject constructor(
         if (lower.contains(".video.") || lower.contains(".audio.")) return false
 
         return when {
+            lower.endsWith(".lrc") -> true
             lower.endsWith(".srt") -> true
             lower.endsWith(".vtt") -> true
             lower.endsWith(".webvtt") -> true
