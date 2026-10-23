@@ -58,6 +58,21 @@ data class AppSettings(
     val darkTheme: Boolean = false,
     val vaultSettings: VaultSettings = VaultSettings(),
     val subtitleViewSettings: SubtitleViewSettings = SubtitleViewSettings(),
+    val downloadPresets: List<DownloadPreset> = defaultBuiltInPresets(),
+    val defaultPresetId: String = "best_video",
+    val networkTimeoutSeconds: Int = 30,
+    val maxDownloadRetries: Int = 3,
+    val downloadRateLimitKbps: Int = 0,
+    val geoBypass: Boolean = true,
+    val writeDescription: Boolean = false,
+    val writeInfoJson: Boolean = false,
+    val restrictFilenames: Boolean = false,
+    val windowsFilenames: Boolean = false,
+    val defaultPlaybackSpeed: Float = 1.0f,
+    val doubleTapSeekSeconds: Int = 10,
+    val backgroundPlayback: Boolean = false,
+    val queueOrderFifo: Boolean = true,
+    val autoRetryFailedDownloads: Boolean = false,
 )
 
 @kotlinx.serialization.Serializable

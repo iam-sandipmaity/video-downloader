@@ -21,7 +21,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import com.localdownloader.R
-import com.localdownloader.domain.models.FormatSelectorStyle
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Audiotrack
+import androidx.compose.material.icons.rounded.Movie
+import androidx.compose.material.icons.rounded.Refresh
+import com.localdownloader.domain.models.DownloadPreset
+import com.localdownloader.domain.models.PresetTargetType
+import com.localdownloader.ui.components.EditDownloadPresetDialog
 import com.localdownloader.ui.components.PreferenceItem
 import com.localdownloader.ui.components.PreferencePageScaffold
 import com.localdownloader.ui.components.PreferenceSubtitle
@@ -49,8 +55,14 @@ fun DownloadSettingsScreen(
     onShowFormatBitrateChanged: (Boolean) -> Unit = {},
     onFormatSelectorStyleChanged: (FormatSelectorStyle) -> Unit = {},
     onDefaultConcurrentFragmentsChanged: (Int) -> Unit = {},
+    onSelectDefaultPreset: (String?) -> Unit = {},
+    onSavePreset: (DownloadPreset) -> Unit = {},
+    onDeletePreset: (String) -> Unit = {},
+    onResetPresetsToDefault: () -> Unit = {},
 ) {
     val context = LocalContext.current
+    var editingPreset by remember { mutableStateOf<DownloadPreset?>(null) }
+    var isCreatingPreset by remember { mutableStateOf(false) }
     var choiceDialog by remember { mutableStateOf<SettingChoiceDialogState?>(null) }
     var filenameTemplateDialog by remember { mutableStateOf<FilenameTemplateDialogState?>(null) }
     val videoFilenameTitle = stringResource(R.string.download_defaults_filename_video_title)
@@ -102,11 +114,78 @@ fun DownloadSettingsScreen(
         )
     }
 
+    if (editingPreset != null || isCreatingPreset) {
+        val targetPreset = editingPreset
+        val isDefault = targetPreset?.id == uiState.appSettings.defaultPresetId || (targetPreset != null && uiState.appSettings.defaultPresetId == null && targetPreset.isDefault)
+        EditDownloadPresetDialog(
+            preset = targetPreset,
+            isDefaultPreset = isDefault,
+            onSave = { saved ->
+                onSavePreset(saved)
+                if (saved.isDefault) {
+                    onSelectDefaultPreset(saved.id)
+                }
+                editingPreset = null
+                isCreatingPreset = false
+            },
+            onDelete = { id ->
+                onDeletePreset(id)
+                editingPreset = null
+                isCreatingPreset = false
+            },
+            onDismiss = {
+                editingPreset = null
+                isCreatingPreset = false
+            },
+        )
+    }
+
     PreferencePageScaffold(
         title = stringResource(R.string.settings_download_defaults_title),
         onBack = onBack,
         modifier = modifier,
     ) {
+        item {
+            PreferenceSubtitle(text = "DOWNLOAD PRESETS")
+        }
+        item {
+            PreferenceItem(
+                icon = Icons.Rounded.Add,
+                title = "Create new preset",
+                description = "Configure custom quality, format, audio, and subtitle preferences",
+                onClick = { isCreatingPreset = true },
+            )
+        }
+        uiState.appSettings.downloadPresets.forEach { preset ->
+            val isDefault = preset.id == uiState.appSettings.defaultPresetId || (uiState.appSettings.defaultPresetId == null && preset.isDefault)
+            val typeIcon = if (preset.targetType == PresetTargetType.AUDIO_ONLY) Icons.Rounded.Audiotrack else Icons.Rounded.Movie
+            val subtitleText = buildString {
+                if (isDefault) append("★ Default • ")
+                if (preset.description.isNotBlank()) {
+                    append(preset.description)
+                } else if (preset.targetType == PresetTargetType.AUDIO_ONLY) {
+                    append("${preset.audioFormat.uppercase()} • ${preset.audioBitrateKbps} kbps")
+                } else {
+                    append("${preset.preferredQuality} • ${preset.videoContainer.uppercase()}")
+                }
+            }
+            item {
+                PreferenceItem(
+                    icon = typeIcon,
+                    title = preset.name,
+                    description = subtitleText,
+                    onClick = { editingPreset = preset },
+                )
+            }
+        }
+        item {
+            PreferenceItem(
+                icon = Icons.Rounded.Refresh,
+                title = "Reset presets to defaults",
+                description = "Restore built-in presets (Best Video, 1080p MP4, 480p Saver, MP3, FLAC)",
+                onClick = onResetPresetsToDefault,
+            )
+        }
         item {
             PreferenceSubtitle(text = "TEMPLATES & CONTAINERS")
         }

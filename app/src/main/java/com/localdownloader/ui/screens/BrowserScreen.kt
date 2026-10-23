@@ -97,6 +97,7 @@ import com.localdownloader.downloader.isAutomaticContainerSelection
 import com.localdownloader.downloader.isChoiceCompatibleWithRequestedContainer
 import com.localdownloader.downloader.resolveMergeContainerCompatibility
 import com.localdownloader.domain.models.AppSettings
+import com.localdownloader.domain.models.DownloadPreset
 import com.localdownloader.domain.models.FormatChoice
 import com.localdownloader.domain.models.FormatSelectorStyle
 import com.localdownloader.domain.models.OutputTransform
@@ -137,6 +138,7 @@ fun BrowserScreen(
     onContainerChanged: (String) -> Unit,
     onAudioFormatChanged: (String) -> Unit,
     onAudioBitrateChanged: (Int) -> Unit,
+    onPresetSelected: (DownloadPreset) -> Unit = {},
     onDownloadSubtitlesChanged: (Boolean) -> Unit,
     onEmbedSubtitlesChanged: (Boolean) -> Unit,
     onShowSubtitleSelectionDialogChanged: (Boolean) -> Unit = {},
@@ -1484,6 +1486,7 @@ private fun SelectionOptionsCard(
                 hasVideoOnlyChoices = hasVideoOnlyChoices,
                 hasAudioOnlyChoices = hasAudioOnlyChoices,
                 requestedContainer = container,
+                onPresetSelected = onPresetSelected,
                 onSelected = { onFormatSelectorChanged(visibleChoices[it].selector) },
             )
             FlowRow(
@@ -2084,6 +2087,7 @@ private fun FormatChoiceDropdownRow(
     hasVideoOnlyChoices: Boolean = false,
     hasAudioOnlyChoices: Boolean = false,
     requestedContainer: String = "auto",
+    onPresetSelected: ((DownloadPreset) -> Unit)? = null,
     onSelected: (Int) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -2101,6 +2105,7 @@ private fun FormatChoiceDropdownRow(
             hasAudioOnlyChoices = hasAudioOnlyChoices,
             requestedContainer = requestedContainer,
             appSettings = appSettings,
+            onPresetSelected = onPresetSelected,
             onFormatSelected = { selector ->
                 val newIndex = choices.indexOfFirst { it.selector == selector }
                 if (newIndex >= 0) {

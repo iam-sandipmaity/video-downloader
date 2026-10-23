@@ -44,6 +44,15 @@ data class DownloadOptions(
     val playlistItemIndex: Int? = null,
     val playlistFolderName: String? = null,
     val concurrentFragments: Int = 4,
+    val networkTimeoutSeconds: Int = 30,
+    val maxDownloadRetries: Int = 6,
+    val downloadRateLimitKbps: Long = 0L,
+    val geoBypass: Boolean = true,
+    val writeDescription: Boolean = false,
+    val writeInfoJson: Boolean = false,
+    val restrictFilenames: Boolean = false,
+    val windowsFilenames: Boolean = true,
+    val autoRetryFailedDownloads: Boolean = false,
 )
 
 /**

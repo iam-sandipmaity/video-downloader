@@ -279,6 +279,8 @@ fun SubtitleSettingsScreen(
                             "SansSerif" to "Clean modern sans-serif",
                             "Serif" to "Classic editorial serif",
                             "Monospace" to "Monospaced terminal typeface",
+                            "Casual" to "Friendly casual typeface",
+                            "Cursive" to "Script / cursive typeface",
                         ).map { (font, desc) ->
                             SettingChoiceOption(
                                 title = font,
@@ -566,9 +568,11 @@ private fun parseBackgroundColor(name: String): Color = when (name.lowercase()) 
 }
 
 private fun parseTypeface(name: String): FontFamily = when (name.lowercase()) {
-    "sansserif" -> FontFamily.SansSerif
+    "sansserif", "sans_serif", "sans-serif" -> FontFamily.SansSerif
     "serif" -> FontFamily.Serif
     "monospace" -> FontFamily.Monospace
+    "casual" -> FontFamily.Cursive
+    "cursive" -> FontFamily.Cursive
     else -> FontFamily.Default
 }
 

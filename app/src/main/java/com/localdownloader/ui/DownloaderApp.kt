@@ -80,6 +80,7 @@ import com.localdownloader.ui.screens.YoutubeAuthScreen
 import com.localdownloader.ui.screens.YoutubeAuthLoginScreen
 import com.localdownloader.ui.screens.settings.AboutSettingsScreen
 import com.localdownloader.ui.screens.settings.AccessSettingsScreen
+import com.localdownloader.ui.screens.settings.AdvancedSettingsScreen
 import com.localdownloader.ui.screens.settings.AppearanceSettingsScreen
 import com.localdownloader.ui.screens.settings.AppLogSettingsScreen
 import com.localdownloader.ui.screens.settings.BatteryPerformanceSettingsScreen
@@ -139,6 +140,22 @@ fun DownloaderApp(
     val updatesViewModel: UpdatesViewModel = hiltViewModel()
     val vaultViewModel: VaultViewModel = hiltViewModel()
     val vaultState by vaultViewModel.uiState.collectAsStateWithLifecycle()
+
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            when (event) {
+                androidx.lifecycle.Lifecycle.Event.ON_STOP -> vaultViewModel.onAppBackgrounded()
+                androidx.lifecycle.Lifecycle.Event.ON_START -> vaultViewModel.onAppForegrounded()
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     var vaultSelectionTaskId by remember { mutableStateOf<String?>(null) }
     var vaultSetupPromptTaskId by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
@@ -615,6 +632,7 @@ fun DownloaderApp(
                     onContainerChanged = formatViewModel::onContainerChanged,
                     onAudioFormatChanged = formatViewModel::onAudioFormatChanged,
                     onAudioBitrateChanged = formatViewModel::onAudioBitrateChanged,
+                    onPresetSelected = formatViewModel::applyPreset,
                     onDownloadSubtitlesChanged = formatViewModel::onDownloadSubtitlesChanged,
                     onEmbedSubtitlesChanged = formatViewModel::onEmbedSubtitlesChanged,
                     onShowSubtitleSelectionDialogChanged = formatViewModel::onShowSubtitleSelectionDialogChanged,
@@ -860,6 +878,7 @@ fun DownloaderApp(
                     onOpenStorage = { navController.navigate(Routes.SettingsStorage) },
                     onOpenNotifications = { navController.navigate(Routes.SettingsNotifications) },
                     onOpenAccess = { navController.navigate(Routes.SettingsAccess) },
+                    onOpenAdvanced = { navController.navigate(Routes.SettingsAdvanced) },
                     onOpenAbout = { navController.navigate(Routes.SettingsAbout) },
                     onOpenAppLog = { navController.navigate(Routes.SettingsAppLog) },
                     onBack = { navController.popBackStack() },
@@ -903,6 +922,10 @@ fun DownloaderApp(
                     onMaxConcurrentDownloadsChanged = formatViewModel::onMaxConcurrentDownloadsChanged,
                     onKeepAnalyzedLinkHistoryChanged = formatViewModel::onKeepAnalyzedLinkHistoryChanged,
                     onAnalyzedLinkHistoryRetentionDaysChanged = formatViewModel::onAnalyzedLinkHistoryRetentionDaysChanged,
+                    onSelectDefaultPreset = formatViewModel::onSelectDefaultPreset,
+                    onSavePreset = formatViewModel::onSavePreset,
+                    onDeletePreset = formatViewModel::onDeletePreset,
+                    onResetPresetsToDefault = formatViewModel::onResetPresetsToDefault,
                     onBack = { navController.popBackStack() },
                 )
             }
@@ -1015,6 +1038,25 @@ fun DownloaderApp(
                     onBack = { navController.popBackStack() },
                 )
             }
+            composable(Routes.SettingsAdvanced) {
+                AdvancedSettingsScreen(
+                    uiState = formatState,
+                    onNetworkTimeoutSecondsChanged = formatViewModel::onNetworkTimeoutSecondsChanged,
+                    onMaxDownloadRetriesChanged = formatViewModel::onMaxDownloadRetriesChanged,
+                    onDownloadRateLimitKbpsChanged = formatViewModel::onDownloadRateLimitKbpsChanged,
+                    onGeoBypassChanged = formatViewModel::onGeoBypassChanged,
+                    onWriteDescriptionChanged = formatViewModel::onWriteDescriptionChanged,
+                    onWriteInfoJsonChanged = formatViewModel::onWriteInfoJsonChanged,
+                    onRestrictFilenamesChanged = formatViewModel::onRestrictFilenamesChanged,
+                    onWindowsFilenamesChanged = formatViewModel::onWindowsFilenamesChanged,
+                    onDefaultPlaybackSpeedChanged = formatViewModel::onDefaultPlaybackSpeedChanged,
+                    onDoubleTapSeekSecondsChanged = formatViewModel::onDoubleTapSeekSecondsChanged,
+                    onBackgroundPlaybackChanged = formatViewModel::onBackgroundPlaybackChanged,
+                    onQueueOrderFifoChanged = formatViewModel::onQueueOrderFifoChanged,
+                    onAutoRetryFailedDownloadsChanged = formatViewModel::onAutoRetryFailedDownloadsChanged,
+                    onBack = { navController.popBackStack() },
+                )
+            }
             composable(Routes.Updates) {
                 LaunchedEffect(Unit) {
                     updatesViewModel.initialize()
@@ -1116,6 +1158,8 @@ fun DownloaderApp(
                     onDismissTrimResult = musicTrimViewModel::dismissResult,
                     onBack = { navController.popBackStack() },
                     fileExists = fileUtils::managedFileExists,
+                    isVaultUnlocked = vaultState.activeVaultId != null,
+                    onOpenVault = { navController.navigate(Routes.Vault) },
                 )
             }
             composable(
@@ -1266,6 +1310,7 @@ object Routes {
     const val SettingsAbout = "settings/about"
     const val SettingsCredits = "settings/credits"
     const val SettingsAppLog = "settings/app-log"
+    const val SettingsAdvanced = "settings/advanced"
     const val Updates = "updates"
     const val UpdateChangelog = "updates/changelog/{section}"
     const val Help = "help"

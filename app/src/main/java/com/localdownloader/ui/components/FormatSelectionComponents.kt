@@ -60,7 +60,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.localdownloader.R
 import com.localdownloader.domain.models.AppSettings
+import com.localdownloader.domain.models.DownloadPreset
 import com.localdownloader.domain.models.FormatChoice
+import com.localdownloader.domain.models.PresetTargetType
 import com.localdownloader.domain.models.StreamType
 import com.localdownloader.ui.model.toReadableSize
 
@@ -80,6 +82,7 @@ fun FormatSelectionBottomSheet(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
+    onPresetSelected: ((DownloadPreset) -> Unit)? = null,
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
@@ -138,6 +141,43 @@ fun FormatSelectionBottomSheet(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(18.dp),
                     )
+                }
+            }
+
+            if (appSettings.downloadPresets.isNotEmpty() && onPresetSelected != null) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = "QUICK PRESETS",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        appSettings.downloadPresets.forEach { preset ->
+                            val isDefault = preset.id == appSettings.defaultPresetId || (appSettings.defaultPresetId == null && preset.isDefault)
+                            FilterChip(
+                                selected = false,
+                                onClick = {
+                                    onPresetSelected(preset)
+                                    onDismissRequest()
+                                },
+                                label = {
+                                    Text(if (isDefault) "★ ${preset.name}" else preset.name)
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = if (preset.targetType == PresetTargetType.AUDIO_ONLY) Icons.Rounded.Audiotrack else Icons.Rounded.Movie,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                },
+                            )
+                        }
+                    }
                 }
             }
 

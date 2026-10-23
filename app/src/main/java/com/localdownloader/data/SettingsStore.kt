@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -99,6 +100,21 @@ class SettingsStore @Inject constructor(
         val darkTheme = booleanPreferencesKey("dark_theme")
         val vaultSettings = stringPreferencesKey("vault_settings_json")
         val subtitleViewSettings = stringPreferencesKey("subtitle_view_settings_json")
+        val downloadPresets = stringPreferencesKey("download_presets_json")
+        val defaultPresetId = stringPreferencesKey("default_preset_id")
+        val networkTimeoutSeconds = intPreferencesKey("network_timeout_seconds")
+        val maxDownloadRetries = intPreferencesKey("max_download_retries")
+        val downloadRateLimitKbps = intPreferencesKey("download_rate_limit_kbps")
+        val geoBypass = booleanPreferencesKey("geo_bypass")
+        val writeDescription = booleanPreferencesKey("write_description")
+        val writeInfoJson = booleanPreferencesKey("write_info_json")
+        val restrictFilenames = booleanPreferencesKey("restrict_filenames")
+        val windowsFilenames = booleanPreferencesKey("windows_filenames")
+        val defaultPlaybackSpeed = floatPreferencesKey("default_playback_speed")
+        val doubleTapSeekSeconds = intPreferencesKey("double_tap_seek_seconds")
+        val backgroundPlayback = booleanPreferencesKey("background_playback")
+        val queueOrderFifo = booleanPreferencesKey("queue_order_fifo")
+        val autoRetryFailedDownloads = booleanPreferencesKey("auto_retry_failed_downloads")
     }
 
     fun observeSettings(): Flow<AppSettings> {
@@ -162,6 +178,21 @@ class SettingsStore @Inject constructor(
                     darkTheme = prefs[Keys.darkTheme] ?: false,
                     vaultSettings = decodeVaultSettings(prefs[Keys.vaultSettings]),
                     subtitleViewSettings = decodeSubtitleViewSettings(prefs[Keys.subtitleViewSettings]),
+                    downloadPresets = decodeDownloadPresets(prefs[Keys.downloadPresets]),
+                    defaultPresetId = prefs[Keys.defaultPresetId] ?: "best_video",
+                    networkTimeoutSeconds = prefs[Keys.networkTimeoutSeconds] ?: 30,
+                    maxDownloadRetries = prefs[Keys.maxDownloadRetries] ?: 3,
+                    downloadRateLimitKbps = prefs[Keys.downloadRateLimitKbps] ?: 0,
+                    geoBypass = prefs[Keys.geoBypass] ?: true,
+                    writeDescription = prefs[Keys.writeDescription] ?: false,
+                    writeInfoJson = prefs[Keys.writeInfoJson] ?: false,
+                    restrictFilenames = prefs[Keys.restrictFilenames] ?: false,
+                    windowsFilenames = prefs[Keys.windowsFilenames] ?: false,
+                    defaultPlaybackSpeed = prefs[Keys.defaultPlaybackSpeed] ?: 1.0f,
+                    doubleTapSeekSeconds = prefs[Keys.doubleTapSeekSeconds] ?: 10,
+                    backgroundPlayback = prefs[Keys.backgroundPlayback] ?: false,
+                    queueOrderFifo = prefs[Keys.queueOrderFifo] ?: true,
+                    autoRetryFailedDownloads = prefs[Keys.autoRetryFailedDownloads] ?: false,
                 )
             }
     }
@@ -220,6 +251,21 @@ class SettingsStore @Inject constructor(
             prefs[Keys.darkTheme] = settings.darkTheme
             prefs[Keys.vaultSettings] = json.encodeToString(settings.vaultSettings)
             prefs[Keys.subtitleViewSettings] = json.encodeToString(settings.subtitleViewSettings)
+            prefs[Keys.downloadPresets] = json.encodeToString(settings.downloadPresets)
+            prefs[Keys.defaultPresetId] = settings.defaultPresetId
+            prefs[Keys.networkTimeoutSeconds] = settings.networkTimeoutSeconds
+            prefs[Keys.maxDownloadRetries] = settings.maxDownloadRetries
+            prefs[Keys.downloadRateLimitKbps] = settings.downloadRateLimitKbps
+            prefs[Keys.geoBypass] = settings.geoBypass
+            prefs[Keys.writeDescription] = settings.writeDescription
+            prefs[Keys.writeInfoJson] = settings.writeInfoJson
+            prefs[Keys.restrictFilenames] = settings.restrictFilenames
+            prefs[Keys.windowsFilenames] = settings.windowsFilenames
+            prefs[Keys.defaultPlaybackSpeed] = settings.defaultPlaybackSpeed
+            prefs[Keys.doubleTapSeekSeconds] = settings.doubleTapSeekSeconds
+            prefs[Keys.backgroundPlayback] = settings.backgroundPlayback
+            prefs[Keys.queueOrderFifo] = settings.queueOrderFifo
+            prefs[Keys.autoRetryFailedDownloads] = settings.autoRetryFailedDownloads
         }
     }
 
@@ -241,6 +287,13 @@ class SettingsStore @Inject constructor(
         if (payload.isBlank()) return com.localdownloader.domain.models.SubtitleViewSettings()
         return runCatching { json.decodeFromString<com.localdownloader.domain.models.SubtitleViewSettings>(payload) }
             .getOrDefault(com.localdownloader.domain.models.SubtitleViewSettings())
+    }
+
+    private fun decodeDownloadPresets(raw: String?): List<com.localdownloader.domain.models.DownloadPreset> {
+        val payload = raw?.trim().orEmpty()
+        if (payload.isBlank()) return com.localdownloader.domain.models.defaultBuiltInPresets()
+        return runCatching { json.decodeFromString<List<com.localdownloader.domain.models.DownloadPreset>>(payload) }
+            .getOrElse { com.localdownloader.domain.models.defaultBuiltInPresets() }
     }
 
     private fun decodeCookieProfiles(raw: String?): List<CookieProfile> {

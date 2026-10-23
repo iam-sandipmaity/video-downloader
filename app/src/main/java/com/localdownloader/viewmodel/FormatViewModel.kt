@@ -16,11 +16,14 @@ import com.localdownloader.domain.models.BatterySaverMode
 import com.localdownloader.domain.models.ContrastMode
 import com.localdownloader.domain.models.CookieProfile
 import com.localdownloader.domain.models.DownloadOptions
+import com.localdownloader.domain.models.DownloadPreset
 import com.localdownloader.domain.models.FormatChoice
 import com.localdownloader.domain.models.FormatSelectorStyle
 import com.localdownloader.domain.models.MediaFormat
 import com.localdownloader.domain.models.OutputTransform
 import com.localdownloader.domain.models.PlaylistDownloadRequest
+import com.localdownloader.domain.models.PresetTargetType
+import com.localdownloader.domain.models.defaultBuiltInPresets
 import com.localdownloader.domain.models.SYSTEM_LANGUAGE_TAG
 import com.localdownloader.domain.models.StreamType
 import com.localdownloader.domain.models.SubtitleViewSettings
@@ -1084,6 +1087,202 @@ class FormatViewModel @Inject constructor(
         persistSettingsSilently()
     }
 
+    fun onSelectDefaultPreset(presetId: String?) {
+        val updated = uiState.value.appSettings.copy(defaultPresetId = presetId)
+        _uiState.update { state -> state.copy(appSettings = updated) }
+        viewModelScope.launch {
+            runCatching { repository.updateSettings(updated) }
+        }
+    }
+
+    fun onSavePreset(preset: DownloadPreset) {
+        val currentPresets = uiState.value.appSettings.downloadPresets
+        val updatedPresets = if (currentPresets.any { it.id == preset.id }) {
+            currentPresets.map { if (it.id == preset.id) preset else it }
+        } else {
+            currentPresets + preset
+        }
+        val defaultId = if (preset.isDefault) preset.id else uiState.value.appSettings.defaultPresetId
+        val updated = uiState.value.appSettings.copy(
+            downloadPresets = updatedPresets,
+            defaultPresetId = defaultId,
+        )
+        _uiState.update { state -> state.copy(appSettings = updated) }
+        viewModelScope.launch {
+            runCatching { repository.updateSettings(updated) }
+        }
+    }
+
+    fun onDeletePreset(presetId: String) {
+        val current = uiState.value.appSettings
+        val updatedPresets = current.downloadPresets.filterNot { it.id == presetId }
+        val updatedDefaultId = if (current.defaultPresetId == presetId) null else current.defaultPresetId
+        val updated = current.copy(
+            downloadPresets = updatedPresets,
+            defaultPresetId = updatedDefaultId,
+        )
+        _uiState.update { state -> state.copy(appSettings = updated) }
+        viewModelScope.launch {
+            runCatching { repository.updateSettings(updated) }
+        }
+    }
+
+    fun onResetPresetsToDefault() {
+        val defaults = defaultBuiltInPresets()
+        val updated = uiState.value.appSettings.copy(
+            downloadPresets = defaults,
+            defaultPresetId = defaults.firstOrNull { it.isDefault }?.id,
+        )
+        _uiState.update { state -> state.copy(appSettings = updated) }
+        viewModelScope.launch {
+            runCatching { repository.updateSettings(updated) }
+        }
+    }
+
+    fun applyPreset(preset: DownloadPreset) {
+        _uiState.update { state ->
+            when (preset.targetType) {
+                PresetTargetType.AUDIO_ONLY -> {
+                    val resolvedStream = resolveAvailableStreamType(
+                        preferredStreamType = StreamType.AUDIO_ONLY,
+                        videoAudioChoices = state.availableVideoAudioChoices,
+                        videoOnlyChoices = state.availableVideoOnlyChoices,
+                        audioOnlyChoices = state.availableAudioOnlyChoices,
+                    )
+                    val selector = firstSelectorForStreamType(
+                        streamType = resolvedStream,
+                        container = "auto",
+                        videoAudioChoices = state.availableVideoAudioChoices,
+                        videoOnlyChoices = state.availableVideoOnlyChoices,
+                        audioOnlyChoices = state.availableAudioOnlyChoices,
+                    )
+                    state.copy(
+                        selectedStreamType = StreamType.AUDIO_ONLY,
+                        selectedAudioFormat = preset.audioFormat,
+                        audioBitrateKbps = preset.audioBitrateKbps,
+                        selectedFormatSelector = selector ?: state.selectedFormatSelector,
+                        embedMetadata = preset.embedMetadata,
+                        embedThumbnail = preset.embedThumbnail,
+                    )
+                }
+                PresetTargetType.VIDEO -> {
+                    val resolvedStream = resolveAvailableStreamType(
+                        preferredStreamType = StreamType.VIDEO_AUDIO,
+                        videoAudioChoices = state.availableVideoAudioChoices,
+                        videoOnlyChoices = state.availableVideoOnlyChoices,
+                        audioOnlyChoices = state.availableAudioOnlyChoices,
+                    )
+                    val selector = firstSelectorForStreamType(
+                        streamType = resolvedStream,
+                        container = preset.videoContainer,
+                        videoAudioChoices = state.availableVideoAudioChoices,
+                        videoOnlyChoices = state.availableVideoOnlyChoices,
+                        audioOnlyChoices = state.availableAudioOnlyChoices,
+                    )
+                    val targetQuality = when (preset.preferredQuality.lowercase()) {
+                        "2160p", "4k" -> VideoQuality.UHD_4K
+                        "1440p", "2k" -> VideoQuality.QHD_2K
+                        "1080p", "fhd" -> VideoQuality.FHD_1080
+                        "720p", "hd" -> VideoQuality.HD_720
+                        "480p", "sd" -> VideoQuality.SD_480
+                        "360p" -> VideoQuality.SD_360
+                        "240p" -> VideoQuality.LOW_240
+                        "144p" -> VideoQuality.LOW_144
+                        else -> VideoQuality.BEST
+                    }
+                    state.copy(
+                        selectedStreamType = StreamType.VIDEO_AUDIO,
+                        selectedQuality = targetQuality,
+                        selectedContainer = preset.videoContainer,
+                        downloadSubtitles = preset.autoDownloadSubtitles,
+                        embedSubtitles = preset.embedSubtitles,
+                        embedMetadata = preset.embedMetadata,
+                        embedThumbnail = preset.embedThumbnail,
+                        selectedFormatSelector = selector ?: state.selectedFormatSelector,
+                    )
+                }
+            }
+        }
+    }
+
+    fun onNetworkTimeoutSecondsChanged(seconds: Int) {
+        val updated = uiState.value.appSettings.copy(networkTimeoutSeconds = seconds)
+        _uiState.update { state -> state.copy(appSettings = updated) }
+        viewModelScope.launch { runCatching { repository.updateSettings(updated) } }
+    }
+
+    fun onMaxDownloadRetriesChanged(retries: Int) {
+        val updated = uiState.value.appSettings.copy(maxDownloadRetries = retries)
+        _uiState.update { state -> state.copy(appSettings = updated) }
+        viewModelScope.launch { runCatching { repository.updateSettings(updated) } }
+    }
+
+    fun onDownloadRateLimitKbpsChanged(rateLimitKbps: Long) {
+        val updated = uiState.value.appSettings.copy(downloadRateLimitKbps = rateLimitKbps)
+        _uiState.update { state -> state.copy(appSettings = updated) }
+        viewModelScope.launch { runCatching { repository.updateSettings(updated) } }
+    }
+
+    fun onGeoBypassChanged(enabled: Boolean) {
+        val updated = uiState.value.appSettings.copy(geoBypass = enabled)
+        _uiState.update { state -> state.copy(appSettings = updated) }
+        viewModelScope.launch { runCatching { repository.updateSettings(updated) } }
+    }
+
+    fun onWriteDescriptionChanged(enabled: Boolean) {
+        val updated = uiState.value.appSettings.copy(writeDescription = enabled)
+        _uiState.update { state -> state.copy(appSettings = updated) }
+        viewModelScope.launch { runCatching { repository.updateSettings(updated) } }
+    }
+
+    fun onWriteInfoJsonChanged(enabled: Boolean) {
+        val updated = uiState.value.appSettings.copy(writeInfoJson = enabled)
+        _uiState.update { state -> state.copy(appSettings = updated) }
+        viewModelScope.launch { runCatching { repository.updateSettings(updated) } }
+    }
+
+    fun onRestrictFilenamesChanged(enabled: Boolean) {
+        val updated = uiState.value.appSettings.copy(restrictFilenames = enabled)
+        _uiState.update { state -> state.copy(appSettings = updated) }
+        viewModelScope.launch { runCatching { repository.updateSettings(updated) } }
+    }
+
+    fun onWindowsFilenamesChanged(enabled: Boolean) {
+        val updated = uiState.value.appSettings.copy(windowsFilenames = enabled)
+        _uiState.update { state -> state.copy(appSettings = updated) }
+        viewModelScope.launch { runCatching { repository.updateSettings(updated) } }
+    }
+
+    fun onDefaultPlaybackSpeedChanged(speed: Float) {
+        val updated = uiState.value.appSettings.copy(defaultPlaybackSpeed = speed)
+        _uiState.update { state -> state.copy(appSettings = updated) }
+        viewModelScope.launch { runCatching { repository.updateSettings(updated) } }
+    }
+
+    fun onDoubleTapSeekSecondsChanged(seconds: Int) {
+        val updated = uiState.value.appSettings.copy(doubleTapSeekSeconds = seconds)
+        _uiState.update { state -> state.copy(appSettings = updated) }
+        viewModelScope.launch { runCatching { repository.updateSettings(updated) } }
+    }
+
+    fun onBackgroundPlaybackChanged(enabled: Boolean) {
+        val updated = uiState.value.appSettings.copy(backgroundPlayback = enabled)
+        _uiState.update { state -> state.copy(appSettings = updated) }
+        viewModelScope.launch { runCatching { repository.updateSettings(updated) } }
+    }
+
+    fun onQueueOrderFifoChanged(fifo: Boolean) {
+        val updated = uiState.value.appSettings.copy(queueOrderFifo = fifo)
+        _uiState.update { state -> state.copy(appSettings = updated) }
+        viewModelScope.launch { runCatching { repository.updateSettings(updated) } }
+    }
+
+    fun onAutoRetryFailedDownloadsChanged(enabled: Boolean) {
+        val updated = uiState.value.appSettings.copy(autoRetryFailedDownloads = enabled)
+        _uiState.update { state -> state.copy(appSettings = updated) }
+        viewModelScope.launch { runCatching { repository.updateSettings(updated) } }
+    }
+
     fun onBatterySaverModeChanged(mode: BatterySaverMode) {
         _uiState.update { state ->
             state.copy(appSettings = state.appSettings.copy(batterySaverMode = mode))
@@ -1941,6 +2140,15 @@ class FormatViewModel @Inject constructor(
                     audioFormat = if (isAudioOnly) audioFormat.ifBlank { null } else null,
                     audioBitrateKbps = resolvedAudioBitrateKbps,
                     concurrentFragments = state.appSettings.defaultConcurrentFragments,
+                    networkTimeoutSeconds = state.appSettings.networkTimeoutSeconds,
+                    maxDownloadRetries = state.appSettings.maxDownloadRetries,
+                    downloadRateLimitKbps = state.appSettings.downloadRateLimitKbps,
+                    geoBypass = state.appSettings.geoBypass,
+                    writeDescription = state.appSettings.writeDescription,
+                    writeInfoJson = state.appSettings.writeInfoJson,
+                    restrictFilenames = state.appSettings.restrictFilenames,
+                    windowsFilenames = state.appSettings.windowsFilenames,
+                    autoRetryFailedDownloads = state.appSettings.autoRetryFailedDownloads,
                 ),
                 queueNote = listOfNotNull(
                     youtubeRouting.queueNote,

@@ -52,6 +52,7 @@ interface DownloaderRepository {
 
     suspend fun moveToVault(taskId: String, vaultId: String = "default"): Result<Unit>
     suspend fun moveFromVault(taskId: String): Result<Unit>
+    suspend fun importFileToVault(uri: android.net.Uri, vaultId: String = "default"): Result<String>
     suspend fun getVaultSettings(): VaultSettings
     suspend fun updateVaultSettings(settings: VaultSettings): Result<Unit>
 }

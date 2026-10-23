@@ -60,7 +60,18 @@ class PlayerViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             settingsStore.observeSettings().collect { settings ->
-                _uiState.update { it.copy(subtitleViewSettings = settings.subtitleViewSettings) }
+                _uiState.update {
+                    it.copy(
+                        subtitleViewSettings = settings.subtitleViewSettings,
+                        doubleTapSeekSeconds = settings.doubleTapSeekSeconds,
+                        backgroundPlayback = settings.backgroundPlayback,
+                    )
+                }
+                if (savedStateHandle.get<Float>(STATE_PLAYBACK_SPEED) == null && settings.defaultPlaybackSpeed > 0f) {
+                    currentPlaybackSpeed = settings.defaultPlaybackSpeed
+                    player.setPlaybackSpeed(currentPlaybackSpeed)
+                    _uiState.update { it.copy(playbackSpeed = currentPlaybackSpeed) }
+                }
             }
         }
     }
@@ -783,6 +794,8 @@ data class PlayerUiState(
     val subtitleTracks: List<PlayerTrackOption> = emptyList(),
     val subtitleViewSettings: SubtitleViewSettings = SubtitleViewSettings(),
     val subtitleSyncOffsetMs: Long = 0L,
+    val doubleTapSeekSeconds: Int = 10,
+    val backgroundPlayback: Boolean = false,
     val errorMessage: String? = null,
 )
 

@@ -561,6 +561,15 @@ class QuickDownloadViewModel @Inject constructor(
                 shouldEmbedThumbnail = state.appSettings.autoEmbedThumbnail,
                 shouldDownloadSubtitles = state.appSettings.autoDownloadSubtitles,
                 shouldEmbedSubtitles = state.appSettings.autoEmbedSubtitles,
+                networkTimeoutSeconds = state.appSettings.networkTimeoutSeconds,
+                maxDownloadRetries = state.appSettings.maxDownloadRetries,
+                downloadRateLimitKbps = state.appSettings.downloadRateLimitKbps,
+                geoBypass = state.appSettings.geoBypass,
+                writeDescription = state.appSettings.writeDescription,
+                writeInfoJson = state.appSettings.writeInfoJson,
+                restrictFilenames = state.appSettings.restrictFilenames,
+                windowsFilenames = state.appSettings.windowsFilenames,
+                autoRetryFailedDownloads = state.appSettings.autoRetryFailedDownloads,
             )
 
             val enqueueResult = if (info.isPlaylist && info.playlistEntries.isNotEmpty()) {

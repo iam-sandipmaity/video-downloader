@@ -55,6 +55,7 @@ fun SettingsScreen(
     onOpenStorage: () -> Unit,
     onOpenNotifications: () -> Unit,
     onOpenAccess: () -> Unit,
+    onOpenAdvanced: () -> Unit = {},
     onOpenAbout: () -> Unit,
     onOpenAppLog: () -> Unit,
     onBack: () -> Unit,
@@ -177,6 +178,14 @@ fun SettingsScreen(
                 description = "Completion, error, and status alerts",
                 icon = Icons.Rounded.NotificationsActive,
                 onClick = onOpenNotifications,
+            )
+        }
+        item {
+            SettingItem(
+                title = "Advanced settings",
+                description = "Timeouts, rate limits, filename rules, playback & queue options",
+                icon = Icons.Rounded.Tune,
+                onClick = onOpenAdvanced,
             )
         }
         item {

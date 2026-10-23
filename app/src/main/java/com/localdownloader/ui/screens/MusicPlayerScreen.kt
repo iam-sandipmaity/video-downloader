@@ -144,6 +144,8 @@ fun MusicPlayerScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     fileExists: (String) -> Boolean = { path -> java.io.File(path).exists() },
+    isVaultUnlocked: Boolean = false,
+    onOpenVault: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val folderPicker = rememberLauncherForActivityResult(
@@ -253,15 +255,16 @@ fun MusicPlayerScreen(
         musicSourceState.sourceType,
         appDownloadTracks,
         musicSourceState.externalTracks,
+        isVaultUnlocked,
     ) {
         if (isPlayingFromVault) {
-            vaultTracks
+            if (isVaultUnlocked) vaultTracks else emptyList()
         } else {
             when (musicSourceState.sourceType) {
                 MusicSourceType.APP_DOWNLOADS -> appDownloadTracks
                 MusicSourceType.DEVICE_AUDIO,
                 MusicSourceType.SELECTED_FOLDER -> musicSourceState.externalTracks
-                MusicSourceType.PRIVATE_VAULT -> vaultTracks
+                MusicSourceType.PRIVATE_VAULT -> if (isVaultUnlocked) vaultTracks else emptyList()
             }
         }
     }
@@ -331,7 +334,13 @@ fun MusicPlayerScreen(
                             onSelectMusicSource(sourceType)
                         }
                     }
-                    MusicSourceType.PRIVATE_VAULT -> onSelectMusicSource(sourceType)
+                    MusicSourceType.PRIVATE_VAULT -> {
+                        if (isVaultUnlocked) {
+                            onSelectMusicSource(sourceType)
+                        } else {
+                            onOpenVault()
+                        }
+                    }
                 }
             },
             onPickFolder = { folderPicker.launch(null) },
