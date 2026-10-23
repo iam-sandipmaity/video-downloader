@@ -117,3 +117,62 @@ private val AUDIO_ONLY_CONTAINERS = setOf(
     "mka",
     "weba",
 )
+
+internal fun findBestMatchingFormatChoice(
+    choices: List<FormatChoice>,
+    targetHeight: Int?,
+    preferredContainer: String?,
+): FormatChoice? {
+    if (choices.isEmpty()) return null
+
+    val containerMatches = if (!preferredContainer.isNullOrBlank() && !preferredContainer.equals("auto", ignoreCase = true)) {
+        choices.filter { it.container.equals(preferredContainer, ignoreCase = true) }
+    } else {
+        emptyList()
+    }
+
+    val candidates = containerMatches.ifEmpty { choices }
+
+    if (targetHeight == null) {
+        return candidates.maxWithOrNull(
+            compareBy<FormatChoice> { it.height ?: 0 }
+                .thenBy { it.bitrateKbps ?: 0 }
+                .thenBy { it.fileSizeBytes ?: 0L }
+        ) ?: choices.firstOrNull()
+    }
+
+    val exact = candidates.filter { it.height == targetHeight }
+    if (exact.isNotEmpty()) {
+        return exact.maxWithOrNull(
+            compareBy<FormatChoice> { it.bitrateKbps ?: 0 }
+                .thenBy { it.fileSizeBytes ?: 0L }
+        )
+    }
+
+    val exactAnyContainer = choices.filter { it.height == targetHeight }
+    if (exactAnyContainer.isNotEmpty()) {
+        return exactAnyContainer.maxWithOrNull(
+            compareBy<FormatChoice> { it.bitrateKbps ?: 0 }
+                .thenBy { it.fileSizeBytes ?: 0L }
+        )
+    }
+
+    val belowOrEqual = candidates.filter { (it.height ?: 0) in 1..targetHeight }
+    if (belowOrEqual.isNotEmpty()) {
+        return belowOrEqual.maxWithOrNull(
+            compareBy<FormatChoice> { it.height ?: 0 }
+                .thenBy { it.bitrateKbps ?: 0 }
+        )
+    }
+
+    val above = candidates.filter { (it.height ?: 0) > targetHeight }
+    if (above.isNotEmpty()) {
+        return above.minWithOrNull(
+            compareBy<FormatChoice> { it.height ?: Int.MAX_VALUE }
+                .thenByDescending { it.bitrateKbps ?: 0 }
+        )
+    }
+
+    return candidates.firstOrNull() ?: choices.firstOrNull()
+}
+

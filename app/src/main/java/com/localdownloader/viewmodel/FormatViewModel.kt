@@ -34,6 +34,7 @@ import com.localdownloader.domain.models.YoutubeAuthConfig
 import com.localdownloader.domain.models.audioFormatSupportsBitrateControl
 import com.localdownloader.domain.models.choicesForStreamType
 import com.localdownloader.domain.models.effectiveOutputStreamType
+import com.localdownloader.domain.models.findBestMatchingFormatChoice
 import com.localdownloader.domain.models.preferredDefaultChoiceForStreamType
 import com.localdownloader.domain.models.resolveAvailableStreamType
 import com.localdownloader.domain.models.resolveAvailableOutputTransform
@@ -1140,46 +1141,76 @@ class FormatViewModel @Inject constructor(
     }
 
     fun applyPreset(preset: DownloadPreset) {
+        val currentState = uiState.value
+        val shouldReenable = currentState.isDownloadButtonDisabled
+
         _uiState.update { state ->
             when (preset.targetType) {
                 PresetTargetType.AUDIO_ONLY -> {
-                    val resolvedStream = resolveAvailableStreamType(
-                        preferredStreamType = StreamType.AUDIO_ONLY,
-                        videoAudioChoices = state.availableVideoAudioChoices,
-                        videoOnlyChoices = state.availableVideoOnlyChoices,
-                        audioOnlyChoices = state.availableAudioOnlyChoices,
-                    )
-                    val selector = firstSelectorForStreamType(
-                        streamType = resolvedStream,
+                    val hasAudioOnlyChoices = state.availableAudioOnlyChoices.isNotEmpty()
+                    val targetStreamType = if (hasAudioOnlyChoices) {
+                        StreamType.AUDIO_ONLY
+                    } else {
+                        StreamType.VIDEO_AUDIO
+                    }
+                    val targetTransform = if (hasAudioOnlyChoices) {
+                        OutputTransform.NONE
+                    } else {
+                        OutputTransform.EXTRACT_AUDIO
+                    }
+
+                    val candidateChoices = if (hasAudioOnlyChoices) {
+                        state.availableAudioOnlyChoices
+                    } else {
+                        state.availableVideoAudioChoices
+                    }
+
+                    val matchedChoice = if (hasAudioOnlyChoices) {
+                        candidateChoices.maxWithOrNull(
+                            compareBy<FormatChoice> {
+                                it.container.equals(preset.audioFormat, ignoreCase = true)
+                            }.thenBy { it.bitrateKbps ?: 0 }
+                            .thenBy { it.fileSizeBytes ?: 0L }
+                        ) ?: candidateChoices.firstOrNull()
+                    } else {
+                        candidateChoices.firstOrNull()
+                    }
+
+                    val selector = matchedChoice?.selector ?: firstSelectorForStreamType(
+                        streamType = targetStreamType,
                         container = "auto",
                         videoAudioChoices = state.availableVideoAudioChoices,
                         videoOnlyChoices = state.availableVideoOnlyChoices,
                         audioOnlyChoices = state.availableAudioOnlyChoices,
                     )
+
                     state.copy(
-                        selectedStreamType = StreamType.AUDIO_ONLY,
+                        selectedStreamType = targetStreamType,
+                        selectedOutputTransform = targetTransform,
                         selectedAudioFormat = preset.audioFormat,
                         audioBitrateKbps = preset.audioBitrateKbps,
                         selectedFormatSelector = selector ?: state.selectedFormatSelector,
+                        downloadSubtitles = preset.autoDownloadSubtitles,
+                        embedSubtitles = preset.embedSubtitles,
                         embedMetadata = preset.embedMetadata,
                         embedThumbnail = preset.embedThumbnail,
+                        isDownloadButtonDisabled = if (shouldReenable) false else state.isDownloadButtonDisabled,
+                        downloadButtonDisabledAt = if (shouldReenable) 0L else state.downloadButtonDisabledAt,
                     )
                 }
                 PresetTargetType.VIDEO -> {
-                    val resolvedStream = resolveAvailableStreamType(
-                        preferredStreamType = StreamType.VIDEO_AUDIO,
-                        videoAudioChoices = state.availableVideoAudioChoices,
-                        videoOnlyChoices = state.availableVideoOnlyChoices,
-                        audioOnlyChoices = state.availableAudioOnlyChoices,
-                    )
-                    val selector = firstSelectorForStreamType(
-                        streamType = resolvedStream,
-                        container = preset.videoContainer,
-                        videoAudioChoices = state.availableVideoAudioChoices,
-                        videoOnlyChoices = state.availableVideoOnlyChoices,
-                        audioOnlyChoices = state.availableAudioOnlyChoices,
-                    )
-                    val targetQuality = when (preset.preferredQuality.lowercase()) {
+                    val targetHeight = when (preset.preferredQuality.lowercase().trim()) {
+                        "2160p", "4k" -> 2160
+                        "1440p", "2k" -> 1440
+                        "1080p", "fhd" -> 1080
+                        "720p", "hd" -> 720
+                        "480p", "sd" -> 480
+                        "360p" -> 360
+                        "240p" -> 240
+                        "144p" -> 144
+                        else -> null
+                    }
+                    val targetQuality = when (preset.preferredQuality.lowercase().trim()) {
                         "2160p", "4k" -> VideoQuality.UHD_4K
                         "1440p", "2k" -> VideoQuality.QHD_2K
                         "1080p", "fhd" -> VideoQuality.FHD_1080
@@ -1190,19 +1221,49 @@ class FormatViewModel @Inject constructor(
                         "144p" -> VideoQuality.LOW_144
                         else -> VideoQuality.BEST
                     }
+
+                    val targetStream = when {
+                        state.availableVideoAudioChoices.isNotEmpty() -> StreamType.VIDEO_AUDIO
+                        state.availableVideoOnlyChoices.isNotEmpty() -> StreamType.VIDEO_ONLY
+                        else -> state.selectedStreamType
+                    }
+                    val pool = if (targetStream == StreamType.VIDEO_AUDIO) {
+                        state.availableVideoAudioChoices
+                    } else {
+                        state.availableVideoOnlyChoices
+                    }
+
+                    val matchedChoice = findBestMatchingFormatChoice(
+                        choices = pool,
+                        targetHeight = targetHeight,
+                        preferredContainer = preset.videoContainer,
+                    )
+
+                    val selector = matchedChoice?.selector ?: firstSelectorForStreamType(
+                        streamType = targetStream,
+                        container = preset.videoContainer,
+                        videoAudioChoices = state.availableVideoAudioChoices,
+                        videoOnlyChoices = state.availableVideoOnlyChoices,
+                        audioOnlyChoices = state.availableAudioOnlyChoices,
+                    )
+
                     state.copy(
-                        selectedStreamType = StreamType.VIDEO_AUDIO,
+                        selectedStreamType = targetStream,
+                        selectedOutputTransform = OutputTransform.NONE,
                         selectedQuality = targetQuality,
-                        selectedContainer = preset.videoContainer,
+                        selectedContainer = matchedChoice?.container ?: preset.videoContainer,
                         downloadSubtitles = preset.autoDownloadSubtitles,
                         embedSubtitles = preset.embedSubtitles,
                         embedMetadata = preset.embedMetadata,
                         embedThumbnail = preset.embedThumbnail,
                         selectedFormatSelector = selector ?: state.selectedFormatSelector,
+                        isDownloadButtonDisabled = if (shouldReenable) false else state.isDownloadButtonDisabled,
+                        downloadButtonDisabledAt = if (shouldReenable) 0L else state.downloadButtonDisabledAt,
                     )
                 }
             }
         }
+        if (shouldReenable) clearDownloadButtonCooldown()
     }
 
     fun onNetworkTimeoutSecondsChanged(seconds: Int) {
