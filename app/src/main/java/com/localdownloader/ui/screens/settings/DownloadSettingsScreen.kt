@@ -26,6 +26,7 @@ import androidx.compose.material.icons.rounded.Audiotrack
 import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.Refresh
 import com.localdownloader.domain.models.DownloadPreset
+import com.localdownloader.domain.models.FormatSelectorStyle
 import com.localdownloader.domain.models.PresetTargetType
 import com.localdownloader.ui.components.EditDownloadPresetDialog
 import com.localdownloader.ui.components.PreferenceItem

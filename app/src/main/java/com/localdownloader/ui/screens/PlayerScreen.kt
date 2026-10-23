@@ -153,9 +153,6 @@ fun PlayerScreen(
             isLikelyVideoFile(task?.title) ||
             playablePath?.startsWith("content://", ignoreCase = true) == true
     }
-    val allowBackgroundPlayback = remember(playablePath, task?.title, uiState.backgroundPlayback) {
-        uiState.backgroundPlayback || isLikelyAudioFile(playablePath) || isLikelyAudioFile(task?.title)
-    }
     val playbackCompatibilityLabel = remember(playablePath) {
         playablePath
             ?.takeUnless { it.startsWith("content://", ignoreCase = true) }
@@ -165,6 +162,9 @@ fun PlayerScreen(
         context.getSharedPreferences(VIDEO_PLAYER_HINT_PREFS, Context.MODE_PRIVATE)
     }
     val uiState by playerViewModel.uiState.collectAsStateWithLifecycle()
+    val allowBackgroundPlayback = remember(playablePath, task?.title, uiState.backgroundPlayback) {
+        uiState.backgroundPlayback || isLikelyAudioFile(playablePath) || isLikelyAudioFile(task?.title)
+    }
     val selectedAudioTrack = uiState.audioTracks.firstOrNull { it.isSelected }
     val selectedSubtitleTrack = uiState.subtitleTracks.firstOrNull { it.isSelected }
     val currentOrientation = configuration.orientation

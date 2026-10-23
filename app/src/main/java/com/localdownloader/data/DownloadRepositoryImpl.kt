@@ -46,6 +46,7 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import com.localdownloader.domain.models.VaultSettings
+import com.localdownloader.domain.models.getAllVaults
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -1266,20 +1267,21 @@ class DownloadRepositoryImpl @Inject constructor(
             val vaultPath = fileUtils.importFileToVault(uri, vaultId).getOrThrow()
             val file = java.io.File(vaultPath)
             val taskId = java.util.UUID.randomUUID().toString()
+            val formattedSize = fileUtils.formatFileSize(file.length())
             val newTask = DownloadTask(
                 id = taskId,
                 url = "file://${file.absolutePath}",
                 title = file.nameWithoutExtension,
                 status = DownloadStatus.COMPLETED,
-                progress = 100,
-                bytesDownloaded = file.length(),
-                totalBytes = file.length(),
+                progressPercent = 100,
+                downloadedStr = formattedSize,
+                totalSizeStr = formattedSize,
                 outputPath = vaultPath,
                 isInVault = true,
                 createdAtEpochMs = System.currentTimeMillis(),
                 updatedAtEpochMs = System.currentTimeMillis(),
             )
-            downloadTaskStore.insert(newTask)
+            downloadTaskStore.upsert(newTask)
             vaultPath
         }.onFailure { error ->
             logger.e("DownloadRepository", "importFileToVault failed uri=$uri", error)

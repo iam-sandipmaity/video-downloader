@@ -104,7 +104,7 @@ class SettingsStore @Inject constructor(
         val defaultPresetId = stringPreferencesKey("default_preset_id")
         val networkTimeoutSeconds = intPreferencesKey("network_timeout_seconds")
         val maxDownloadRetries = intPreferencesKey("max_download_retries")
-        val downloadRateLimitKbps = intPreferencesKey("download_rate_limit_kbps")
+        val downloadRateLimitKbps = longPreferencesKey("download_rate_limit_kbps")
         val geoBypass = booleanPreferencesKey("geo_bypass")
         val writeDescription = booleanPreferencesKey("write_description")
         val writeInfoJson = booleanPreferencesKey("write_info_json")
@@ -179,15 +179,15 @@ class SettingsStore @Inject constructor(
                     vaultSettings = decodeVaultSettings(prefs[Keys.vaultSettings]),
                     subtitleViewSettings = decodeSubtitleViewSettings(prefs[Keys.subtitleViewSettings]),
                     downloadPresets = decodeDownloadPresets(prefs[Keys.downloadPresets]),
-                    defaultPresetId = prefs[Keys.defaultPresetId] ?: "best_video",
+                    defaultPresetId = prefs[Keys.defaultPresetId]?.takeIf { it.isNotBlank() } ?: "best_video",
                     networkTimeoutSeconds = prefs[Keys.networkTimeoutSeconds] ?: 30,
-                    maxDownloadRetries = prefs[Keys.maxDownloadRetries] ?: 3,
-                    downloadRateLimitKbps = prefs[Keys.downloadRateLimitKbps] ?: 0,
+                    maxDownloadRetries = prefs[Keys.maxDownloadRetries] ?: 6,
+                    downloadRateLimitKbps = prefs[Keys.downloadRateLimitKbps] ?: 0L,
                     geoBypass = prefs[Keys.geoBypass] ?: true,
                     writeDescription = prefs[Keys.writeDescription] ?: false,
                     writeInfoJson = prefs[Keys.writeInfoJson] ?: false,
                     restrictFilenames = prefs[Keys.restrictFilenames] ?: false,
-                    windowsFilenames = prefs[Keys.windowsFilenames] ?: false,
+                    windowsFilenames = prefs[Keys.windowsFilenames] ?: true,
                     defaultPlaybackSpeed = prefs[Keys.defaultPlaybackSpeed] ?: 1.0f,
                     doubleTapSeekSeconds = prefs[Keys.doubleTapSeekSeconds] ?: 10,
                     backgroundPlayback = prefs[Keys.backgroundPlayback] ?: false,
@@ -252,7 +252,7 @@ class SettingsStore @Inject constructor(
             prefs[Keys.vaultSettings] = json.encodeToString(settings.vaultSettings)
             prefs[Keys.subtitleViewSettings] = json.encodeToString(settings.subtitleViewSettings)
             prefs[Keys.downloadPresets] = json.encodeToString(settings.downloadPresets)
-            prefs[Keys.defaultPresetId] = settings.defaultPresetId
+            prefs[Keys.defaultPresetId] = settings.defaultPresetId ?: ""
             prefs[Keys.networkTimeoutSeconds] = settings.networkTimeoutSeconds
             prefs[Keys.maxDownloadRetries] = settings.maxDownloadRetries
             prefs[Keys.downloadRateLimitKbps] = settings.downloadRateLimitKbps

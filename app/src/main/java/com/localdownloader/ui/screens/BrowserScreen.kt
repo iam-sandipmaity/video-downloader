@@ -607,6 +607,7 @@ fun BrowserScreen(
                                     bitrates = bitrates,
                                     emptyChoicesMessage = stringResource(R.string.browser_closest_available_format),
                                     appSettings = uiState.appSettings,
+                                    onPresetSelected = onPresetSelected,
                                 )
                             }
                         }
@@ -739,6 +740,7 @@ fun BrowserScreen(
                                     bitrates = bitrates,
                                     emptyChoicesMessage = null,
                                     appSettings = uiState.appSettings,
+                                    onPresetSelected = onPresetSelected,
                                 )
                             }
                         }
@@ -1413,6 +1415,7 @@ private fun SelectionOptionsCard(
     bitrates: List<Int>,
     emptyChoicesMessage: String?,
     appSettings: AppSettings = AppSettings(),
+    onPresetSelected: ((DownloadPreset) -> Unit)? = null,
 ) {
     val availableTransforms = remember(streamType, hasVideoAudioChoices, hasVideoOnlyChoices, hasAudioOnlyChoices) {
         if (streamType != StreamType.VIDEO_AUDIO || !hasVideoAudioChoices) {
