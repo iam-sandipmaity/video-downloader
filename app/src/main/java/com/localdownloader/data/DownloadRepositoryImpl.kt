@@ -1267,7 +1267,7 @@ class DownloadRepositoryImpl @Inject constructor(
             val vaultPath = fileUtils.importFileToVault(uri, vaultId).getOrThrow()
             val file = java.io.File(vaultPath)
             val taskId = java.util.UUID.randomUUID().toString()
-            val formattedSize = fileUtils.formatFileSize(file.length())
+            val formattedSize = android.text.format.Formatter.formatFileSize(appContext, file.length())
             val newTask = DownloadTask(
                 id = taskId,
                 url = "file://${file.absolutePath}",
