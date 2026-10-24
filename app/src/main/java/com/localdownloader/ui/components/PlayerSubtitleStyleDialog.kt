@@ -100,6 +100,8 @@ fun PlayerSubtitleStyleDialog(
         "SansSerif" to "Sans-Serif",
         "Serif" to "Serif",
         "Monospace" to "Monospace",
+        "Casual" to "Casual",
+        "Cursive" to "Cursive",
     )
 
     AlertDialog(
@@ -174,7 +176,9 @@ fun PlayerSubtitleStyleDialog(
                         val parsedFontFamily = when (settings.typeface.lowercase()) {
                             "serif" -> FontFamily.Serif
                             "monospace" -> FontFamily.Monospace
-                            "sansserif" -> FontFamily.SansSerif
+                            "sansserif", "sans_serif", "sans-serif" -> FontFamily.SansSerif
+                            "cursive" -> FontFamily.Cursive
+                            "casual" -> FontFamily.Cursive
                             else -> FontFamily.Default
                         }
 

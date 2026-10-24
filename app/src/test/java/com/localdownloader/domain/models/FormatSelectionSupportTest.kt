@@ -172,4 +172,42 @@ class FormatSelectionSupportTest {
             effectiveOutputStreamType(StreamType.VIDEO_AUDIO, OutputTransform.NONE),
         )
     }
+
+    @Test
+    fun findBestMatchingFormatChoice_matchesExactHeightAndContainer() {
+        val choices = listOf(
+            FormatChoice(selector = "1080_mp4", label = "1080p MP4", streamType = StreamType.VIDEO_AUDIO, container = "mp4", height = 1080, isMerged = false, isImageLike = false),
+            FormatChoice(selector = "1080_webm", label = "1080p WebM", streamType = StreamType.VIDEO_AUDIO, container = "webm", height = 1080, isMerged = false, isImageLike = false),
+            FormatChoice(selector = "720_mp4", label = "720p MP4", streamType = StreamType.VIDEO_AUDIO, container = "mp4", height = 720, isMerged = false, isImageLike = false),
+        )
+
+        val result = findBestMatchingFormatChoice(choices, targetHeight = 1080, preferredContainer = "mp4")
+        assertEquals("1080_mp4", result?.selector)
+    }
+
+    @Test
+    fun findBestMatchingFormatChoice_fallsBackToClosestResolutionUnderTarget() {
+        val choices = listOf(
+            FormatChoice(selector = "4k", label = "4K", streamType = StreamType.VIDEO_AUDIO, container = "mp4", height = 2160, isMerged = false, isImageLike = false),
+            FormatChoice(selector = "720p", label = "720p", streamType = StreamType.VIDEO_AUDIO, container = "mp4", height = 720, isMerged = false, isImageLike = false),
+            FormatChoice(selector = "480p", label = "480p", streamType = StreamType.VIDEO_AUDIO, container = "mp4", height = 480, isMerged = false, isImageLike = false),
+        )
+
+        // User wanted 1080p, but only 4K and 720p/480p exist. Closest under 1080p is 720p!
+        val result = findBestMatchingFormatChoice(choices, targetHeight = 1080, preferredContainer = "mp4")
+        assertEquals("720p", result?.selector)
+    }
+
+    @Test
+    fun findBestMatchingFormatChoice_selectsHighestForBestQuality() {
+        val choices = listOf(
+            FormatChoice(selector = "720p", label = "720p", streamType = StreamType.VIDEO_AUDIO, container = "mp4", height = 720, isMerged = false, isImageLike = false),
+            FormatChoice(selector = "4k", label = "4K", streamType = StreamType.VIDEO_AUDIO, container = "mp4", height = 2160, isMerged = false, isImageLike = false),
+            FormatChoice(selector = "1080p", label = "1080p", streamType = StreamType.VIDEO_AUDIO, container = "mp4", height = 1080, isMerged = false, isImageLike = false),
+        )
+
+        val result = findBestMatchingFormatChoice(choices, targetHeight = null, preferredContainer = "auto")
+        assertEquals("4k", result?.selector)
+    }
 }
+

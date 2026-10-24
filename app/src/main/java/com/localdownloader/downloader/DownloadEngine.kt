@@ -30,12 +30,12 @@ class DownloadEngine @Inject constructor(
             "--newline",
             "--ignore-config",
             "--no-warnings",
-            "--windows-filenames",
             "--trim-filenames", "160",
             "--progress-template",
             "download:PROG|%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s|%(progress._downloaded_bytes_str)s|%(progress._total_bytes_estimate_str)s",
             // Fail fast enough for the worker's higher-level fallback logic to take over.
-            "--retries", "6",
+            "--retries", options.maxDownloadRetries.coerceAtLeast(0).toString(),
+            "--socket-timeout", options.networkTimeoutSeconds.coerceAtLeast(5).toString(),
             "--fragment-retries", "4",
             "--retry-sleep", "1",
             "--retry-sleep", "fragment:1",
@@ -47,6 +47,25 @@ class DownloadEngine @Inject constructor(
             "-o",
             outputTemplate,
         )
+
+        if (options.windowsFilenames) {
+            args += "--windows-filenames"
+        }
+        if (options.restrictFilenames) {
+            args += "--restrict-filenames"
+        }
+        if (options.geoBypass) {
+            args += "--geo-bypass"
+        }
+        if (options.downloadRateLimitKbps > 0) {
+            args += listOf("--limit-rate", "${options.downloadRateLimitKbps}K")
+        }
+        if (options.writeDescription) {
+            args += "--write-description"
+        }
+        if (options.writeInfoJson) {
+            args += "--write-info-json"
+        }
 
         if (options.forceFreshDownload) {
             args += "--no-continue"

@@ -2,6 +2,23 @@
 
 Nightly builds are rolling prereleases published from the `nightly` release tag. This file tracks changes that are available in nightly before they are promoted into the stable changelog.
 
+## [2.0.3.2] - 2026-10-24
+
+### Added
+- **Reusable Download Presets & Logical Format Matching** (#124) - Added customizable download presets for quality, container, audio extraction, metadata, and subtitles, with option to set a default preset that applies automatically on analysis. Includes smart resolution matching (`findBestMatchingFormatChoice`) that dynamically matches available formats and containers without rigid hardcoding.
+- **Compact Quick Presets Picker Row** (#124) - Replaced bulky wrapped chips with a sleek 30dp horizontal `LazyRow` at the top of the format selection sheet, providing one-tap access without pushing down format cards.
+- **Private Vault Import & Export Tools** (#124) - Added direct file import from system storage into secure vaults, single-file export from vault back to public Downloads with original filename recovery, and a quick-lock button in the Vault TopAppBar.
+- **Dedicated Advanced Settings Screen** (#124) - Added comprehensive configuration options for socket timeouts (15s–120s), download retry attempts (0–20), download rate limiting (500 KB/s – 20 MB/s), geo-bypass, writing descriptions and info-json files, ASCII-only filename restriction, Windows/FAT32-safe filenames, playback speeds, double-tap seek times (5s–30s), background playback, queue scheduling (FIFO vs LIFO), and auto-retrying failed downloads.
+
+### Fixed
+- **Player Subtitle Font Customization Bug** (#124) - Fixed ExoPlayer `SubtitleView` ignoring user-selected custom fonts by disabling `applyEmbeddedStyles` and `applyEmbeddedFontSizes`, allowing user typeface choices to take effect immediately. Added support for `Casual` and `Cursive` typefaces.
+- **Private Vault Auto-Lock & App Backgrounding** (#124) - Implemented reliable auto-lock timeout tracking on app backgrounding and foregrounding lifecycle events.
+- **Private Vault Screen Privacy & Music Player Isolation** (#124) - Applied `FLAG_SECURE` window privacy protection to prevent screen captures or app switcher leaks when vaults are open, and guarded vault audio tracks from unauthorized playback in the music player when the vault is locked.
+- **Respect autoDeleteOriginal Setting in Vault** (#124) - Moving downloads into vault now adheres to the individual vault's `autoDeleteOriginal` configuration.
+
+### Changed
+- **Nightly Version Bump** - Release metadata updated to `2.0.3.2` (`NIGHTLY_VERSION_CODE` `56`).
+
 ## [2.0.3.1] - 2026-09-27
 
 ### Added

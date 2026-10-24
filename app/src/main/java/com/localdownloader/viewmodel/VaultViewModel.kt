@@ -383,6 +383,67 @@ class VaultViewModel @Inject constructor(
         }
     }
 
+    private var lastBackgroundEpochMs: Long? = null
+
+    fun onAppBackgrounded() {
+        if (_uiState.value.activeVaultId != null) {
+            lastBackgroundEpochMs = System.currentTimeMillis()
+        }
+    }
+
+    fun onAppForegrounded() {
+        val bgTime = lastBackgroundEpochMs ?: return
+        val activeId = _uiState.value.activeVaultId ?: return
+        val activeVault = _uiState.value.vaultSettings.getAllVaults().firstOrNull { it.id == activeId }
+        val timeoutSeconds = activeVault?.autoLockTimeoutSeconds ?: 0
+        if (timeoutSeconds == -1) {
+            lastBackgroundEpochMs = null
+            return
+        }
+        val elapsedMs = System.currentTimeMillis() - bgTime
+        if (timeoutSeconds == 0 || elapsedMs >= timeoutSeconds * 1000L) {
+            logger.i("VaultViewModel", "Auto-locking vault $activeId after ${elapsedMs}ms in background")
+            lockActiveVault()
+        }
+        lastBackgroundEpochMs = null
+    }
+
+    fun importFileToVault(uri: android.net.Uri, vaultId: String) {
+        viewModelScope.launch {
+            runCatching {
+                repository.importFileToVault(uri, vaultId).getOrThrow()
+                _uiState.value = _uiState.value.copy(successMessage = "File imported to vault")
+            }.onFailure { error ->
+                logger.e("VaultViewModel", "importFileToVault failed", error)
+                _uiState.value = _uiState.value.copy(errorMessage = "Failed to import file to vault")
+            }
+        }
+    }
+
+    fun exportFileFromVault(taskId: String) {
+        viewModelScope.launch {
+            runCatching {
+                repository.moveFromVault(taskId).getOrThrow()
+                _uiState.value = _uiState.value.copy(successMessage = "Exported to public downloads")
+            }.onFailure { error ->
+                logger.e("VaultViewModel", "exportFileFromVault failed", error)
+                _uiState.value = _uiState.value.copy(errorMessage = "Failed to export file")
+            }
+        }
+    }
+
+    fun deleteFileFromVault(taskId: String) {
+        viewModelScope.launch {
+            runCatching {
+                repository.deleteDownloadedFile(taskId).getOrThrow()
+                _uiState.value = _uiState.value.copy(successMessage = "File deleted from vault")
+            }.onFailure { error ->
+                logger.e("VaultViewModel", "deleteFileFromVault failed", error)
+                _uiState.value = _uiState.value.copy(errorMessage = "Failed to delete file")
+            }
+        }
+    }
+
     private fun hashPin(pin: String): String {
         return runCatching {
             java.security.MessageDigest.getInstance("SHA-256")

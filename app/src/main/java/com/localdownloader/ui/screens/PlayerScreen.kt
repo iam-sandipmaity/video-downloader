@@ -153,9 +153,6 @@ fun PlayerScreen(
             isLikelyVideoFile(task?.title) ||
             playablePath?.startsWith("content://", ignoreCase = true) == true
     }
-    val allowBackgroundPlayback = remember(playablePath, task?.title) {
-        isLikelyAudioFile(playablePath) || isLikelyAudioFile(task?.title)
-    }
     val playbackCompatibilityLabel = remember(playablePath) {
         playablePath
             ?.takeUnless { it.startsWith("content://", ignoreCase = true) }
@@ -165,6 +162,9 @@ fun PlayerScreen(
         context.getSharedPreferences(VIDEO_PLAYER_HINT_PREFS, Context.MODE_PRIVATE)
     }
     val uiState by playerViewModel.uiState.collectAsStateWithLifecycle()
+    val allowBackgroundPlayback = remember(playablePath, task?.title, uiState.backgroundPlayback) {
+        uiState.backgroundPlayback || isLikelyAudioFile(playablePath) || isLikelyAudioFile(task?.title)
+    }
     val selectedAudioTrack = uiState.audioTracks.firstOrNull { it.isSelected }
     val selectedSubtitleTrack = uiState.subtitleTracks.firstOrNull { it.isSelected }
     val currentOrientation = configuration.orientation
@@ -406,7 +406,8 @@ fun PlayerScreen(
                     }
                 },
                 onSeekBack = {
-                    val appliedMs = playerViewModel.seekBy(-SEEK_INCREMENT_MS)
+                    val seekIncrementMs = (uiState.doubleTapSeekSeconds * 1000L).coerceAtLeast(1000L)
+                    val appliedMs = playerViewModel.seekBy(-seekIncrementMs)
                     if (appliedMs != 0L) {
                         gestureFeedback = "-${abs(appliedMs / 1000)}s"
                     } else if (!canSeek) {
@@ -415,7 +416,8 @@ fun PlayerScreen(
                     activePanelName = PlayerPanel.NONE.name
                 },
                 onSeekForward = {
-                    val appliedMs = playerViewModel.seekBy(SEEK_INCREMENT_MS)
+                    val seekIncrementMs = (uiState.doubleTapSeekSeconds * 1000L).coerceAtLeast(1000L)
+                    val appliedMs = playerViewModel.seekBy(seekIncrementMs)
                     if (appliedMs != 0L) {
                         gestureFeedback = "+${abs(appliedMs / 1000)}s"
                     } else if (!canSeek) {
@@ -2171,6 +2173,8 @@ private fun applySubtitleViewSettings(subtitleView: SubtitleView?, settings: Sub
         "serif" -> android.graphics.Typeface.SERIF
         "sansserif", "sans_serif", "sans-serif" -> android.graphics.Typeface.SANS_SERIF
         "monospace" -> android.graphics.Typeface.MONOSPACE
+        "casual" -> android.graphics.Typeface.create("casual", android.graphics.Typeface.NORMAL)
+        "cursive" -> android.graphics.Typeface.create("cursive", android.graphics.Typeface.NORMAL)
         else -> android.graphics.Typeface.DEFAULT
     }
     val captionStyle = CaptionStyleCompat(
@@ -2181,6 +2185,8 @@ private fun applySubtitleViewSettings(subtitleView: SubtitleView?, settings: Sub
         edgeColor,
         tf,
     )
+    subtitleView.setApplyEmbeddedStyles(false)
+    subtitleView.setApplyEmbeddedFontSizes(false)
     subtitleView.setStyle(captionStyle)
     subtitleView.setFractionalTextSize(SubtitleView.DEFAULT_TEXT_SIZE_FRACTION * settings.fontSizeScale)
     subtitleView.setBottomPaddingFraction(settings.bottomOffsetFraction)

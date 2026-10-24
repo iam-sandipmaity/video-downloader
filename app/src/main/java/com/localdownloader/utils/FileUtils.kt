@@ -62,7 +62,11 @@ class FileUtils @Inject constructor(
      * Moves a media file and its managed sidecar bundle into the vault.
      * Returns the new primary path on success, or fails without marking the move complete.
      */
-    fun moveToVault(path: String, vaultId: String = "default"): Result<String> {
+    fun moveToVault(
+        path: String,
+        vaultId: String = "default",
+        autoDeleteOriginal: Boolean = true,
+    ): Result<String> {
         val sourceFile = File(path)
         if (!sourceFile.exists()) {
             return Result.failure(IllegalStateException("Source file does not exist: $path"))
@@ -97,11 +101,10 @@ class FileUtils @Inject constructor(
                     movedPairs += source to target
                 }
 
-                val deletedAllSources = movedPairs.all { (source, _) ->
-                    deleteManagedFile(source.absolutePath)
-                }
-                if (!deletedAllSources) {
-                    error("Copied into vault but failed to remove public originals")
+                if (autoDeleteOriginal) {
+                    movedPairs.forEach { (source, _) ->
+                        runCatching { deleteManagedFile(source.absolutePath) }
+                    }
                 }
 
                 targetPrimary.absolutePath
@@ -111,6 +114,37 @@ class FileUtils @Inject constructor(
                 }
                 throw error
             }
+        }
+    }
+
+    /**
+     * Imports a user-selected file into the specified private vault.
+     */
+    fun importFileToVault(sourceUri: Uri, vaultId: String = "default"): Result<String> {
+        return runCatching {
+            var fileName = "imported_${System.currentTimeMillis()}"
+            context.contentResolver.query(sourceUri, null, null, null, null)?.use { cursor ->
+                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (nameIndex != -1 && cursor.moveToFirst()) {
+                    val displayName = cursor.getString(nameIndex)
+                    if (!displayName.isNullOrBlank()) {
+                        fileName = displayName
+                    }
+                }
+            }
+            val vaultDir = ensureVaultDir(vaultId)
+            var targetFile = File(vaultDir, fileName)
+            if (targetFile.exists()) {
+                val stem = targetFile.nameWithoutExtension
+                val ext = targetFile.extension.let { if (it.isNotBlank()) ".$it" else "" }
+                targetFile = File(vaultDir, "${stem}_${System.currentTimeMillis()}$ext")
+            }
+            context.contentResolver.openInputStream(sourceUri)?.use { input ->
+                targetFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            } ?: error("Failed to open input stream for $sourceUri")
+            targetFile.absolutePath
         }
     }
 

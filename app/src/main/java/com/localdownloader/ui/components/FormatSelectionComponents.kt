@@ -20,6 +20,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -60,7 +62,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.localdownloader.R
 import com.localdownloader.domain.models.AppSettings
+import com.localdownloader.domain.models.DownloadPreset
 import com.localdownloader.domain.models.FormatChoice
+import com.localdownloader.domain.models.PresetTargetType
 import com.localdownloader.domain.models.StreamType
 import com.localdownloader.ui.model.toReadableSize
 
@@ -80,6 +84,7 @@ fun FormatSelectionBottomSheet(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
+    onPresetSelected: ((DownloadPreset) -> Unit)? = null,
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
@@ -138,6 +143,61 @@ fun FormatSelectionBottomSheet(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(18.dp),
                     )
+                }
+            }
+
+            if (appSettings.downloadPresets.isNotEmpty() && onPresetSelected != null) {
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(horizontal = 2.dp),
+                ) {
+                    items(appSettings.downloadPresets) { preset ->
+                        val isDefault = preset.id == appSettings.defaultPresetId || (appSettings.defaultPresetId == null && preset.isDefault)
+                        val isVideo = preset.targetType == PresetTargetType.VIDEO
+
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                            border = BorderStroke(
+                                width = 1.dp,
+                                color = if (isDefault) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                            ),
+                            onClick = {
+                                onPresetSelected(preset)
+                                onDismissRequest()
+                            },
+                            modifier = Modifier.height(30.dp),
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                            ) {
+                                Icon(
+                                    imageVector = if (isVideo) Icons.Rounded.Movie else Icons.Rounded.Audiotrack,
+                                    contentDescription = null,
+                                    tint = if (isDefault) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(14.dp),
+                                )
+                                Text(
+                                    text = preset.name,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = if (isDefault) FontWeight.Bold else FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                )
+                                if (isDefault) {
+                                    Text(
+                                        text = "★",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontSize = 10.sp,
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
 

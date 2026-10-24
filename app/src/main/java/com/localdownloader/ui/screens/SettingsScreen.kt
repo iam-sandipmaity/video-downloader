@@ -23,6 +23,7 @@ import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Subtitles
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,6 +56,7 @@ fun SettingsScreen(
     onOpenStorage: () -> Unit,
     onOpenNotifications: () -> Unit,
     onOpenAccess: () -> Unit,
+    onOpenAdvanced: () -> Unit = {},
     onOpenAbout: () -> Unit,
     onOpenAppLog: () -> Unit,
     onBack: () -> Unit,
@@ -177,6 +179,14 @@ fun SettingsScreen(
                 description = "Completion, error, and status alerts",
                 icon = Icons.Rounded.NotificationsActive,
                 onClick = onOpenNotifications,
+            )
+        }
+        item {
+            SettingItem(
+                title = "Advanced settings",
+                description = "Timeouts, rate limits, filename rules, playback & queue options",
+                icon = Icons.Rounded.Tune,
+                onClick = onOpenAdvanced,
             )
         }
         item {

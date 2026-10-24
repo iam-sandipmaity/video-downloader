@@ -16,11 +16,14 @@ import com.localdownloader.domain.models.BatterySaverMode
 import com.localdownloader.domain.models.ContrastMode
 import com.localdownloader.domain.models.CookieProfile
 import com.localdownloader.domain.models.DownloadOptions
+import com.localdownloader.domain.models.DownloadPreset
 import com.localdownloader.domain.models.FormatChoice
 import com.localdownloader.domain.models.FormatSelectorStyle
 import com.localdownloader.domain.models.MediaFormat
 import com.localdownloader.domain.models.OutputTransform
 import com.localdownloader.domain.models.PlaylistDownloadRequest
+import com.localdownloader.domain.models.PresetTargetType
+import com.localdownloader.domain.models.defaultBuiltInPresets
 import com.localdownloader.domain.models.SYSTEM_LANGUAGE_TAG
 import com.localdownloader.domain.models.StreamType
 import com.localdownloader.domain.models.SubtitleViewSettings
@@ -31,6 +34,7 @@ import com.localdownloader.domain.models.YoutubeAuthConfig
 import com.localdownloader.domain.models.audioFormatSupportsBitrateControl
 import com.localdownloader.domain.models.choicesForStreamType
 import com.localdownloader.domain.models.effectiveOutputStreamType
+import com.localdownloader.domain.models.findBestMatchingFormatChoice
 import com.localdownloader.domain.models.preferredDefaultChoiceForStreamType
 import com.localdownloader.domain.models.resolveAvailableStreamType
 import com.localdownloader.domain.models.resolveAvailableOutputTransform
@@ -1084,6 +1088,262 @@ class FormatViewModel @Inject constructor(
         persistSettingsSilently()
     }
 
+    fun onSelectDefaultPreset(presetId: String?) {
+        val updated = uiState.value.appSettings.copy(defaultPresetId = presetId)
+        _uiState.update { state -> state.copy(appSettings = updated) }
+        viewModelScope.launch {
+            runCatching { repository.updateSettings(updated) }
+        }
+    }
+
+    fun onSavePreset(preset: DownloadPreset) {
+        val currentPresets = uiState.value.appSettings.downloadPresets
+        val updatedPresets = if (currentPresets.any { it.id == preset.id }) {
+            currentPresets.map { if (it.id == preset.id) preset else it }
+        } else {
+            currentPresets + preset
+        }
+        val defaultId = if (preset.isDefault) preset.id else uiState.value.appSettings.defaultPresetId
+        val updated = uiState.value.appSettings.copy(
+            downloadPresets = updatedPresets,
+            defaultPresetId = defaultId,
+        )
+        _uiState.update { state -> state.copy(appSettings = updated) }
+        viewModelScope.launch {
+            runCatching { repository.updateSettings(updated) }
+        }
+    }
+
+    fun onDeletePreset(presetId: String) {
+        val current = uiState.value.appSettings
+        val updatedPresets = current.downloadPresets.filterNot { it.id == presetId }
+        val updatedDefaultId = if (current.defaultPresetId == presetId) null else current.defaultPresetId
+        val updated = current.copy(
+            downloadPresets = updatedPresets,
+            defaultPresetId = updatedDefaultId,
+        )
+        _uiState.update { state -> state.copy(appSettings = updated) }
+        viewModelScope.launch {
+            runCatching { repository.updateSettings(updated) }
+        }
+    }
+
+    fun onResetPresetsToDefault() {
+        val defaults = defaultBuiltInPresets()
+        val updated = uiState.value.appSettings.copy(
+            downloadPresets = defaults,
+            defaultPresetId = defaults.firstOrNull { it.isDefault }?.id,
+        )
+        _uiState.update { state -> state.copy(appSettings = updated) }
+        viewModelScope.launch {
+            runCatching { repository.updateSettings(updated) }
+        }
+    }
+
+    fun applyPreset(preset: DownloadPreset) {
+        val currentState = uiState.value
+        val shouldReenable = currentState.isDownloadButtonDisabled
+
+        _uiState.update { state ->
+            when (preset.targetType) {
+                PresetTargetType.AUDIO_ONLY -> {
+                    val hasAudioOnlyChoices = state.availableAudioOnlyChoices.isNotEmpty()
+                    val targetStreamType = if (hasAudioOnlyChoices) {
+                        StreamType.AUDIO_ONLY
+                    } else {
+                        StreamType.VIDEO_AUDIO
+                    }
+                    val targetTransform = if (hasAudioOnlyChoices) {
+                        OutputTransform.NONE
+                    } else {
+                        OutputTransform.EXTRACT_AUDIO
+                    }
+
+                    val candidateChoices = if (hasAudioOnlyChoices) {
+                        state.availableAudioOnlyChoices
+                    } else {
+                        state.availableVideoAudioChoices
+                    }
+
+                    val matchedChoice = if (hasAudioOnlyChoices) {
+                        candidateChoices.maxWithOrNull(
+                            compareBy<FormatChoice> {
+                                it.container.equals(preset.audioFormat, ignoreCase = true)
+                            }.thenBy { it.bitrateKbps ?: 0 }
+                            .thenBy { it.fileSizeBytes ?: 0L }
+                        ) ?: candidateChoices.firstOrNull()
+                    } else {
+                        candidateChoices.firstOrNull()
+                    }
+
+                    val selector = matchedChoice?.selector ?: firstSelectorForStreamType(
+                        streamType = targetStreamType,
+                        container = "auto",
+                        videoAudioChoices = state.availableVideoAudioChoices,
+                        videoOnlyChoices = state.availableVideoOnlyChoices,
+                        audioOnlyChoices = state.availableAudioOnlyChoices,
+                    )
+
+                    state.copy(
+                        selectedStreamType = targetStreamType,
+                        selectedOutputTransform = targetTransform,
+                        selectedAudioFormat = preset.audioFormat,
+                        audioBitrateKbps = preset.audioBitrateKbps,
+                        selectedFormatSelector = selector ?: state.selectedFormatSelector,
+                        downloadSubtitles = preset.autoDownloadSubtitles,
+                        embedSubtitles = preset.embedSubtitles,
+                        embedMetadata = preset.embedMetadata,
+                        embedThumbnail = preset.embedThumbnail,
+                        isDownloadButtonDisabled = if (shouldReenable) false else state.isDownloadButtonDisabled,
+                        downloadButtonDisabledAt = if (shouldReenable) 0L else state.downloadButtonDisabledAt,
+                    )
+                }
+                PresetTargetType.VIDEO -> {
+                    val targetHeight = when (preset.preferredQuality.lowercase().trim()) {
+                        "2160p", "4k" -> 2160
+                        "1440p", "2k" -> 1440
+                        "1080p", "fhd" -> 1080
+                        "720p", "hd" -> 720
+                        "480p", "sd" -> 480
+                        "360p" -> 360
+                        "240p" -> 240
+                        "144p" -> 144
+                        else -> null
+                    }
+                    val targetQuality = when (preset.preferredQuality.lowercase().trim()) {
+                        "2160p", "4k" -> VideoQuality.UHD_4K
+                        "1440p", "2k" -> VideoQuality.QHD_2K
+                        "1080p", "fhd" -> VideoQuality.FHD_1080
+                        "720p", "hd" -> VideoQuality.HD_720
+                        "480p", "sd" -> VideoQuality.SD_480
+                        "360p" -> VideoQuality.SD_360
+                        "240p" -> VideoQuality.LOW_240
+                        "144p" -> VideoQuality.LOW_144
+                        else -> VideoQuality.BEST
+                    }
+
+                    val targetStream = when {
+                        state.availableVideoAudioChoices.isNotEmpty() -> StreamType.VIDEO_AUDIO
+                        state.availableVideoOnlyChoices.isNotEmpty() -> StreamType.VIDEO_ONLY
+                        else -> state.selectedStreamType
+                    }
+                    val pool = if (targetStream == StreamType.VIDEO_AUDIO) {
+                        state.availableVideoAudioChoices
+                    } else {
+                        state.availableVideoOnlyChoices
+                    }
+
+                    val matchedChoice = findBestMatchingFormatChoice(
+                        choices = pool,
+                        targetHeight = targetHeight,
+                        preferredContainer = preset.videoContainer,
+                    )
+
+                    val selector = matchedChoice?.selector ?: firstSelectorForStreamType(
+                        streamType = targetStream,
+                        container = preset.videoContainer,
+                        videoAudioChoices = state.availableVideoAudioChoices,
+                        videoOnlyChoices = state.availableVideoOnlyChoices,
+                        audioOnlyChoices = state.availableAudioOnlyChoices,
+                    )
+
+                    state.copy(
+                        selectedStreamType = targetStream,
+                        selectedOutputTransform = OutputTransform.NONE,
+                        selectedQuality = targetQuality,
+                        selectedContainer = matchedChoice?.container ?: preset.videoContainer,
+                        downloadSubtitles = preset.autoDownloadSubtitles,
+                        embedSubtitles = preset.embedSubtitles,
+                        embedMetadata = preset.embedMetadata,
+                        embedThumbnail = preset.embedThumbnail,
+                        selectedFormatSelector = selector ?: state.selectedFormatSelector,
+                        isDownloadButtonDisabled = if (shouldReenable) false else state.isDownloadButtonDisabled,
+                        downloadButtonDisabledAt = if (shouldReenable) 0L else state.downloadButtonDisabledAt,
+                    )
+                }
+            }
+        }
+        if (shouldReenable) clearDownloadButtonCooldown()
+    }
+
+    fun onNetworkTimeoutSecondsChanged(seconds: Int) {
+        val updated = uiState.value.appSettings.copy(networkTimeoutSeconds = seconds)
+        _uiState.update { state -> state.copy(appSettings = updated) }
+        viewModelScope.launch { runCatching { repository.updateSettings(updated) } }
+    }
+
+    fun onMaxDownloadRetriesChanged(retries: Int) {
+        val updated = uiState.value.appSettings.copy(maxDownloadRetries = retries)
+        _uiState.update { state -> state.copy(appSettings = updated) }
+        viewModelScope.launch { runCatching { repository.updateSettings(updated) } }
+    }
+
+    fun onDownloadRateLimitKbpsChanged(rateLimitKbps: Long) {
+        val updated = uiState.value.appSettings.copy(downloadRateLimitKbps = rateLimitKbps)
+        _uiState.update { state -> state.copy(appSettings = updated) }
+        viewModelScope.launch { runCatching { repository.updateSettings(updated) } }
+    }
+
+    fun onGeoBypassChanged(enabled: Boolean) {
+        val updated = uiState.value.appSettings.copy(geoBypass = enabled)
+        _uiState.update { state -> state.copy(appSettings = updated) }
+        viewModelScope.launch { runCatching { repository.updateSettings(updated) } }
+    }
+
+    fun onWriteDescriptionChanged(enabled: Boolean) {
+        val updated = uiState.value.appSettings.copy(writeDescription = enabled)
+        _uiState.update { state -> state.copy(appSettings = updated) }
+        viewModelScope.launch { runCatching { repository.updateSettings(updated) } }
+    }
+
+    fun onWriteInfoJsonChanged(enabled: Boolean) {
+        val updated = uiState.value.appSettings.copy(writeInfoJson = enabled)
+        _uiState.update { state -> state.copy(appSettings = updated) }
+        viewModelScope.launch { runCatching { repository.updateSettings(updated) } }
+    }
+
+    fun onRestrictFilenamesChanged(enabled: Boolean) {
+        val updated = uiState.value.appSettings.copy(restrictFilenames = enabled)
+        _uiState.update { state -> state.copy(appSettings = updated) }
+        viewModelScope.launch { runCatching { repository.updateSettings(updated) } }
+    }
+
+    fun onWindowsFilenamesChanged(enabled: Boolean) {
+        val updated = uiState.value.appSettings.copy(windowsFilenames = enabled)
+        _uiState.update { state -> state.copy(appSettings = updated) }
+        viewModelScope.launch { runCatching { repository.updateSettings(updated) } }
+    }
+
+    fun onDefaultPlaybackSpeedChanged(speed: Float) {
+        val updated = uiState.value.appSettings.copy(defaultPlaybackSpeed = speed)
+        _uiState.update { state -> state.copy(appSettings = updated) }
+        viewModelScope.launch { runCatching { repository.updateSettings(updated) } }
+    }
+
+    fun onDoubleTapSeekSecondsChanged(seconds: Int) {
+        val updated = uiState.value.appSettings.copy(doubleTapSeekSeconds = seconds)
+        _uiState.update { state -> state.copy(appSettings = updated) }
+        viewModelScope.launch { runCatching { repository.updateSettings(updated) } }
+    }
+
+    fun onBackgroundPlaybackChanged(enabled: Boolean) {
+        val updated = uiState.value.appSettings.copy(backgroundPlayback = enabled)
+        _uiState.update { state -> state.copy(appSettings = updated) }
+        viewModelScope.launch { runCatching { repository.updateSettings(updated) } }
+    }
+
+    fun onQueueOrderFifoChanged(fifo: Boolean) {
+        val updated = uiState.value.appSettings.copy(queueOrderFifo = fifo)
+        _uiState.update { state -> state.copy(appSettings = updated) }
+        viewModelScope.launch { runCatching { repository.updateSettings(updated) } }
+    }
+
+    fun onAutoRetryFailedDownloadsChanged(enabled: Boolean) {
+        val updated = uiState.value.appSettings.copy(autoRetryFailedDownloads = enabled)
+        _uiState.update { state -> state.copy(appSettings = updated) }
+        viewModelScope.launch { runCatching { repository.updateSettings(updated) } }
+    }
+
     fun onBatterySaverModeChanged(mode: BatterySaverMode) {
         _uiState.update { state ->
             state.copy(appSettings = state.appSettings.copy(batterySaverMode = mode))
@@ -1941,6 +2201,15 @@ class FormatViewModel @Inject constructor(
                     audioFormat = if (isAudioOnly) audioFormat.ifBlank { null } else null,
                     audioBitrateKbps = resolvedAudioBitrateKbps,
                     concurrentFragments = state.appSettings.defaultConcurrentFragments,
+                    networkTimeoutSeconds = state.appSettings.networkTimeoutSeconds,
+                    maxDownloadRetries = state.appSettings.maxDownloadRetries,
+                    downloadRateLimitKbps = state.appSettings.downloadRateLimitKbps,
+                    geoBypass = state.appSettings.geoBypass,
+                    writeDescription = state.appSettings.writeDescription,
+                    writeInfoJson = state.appSettings.writeInfoJson,
+                    restrictFilenames = state.appSettings.restrictFilenames,
+                    windowsFilenames = state.appSettings.windowsFilenames,
+                    autoRetryFailedDownloads = state.appSettings.autoRetryFailedDownloads,
                 ),
                 queueNote = listOfNotNull(
                     youtubeRouting.queueNote,

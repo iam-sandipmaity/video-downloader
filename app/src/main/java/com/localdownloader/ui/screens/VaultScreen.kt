@@ -47,6 +47,12 @@ import androidx.compose.material.icons.outlined.DeleteForever
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.DriveFileMove
 import androidx.compose.material.icons.outlined.Fingerprint
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.LockClock
 import androidx.compose.material.icons.outlined.Movie
@@ -1116,11 +1122,42 @@ private fun VaultContentScreen(
         )
     }
 
+    val shouldSecureScreen = activeVaultSettings?.secureScreen == true
+    DisposableEffect(shouldSecureScreen) {
+        val activity = BiometricHelper.findActivity(context)
+        if (shouldSecureScreen) {
+            activity?.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+        }
+        onDispose {
+            activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+        }
+    }
+
+    val importFilePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenMultipleDocuments(),
+    ) { uris ->
+        uris.forEach { uri ->
+            vaultViewModel.importFileToVault(uri, activeId)
+        }
+    }
+
     PreferencePageScaffold(
         title = vaultName,
         onBack = onBack,
         modifier = modifier,
         actions = {
+            IconButton(onClick = { importFilePicker.launch(arrayOf("*/*")) }) {
+                Icon(
+                    imageVector = Icons.Outlined.Add,
+                    contentDescription = "Import Files",
+                )
+            }
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.Outlined.Lock,
+                    contentDescription = "Lock Vault",
+                )
+            }
             IconButton(onClick = { showSettingsModal = true }) {
                 Icon(
                     imageVector = Icons.Outlined.Settings,
@@ -1305,6 +1342,9 @@ private fun VaultContentScreen(
                     onMoveToDownloads = { taskId ->
                         downloadViewModel.moveFromVault(taskId)
                     },
+                    onDeleteFromVault = { taskId ->
+                        vaultViewModel.deleteFileFromVault(taskId)
+                    },
                     onPlayClick = {
                         when {
                             isAudio -> {
@@ -1331,8 +1371,63 @@ private fun VaultMediaCard(
     isVideo: Boolean,
     isAudio: Boolean,
     onMoveToDownloads: (String) -> Unit,
+    onDeleteFromVault: (String) -> Unit,
     onPlayClick: () -> Unit,
 ) {
+    var showMenu by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showDetailsDialog by remember { mutableStateOf(false) }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Delete from Vault?") },
+            text = { Text("This will permanently remove \"${item.title}\" from your device vault. This cannot be undone.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteConfirm = false
+                        onDeleteFromVault(item.id)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
+
+    if (showDetailsDialog) {
+        val file = item.outputPath?.let(::File)
+        val fileSize = file?.takeIf { it.exists() }?.length()?.let { bytes ->
+            val mb = bytes / (1024f * 1024f)
+            "%.2f MB".format(mb)
+        } ?: "Unknown"
+
+        AlertDialog(
+            onDismissRequest = { showDetailsDialog = false },
+            title = { Text("Vault File Details") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Title: ${item.title}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                    Text("File: ${file?.name ?: "Unknown"}", style = MaterialTheme.typography.bodySmall)
+                    Text("Size: $fileSize", style = MaterialTheme.typography.bodySmall)
+                    Text("Path: ${item.outputPath.orEmpty()}", style = MaterialTheme.typography.bodySmall)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDetailsDialog = false }) {
+                    Text("Close")
+                }
+            },
+        )
+    }
+
     Surface(
         shape = RoundedCornerShape(18.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -1385,16 +1480,47 @@ private fun VaultMediaCard(
                 )
             }
 
-            IconButton(
-                onClick = { onMoveToDownloads(item.id) },
-                modifier = Modifier.size(36.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.MoveToInbox,
-                    contentDescription = "Move out to Downloads",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp),
-                )
+            Box {
+                IconButton(
+                    onClick = { showMenu = true },
+                    modifier = Modifier.size(36.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.MoreVert,
+                        contentDescription = "Options",
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Export to Downloads") },
+                        leadingIcon = { Icon(Icons.Outlined.MoveToInbox, contentDescription = null) },
+                        onClick = {
+                            showMenu = false
+                            onMoveToDownloads(item.id)
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("File Details") },
+                        leadingIcon = { Icon(Icons.Outlined.Description, contentDescription = null) },
+                        onClick = {
+                            showMenu = false
+                            showDetailsDialog = true
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Delete from Vault", color = MaterialTheme.colorScheme.error) },
+                        leadingIcon = { Icon(Icons.Outlined.DeleteForever, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                        onClick = {
+                            showMenu = false
+                            showDeleteConfirm = true
+                        },
+                    )
+                }
             }
         }
     }

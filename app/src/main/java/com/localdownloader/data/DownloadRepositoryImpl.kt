@@ -46,6 +46,7 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import com.localdownloader.domain.models.VaultSettings
+import com.localdownloader.domain.models.getAllVaults
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -784,11 +785,21 @@ class DownloadRepositoryImpl @Inject constructor(
                 val options = loadTaskOptions(task.id) ?: return@mapNotNull null
                 DownloadTaskWithOptions(task = task, options = options)
             }
-            .sortedWith(
-                compareBy<DownloadTaskWithOptions> { it.task.createdAtEpochMs }
-                    .thenBy { it.options.playlistItemIndex ?: Int.MAX_VALUE }
-                    .thenBy { it.task.title.lowercase() },
-            )
+            .let { candidates ->
+                if (settings.queueOrderFifo) {
+                    candidates.sortedWith(
+                        compareBy<DownloadTaskWithOptions> { it.task.createdAtEpochMs }
+                            .thenBy { it.options.playlistItemIndex ?: Int.MAX_VALUE }
+                            .thenBy { it.task.title.lowercase() },
+                    )
+                } else {
+                    candidates.sortedWith(
+                        compareByDescending<DownloadTaskWithOptions> { it.task.createdAtEpochMs }
+                            .thenBy { it.options.playlistItemIndex ?: Int.MAX_VALUE }
+                            .thenBy { it.task.title.lowercase() },
+                    )
+                }
+            }
 
         queuedCandidates.forEach { queued ->
             if (availableSlots <= 0) return
@@ -1229,7 +1240,10 @@ class DownloadRepositoryImpl @Inject constructor(
                 ?: error("No task found with ID $taskId")
             val outputPath = task.outputPath?.takeIf { it.isNotBlank() }
                 ?: error("This task does not have a saved output file.")
-            val vaultPath = fileUtils.moveToVault(outputPath, vaultId).getOrThrow()
+            val vaultSettings = settingsStore.getVaultSettings()
+            val targetVault = vaultSettings.getAllVaults().firstOrNull { it.id == vaultId }
+            val autoDeleteOriginal = targetVault?.autoDeleteOriginal ?: true
+            val vaultPath = fileUtils.moveToVault(outputPath, vaultId, autoDeleteOriginal).getOrThrow()
             val remappedSubtitles = remapSiblingPaths(
                 originalPrimary = outputPath,
                 newPrimary = vaultPath,
@@ -1245,6 +1259,32 @@ class DownloadRepositoryImpl @Inject constructor(
             }
         }.onFailure { error ->
             logger.e("DownloadRepository", "moveToVault failed taskId=$taskId", error)
+        }
+    }
+
+    override suspend fun importFileToVault(uri: android.net.Uri, vaultId: String): Result<String> {
+        return runCatching {
+            val vaultPath = fileUtils.importFileToVault(uri, vaultId).getOrThrow()
+            val file = java.io.File(vaultPath)
+            val taskId = java.util.UUID.randomUUID().toString()
+            val formattedSize = android.text.format.Formatter.formatFileSize(appContext, file.length())
+            val newTask = DownloadTask(
+                id = taskId,
+                url = "file://${file.absolutePath}",
+                title = file.nameWithoutExtension,
+                status = DownloadStatus.COMPLETED,
+                progressPercent = 100,
+                downloadedStr = formattedSize,
+                totalSizeStr = formattedSize,
+                outputPath = vaultPath,
+                isInVault = true,
+                createdAtEpochMs = System.currentTimeMillis(),
+                updatedAtEpochMs = System.currentTimeMillis(),
+            )
+            downloadTaskStore.upsert(newTask)
+            vaultPath
+        }.onFailure { error ->
+            logger.e("DownloadRepository", "importFileToVault failed uri=$uri", error)
         }
     }
 
