@@ -123,4 +123,35 @@ class QuickDownloadViewModelTest {
         assertEquals(false, noneSelectedState.canDownload)
         assertEquals("Select items to download", noneSelectedState.ctaButtonLabel)
     }
+
+    @Test
+    fun isLikelyHlsFormat_identifiesHlsFormatsCorrectly() {
+        val hlsFormat232 = com.localdownloader.domain.models.MediaFormat(
+            formatId = "232",
+            extension = "mp4",
+            container = "mp4",
+            resolution = "720p",
+            videoCodec = "avc1.4d401f",
+            audioCodec = "mp4a.40.2",
+            fileSizeBytes = null,
+            bitrateKbps = 1500,
+            fps = 30.0,
+            note = "m3u8",
+        )
+        val dashFormat136 = com.localdownloader.domain.models.MediaFormat(
+            formatId = "136",
+            extension = "mp4",
+            container = "mp4",
+            resolution = "720p",
+            videoCodec = "avc1.4d401f",
+            audioCodec = "none",
+            fileSizeBytes = 25000000L,
+            bitrateKbps = 1200,
+            fps = 30.0,
+            note = "DASH video",
+        )
+
+        assertEquals(true, QuickDownloadViewModel.isLikelyHlsFormat(hlsFormat232))
+        assertEquals(false, QuickDownloadViewModel.isLikelyHlsFormat(dashFormat136))
+    }
 }

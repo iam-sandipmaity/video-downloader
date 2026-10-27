@@ -1,8 +1,10 @@
 package com.localdownloader.downloader
 
+import android.content.Context
 import com.localdownloader.domain.models.DownloadOptions
 import com.localdownloader.domain.models.audioFormatSupportsBitrateControl
 import com.localdownloader.utils.Logger
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import java.util.Locale
 import javax.inject.Inject
@@ -13,6 +15,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class DownloadEngine @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val ytDlpExecutor: YtDlpExecutor,
     private val logger: Logger,
 ) {
@@ -25,6 +28,8 @@ class DownloadEngine @Inject constructor(
         runCatching {
             File(outputTemplate).parentFile?.mkdirs()
         }
+
+        val tempDir = File(context.cacheDir, "ytdlp_temp").apply { mkdirs() }
 
         val args = mutableListOf(
             "--newline",
@@ -46,6 +51,8 @@ class DownloadEngine @Inject constructor(
             options.formatId,
             "-o",
             outputTemplate,
+            "--paths",
+            "temp:${tempDir.absolutePath}",
         )
 
         if (options.windowsFilenames) {
@@ -187,6 +194,8 @@ class DownloadEngine @Inject constructor(
             File(outputTemplate).parentFile?.mkdirs()
         }
 
+        val tempDir = File(context.cacheDir, "ytdlp_temp").apply { mkdirs() }
+
         val args = mutableListOf(
             "--newline",
             "--ignore-config",
@@ -196,6 +205,8 @@ class DownloadEngine @Inject constructor(
             "--skip-download",
             "-o",
             outputTemplate,
+            "--paths",
+            "temp:${tempDir.absolutePath}",
         )
 
         val subtitleExtractorArgs = resolveSubtitleExtractorArgs(options)
