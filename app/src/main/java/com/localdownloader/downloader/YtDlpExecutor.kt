@@ -61,8 +61,10 @@ class YtDlpExecutor @Inject constructor(
     ): CommandResult {
         return withContext(Dispatchers.IO) {
             val startMs = System.currentTimeMillis()
+            val workDir = File(context.cacheDir, "ytdlp_work").apply { mkdirs() }
             val result = processRunner.runCommand(
                 command = command,
+                workingDirectory = workDir,
                 environment = environment,
                 onStdoutLine = { line ->
                     if (logOutputLines) {
@@ -128,6 +130,8 @@ class YtDlpExecutor @Inject constructor(
             "PYTHONHOME" to pythonUsrDir.absolutePath,
             "HOME" to pythonUsrDir.absolutePath,
             "TMPDIR" to context.cacheDir.absolutePath,
+            "TEMP" to context.cacheDir.absolutePath,
+            "TMP" to context.cacheDir.absolutePath,
             "PATH" to listOfNotNull(
                 System.getenv("PATH")?.takeIf { it.isNotBlank() },
                 ffmpegRuntime.executable.parentFile?.absolutePath,

@@ -684,7 +684,7 @@ class QuickDownloadViewModel @Inject constructor(
         )
     }
 
-    private fun buildVideoQualities(info: VideoInfo, selectedFormat: QuickFormatOption?): List<QuickQualityOption> {
+    internal fun buildVideoQualities(info: VideoInfo, selectedFormat: QuickFormatOption?): List<QuickQualityOption> {
         val rawVideoFormats = info.formats.filter {
             !it.isAudioOnly && !it.isImageLike && !it.shouldTreatAsAudioOnlyChoice()
         }.ifEmpty {
@@ -722,7 +722,9 @@ class QuickDownloadViewModel @Inject constructor(
         if (distinctHeights.isNotEmpty()) {
             return distinctHeights.map { height ->
                 val matchingForHeight = matchingFormats.filter { parseHeight(it.resolution) == height }
-                val bestFormat = matchingForHeight.maxByOrNull { it.fileSizeBytes ?: (it.bitrateKbps?.toLong() ?: 0L) } ?: matchingForHeight.first()
+                val directNonHlsFormats = matchingForHeight.filter { !isLikelyHlsFormat(it) }
+                val candidateFormats = directNonHlsFormats.ifEmpty { matchingForHeight }
+                val bestFormat = candidateFormats.maxByOrNull { it.fileSizeBytes ?: (it.bitrateKbps?.toLong() ?: 0L) } ?: matchingForHeight.first()
 
                 val videoSize = bestFormat.fileSizeBytes
                 val totalSizeBytes = if (videoSize != null) {
@@ -934,5 +936,18 @@ class QuickDownloadViewModel @Inject constructor(
             val host = uri.host ?: return null
             host.removePrefix("www.").removePrefix("m.")
         }.getOrNull()
+    }
+
+    companion object {
+        internal fun isLikelyHlsFormat(format: MediaFormat): Boolean {
+            val note = format.note?.lowercase().orEmpty()
+            val formatId = format.formatId.lowercase()
+            return note.contains("hls") ||
+                note.contains("m3u8") ||
+                format.normalizedExtension == "m3u8" ||
+                format.normalizedContainer == "m3u8" ||
+                // Well-known YouTube HLS format IDs
+                formatId in setOf("91", "92", "93", "94", "95", "96", "232")
+        }
     }
 }
