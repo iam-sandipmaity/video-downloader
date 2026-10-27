@@ -18,10 +18,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up JDK 17
-        uses: actions/setup-java@f2beeb24e141e01a676f977032f5a29d81c9e27e # v5.1.0
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: "17"
@@ -30,7 +30,7 @@ jobs:
         uses: ./.github/actions/setup-android-sdk
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6.1.0
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
 
       - name: Read version from gradle.properties
         id: version
@@ -65,7 +65,7 @@ jobs:
 
       - name: Upload standard debug lint reports
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: lint-standard-debug-${{ steps.version.outputs.version_name }}
           path: |
@@ -124,13 +124,13 @@ jobs:
           cp "$APK_DIR/nightly-${VERSION}.apk" "$APK_DIR/nightly-debug.apk"
 
       - name: Upload nightly APK artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: nightly-${{ steps.version.outputs.nightly_version_name }}
           path: app/build/outputs/apk/standard/nightly/nightly-${{ steps.version.outputs.nightly_version_name }}.apk
 
       - name: Upload latest nightly.link APK artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           path: app/build/outputs/apk/standard/nightly/nightly-debug.apk
           archive: false
