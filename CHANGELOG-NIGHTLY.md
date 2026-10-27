@@ -2,6 +2,18 @@
 
 Nightly builds are rolling prereleases published from the `nightly` release tag. This file tracks changes that are available in nightly before they are promoted into the stable changelog.
 
+## [2.0.3.3] - 2026-10-27
+
+### Fixed
+- **Read-Only File System Crash During Format Validation** (#126) - Fixed `[Errno 30] Read-only file system: '/tmphcg4onva.tmp'` when downloading videos from shared links. yt-dlp's format tester requires writing temporary validation files, which previously failed because the underlying process inherited the Android root directory (`/`) as its working directory. Resolved by:
+  - Setting `ProcessBuilder.directory(...)` to an application-owned cache directory (`ytdlp_work`).
+  - Setting `TEMP`, `TMP`, and `TMPDIR` environment variables to the app cache directory so Python's `tempfile` module resolves valid paths.
+  - Passing `--paths "temp:<dir>"` explicitly to `yt-dlp` during download execution and subtitle fetching.
+  - Preferring direct DASH/progressive streams over HLS (e.g., format `232`) in Quick Download to avoid unnecessary remote fragment testing.
+
+### Changed
+- **Nightly Version Bump** - Release metadata updated to `2.0.3.3` (`NIGHTLY_VERSION_CODE` `57`).
+
 ## [2.0.3.2] - 2026-10-24
 
 ### Added
