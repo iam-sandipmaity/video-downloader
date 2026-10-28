@@ -684,114 +684,6 @@ class QuickDownloadViewModel @Inject constructor(
         )
     }
 
-    internal fun buildVideoQualities(info: VideoInfo, selectedFormat: QuickFormatOption?): List<QuickQualityOption> {
-        val rawVideoFormats = info.formats.filter {
-            !it.isAudioOnly && !it.isImageLike && !it.shouldTreatAsAudioOnlyChoice()
-        }.ifEmpty {
-            info.formats.filter { !it.isImageLike }
-        }
-
-        val matchingFormats = if (selectedFormat != null) {
-            rawVideoFormats.filter { format ->
-                normalizeContainer(format) == selectedFormat.container &&
-                    (selectedFormat.videoCodec == null ||
-                        normalizeCodecFamily(format.videoCodec) == selectedFormat.videoCodec ||
-                        normalizeCodecFamily(format.videoCodec) == null)
-            }.ifEmpty {
-                rawVideoFormats.filter { normalizeContainer(it) == selectedFormat.container }
-            }.ifEmpty {
-                rawVideoFormats
-            }
-        } else {
-            rawVideoFormats
-        }
-
-        val audioFormats = info.formats.filter { it.isAudioOnly || it.shouldTreatAsAudioOnlyChoice() }
-        val prefAudioExts = if (selectedFormat?.container == "mp4") listOf("m4a", "aac", "mp3") else listOf("opus", "webm", "m4a")
-        val bestAudio = prefAudioExts.asSequence()
-            .mapNotNull { ext -> audioFormats.filter { it.normalizedExtension == ext }.maxByOrNull { it.fileSizeBytes ?: (it.bitrateKbps?.toLong() ?: 0L) } }
-            .firstOrNull() ?: audioFormats.maxByOrNull { it.fileSizeBytes ?: (it.bitrateKbps?.toLong() ?: 0L) }
-        val bestAudioSize = bestAudio?.fileSizeBytes
-        val bestAudioBitrate = bestAudio?.bitrateKbps ?: 128
-
-        val distinctHeights = matchingFormats
-            .mapNotNull { parseHeight(it.resolution) }
-            .distinct()
-            .sortedDescending()
-
-        if (distinctHeights.isNotEmpty()) {
-            return distinctHeights.map { height ->
-                val matchingForHeight = matchingFormats.filter { parseHeight(it.resolution) == height }
-                val directNonHlsFormats = matchingForHeight.filter { !isLikelyHlsFormat(it) }
-                val candidateFormats = directNonHlsFormats.ifEmpty { matchingForHeight }
-                val bestFormat = candidateFormats.maxByOrNull { it.fileSizeBytes ?: (it.bitrateKbps?.toLong() ?: 0L) } ?: matchingForHeight.first()
-
-                val videoSize = bestFormat.fileSizeBytes
-                val totalSizeBytes = if (videoSize != null) {
-                    if (bestFormat.isVideoOnly) videoSize + (bestAudioSize ?: 0L) else videoSize
-                } else {
-                    val totalBitrate = (bestFormat.bitrateKbps ?: defaultBitrateForHeight(height)) + if (bestFormat.isVideoOnly) bestAudioBitrate else 0
-                    estimateFormatSizeBytes(info.durationSeconds, totalBitrate)
-                }
-
-                val isExactSize = videoSize != null
-                val sizeLabel = totalSizeBytes?.takeIf { it > 0L }?.let { bytes ->
-                    if (isExactSize) bytes.toReadableSize() else "~${bytes.toReadableSize()}"
-                }
-
-                val fpsSuffix = if (bestFormat.fps != null && bestFormat.fps >= 50.0) " ${bestFormat.fps.toInt()}fps" else ""
-                val title = when (height) {
-                    4320 -> "8K · 4320p"
-                    2880 -> "5K · 2880p"
-                    2160 -> "4K · 2160p"
-                    1800 -> "3K · 1800p"
-                    1920 -> "3K · 1920p"
-                    1440 -> "2K · 1440p"
-                    else -> "${height}p"
-                } + fpsSuffix
-
-                QuickQualityOption(
-                    id = "${height}p_${bestFormat.formatId}",
-                    title = title,
-                    subtitle = sizeLabel,
-                    height = height,
-                    bitrateKbps = bestFormat.bitrateKbps,
-                    fps = bestFormat.fps,
-                    mediaFormat = bestFormat,
-                    fileSizeBytes = totalSizeBytes,
-                )
-            }
-        }
-
-        if (matchingFormats.isNotEmpty()) {
-            return matchingFormats.distinctBy { it.formatId }.map { format ->
-                val sizeBytes = format.fileSizeBytes ?: estimateFormatSizeBytes(info.durationSeconds, format.bitrateKbps)
-                val isExact = format.fileSizeBytes != null
-                val sizeLabel = sizeBytes?.let { if (isExact) it.toReadableSize() else "~${it.toReadableSize()}" }
-                val title = format.resolution ?: format.note ?: format.asReadableLabel()
-                QuickQualityOption(
-                    id = format.formatId,
-                    title = title,
-                    subtitle = sizeLabel,
-                    bitrateKbps = format.bitrateKbps,
-                    fps = format.fps,
-                    mediaFormat = format,
-                    fileSizeBytes = sizeBytes,
-                )
-            }
-        }
-
-        return listOf(
-            QuickQualityOption(id = "2160p", title = "4K · 2160p", subtitle = estimateSize(info.durationSeconds, 15000), height = 2160),
-            QuickQualityOption(id = "1440p", title = "2K · 1440p", subtitle = estimateSize(info.durationSeconds, 8000), height = 1440),
-            QuickQualityOption(id = "1080p", title = "1080p", subtitle = estimateSize(info.durationSeconds, 4500), height = 1080),
-            QuickQualityOption(id = "720p", title = "720p", subtitle = estimateSize(info.durationSeconds, 2500), height = 720),
-            QuickQualityOption(id = "480p", title = "480p", subtitle = estimateSize(info.durationSeconds, 1200), height = 480),
-            QuickQualityOption(id = "360p", title = "360p", subtitle = estimateSize(info.durationSeconds, 800), height = 360),
-            QuickQualityOption(id = "240p", title = "240p", subtitle = estimateSize(info.durationSeconds, 400), height = 240),
-        )
-    }
-
     private fun buildAudioFormats(info: VideoInfo): List<QuickFormatOption> {
         val audioStreams = info.formats.filter { it.isAudioOnly || it.shouldTreatAsAudioOnlyChoice() }
         val streamExts = audioStreams.map { it.normalizedExtension.ifBlank { "m4a" } }.distinct()
@@ -862,65 +754,6 @@ class QuickDownloadViewModel @Inject constructor(
         }
     }
 
-    private fun normalizeContainer(format: MediaFormat): String {
-        val c = format.normalizedContainer.ifBlank { format.normalizedExtension }.lowercase()
-        return when {
-            c.contains("mp4") -> "mp4"
-            c.contains("webm") -> "webm"
-            c.contains("mkv") -> "mkv"
-            c.contains("mov") -> "mov"
-            c.contains("flv") -> "flv"
-            c.contains("3gp") -> "3gp"
-            c.contains("ts") -> "ts"
-            else -> format.normalizedExtension.ifBlank { "mp4" }
-        }
-    }
-
-    private fun normalizeCodecFamily(codec: String?): String? {
-        val c = codec?.trim()?.lowercase() ?: return null
-        return when {
-            c.startsWith("avc") || c.startsWith("h264") -> "H264"
-            c.startsWith("vp9") || c.startsWith("vp09") -> "VP9"
-            c.startsWith("av01") || c.startsWith("av1") -> "AV1"
-            c.startsWith("hevc") || c.startsWith("h265") -> "H265"
-            c == "none" || c.isBlank() -> null
-            else -> c.uppercase()
-        }
-    }
-
-    private fun defaultBitrateForHeight(height: Int): Int {
-        return when {
-            height >= 4320 -> 35000
-            height >= 2880 -> 22000
-            height >= 2160 -> 15000
-            height >= 1800 -> 12000
-            height >= 1440 -> 8000
-            height >= 1080 -> 4500
-            height >= 720 -> 2500
-            height >= 480 -> 1200
-            height >= 360 -> 800
-            else -> 400
-        }
-    }
-
-    private fun estimateFormatSizeBytes(durationSeconds: Long?, bitrateKbps: Int?): Long? {
-        val safeDurationSeconds = durationSeconds?.takeIf { it > 0L } ?: return null
-        val safeBitrateKbps = bitrateKbps?.takeIf { it > 0 } ?: return null
-        return (safeDurationSeconds * safeBitrateKbps * 1_000L) / 8L
-    }
-
-    private fun estimateSize(durationSeconds: Long?, bitrateKbps: Int): String? {
-        val bytes = estimateFormatSizeBytes(durationSeconds, bitrateKbps) ?: return null
-        return "~${bytes.toReadableSize()}"
-    }
-
-    private fun parseHeight(resolution: String?): Int? {
-        val trimmed = resolution?.trim() ?: return null
-        return Regex("""(\d+)x(\d+)""").find(trimmed)?.groupValues?.getOrNull(2)?.toIntOrNull()
-            ?: Regex("""(\d+)p""").find(trimmed)?.groupValues?.getOrNull(1)?.toIntOrNull()
-            ?: trimmed.toIntOrNull()
-    }
-
     private fun resolveCookiesPath(url: String, settings: AppSettings): String? {
         if (!settings.cookiesEnabled) return null
         val profile = CookieTextCodec.findBestMatch(settings.cookieProfiles, url)
@@ -960,6 +793,174 @@ class QuickDownloadViewModel @Inject constructor(
                     "91", "92", "93", "94", "95", "96",
                     "230", "231", "232", "269", "270", "311", "312",
                 )
+        }
+
+        internal fun buildVideoQualities(info: VideoInfo, selectedFormat: QuickFormatOption?): List<QuickQualityOption> {
+            val rawVideoFormats = info.formats.filter {
+                !it.isAudioOnly && !it.isImageLike && !it.shouldTreatAsAudioOnlyChoice()
+            }.ifEmpty {
+                info.formats.filter { !it.isImageLike }
+            }
+
+            val audioFormats = info.formats.filter { it.isAudioOnly || it.shouldTreatAsAudioOnlyChoice() }
+            val prefAudioExts = if (selectedFormat?.container == "mp4") listOf("m4a", "aac", "mp3") else listOf("opus", "webm", "m4a")
+            val bestAudio = prefAudioExts.asSequence()
+                .mapNotNull { ext -> audioFormats.filter { it.normalizedExtension == ext }.maxByOrNull { it.fileSizeBytes ?: (it.bitrateKbps?.toLong() ?: 0L) } }
+                .firstOrNull() ?: audioFormats.maxByOrNull { it.fileSizeBytes ?: (it.bitrateKbps?.toLong() ?: 0L) }
+            val bestAudioSize = bestAudio?.fileSizeBytes
+            val bestAudioBitrate = bestAudio?.bitrateKbps ?: 128
+
+            val distinctHeights = rawVideoFormats
+                .mapNotNull { parseHeight(it.resolution) }
+                .distinct()
+                .sortedDescending()
+
+            if (distinctHeights.isNotEmpty()) {
+                return distinctHeights.map { height ->
+                    val allForHeight = rawVideoFormats.filter { parseHeight(it.resolution) == height }
+                    val preferredForHeight = if (selectedFormat != null) {
+                        val matchingCodecAndContainer = allForHeight.filter { format ->
+                            normalizeContainer(format) == selectedFormat.container &&
+                                (selectedFormat.videoCodec == null ||
+                                    normalizeCodecFamily(format.videoCodec) == selectedFormat.videoCodec ||
+                                    normalizeCodecFamily(format.videoCodec) == null)
+                        }
+                        matchingCodecAndContainer.ifEmpty {
+                            allForHeight.filter { normalizeContainer(it) == selectedFormat.container }
+                        }.ifEmpty {
+                            allForHeight
+                        }
+                    } else {
+                        allForHeight
+                    }
+
+                    val directNonHlsFormats = preferredForHeight.filter { !isLikelyHlsFormat(it) }
+                    val candidateFormats = directNonHlsFormats.ifEmpty { preferredForHeight }
+                    val bestFormat = candidateFormats.maxByOrNull { it.fileSizeBytes ?: (it.bitrateKbps?.toLong() ?: 0L) } ?: allForHeight.first()
+
+                    val videoSize = bestFormat.fileSizeBytes
+                    val totalSizeBytes = if (videoSize != null) {
+                        if (bestFormat.isVideoOnly) videoSize + (bestAudioSize ?: 0L) else videoSize
+                    } else {
+                        val totalBitrate = (bestFormat.bitrateKbps ?: defaultBitrateForHeight(height)) + if (bestFormat.isVideoOnly) bestAudioBitrate else 0
+                        estimateFormatSizeBytes(info.durationSeconds, totalBitrate)
+                    }
+
+                    val isExactSize = videoSize != null
+                    val sizeLabel = totalSizeBytes?.takeIf { it > 0L }?.let { bytes ->
+                        if (isExactSize) bytes.toReadableSize() else "~${bytes.toReadableSize()}"
+                    }
+
+                    val fpsSuffix = if (bestFormat.fps != null && bestFormat.fps >= 50.0) " ${bestFormat.fps.toInt()}fps" else ""
+                    val title = when (height) {
+                        4320 -> "8K · 4320p"
+                        2880 -> "5K · 2880p"
+                        2160 -> "4K · 2160p"
+                        1800 -> "3K · 1800p"
+                        1920 -> "3K · 1920p"
+                        1440 -> "2K · 1440p"
+                        else -> "${height}p"
+                    } + fpsSuffix
+
+                    QuickQualityOption(
+                        id = "${height}p_${bestFormat.formatId}",
+                        title = title,
+                        subtitle = sizeLabel,
+                        height = height,
+                        bitrateKbps = bestFormat.bitrateKbps,
+                        fps = bestFormat.fps,
+                        mediaFormat = bestFormat,
+                        fileSizeBytes = totalSizeBytes,
+                    )
+                }
+            }
+
+            if (rawVideoFormats.isNotEmpty()) {
+                return rawVideoFormats.distinctBy { it.formatId }.map { format ->
+                    val sizeBytes = format.fileSizeBytes ?: estimateFormatSizeBytes(info.durationSeconds, format.bitrateKbps)
+                    val isExact = format.fileSizeBytes != null
+                    val sizeLabel = sizeBytes?.let { if (isExact) it.toReadableSize() else "~${it.toReadableSize()}" }
+                    val title = format.resolution ?: format.note ?: format.asReadableLabel()
+                    QuickQualityOption(
+                        id = format.formatId,
+                        title = title,
+                        subtitle = sizeLabel,
+                        bitrateKbps = format.bitrateKbps,
+                        fps = format.fps,
+                        mediaFormat = format,
+                        fileSizeBytes = sizeBytes,
+                    )
+                }
+            }
+
+            return listOf(
+                QuickQualityOption(id = "2160p", title = "4K · 2160p", subtitle = estimateSize(info.durationSeconds, 15000), height = 2160),
+                QuickQualityOption(id = "1440p", title = "2K · 1440p", subtitle = estimateSize(info.durationSeconds, 8000), height = 1440),
+                QuickQualityOption(id = "1080p", title = "1080p", subtitle = estimateSize(info.durationSeconds, 4500), height = 1080),
+                QuickQualityOption(id = "720p", title = "720p", subtitle = estimateSize(info.durationSeconds, 2500), height = 720),
+                QuickQualityOption(id = "480p", title = "480p", subtitle = estimateSize(info.durationSeconds, 1200), height = 480),
+                QuickQualityOption(id = "360p", title = "360p", subtitle = estimateSize(info.durationSeconds, 800), height = 360),
+                QuickQualityOption(id = "240p", title = "240p", subtitle = estimateSize(info.durationSeconds, 400), height = 240),
+            )
+        }
+
+        internal fun normalizeContainer(format: MediaFormat): String {
+            val c = format.normalizedContainer.ifBlank { format.normalizedExtension }.lowercase()
+            return when {
+                c.contains("mp4") -> "mp4"
+                c.contains("webm") -> "webm"
+                c.contains("mkv") -> "mkv"
+                c.contains("mov") -> "mov"
+                c.contains("flv") -> "flv"
+                c.contains("3gp") -> "3gp"
+                c.contains("ts") -> "ts"
+                else -> format.normalizedExtension.ifBlank { "mp4" }
+            }
+        }
+
+        internal fun normalizeCodecFamily(codec: String?): String? {
+            val c = codec?.trim()?.lowercase() ?: return null
+            return when {
+                c.startsWith("avc") || c.startsWith("h264") -> "H264"
+                c.startsWith("vp9") || c.startsWith("vp09") -> "VP9"
+                c.startsWith("av01") || c.startsWith("av1") -> "AV1"
+                c.startsWith("hevc") || c.startsWith("h265") -> "H265"
+                c == "none" || c.isBlank() -> null
+                else -> c.uppercase()
+            }
+        }
+
+        internal fun defaultBitrateForHeight(height: Int): Int {
+            return when {
+                height >= 4320 -> 35000
+                height >= 2880 -> 22000
+                height >= 2160 -> 15000
+                height >= 1800 -> 12000
+                height >= 1440 -> 8000
+                height >= 1080 -> 4500
+                height >= 720 -> 2500
+                height >= 480 -> 1200
+                height >= 360 -> 800
+                else -> 400
+            }
+        }
+
+        internal fun estimateFormatSizeBytes(durationSeconds: Long?, bitrateKbps: Int?): Long? {
+            val safeDurationSeconds = durationSeconds?.takeIf { it > 0L } ?: return null
+            val safeBitrateKbps = bitrateKbps?.takeIf { it > 0 } ?: return null
+            return (safeDurationSeconds * safeBitrateKbps * 1_000L) / 8L
+        }
+
+        internal fun estimateSize(durationSeconds: Long?, bitrateKbps: Int): String? {
+            val bytes = estimateFormatSizeBytes(durationSeconds, bitrateKbps) ?: return null
+            return "~${bytes.toReadableSize()}"
+        }
+
+        internal fun parseHeight(resolution: String?): Int? {
+            val trimmed = resolution?.trim() ?: return null
+            return Regex("""(\d+)x(\d+)""").find(trimmed)?.groupValues?.getOrNull(2)?.toIntOrNull()
+                ?: Regex("""(\d+)p""").find(trimmed)?.groupValues?.getOrNull(1)?.toIntOrNull()
+                ?: trimmed.toIntOrNull()
         }
     }
 }
