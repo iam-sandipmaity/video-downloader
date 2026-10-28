@@ -53,6 +53,7 @@ class DownloadEngine @Inject constructor(
             outputTemplate,
             "--paths",
             "temp:${tempDir.absolutePath}",
+            "--no-hls-use-mpegts",
             "--downloader-args",
             "ffmpeg_i:-allowed_extensions ALL -extension_picky 0",
         )
