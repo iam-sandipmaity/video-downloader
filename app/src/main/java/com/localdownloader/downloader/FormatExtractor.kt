@@ -838,8 +838,10 @@ class FormatExtractor @Inject constructor(
     }
 
     private fun parseHeight(resolution: String?): Int? {
-        val trimmed = resolution ?: return null
-        return trimmed.substringBefore("p", trimmed).toIntOrNull()
+        val trimmed = resolution?.trim() ?: return null
+        return Regex("""(\d+)x(\d+)""").find(trimmed)?.groupValues?.getOrNull(2)?.toIntOrNull()
+            ?: Regex("""(\d+)p""").find(trimmed)?.groupValues?.getOrNull(1)?.toIntOrNull()
+            ?: trimmed.substringBefore("p", trimmed).toIntOrNull()
     }
 
     private data class AnalyzeCandidate(
@@ -892,8 +894,10 @@ class FormatExtractor @Inject constructor(
             }
 
             private fun parseHeight(resolution: String?): Int? {
-                val trimmed = resolution ?: return null
-                return trimmed.substringBefore("p", trimmed).toIntOrNull()
+                val trimmed = resolution?.trim() ?: return null
+                return Regex("""(\d+)x(\d+)""").find(trimmed)?.groupValues?.getOrNull(2)?.toIntOrNull()
+                    ?: Regex("""(\d+)p""").find(trimmed)?.groupValues?.getOrNull(1)?.toIntOrNull()
+                    ?: trimmed.substringBefore("p", trimmed).toIntOrNull()
             }
         }
     }

@@ -4,6 +4,9 @@ Nightly builds are rolling prereleases published from the `nightly` release tag.
 
 ## [2.0.3.3] - 2026-10-27
 
+### Added
+- **High-Resolution Format Recognition & Quality Labels** - Expanded support for high-resolution formats including 8K (`4320p`), 5K (`2880p`), 4K (`2160p`), 3K (`1800p`/`1920p`), and 2K (`1440p`) across Quick Download, Modern Format Selection bottom sheet, Presets, and Media Tools. Enhanced resolution parsing to reliably handle both `WxH` and `Hp` formats, along with realistic bitrate estimates for accurate file size previews.
+
 ### Fixed
 - **Read-Only File System Crash During Format Validation** (#126) - Fixed `[Errno 30] Read-only file system: '/tmphcg4onva.tmp'` when downloading videos from shared links. yt-dlp's format tester requires writing temporary validation files, which previously failed because the underlying process inherited the Android root directory (`/`) as its working directory. Resolved by:
   - Setting `ProcessBuilder.directory(...)` to an application-owned cache directory (`ytdlp_work`).

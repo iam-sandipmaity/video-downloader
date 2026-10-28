@@ -70,7 +70,7 @@ fun EditDownloadPresetDialog(
     var embedThumbnail by remember { mutableStateOf(preset?.embedThumbnail ?: true) }
     var isDefault by remember { mutableStateOf(isDefaultPreset) }
 
-    val videoQualities = listOf("best", "2160p", "1440p", "1080p", "720p", "480p", "360p")
+    val videoQualities = listOf("best", "4320p", "2160p", "1800p", "1440p", "1080p", "720p", "480p", "360p")
     val videoContainers = listOf("auto", "mp4", "mkv", "webm")
     val audioFormats = listOf("mp3", "m4a", "opus", "flac", "wav")
     val audioBitrates = listOf(320, 256, 192, 128)

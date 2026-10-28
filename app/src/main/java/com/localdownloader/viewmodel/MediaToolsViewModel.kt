@@ -27,7 +27,9 @@ val RESOLUTION_PRESETS = listOf(
     ResolutionPreset("720p HD", 720),
     ResolutionPreset("1080p FHD", 1080),
     ResolutionPreset("1440p QHD", 1440),
+    ResolutionPreset("1800p 3K", 1800),
     ResolutionPreset("2160p 4K", 2160),
+    ResolutionPreset("4320p 8K", 4320),
 )
 
 /** Bitrate presets for video compression. */

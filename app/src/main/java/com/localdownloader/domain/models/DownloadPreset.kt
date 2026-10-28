@@ -16,7 +16,7 @@ data class DownloadPreset(
     val isDefault: Boolean = false,
     val isBuiltIn: Boolean = false,
     val targetType: PresetTargetType = PresetTargetType.VIDEO,
-    val preferredQuality: String = "best", // "best", "2160p", "1080p", "720p", "480p", "360p", "audio_only"
+    val preferredQuality: String = "best", // "best", "4320p", "2160p", "1800p", "1440p", "1080p", "720p", "480p", "360p", "audio_only"
     val videoContainer: String = "auto", // "auto", "mp4", "mkv", "webm"
     val audioFormat: String = "mp3", // "mp3", "m4a", "opus", "flac", "wav"
     val audioBitrateKbps: Int = 320,

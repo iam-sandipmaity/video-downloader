@@ -1200,7 +1200,10 @@ class FormatViewModel @Inject constructor(
                 }
                 PresetTargetType.VIDEO -> {
                     val targetHeight = when (preset.preferredQuality.lowercase().trim()) {
+                        "4320p", "8k" -> 4320
+                        "2880p", "5k" -> 2880
                         "2160p", "4k" -> 2160
+                        "1800p", "3k" -> 1800
                         "1440p", "2k" -> 1440
                         "1080p", "fhd" -> 1080
                         "720p", "hd" -> 720
@@ -1211,7 +1214,9 @@ class FormatViewModel @Inject constructor(
                         else -> null
                     }
                     val targetQuality = when (preset.preferredQuality.lowercase().trim()) {
+                        "4320p", "8k" -> VideoQuality.FUHD_8K
                         "2160p", "4k" -> VideoQuality.UHD_4K
+                        "1800p", "3k" -> VideoQuality.QHD_3K
                         "1440p", "2k" -> VideoQuality.QHD_2K
                         "1080p", "fhd" -> VideoQuality.FHD_1080
                         "720p", "hd" -> VideoQuality.HD_720
@@ -3024,8 +3029,10 @@ class FormatViewModel @Inject constructor(
     }
 
     private fun parseHeight(resolution: String?): Int? {
-        val trimmed = resolution ?: return null
-        return trimmed.substringBefore("p", trimmed).toIntOrNull()
+        val trimmed = resolution?.trim() ?: return null
+        return Regex("""(\d+)x(\d+)""").find(trimmed)?.groupValues?.getOrNull(2)?.toIntOrNull()
+            ?: Regex("""(\d+)p""").find(trimmed)?.groupValues?.getOrNull(1)?.toIntOrNull()
+            ?: trimmed.substringBefore("p", trimmed).toIntOrNull()
     }
 
     private fun extractBitrate(label: String): Int {

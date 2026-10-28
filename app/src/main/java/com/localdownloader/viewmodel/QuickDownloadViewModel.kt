@@ -741,7 +741,11 @@ class QuickDownloadViewModel @Inject constructor(
 
                 val fpsSuffix = if (bestFormat.fps != null && bestFormat.fps >= 50.0) " ${bestFormat.fps.toInt()}fps" else ""
                 val title = when (height) {
+                    4320 -> "8K · 4320p"
+                    2880 -> "5K · 2880p"
                     2160 -> "4K · 2160p"
+                    1800 -> "3K · 1800p"
+                    1920 -> "3K · 1920p"
                     1440 -> "2K · 1440p"
                     else -> "${height}p"
                 } + fpsSuffix
@@ -778,6 +782,8 @@ class QuickDownloadViewModel @Inject constructor(
         }
 
         return listOf(
+            QuickQualityOption(id = "2160p", title = "4K · 2160p", subtitle = estimateSize(info.durationSeconds, 15000), height = 2160),
+            QuickQualityOption(id = "1440p", title = "2K · 1440p", subtitle = estimateSize(info.durationSeconds, 8000), height = 1440),
             QuickQualityOption(id = "1080p", title = "1080p", subtitle = estimateSize(info.durationSeconds, 4500), height = 1080),
             QuickQualityOption(id = "720p", title = "720p", subtitle = estimateSize(info.durationSeconds, 2500), height = 720),
             QuickQualityOption(id = "480p", title = "480p", subtitle = estimateSize(info.durationSeconds, 1200), height = 480),
@@ -884,7 +890,10 @@ class QuickDownloadViewModel @Inject constructor(
 
     private fun defaultBitrateForHeight(height: Int): Int {
         return when {
+            height >= 4320 -> 35000
+            height >= 2880 -> 22000
             height >= 2160 -> 15000
+            height >= 1800 -> 12000
             height >= 1440 -> 8000
             height >= 1080 -> 4500
             height >= 720 -> 2500

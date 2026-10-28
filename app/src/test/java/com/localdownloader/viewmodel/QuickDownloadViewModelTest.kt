@@ -154,4 +154,17 @@ class QuickDownloadViewModelTest {
         assertEquals(true, QuickDownloadViewModel.isLikelyHlsFormat(hlsFormat232))
         assertEquals(false, QuickDownloadViewModel.isLikelyHlsFormat(dashFormat136))
     }
+
+    @Test
+    fun videoQualityEnum_hasExpectedHighResolutionEntries() {
+        val qualities = com.localdownloader.domain.models.VideoQuality.entries
+        assertEquals(4320, qualities.first { it.name == "FUHD_8K" }.maxHeight)
+        assertEquals("8K · 4320p", qualities.first { it.name == "FUHD_8K" }.label)
+        assertEquals(2160, qualities.first { it.name == "UHD_4K" }.maxHeight)
+        assertEquals("4K · 2160p", qualities.first { it.name == "UHD_4K" }.label)
+        assertEquals(1800, qualities.first { it.name == "QHD_3K" }.maxHeight)
+        assertEquals("3K · 1800p", qualities.first { it.name == "QHD_3K" }.label)
+        assertEquals(1440, qualities.first { it.name == "QHD_2K" }.maxHeight)
+        assertEquals("2K · 1440p", qualities.first { it.name == "QHD_2K" }.label)
+    }
 }
