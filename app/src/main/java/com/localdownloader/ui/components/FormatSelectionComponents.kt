@@ -305,17 +305,7 @@ fun FormatChoiceCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val resolutionLabel = choice.height?.let { height ->
-        when (height) {
-            4320 -> "8K · 4320p"
-            2880 -> "5K · 2880p"
-            2160 -> "4K · 2160p"
-            1800 -> "3K · 1800p"
-            1920 -> "3K · 1920p"
-            1440 -> "2K · 1440p"
-            else -> "${height}p"
-        }
-    }
+    val resolutionLabel = choice.height?.let { "${it}p" }
         ?: choice.label.substringBefore(' ').takeIf { it.isNotBlank() }
         ?: if (choice.streamType == StreamType.AUDIO_ONLY) "Audio" else "Video"
 

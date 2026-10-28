@@ -4,9 +4,6 @@ Nightly builds are rolling prereleases published from the `nightly` release tag.
 
 ## [2.0.3.3] - 2026-10-27
 
-### Added
-- **High-Resolution Format Recognition & Quality Labels** - Expanded support for high-resolution formats including 8K (`4320p`), 5K (`2880p`), 4K (`2160p`), 3K (`1800p`/`1920p`), and 2K (`1440p`) across Quick Download, Modern Format Selection bottom sheet, Presets, and Media Tools. Enhanced resolution parsing to reliably handle both `WxH` and `Hp` formats, along with realistic bitrate estimates for accurate file size previews.
-
 ### Fixed
 - **Read-Only File System Crash During Format Validation** (#126) - Fixed `[Errno 30] Read-only file system: '/tmphcg4onva.tmp'` when downloading videos from shared links. yt-dlp's format tester requires writing temporary validation files, which previously failed because the underlying process inherited the Android root directory (`/`) as its working directory. Resolved by:
   - Setting `ProcessBuilder.directory(...)` to an application-owned cache directory (`ytdlp_work`).
@@ -14,7 +11,6 @@ Nightly builds are rolling prereleases published from the `nightly` release tag.
   - Passing `--paths "temp:<dir>"` explicitly to `yt-dlp` during download execution and subtitle fetching.
   - Preferring direct DASH/progressive streams over HLS (e.g., format `232`) in Quick Download to avoid unnecessary remote fragment testing.
 - **YouTube Live & HLS Stream Segment Mismatch & Muxer Failure** - Fixed YouTube live stream downloads failing with `Requested output format 'mpegts' is not known` (`ffmpeg exited with code 234`) and segment extension mismatches (`ffmpeg exited with code 183`) by passing `--no-hls-use-mpegts` to prevent forcing unsupported `mpegts` muxing on Android, and `--downloader-args "ffmpeg_i:-allowed_extensions ALL -extension_picky 0"` to allow all segment URLs in FFmpeg's HLS demuxer.
-- **Quick Download 8K / 4K / 2K Resolution Retention** - Fixed an issue where videos with 8K, 4K, or 1440p resolutions only showed a single 360p option in Quick Download (via share link) when the default selected container was MP4 (H.264). Because YouTube only encodes resolutions above 1080p in VP9 or AV1, filtering quality options strictly by the selected codec and container previously dropped all high-resolution streams. Quick Download now computes all available distinct resolutions across all codecs, seamlessly falling back to available VP9 or AV1 streams when H.264 is unavailable at higher resolutions.
 
 ### Changed
 - **Nightly Version Bump** - Release metadata updated to `2.0.3.3` (`NIGHTLY_VERSION_CODE` `57`).

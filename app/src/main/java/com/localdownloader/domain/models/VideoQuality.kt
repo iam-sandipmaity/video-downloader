@@ -2,9 +2,7 @@ package com.localdownloader.domain.models
 
 enum class VideoQuality(val label: String, val maxHeight: Int?) {
     BEST("Best available", null),
-    FUHD_8K("8K · 4320p", 4320),
     UHD_4K("4K · 2160p", 2160),
-    QHD_3K("3K · 1800p", 1800),
     QHD_2K("2K · 1440p", 1440),
     FHD_1080("1080p", 1080),
     HD_720("720p", 720),
