@@ -13,7 +13,7 @@ Nightly builds are rolling prereleases published from the `nightly` release tag.
   - Setting `TEMP`, `TMP`, and `TMPDIR` environment variables to the app cache directory so Python's `tempfile` module resolves valid paths.
   - Passing `--paths "temp:<dir>"` explicitly to `yt-dlp` during download execution and subtitle fetching.
   - Preferring direct DASH/progressive streams over HLS (e.g., format `232`) in Quick Download to avoid unnecessary remote fragment testing.
-- **YouTube Live & HLS Stream Segment Mismatch** - Fixed `detected format aac extension aac mismatches allowed extensions in url` (`ffmpeg exited with code 183`) when downloading YouTube live streams or HLS segments (`232` + `233`) by passing `--downloader-args "ffmpeg_i:-allowed_extensions ALL -extension_picky 0"` to FFmpeg's HLS demuxer.
+- **YouTube Live & HLS Stream Segment Mismatch & Muxer Failure** - Fixed YouTube live stream downloads failing with `Requested output format 'mpegts' is not known` (`ffmpeg exited with code 234`) and segment extension mismatches (`ffmpeg exited with code 183`) by passing `--no-hls-use-mpegts` to prevent forcing unsupported `mpegts` muxing on Android, and `--downloader-args "ffmpeg_i:-allowed_extensions ALL -extension_picky 0"` to allow all segment URLs in FFmpeg's HLS demuxer.
 
 ### Changed
 - **Nightly Version Bump** - Release metadata updated to `2.0.3.3` (`NIGHTLY_VERSION_CODE` `57`).
