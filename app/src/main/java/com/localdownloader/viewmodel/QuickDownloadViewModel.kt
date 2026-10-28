@@ -946,8 +946,11 @@ class QuickDownloadViewModel @Inject constructor(
                 note.contains("m3u8") ||
                 format.normalizedExtension == "m3u8" ||
                 format.normalizedContainer == "m3u8" ||
-                // Well-known YouTube HLS format IDs
-                formatId in setOf("91", "92", "93", "94", "95", "96", "232")
+                // Well-known YouTube HLS format IDs (144p to 2160p)
+                formatId in setOf(
+                    "91", "92", "93", "94", "95", "96",
+                    "230", "231", "232", "269", "270", "311", "312",
+                )
         }
     }
 }
