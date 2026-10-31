@@ -279,22 +279,24 @@ val downloadYtDlpTask by tasks.registering {
     val outputDir = file("src/main/assets/ytdlp")
     val targetScript = File(outputDir, "yt-dlp")
     val targetCert = File(outputDir, "cert.pem")
-    val expectedYtDlpSha256 = "b7af77f686e95f7845ce8d09d21957718febb8b48b30555adb9dd2292ad7bf14"
+    val ytDlpVersion = "2026.10.26"
+    val ytDlpDownloadUrl = "https://github.com/yt-dlp/yt-dlp/releases/download/$ytDlpVersion/yt-dlp"
+    val expectedYtDlpSha256 = "e51e69e89489f199530f13d32a4342da3ddb2cf34842f364603a066db05afbf3"
+    val certUrlString = "https://curl.se/ca/cacert.pem"
     val expectedCertSha256 = "796f1389bfea13c0ed78f663b765baaff54a508e5483786bd6ece73c5e3e3cbe"
 
-    inputs.property("url", "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp")
+    inputs.property("url", ytDlpDownloadUrl)
     inputs.property("expectedYtDlpSha256", expectedYtDlpSha256)
-    inputs.property("certUrl", "https://curl.se/ca/cacert.pem")
+    inputs.property("certUrl", certUrlString)
     inputs.property("expectedCertSha256", expectedCertSha256)
     outputs.files(targetScript, targetCert)
 
     doLast {
         outputDir.mkdirs()
         if (!targetScript.exists()) {
-            val urlString = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp"
-            println("Downloading latest yt-dlp script from $urlString...")
+            println("Downloading yt-dlp script ($ytDlpVersion) from $ytDlpDownloadUrl...")
             val tempScript = File(temporaryDir, "yt-dlp.tmp")
-            URL(urlString).openStream().use { input ->
+            URL(ytDlpDownloadUrl).openStream().use { input ->
                 tempScript.outputStream().use { output ->
                     input.copyTo(output)
                 }
@@ -305,7 +307,6 @@ val downloadYtDlpTask by tasks.registering {
             println("Successfully downloaded and verified yt-dlp script to $targetScript")
         }
         if (!targetCert.exists()) {
-            val certUrlString = "https://curl.se/ca/cacert.pem"
             println("Downloading latest cert.pem from $certUrlString...")
             val tempCert = File(temporaryDir, "cert.pem.tmp")
             URL(certUrlString).openStream().use { input ->
