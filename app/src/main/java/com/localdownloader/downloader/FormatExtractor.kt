@@ -1015,6 +1015,7 @@ internal fun buildAnalyzeArgsForRequest(
             add("--extractor-args")
             add(resolvedExtractorArgs)
         }
+        add("--")
         add(url)
     }
 }

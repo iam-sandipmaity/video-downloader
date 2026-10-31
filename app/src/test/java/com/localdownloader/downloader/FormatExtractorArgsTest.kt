@@ -49,6 +49,7 @@ class FormatExtractorArgsTest {
 
         assertEquals("-j", args.first())
         assertFalse(args.contains("--no-check-certificates"))
+        assertEquals("--", args[args.size - 2])
         assertEquals("https://example.com/watch", args.last())
     }
 
