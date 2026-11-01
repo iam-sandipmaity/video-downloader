@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -29,6 +31,14 @@ class VaultViewModel @Inject constructor(
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(VaultUiState())
     val uiState: StateFlow<VaultUiState> = _uiState.asStateFlow()
+
+    private var lockoutJob: Job? = null
+    private var failedAttempts = 0
+
+    companion object {
+        const val MAX_FAILED_ATTEMPTS = 5
+        const val LOCKOUT_DURATION_SECONDS = 30
+    }
 
     init {
         viewModelScope.launch {
@@ -77,22 +87,29 @@ class VaultViewModel @Inject constructor(
     }
 
     fun selectVaultForUnlock(vaultId: String) {
+        val remaining = _uiState.value.lockoutRemainingSeconds
         _uiState.value = _uiState.value.copy(
             unlockingVaultId = vaultId,
             showSetup = false,
-            errorMessage = null,
+            errorMessage = if (remaining > 0) "Too many failed attempts. Try again in ${remaining}s." else null,
         )
     }
 
     fun cancelUnlock() {
+        val remaining = _uiState.value.lockoutRemainingSeconds
         _uiState.value = _uiState.value.copy(
             unlockingVaultId = null,
             showSetup = false,
-            errorMessage = null,
+            unlockPin = "",
+            errorMessage = if (remaining > 0) _uiState.value.errorMessage else null,
         )
     }
 
     fun unlockVault(vaultId: String, pin: String, onResult: (Boolean) -> Unit) {
+        if (_uiState.value.lockoutRemainingSeconds > 0) {
+            onResult(false)
+            return
+        }
         viewModelScope.launch {
             val settings = repository.getVaultSettings()
             val vaultsList = settings.getAllVaults()
@@ -101,6 +118,8 @@ class VaultViewModel @Inject constructor(
                 ?: PinVerificationResult.Invalid
             val isValid = verification is PinVerificationResult.Valid
             if (isValid) {
+                failedAttempts = 0
+                lockoutJob?.cancel()
                 if (verification.needsUpgrade) {
                     runCatching {
                         val upgradedHash = pinHasher.hashPin(pin)
@@ -115,11 +134,38 @@ class VaultViewModel @Inject constructor(
                     unlockingVaultId = null,
                     showSetup = false,
                     errorMessage = null,
+                    lockoutRemainingSeconds = 0,
                 )
             } else {
-                _uiState.value = _uiState.value.copy(errorMessage = "Invalid PIN")
+                failedAttempts++
+                if (failedAttempts >= MAX_FAILED_ATTEMPTS) {
+                    startLockout(LOCKOUT_DURATION_SECONDS)
+                } else {
+                    val remainingAttempts = MAX_FAILED_ATTEMPTS - failedAttempts
+                    _uiState.value = _uiState.value.copy(
+                        errorMessage = "Invalid PIN. $remainingAttempts attempt${if (remainingAttempts == 1) "" else "s"} remaining.",
+                    )
+                }
             }
             onResult(isValid)
+        }
+    }
+
+    private fun startLockout(durationSeconds: Int) {
+        lockoutJob?.cancel()
+        lockoutJob = viewModelScope.launch {
+            for (sec in durationSeconds downTo 1) {
+                _uiState.value = _uiState.value.copy(
+                    lockoutRemainingSeconds = sec,
+                    errorMessage = "Too many failed attempts. Try again in ${sec}s.",
+                )
+                delay(1000L)
+            }
+            _uiState.value = _uiState.value.copy(
+                lockoutRemainingSeconds = 0,
+                errorMessage = null,
+            )
+            failedAttempts = 0
         }
     }
 
@@ -274,11 +320,15 @@ class VaultViewModel @Inject constructor(
     }
 
     fun unlockVaultDirectly(vaultId: String) {
+        if (_uiState.value.lockoutRemainingSeconds > 0) return
+        failedAttempts = 0
+        lockoutJob?.cancel()
         _uiState.value = _uiState.value.copy(
             activeVaultId = vaultId,
             unlockingVaultId = null,
             showSetup = false,
             errorMessage = null,
+            lockoutRemainingSeconds = 0,
         )
     }
 
@@ -415,14 +465,28 @@ class VaultViewModel @Inject constructor(
     private var lastBackgroundEpochMs: Long? = null
 
     fun onAppBackgrounded() {
-        if (_uiState.value.activeVaultId != null) {
-            lastBackgroundEpochMs = System.currentTimeMillis()
+        val activeId = _uiState.value.activeVaultId
+        if (activeId != null) {
+            val activeVault = _uiState.value.vaultSettings.getAllVaults().firstOrNull { it.id == activeId }
+            val timeoutSeconds = activeVault?.autoLockTimeoutSeconds ?: 0
+            if (timeoutSeconds == 0) {
+                logger.i("VaultViewModel", "Auto-locking active vault $activeId immediately on background")
+                lockActiveVault()
+            } else if (timeoutSeconds > 0) {
+                lastBackgroundEpochMs = System.currentTimeMillis()
+            }
+        }
+        if (_uiState.value.unlockingVaultId != null) {
+            cancelUnlock()
         }
     }
 
     fun onAppForegrounded() {
         val bgTime = lastBackgroundEpochMs ?: return
-        val activeId = _uiState.value.activeVaultId ?: return
+        val activeId = _uiState.value.activeVaultId ?: run {
+            lastBackgroundEpochMs = null
+            return
+        }
         val activeVault = _uiState.value.vaultSettings.getAllVaults().firstOrNull { it.id == activeId }
         val timeoutSeconds = activeVault?.autoLockTimeoutSeconds ?: 0
         if (timeoutSeconds == -1) {
@@ -486,4 +550,5 @@ data class VaultUiState(
     val editName: String = "",
     val errorMessage: String? = null,
     val successMessage: String? = null,
+    val lockoutRemainingSeconds: Int = 0,
 )

@@ -201,16 +201,29 @@ fun PlayerScreen(
         runCatching { PlayerPanel.valueOf(activePanelName) }.getOrDefault(PlayerPanel.NONE)
     }
 
+    val isVaultMedia = task?.isInVault == true
+
     LaunchedEffect(task?.id, playablePath) {
         playerViewModel.bindTask(task)
     }
 
-    DisposableEffect(lifecycleOwner, playerViewModel, allowBackgroundPlayback, activity) {
+    DisposableEffect(activity, isVaultMedia) {
+        if (isVaultMedia) {
+            activity?.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+        }
+        onDispose {
+            if (isVaultMedia) {
+                activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+            }
+        }
+    }
+
+    DisposableEffect(lifecycleOwner, playerViewModel, allowBackgroundPlayback, activity, isVaultMedia) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_START -> playerViewModel.onAppForegrounded()
                 Lifecycle.Event.ON_STOP -> playerViewModel.onAppBackgrounded(
-                    allowBackgroundPlayback = allowBackgroundPlayback || (activity as? MainActivity)?.isInPictureInPictureMode == true,
+                    allowBackgroundPlayback = !isVaultMedia && (allowBackgroundPlayback || (activity as? MainActivity)?.isInPictureInPictureMode == true),
                 )
                 else -> Unit
             }
@@ -239,10 +252,10 @@ fun PlayerScreen(
         }
     }
 
-    DisposableEffect(activity, playablePath, uiState.isAvailable, isVideoContent) {
+    DisposableEffect(activity, playablePath, uiState.isAvailable, isVideoContent, isVaultMedia) {
         val mainActivity = activity as? MainActivity
         mainActivity?.updatePictureInPictureAllowed(
-            enabled = uiState.isAvailable && isVideoContent,
+            enabled = uiState.isAvailable && isVideoContent && !isVaultMedia,
         )
         onDispose {
             mainActivity?.updatePictureInPictureAllowed(false)
@@ -618,9 +631,9 @@ fun PlayerScreen(
                     selectedSubtitleTrack != null -> selectedSubtitleTrack.title
                     else -> "Auto"
                 },
-                canEnterPictureInPicture = uiState.isAvailable && isLikelyVideoFile(playablePath),
+                canEnterPictureInPicture = !isVaultMedia && uiState.isAvailable && isLikelyVideoFile(playablePath),
                 isRotationLocked = uiState.isLocked,
-                canOpenExternally = playablePath != null,
+                canOpenExternally = !isVaultMedia && playablePath != null,
                 canSeek = canSeek,
                 onOpenPrevious = onOpenPrevious,
                 onOpenNext = onOpenNext,
