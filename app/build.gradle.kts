@@ -3,6 +3,7 @@ import java.util.Properties
 import java.io.File
 import java.net.URL
 import java.net.HttpURLConnection
+import java.security.MessageDigest
 import java.util.zip.ZipInputStream
 
 plugins {
@@ -205,12 +206,33 @@ android {
     )
 }
 
+fun verifyFileChecksum(file: File, expectedSha256: String, label: String) {
+    val md = MessageDigest.getInstance("SHA-256")
+    file.inputStream().use { input ->
+        val buffer = ByteArray(8192)
+        var bytes = input.read(buffer)
+        while (bytes >= 0) {
+            md.update(buffer, 0, bytes)
+            bytes = input.read(buffer)
+        }
+    }
+    val actualSha256 = md.digest().joinToString("") { byte -> String.format("%02x", byte) }
+    if (!actualSha256.equals(expectedSha256, ignoreCase = true)) {
+        file.delete()
+        throw GradleException(
+            "Integrity check failed for $label. Expected SHA-256: $expectedSha256, but got: $actualSha256"
+        )
+    }
+}
+
 val downloadFfmpegRuntimeTask by tasks.registering {
     val outputDir = file("src/main/jniLibs/arm64-v8a")
     val targetSo = File(outputDir, "libffmpeg.so")
     val targetZipSo = File(outputDir, "libffmpeg.zip.so")
+    val expectedApkSha256 = "de1fbde7e95d4b142d12bb671ceff0e5f4beabb8f8898355df52e26f4225eab7"
 
     inputs.property("url", "https://github.com/iam-sandipmaity/video-downloader-packages/releases/download/ffmpeg-v7.1.2/ffmpeg-signed-arm64-v8a.apk")
+    inputs.property("expectedSha256", expectedApkSha256)
     outputs.file(targetSo)
 
     doLast {
@@ -227,6 +249,8 @@ val downloadFfmpegRuntimeTask by tasks.registering {
                 input.copyTo(output)
             }
         }
+
+        verifyFileChecksum(tempApk, expectedApkSha256, "FFmpeg runtime APK")
         
         println("Extracting libffmpeg.so and libffmpeg.zip.so...")
         outputDir.mkdirs()
@@ -255,32 +279,45 @@ val downloadYtDlpTask by tasks.registering {
     val outputDir = file("src/main/assets/ytdlp")
     val targetScript = File(outputDir, "yt-dlp")
     val targetCert = File(outputDir, "cert.pem")
+    val ytDlpVersion = "2026.10.26"
+    val ytDlpDownloadUrl = "https://github.com/yt-dlp/yt-dlp/releases/download/$ytDlpVersion/yt-dlp"
+    val expectedYtDlpSha256 = "e51e69e89489f199530f13d32a4342da3ddb2cf34842f364603a066db05afbf3"
+    val certUrlString = "https://curl.se/ca/cacert.pem"
+    val expectedCertSha256 = "796f1389bfea13c0ed78f663b765baaff54a508e5483786bd6ece73c5e3e3cbe"
 
-    inputs.property("url", "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp")
-    inputs.property("certUrl", "https://curl.se/ca/cacert.pem")
+    inputs.property("url", ytDlpDownloadUrl)
+    inputs.property("expectedYtDlpSha256", expectedYtDlpSha256)
+    inputs.property("certUrl", certUrlString)
+    inputs.property("expectedCertSha256", expectedCertSha256)
     outputs.files(targetScript, targetCert)
 
     doLast {
         outputDir.mkdirs()
         if (!targetScript.exists()) {
-            val urlString = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp"
-            println("Downloading latest yt-dlp script from $urlString...")
-            URL(urlString).openStream().use { input ->
-                targetScript.outputStream().use { output ->
+            println("Downloading yt-dlp script ($ytDlpVersion) from $ytDlpDownloadUrl...")
+            val tempScript = File(temporaryDir, "yt-dlp.tmp")
+            URL(ytDlpDownloadUrl).openStream().use { input ->
+                tempScript.outputStream().use { output ->
                     input.copyTo(output)
                 }
             }
-            println("Successfully downloaded yt-dlp script to $targetScript")
+            verifyFileChecksum(tempScript, expectedYtDlpSha256, "yt-dlp script")
+            tempScript.copyTo(targetScript, overwrite = true)
+            tempScript.delete()
+            println("Successfully downloaded and verified yt-dlp script to $targetScript")
         }
         if (!targetCert.exists()) {
-            val certUrlString = "https://curl.se/ca/cacert.pem"
             println("Downloading latest cert.pem from $certUrlString...")
+            val tempCert = File(temporaryDir, "cert.pem.tmp")
             URL(certUrlString).openStream().use { input ->
-                targetCert.outputStream().use { output ->
+                tempCert.outputStream().use { output ->
                     input.copyTo(output)
                 }
             }
-            println("Successfully downloaded cert.pem to $targetCert")
+            verifyFileChecksum(tempCert, expectedCertSha256, "CA certificates (cert.pem)")
+            tempCert.copyTo(targetCert, overwrite = true)
+            tempCert.delete()
+            println("Successfully downloaded and verified cert.pem to $targetCert")
         }
     }
 }

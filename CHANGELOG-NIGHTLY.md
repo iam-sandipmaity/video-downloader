@@ -2,6 +2,18 @@
 
 Nightly builds are rolling prereleases published from the `nightly` release tag. This file tracks changes that are available in nightly before they are promoted into the stable changelog.
 
+## [2.0.3.4] - 2026-11-01
+
+### Security
+- **Cryptographic Vault PIN Hashing & Constant-Time Verification** - Replaced fast single-iteration unsalted SHA-256 PIN hashing with salted `PBKDF2WithHmacSHA256` (100,000 iterations, 128-bit cryptographically secure salt, 256-bit derived key) and constant-time equality checks (`MessageDigest.isEqual`) via `PinHasher`. Implemented seamless, transparent migration on unlock to upgrade existing legacy SHA-256 PIN hashes without user disruption.
+- **Build-Time Dependency Integrity Verification** - Added strict SHA-256 checksum verification (`verifyFileChecksum`) to Gradle pre-build download tasks for the bundled FFmpeg runtime APK, `yt-dlp` executable, and curl CA bundle (`cert.pem`), preventing execution of compromised, tampered, or incomplete binaries.
+- **CLI Argument Injection Defense & Option Ordering** - Prepended the `--` end-of-options delimiter before URL parameters in `FormatExtractor` and `DownloadEngine` to guard against argument confusion attacks from malicious URLs. Hardened runtime flag injection in `YtDlpExecutor` (`--ffmpeg-location`, `--no-cache-dir`, `--js-runtimes`) to ensure runtime options are positioned strictly before the `--` separator.
+- **Strict File Permissions for Stored Secrets and Cookies** - Enforced restrictive file permissions (`0600`/`0700` equivalents with POSIX permissions and private file creation) on saved cookie files and authentication secrets in `DownloadOptionSecretsStore` and `SettingsStore` to protect sensitive session credentials from unauthorized local access.
+- **Pinned yt-dlp Release** - Pinned the build-time `yt-dlp` distribution to release `2026.10.26` accompanied by verified SHA-256 integrity validation.
+
+### Changed
+- **Nightly Version Bump** - Release metadata updated to `2.0.3.4` (`NIGHTLY_VERSION_CODE` `58`).
+
 ## [2.0.3.3] - 2026-10-27
 
 ### Fixed

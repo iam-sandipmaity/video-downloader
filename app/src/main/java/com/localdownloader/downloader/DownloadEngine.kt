@@ -138,6 +138,7 @@ class DownloadEngine @Inject constructor(
             }
         }
 
+        args += "--"
         args += options.url
         logger.i(
             "DownloadEngine",
@@ -239,6 +240,7 @@ class DownloadEngine @Inject constructor(
         }
 
         args += subtitleArgs(options.copy(shouldDownloadSubtitles = true, shouldEmbedSubtitles = false))
+        args += "--"
         args += options.url
 
         logger.i(

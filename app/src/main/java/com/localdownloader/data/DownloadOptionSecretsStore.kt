@@ -99,13 +99,22 @@ class DownloadOptionSecretsStore @Inject constructor(
 
     private fun writeSecrets(taskId: String, secrets: PersistedDownloadOptionSecrets) {
         val target = secretsFile(taskId)
-        target.parentFile?.mkdirs()
+        target.parentFile?.apply {
+            mkdirs()
+            setReadable(true, true)
+            setWritable(true, true)
+            setExecutable(true, true)
+        }
         val tempFile = File(target.parentFile, "${target.name}.tmp")
         tempFile.writeText(json.encodeToString(secrets))
+        tempFile.setReadable(true, true)
+        tempFile.setWritable(true, true)
         if (!tempFile.renameTo(target)) {
             tempFile.copyTo(target, overwrite = true)
             tempFile.delete()
         }
+        target.setReadable(true, true)
+        target.setWritable(true, true)
     }
 
     private fun readSecrets(taskId: String): PersistedDownloadOptionSecrets? {

@@ -325,9 +325,16 @@ class SettingsStore @Inject constructor(
                 profile.copy(cookiesText = "")
             } else {
                 val targetFile = secureCookieFile(profile.id)
-                targetFile.parentFile?.mkdirs()
+                targetFile.parentFile?.apply {
+                    mkdirs()
+                    setReadable(true, true)
+                    setWritable(true, true)
+                    setExecutable(true, true)
+                }
                 if (!targetFile.exists() || runCatching { targetFile.readText() }.getOrNull() != cookiesText) {
                     targetFile.writeText(cookiesText)
+                    targetFile.setReadable(true, true)
+                    targetFile.setWritable(true, true)
                 }
                 profile.copy(
                     cookiesText = "",
@@ -360,10 +367,17 @@ class SettingsStore @Inject constructor(
             return
         }
 
-        secureYoutubeAuthFile.parentFile?.mkdirs()
+        secureYoutubeAuthFile.parentFile?.apply {
+            mkdirs()
+            setReadable(true, true)
+            setWritable(true, true)
+            setExecutable(true, true)
+        }
         val serialized = json.encodeToString(config)
         if (!secureYoutubeAuthFile.exists() || runCatching { secureYoutubeAuthFile.readText() }.getOrNull() != serialized) {
             secureYoutubeAuthFile.writeText(serialized)
+            secureYoutubeAuthFile.setReadable(true, true)
+            secureYoutubeAuthFile.setWritable(true, true)
         }
     }
 

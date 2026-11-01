@@ -153,35 +153,56 @@ class YtDlpExecutor @Inject constructor(
         )
     }
 
-    private fun normalizeArgs(args: List<String>, runtime: YtDlpRuntime): List<String> {
-        val normalized = args.toMutableList()
-        var insertionIndex = normalized.indexOfFirst {
+    internal fun normalizeArgs(args: List<String>, runtime: YtDlpRuntime): List<String> =
+        normalizeYtDlpArgs(args, runtime)
+}
+
+internal fun normalizeYtDlpArgs(args: List<String>, runtime: YtDlpRuntime): List<String> {
+    val normalized = args.toMutableList()
+    val dashDashIndex = normalized.indexOf("--")
+    var insertionIndex = if (dashDashIndex >= 0) {
+        dashDashIndex
+    } else {
+        val urlIndex = normalized.indexOfFirst {
             it.startsWith("http://", ignoreCase = true) || it.startsWith("https://", ignoreCase = true)
-        }.let { if (it >= 0) it else normalized.size }
-
-        val hasCacheDir = normalized.any { it == "--cache-dir" }
-        if (!hasCacheDir) {
-            normalized.add(insertionIndex, "--no-cache-dir")
-            insertionIndex += 1
         }
-
-        if (!normalized.contains("--js-runtimes")) {
-            normalized.addAll(insertionIndex, listOf("--js-runtimes", "quickjs:${runtime.quickJsBinary.absolutePath}"))
-            insertionIndex += 2
-        }
-
-        if (!normalized.contains("--ffmpeg-location")) {
-            normalized.addAll(insertionIndex, listOf("--ffmpeg-location", runtime.ffmpegBinary.absolutePath))
-        }
-
-        return normalized
+        if (urlIndex >= 0) urlIndex else normalized.size
     }
 
-    private data class YtDlpRuntime(
-        val pythonBinary: File,
-        val quickJsBinary: File,
-        val ffmpegBinary: File,
-        val ytDlpScript: File,
-        val environment: Map<String, String>,
-    )
+    val hasCacheDir = normalized.any { it == "--cache-dir" }
+    if (!hasCacheDir) {
+        normalized.add(insertionIndex, "--no-cache-dir")
+        insertionIndex += 1
+    }
+
+    if (!normalized.contains("--js-runtimes")) {
+        val jsArgs = listOf("--js-runtimes", "quickjs:${runtime.quickJsBinary.absolutePath}")
+        normalized.addAll(insertionIndex, jsArgs)
+        insertionIndex += jsArgs.size
+    }
+
+    if (!normalized.contains("--ffmpeg-location")) {
+        val ffmpegArgs = listOf("--ffmpeg-location", runtime.ffmpegBinary.absolutePath)
+        normalized.addAll(insertionIndex, ffmpegArgs)
+        insertionIndex += ffmpegArgs.size
+    }
+
+    if (dashDashIndex < 0) {
+        val urlIndex = normalized.indexOfFirst {
+            it.startsWith("http://", ignoreCase = true) || it.startsWith("https://", ignoreCase = true)
+        }
+        if (urlIndex >= 0) {
+            normalized.add(urlIndex, "--")
+        }
+    }
+
+    return normalized
 }
+
+internal data class YtDlpRuntime(
+    val pythonBinary: File,
+    val quickJsBinary: File,
+    val ffmpegBinary: File,
+    val ytDlpScript: File,
+    val environment: Map<String, String>,
+)

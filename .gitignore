@@ -27,4 +27,8 @@ app/src/main/jniLibs/arm64-v8a/libpython.zip.so
 app/src/main/jniLibs/arm64-v8a/libqjs.so
 app/src/main/assets/ytdlp/
 
+# Agents and Skills
+.agents/
+skills-lock.json
+
 
