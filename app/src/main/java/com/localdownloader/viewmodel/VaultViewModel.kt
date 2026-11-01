@@ -244,6 +244,10 @@ class VaultViewModel @Inject constructor(
         }
     }
 
+    fun verifyPin(pin: String, storedHash: String): Boolean {
+        return pinHasher.verifyPin(pin, storedHash) is PinVerificationResult.Valid
+    }
+
     fun verifyPin(pin: String, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             val settings = repository.getVaultSettings()

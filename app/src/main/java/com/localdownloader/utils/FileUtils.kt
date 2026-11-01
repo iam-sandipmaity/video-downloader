@@ -1149,8 +1149,20 @@ class FileUtils @Inject constructor(
 
         if (uri.scheme == "file") {
             val directPath = uri.path ?: error("Unable to open shared file path.")
+            val candidateFile = File(directPath).canonicalFile
+            val protectedDirs = listOfNotNull(
+                context.filesDir?.canonicalFile,
+                context.noBackupFilesDir?.canonicalFile,
+                context.dataDir?.canonicalFile,
+            )
+            val isInsideProtectedDir = protectedDirs.any { dir ->
+                candidateFile.path == dir.path || candidateFile.path.startsWith(dir.path + File.separator)
+            }
+            if (isInsideProtectedDir) {
+                error("Access denied: cannot open file from internal app storage.")
+            }
             return ExternalOpenRequest(
-                path = directPath,
+                path = candidateFile.absolutePath,
                 displayName = displayName,
                 mimeType = resolvedMimeType,
             )

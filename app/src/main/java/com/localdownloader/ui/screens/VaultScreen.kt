@@ -66,6 +66,8 @@ import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.Sort
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.AlertDialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.SecureFlagPolicy
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -1571,6 +1573,7 @@ private fun VaultSettingsModal(
         ChangePinDialog(
             vaultId = vault.id,
             currentPinHash = vault.pinHash,
+            onVerifyOldPin = { candidate -> vaultViewModel.verifyPin(candidate, vault.pinHash) },
             onSuccess = { newPin ->
                 vaultViewModel.updateVaultPin(vault.id, newPin)
                 showChangePinDialog = false
@@ -1987,6 +1990,7 @@ private fun VaultSettingsModal(
 private fun ChangePinDialog(
     vaultId: String,
     currentPinHash: String,
+    onVerifyOldPin: (String) -> Boolean,
     onSuccess: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -1996,15 +2000,9 @@ private fun ChangePinDialog(
     var confirmPin by remember { mutableStateOf("") }
     var errorMsg by remember { mutableStateOf<String?>(null) }
 
-    fun hashPin(pin: String): String {
-        return runCatching {
-            java.security.MessageDigest.getInstance("SHA-256")
-                .digest(pin.toByteArray()).joinToString("") { "%02x".format(it) }
-        }.getOrNull() ?: ""
-    }
-
     AlertDialog(
         onDismissRequest = onDismiss,
+        properties = DialogProperties(securePolicy = SecureFlagPolicy.SecureOn),
         title = {
             Text(
                 when (step) {
@@ -2061,7 +2059,7 @@ private fun ChangePinDialog(
                                     val next = oldPin + digit
                                     oldPin = next
                                     errorMsg = null
-                                    if (next.length >= 4 && hashPin(next) == currentPinHash) {
+                                    if (next.length >= 4 && onVerifyOldPin(next)) {
                                         step = 2
                                     }
                                 }
