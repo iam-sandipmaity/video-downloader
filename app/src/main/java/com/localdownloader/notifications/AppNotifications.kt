@@ -176,31 +176,38 @@ object AppNotifications {
         title: String,
         outputPath: String?,
         sizeLabel: String?,
+        isInVault: Boolean = false,
     ) {
         if (!canPostUserNotifications(context)) return
         ensureChannels(context)
 
         val notificationId = terminalNotificationId(taskId)
+        val route = if (isInVault) AppLaunchRouter.ROUTE_VAULT else AppLaunchRouter.ROUTE_DOWNLOADS
         val contentIntent = buildRoutePendingIntent(
             context = context,
-            route = AppLaunchRouter.ROUTE_DOWNLOADS,
+            route = route,
             taskId = taskId,
-            requestCode = requestCodeFor(taskId, AppLaunchRouter.ROUTE_DOWNLOADS),
+            requestCode = requestCodeFor(taskId, route),
         )
-        val message = buildCompletionLine(outputPath = outputPath, sizeLabel = sizeLabel)
+        val displayTitle = if (isInVault) "Private download complete" else title.ifBlank { "Download complete" }
+        val message = if (isInVault) {
+            "Downloaded file saved securely to Private Vault"
+        } else {
+            buildCompletionLine(outputPath = outputPath, sizeLabel = sizeLabel)
+        }
         val builder = NotificationCompat.Builder(context, CHANNEL_COMPLETED_DOWNLOADS)
             .setSmallIcon(android.R.drawable.stat_sys_download_done)
-            .setContentTitle(title.ifBlank { "Download complete" })
+            .setContentTitle(displayTitle)
             .setContentText(message)
             .setStyle(NotificationCompat.BigTextStyle().bigText(message))
-            .setSubText("Completed")
+            .setSubText(if (isInVault) "Vault" else "Completed")
             .setCategory(NotificationCompat.CATEGORY_STATUS)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
             .setContentIntent(contentIntent)
             .setGroup(NOTIFICATION_GROUP_COMPLETED)
 
-        if (isPlayableMediaPath(outputPath)) {
+        if (!isInVault && isPlayableMediaPath(outputPath)) {
             builder.addAction(
                 android.R.drawable.ic_media_play,
                 "Open",

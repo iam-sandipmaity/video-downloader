@@ -19,6 +19,7 @@ object AppLaunchRouter {
     const val ROUTE_MUSIC = "music"
     const val ROUTE_MORE = "more"
     const val ROUTE_PLAYER = "player"
+    const val ROUTE_VAULT = "vault"
 
     fun buildIntent(
         context: Context,

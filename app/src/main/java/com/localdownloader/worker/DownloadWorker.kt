@@ -794,6 +794,7 @@ class DownloadWorker @AssistedInject constructor(
                 title = runningTitle,
                 outputPath = resolvedPath,
                 sizeLabel = finalSizeLabel,
+                isInVault = isInVault,
             )
             refillQueuedDownloadsSafely(taskId)
             return Result.success(workDataOf(WorkerKeys.OUTPUT_PATH to resolvedPath))
@@ -2529,6 +2530,7 @@ class DownloadWorker @AssistedInject constructor(
         title: String,
         outputPath: String?,
         sizeLabel: String?,
+        isInVault: Boolean = false,
     ) {
         if (!settingsStore.observeSettings().first().notifyCompletedDownloads) return
         AppNotifications.showDownloadCompleted(
@@ -2537,6 +2539,7 @@ class DownloadWorker @AssistedInject constructor(
             title = title,
             outputPath = outputPath,
             sizeLabel = sizeLabel,
+            isInVault = isInVault,
         )
     }
 

@@ -238,6 +238,15 @@ private fun VaultSetupScreen(
     isFirstVault: Boolean,
     onBack: () -> Unit,
 ) {
+    val context = LocalContext.current
+    DisposableEffect(context) {
+        val activity = BiometricHelper.findActivity(context)
+        activity?.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+        onDispose {
+            activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+        }
+    }
+
     var step by remember { mutableIntStateOf(1) } // 1: Enter PIN, 2: Confirm PIN, 3: Vault Details
     var initialPin by remember { mutableStateOf("") }
     var confirmPin by remember { mutableStateOf("") }
@@ -543,6 +552,12 @@ private fun VaultUnlockScreen(
 ) {
     val context = LocalContext.current
     val activity = remember(context) { BiometricHelper.findActivity(context) }
+    DisposableEffect(activity) {
+        activity?.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+        onDispose {
+            activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+        }
+    }
     val isBiometricAvailable = remember(context) { BiometricHelper.isBiometricAvailable(context) }
     var pin by remember { mutableStateOf("") }
     var localError by remember { mutableStateOf<String?>(null) }

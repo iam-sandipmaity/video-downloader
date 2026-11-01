@@ -2,6 +2,16 @@
 
 Nightly builds are rolling prereleases published from the `nightly` release tag. This file tracks changes that are available in nightly before they are promoted into the stable changelog.
 
+## [2.0.3.5] - 2026-11-01
+
+### Security
+- **Sensitive Log & Diagnostic Redaction** - Hardened `SensitiveDataSanitizer` to automatically sanitize and redact passwords (`--password`, `--video-password`, `-p`), user credentials (`--username`, `-u`), proxies (`--proxy`), custom header tokens (`--add-header Authorization:...`), Bearer tokens, API keys, and PIN hashes from all diagnostic logs and exported crash traces.
+- **Vault Notification Privacy & Lockscreen Protection** - Guarded notification details for downloads saved to Private Vault. Notifications mask video titles ("Private download complete") and file paths, suppress direct "Open" quick-play action buttons that could bypass vault PIN authentication, and route taps securely to the Vault unlock destination.
+- **Screen Privacy Protection (`FLAG_SECURE`) on PIN Entry** - Applied Android `FLAG_SECURE` window protection during `VaultSetupScreen` and `VaultUnlockScreen`, shielding PIN input from screenshots, screen recorders, and recent apps overview thumbnails.
+
+### Changed
+- **Nightly Version Bump** - Release metadata updated to `2.0.3.5` (`NIGHTLY_VERSION_CODE` `59`).
+
 ## [2.0.3.4] - 2026-11-01
 
 ### Security
