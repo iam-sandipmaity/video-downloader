@@ -765,4 +765,57 @@
     <string name="history_search_empty_body">বর্তমান ফিল্টারে %1$s-এর সাথে মিলে এমন কোনো সম্পন্ন কাজ পাওয়া যায়নি। আরও বিস্তৃত উৎস, শিরোনাম বা ত্রুটি অনুসন্ধান করে দেখুন।</string>
     <string name="history_summary_showing_search" tools:ignore="PluralsCandidate">%4$s-এ %3$s-এর সাথে মিলে যাওয়া %2$dটি সম্পন্ন কাজের মধ্যে %1$dটি দেখানো হচ্ছে।</string>
     <string name="updates_ytdlp_auto_subtitle_repo_safe">এই বিল্ডটি ম্যানুয়াল মোডে শুরু হয়। নির্বাচিত উৎস থেকে ব্যাকগ্রাউন্ড yt-dlp যাচাই চালু করতে চাইলে তবেই এটি চালু করুন।</string>
+    <string name="subtitle_selection_title">সাবটাইটেলের ভাষাসমূহ</string>
+    <string name="subtitle_search_placeholder">ভাষা বা কোড অনুসন্ধান করুন…</string>
+    <string name="subtitle_suggested_header">প্রস্তাবিত সাবটাইটেল</string>
+    <string name="subtitle_auto_header">অটো-জেনারেটেড ক্যাপশন</string>
+    <string name="subtitle_no_subtitles_found">কোন সাবটাইটেল ট্র্যাক পাওয়া যায় নি</string>
+    <string name="subtitle_select_all">সব নির্বাচন করুন</string>
+    <string name="subtitle_clear_all">পরিষ্কার</string>
+    <string name="subtitle_selected_count">%1$d নির্বাচিত</string>
+    <string name="subtitle_none_selected">কোনোটিই না</string>
+    <string name="subtitle_all_languages">সব</string>
+    <string name="more_vault_title">ব্যক্তিগত ভল্ট</string>
+    <string name="more_vault_subtitle">একটি পিন দিয়ে আপনার ডাউনলোড করা মিডিয়া সুরক্ষিতভাবে সংরক্ষণ করুন।</string>
+    <string name="settings_subtitles_title">সাবটাইটেল এবং ক্যাপশন</string>
+    <string name="settings_subtitles_subtitle">অটো-ডাউনলোড, এম্বেডিং, সাবটাইটেল ফন্ট স্টাইলিং, রঙ এবং লাইভ ডিসপ্লে প্রিভিউ।</string>
+    <string name="settings_battery_title">ব্যাটারি এবং কর্মক্ষমতা</string>
+    <string name="settings_battery_subtitle">ইকো মোড, থ্রেড ডাউনলোড করুন, এবং অ্যান্ড্রয়েড ব্যাটারি অপ্টিমাইজেশান।</string>
+    <string name="battery_section_system_title">সিস্টেম ব্যাটারি অপ্টিমাইজেশান</string>
+    <string name="battery_system_unrestricted_title">ব্যাকগ্রাউন্ড অ্যাপ কার্যকারিতা</string>
+    <string name="battery_system_unrestricted_subtitle">অ্যাপটি ওএস (OS) ডোজ মোড থেকে মুক্ত রয়েছে। সিস্টেম অ্যাপ সেটিংস খুলতে এবং ব্যাটারির বিধিনিষেধ পরিচালনা করতে এখানে ট্যাপ করুন।</string>
+    <string name="battery_system_restricted_title">কাজ বা কার্যকারিতা নিয়ন্ত্রণ করুন</string>
+    <string name="battery_system_restricted_desc">স্ক্রিন বন্ধ হয়ে গেলে অ্যান্ড্রয়েড বা ওইএম (OEM) ব্যাটারি ম্যানেজার (MIUI, Samsung, OnePlus ইত্যাদি) ব্যাকগ্রাউন্ডে চলমান ডাউনলোড বন্ধ করে দিতে পারে। ডাউনলোডে বাধা এড়াতে ব্যাকগ্রাউন্ডে অনিয়ন্ত্রিত ব্যাটারি ব্যবহারের অনুমতি দিন।</string>
+    <string name="battery_system_restricted_action">সীমাহীন ব্যাকগ্রাউন্ড কার্যকারিতার অনুমতি দিন</string>
+    <string name="battery_system_status_optimized">সীমাহীন</string>
+    <string name="battery_system_status_restricted">সীমাবদ্ধ / অপ্টিমাইজড</string>
+    <string name="battery_section_saver_title">ইন-অ্যাপ পাওয়ার ম্যানেজমেন্ট</string>
+    <string name="battery_saver_mode_title">ব্যাটারি সেভার মোড</string>
+    <string name="battery_saver_mode_subtitle">ব্যাটারি কম হলে বা অ্যান্ড্রয়েড ব্যাটারি সেভার সক্রিয় থাকলে সংযোগ থ্রেড এবং ডাউনলোড কিউ স্বয়ংক্রিয়ভাবে ধীর বা সীমিত করা হয়।</string>
+    <string name="battery_saver_mode_auto">স্বয়ংক্রিয় (সিস্টেম এবং কম ব্যাটারি অনুসরণ করুন)</string>
+    <string name="battery_saver_mode_auto_desc">অ্যান্ড্রয়েড ব্যাটারি সেভার চালু থাকলে বা ব্যাটারি নির্দিষ্ট সীমার নিচে নেমে গেলে স্বয়ংক্রিয়ভাবে ডাউনলোড থ্রেড কমানো হয় এবং কিউ ১টি স্লটে সীমাবদ্ধ করা হয়।</string>
+    <string name="battery_saver_mode_always_on">সর্বদা সক্রিয় (ইকো মোড)</string>
+    <string name="battery_saver_mode_always_on_desc">থ্রেড ক্যাপ করে এবং ক্রমানুসারে কিউয়িং করার মাধ্যমে সব সময় কম CPU এবং ব্যাটারি ব্যবহার নিশ্চিত করা হয়।</string>
+    <string name="battery_saver_mode_off">নিষ্ক্রিয় (উচ্চ কর্মক্ষমতা)</string>
+    <string name="battery_saver_mode_off_desc">পাওয়ার থ্রটলিং ছাড়াই আপনার কনফিগার করা সর্বোচ্চ থ্রেড এবং সমান্তরাল কিউ স্লট ব্যবহার করে।</string>
+    <string name="battery_section_concurrency_title">কনকারেন্সি এবং থ্রেড</string>
+    <string name="battery_threads_title">প্রতি ভিডিওর ডাউনলোড থ্রেড</string>
+    <string name="battery_threads_subtitle" tools:ignore="TypographyDashes">প্রতি ভিডিওতে সমান্তরাল চাঙ্ক স্ট্রিমের সংখ্যা (--concurrent-fragments)। থ্রেড বেশি হলে ডাউনলোডের গতি বাড়ে, তবে এটি বেশি CPU এবং পাওয়ার ব্যবহার করে।</string>
+    <string name="battery_threads_count" tools:ignore="PluralsCandidate">%1$dটি থ্রেড</string>
+    <string name="battery_threads_1">১টি থ্রেড (ইকো / কম পাওয়ার)</string>
+    <string name="battery_threads_1_desc">সবচেয়ে কম CPU, RAM এবং ব্যাটারি খরচ। দুর্বল সেলুলার নেটওয়ার্ক বা ব্যাকগ্রাউন্ড ডাউনলোডের জন্য সবচেয়ে উপযোগী।</string>
+    <string name="battery_threads_2">২টি থ্রেড (হালকা / স্থিতিশীল)</string>
+    <string name="battery_threads_2_desc">ধারাবাহিক ডাউনলোডের গতি বজায় রেখে কম ব্যাটারি খরচ।</string>
+    <string name="battery_threads_4">৪টি থ্রেড (ভারসাম্যপূর্ণ - প্রস্তাবিত)</string>
+    <string name="battery_threads_4_desc">মাঝারি CPU এবং পাওয়ার খরচে দ্রুত গতি। বেশিরভাগ ব্যবহারকারীর জন্য প্রস্তাবিত।</string>
+    <string name="battery_threads_8">৮টি থ্রেড (টার্বো)</string>
+    <string name="battery_threads_8_desc">দ্রুত ওয়াই-ফাই এবং 5G সংযোগের জন্য উচ্চ গতির ডাউনলোড। আরো CPU ব্যবহার করুন।</string>
+    <string name="battery_threads_16">16 থ্রেড (সর্বোচ্চ কর্মক্ষমতা)</string>
+    <string name="battery_threads_16_desc">গিগাবিট সংযোগের জন্য অত্যন্ত তীব্র সমান্তরাল চাঙ্ক ডাউনলোড। এতে CPU এবং ব্যাটারি সবচেয়ে বেশি ব্যবহৃত হয়।</string>
+    <string name="battery_section_power_rules_title">ব্যাটারি বা চার্জের শর্তসমূহ</string>
+    <string name="battery_charging_only_title">শুধুমাত্র চার্জ করার সময় ডাউনলোড করুন</string>
+    <string name="battery_charging_only_subtitle">ডাউনলোডগুলো কিউতে রাখে এবং শুধুমাত্র চার্জারের সাথে সংযুক্ত থাকলেই স্বয়ংক্রিয়ভাবে শুরু করে।</string>
+    <string name="battery_pause_low_title">কম ব্যাটারিতে পজ করুন</string>
+    <string name="battery_pause_low_subtitle">ব্যাটারি নির্বাচিত সীমার নিচে নেমে গেলে স্বয়ংক্রিয়ভাবে চলমান ডাউনলোডগুলো পজ করা হয়।</string>
+    <string name="battery_low_threshold_title">লো ব্যাটারি থ্রেশহোল্ড</string>
 </resources>
