@@ -1,5 +1,10 @@
 package com.localdownloader.ui.screens
 
+import android.content.ClipData
+import android.content.ClipDescription
+import android.content.Context
+import android.os.Build
+import android.os.PersistableBundle
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
@@ -163,7 +168,7 @@ fun CookiesScreen(
             onDismiss = { editorState = null },
             onStateChanged = { editorState = it },
             onCopy = {
-                clipboardManager.setText(AnnotatedString(editor.cookiesText))
+                copySensitiveTextToClipboard(context, "cookies", editor.cookiesText)
             },
             onSave = {
                 onSaveCookie(editor.profileId, editor.url, editor.cookiesText)
@@ -230,8 +235,10 @@ fun CookiesScreen(
                         text = { Text(stringResource(R.string.cookies_export_clipboard)) },
                         onClick = {
                             showMenu = false
-                            clipboardManager.setText(
-                                AnnotatedString(CookieTextCodec.buildCombinedExport(uiState.cookieProfiles)),
+                            copySensitiveTextToClipboard(
+                                context,
+                                "cookies",
+                                CookieTextCodec.buildCombinedExport(uiState.cookieProfiles),
                             )
                         },
                     )
@@ -540,19 +547,20 @@ fun CookieCaptureScreen(
                 factory = { ctx ->
                     WebView(ctx).apply {
                         webView = this
-                        settings.javaScriptEnabled = true
-                        settings.domStorageEnabled = true
-                        settings.databaseEnabled = true
+                        configureRestrictedJavascriptSession(
+                            enableCookies = true,
+                            enableThirdPartyCookies = true,
+                        )
                         settings.userAgentString = "${settings.userAgentString} MobileAppBrowser"
-                        val cookieManager = android.webkit.CookieManager.getInstance()
-                        cookieManager.setAcceptCookie(true)
-                        cookieManager.setAcceptThirdPartyCookies(this, true)
                         webViewClient = object : WebViewClient() {
                             override fun shouldOverrideUrlLoading(
                                 view: WebView?,
                                 request: WebResourceRequest?,
                             ): Boolean {
-                                return false
+                                val scheme = request?.url?.scheme.orEmpty()
+                                return scheme.isNotBlank() &&
+                                    !scheme.equals("https", ignoreCase = true) &&
+                                    !scheme.equals("about", ignoreCase = true)
                             }
 
                             override fun onPageFinished(view: WebView?, url: String?) {
@@ -757,3 +765,15 @@ private data class CookieEditorState(
     val url: String,
     val cookiesText: String,
 )
+
+private fun copySensitiveTextToClipboard(context: Context, label: String, text: String) {
+    val clipboard = context.getSystemService(android.content.ClipboardManager::class.java) ?: return
+    val clip = ClipData.newPlainText(label, text)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        clip.description.extras = PersistableBundle().apply {
+            putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, true)
+        }
+    }
+    clipboard.setPrimaryClip(clip)
+}
+

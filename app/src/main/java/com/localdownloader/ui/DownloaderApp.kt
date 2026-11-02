@@ -465,6 +465,7 @@ fun DownloaderApp(
             Routes.Browser,
             Routes.Downloads,
             Routes.More,
+            Routes.Vault,
             -> {
                 navController.navigate(request.route) {
                     launchSingleTop = true

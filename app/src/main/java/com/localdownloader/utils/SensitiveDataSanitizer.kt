@@ -12,8 +12,8 @@ object SensitiveDataSanitizer {
         if (message.isBlank()) return message
 
         var sanitized = message
-        sanitized = redactTokenAssignments(sanitized)
         sanitized = redactCommandFlagValues(sanitized)
+        sanitized = redactTokenAssignments(sanitized)
         sanitized = redactKeyValueAssignments(sanitized)
         sanitized = httpUrlRegex.replace(sanitized) { match ->
             "<url:${describeUrl(match.value)}>"
@@ -57,6 +57,10 @@ object SensitiveDataSanitizer {
             .replace(Regex("""(?i)data_sync_id=[^\s;]+"""), "data_sync_id=<redacted>")
             .replace(Regex("""(?i)x-goog-api-key[:=][^\s;]+"""), "x-goog-api-key=<redacted>")
             .replace(Regex("""(?i)visitor(data|_data)?[:=][^\s;]+"""), "visitor_data=<redacted>")
+            .replace(Regex("""(?i)\bBearer\s+[A-Za-z0-9_\-.~+/]+=*"""), "Bearer <redacted>")
+            .replace(Regex("""(?i)\bauthorization[:=]\s*(?:bearer\s+)?[^\s;,"'<>]+"""), "authorization=<redacted>")
+            .replace(Regex("""(?i)(?:api_key|apikey|access_token|refresh_token|auth_token|client_secret)[:=][^\s;,"'<>]+"""), "token=<redacted>")
+            .replace(Regex("""(?i)(?:password|passwd|pin_hash|pin)[:=][^\s;,"'<>]+"""), "password=<redacted>")
     }
 
     private fun redactCommandFlagValues(message: String): String {
@@ -68,8 +72,15 @@ object SensitiveDataSanitizer {
                 "$flag <path:${describePath(match.groupValues[1])}>"
             }
         }
-        sanitized = sanitized.replace(Regex("""--add-header\s+User-Agent:[^\s"'<>]+""", RegexOption.IGNORE_CASE)) {
-            "--add-header User-Agent:<redacted>"
+        val secretFlags = listOf("--password", "--video-password", "--ap-password", "-p", "--username", "--ap-username", "-u", "--proxy")
+        secretFlags.forEach { flag ->
+            val pattern = Regex("""${Regex.escape(flag)}\s+([^\s"'<>]+)""")
+            sanitized = sanitized.replace(pattern) { match ->
+                "$flag <redacted>"
+            }
+        }
+        sanitized = sanitized.replace(Regex("""--add-header\s+([A-Za-z0-9_-]+):[^\s"'<>]+""", RegexOption.IGNORE_CASE)) { match ->
+            "--add-header ${match.groupValues[1]}:<redacted>"
         }
         sanitized = sanitized.replace(Regex("""--extractor-args\s+([^\s"'<>]+)""")) { match ->
             "--extractor-args ${redactTokenAssignments(match.groupValues[1])}"
@@ -83,6 +94,13 @@ object SensitiveDataSanitizer {
         urlKeys.forEach { key ->
             sanitized = sanitized.replace(Regex("""\b${Regex.escape(key)}=([^\s"'<>]+)""")) { match ->
                 "$key=<url:${describeUrl(match.groupValues[1])}>"
+            }
+        }
+
+        val sensitiveKeys = listOf("password", "pin", "pinHash", "secret", "token", "accessToken", "refreshToken", "apiKey")
+        sensitiveKeys.forEach { key ->
+            sanitized = sanitized.replace(Regex("""\b${Regex.escape(key)}=([^\s"'<>]+)""")) { match ->
+                "$key=<redacted>"
             }
         }
 

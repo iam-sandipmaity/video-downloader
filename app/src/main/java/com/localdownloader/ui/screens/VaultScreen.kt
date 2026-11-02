@@ -66,6 +66,8 @@ import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.Sort
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.AlertDialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.SecureFlagPolicy
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -168,6 +170,7 @@ fun VaultScreen(
                 vaultName = targetVaultName,
                 isBiometricAllowed = isBiometricAllowed,
                 errorMessage = vaultState.errorMessage,
+                lockoutRemainingSeconds = vaultState.lockoutRemainingSeconds,
                 onCancel = { vaultViewModel.cancelUnlock() },
                 onUnlock = { pin ->
                     vaultViewModel.unlockVault(targetVaultId, pin) { _ -> }
@@ -238,6 +241,15 @@ private fun VaultSetupScreen(
     isFirstVault: Boolean,
     onBack: () -> Unit,
 ) {
+    val context = LocalContext.current
+    DisposableEffect(context) {
+        val activity = BiometricHelper.findActivity(context)
+        activity?.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+        onDispose {
+            activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+        }
+    }
+
     var step by remember { mutableIntStateOf(1) } // 1: Enter PIN, 2: Confirm PIN, 3: Vault Details
     var initialPin by remember { mutableStateOf("") }
     var confirmPin by remember { mutableStateOf("") }
@@ -537,22 +549,41 @@ private fun VaultUnlockScreen(
     vaultName: String,
     isBiometricAllowed: Boolean,
     errorMessage: String?,
+    lockoutRemainingSeconds: Int = 0,
     onCancel: () -> Unit,
     onUnlock: (String) -> Unit,
     onBiometricSuccess: () -> Unit,
 ) {
     val context = LocalContext.current
     val activity = remember(context) { BiometricHelper.findActivity(context) }
+    DisposableEffect(activity) {
+        activity?.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+        onDispose {
+            activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+        }
+    }
     val isBiometricAvailable = remember(context) { BiometricHelper.isBiometricAvailable(context) }
     var pin by remember { mutableStateOf("") }
     var localError by remember { mutableStateOf<String?>(null) }
     val shakeOffset = remember { Animatable(0f) }
     val coroutineScope = rememberCoroutineScope()
 
-    val displayError = errorMessage ?: localError
+    val isLockedOut = lockoutRemainingSeconds > 0
+    val displayError = if (isLockedOut) {
+        "Too many failed attempts. Try again in ${lockoutRemainingSeconds}s."
+    } else {
+        errorMessage ?: localError
+    }
+
+    LaunchedEffect(isLockedOut) {
+        if (isLockedOut) {
+            pin = ""
+            localError = null
+        }
+    }
 
     val triggerBiometricAuth: () -> Unit = {
-        if (activity != null && isBiometricAllowed && isBiometricAvailable) {
+        if (!isLockedOut && activity != null && isBiometricAllowed && isBiometricAvailable) {
             localError = null
             BiometricHelper.authenticate(
                 activity = activity,
@@ -570,14 +601,14 @@ private fun VaultUnlockScreen(
                     // User canceled biometric prompt or opted for PIN; let them use PIN keypad
                 },
             )
-        } else if (isBiometricAllowed && !isBiometricAvailable) {
+        } else if (isBiometricAllowed && !isBiometricAvailable && !isLockedOut) {
             localError = "Biometric authentication not enrolled on this device"
         }
     }
 
     // Auto-prompt biometric dialog on screen entry if biometric is enabled
     LaunchedEffect(Unit) {
-        if (isBiometricAllowed && isBiometricAvailable && activity != null) {
+        if (isBiometricAllowed && isBiometricAvailable && activity != null && !isLockedOut) {
             triggerBiometricAuth()
         }
     }
@@ -672,25 +703,32 @@ private fun VaultUnlockScreen(
 
                 // Keypad
                 PinKeypad(
+                    enabled = !isLockedOut,
                     onDigitClick = { digit ->
-                        localError = null
-                        if (pin.length < 8) {
-                            val nextPin = pin + digit
-                            pin = nextPin
-                            if (nextPin.length >= 4) {
-                                onUnlock(nextPin)
+                        if (!isLockedOut) {
+                            localError = null
+                            if (pin.length < 8) {
+                                val nextPin = pin + digit
+                                pin = nextPin
+                                if (nextPin.length >= 4) {
+                                    onUnlock(nextPin)
+                                }
                             }
                         }
                     },
                     onBackspaceClick = {
-                        localError = null
-                        if (pin.isNotEmpty()) pin = pin.dropLast(1)
+                        if (!isLockedOut) {
+                            localError = null
+                            if (pin.isNotEmpty()) pin = pin.dropLast(1)
+                        }
                     },
                     onClearClick = {
-                        localError = null
-                        pin = ""
+                        if (!isLockedOut) {
+                            localError = null
+                            pin = ""
+                        }
                     },
-                    showBiometricButton = isBiometricAllowed,
+                    showBiometricButton = isBiometricAllowed && !isLockedOut,
                     onBiometricClick = triggerBiometricAuth,
                 )
 
@@ -747,6 +785,7 @@ private fun PinKeypad(
     onClearClick: () -> Unit,
     showBiometricButton: Boolean = false,
     onBiometricClick: () -> Unit = {},
+    enabled: Boolean = true,
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -770,6 +809,7 @@ private fun PinKeypad(
                         digit = digit,
                         subtext = subtext,
                         onClick = { onDigitClick(digit) },
+                        enabled = enabled,
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -786,12 +826,14 @@ private fun PinKeypad(
                 KeypadIconButton(
                     icon = Icons.Outlined.Fingerprint,
                     onClick = onBiometricClick,
+                    enabled = enabled,
                     modifier = Modifier.weight(1f),
                 )
             } else {
                 KeypadTextButton(
                     text = "Clear",
                     onClick = onClearClick,
+                    enabled = enabled,
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -800,12 +842,14 @@ private fun PinKeypad(
                 digit = "0",
                 subtext = "+",
                 onClick = { onDigitClick("0") },
+                enabled = enabled,
                 modifier = Modifier.weight(1f),
             )
 
             KeypadIconButton(
                 icon = Icons.Outlined.Backspace,
                 onClick = onBackspaceClick,
+                enabled = enabled,
                 modifier = Modifier.weight(1f),
             )
         }
@@ -817,16 +861,17 @@ private fun KeypadNumberButton(
     digit: String,
     subtext: String,
     onClick: () -> Unit,
+    enabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     Surface(
         shape = CircleShape,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = if (enabled) 1f else 0.38f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = if (enabled) 0.25f else 0.1f)),
         modifier = modifier
             .height(68.dp)
             .clip(CircleShape)
-            .clickable(onClick = onClick),
+            .clickable(enabled = enabled, onClick = onClick),
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -838,6 +883,7 @@ private fun KeypadNumberButton(
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 fontSize = 22.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else 0.38f),
             )
             if (subtext.isNotBlank()) {
                 Text(
@@ -845,7 +891,7 @@ private fun KeypadNumberButton(
                     style = MaterialTheme.typography.labelSmall,
                     fontSize = 9.sp,
                     letterSpacing = 1.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (enabled) 1f else 0.38f),
                 )
             }
         }
@@ -856,16 +902,17 @@ private fun KeypadNumberButton(
 private fun KeypadIconButton(
     icon: ImageVector,
     onClick: () -> Unit,
+    enabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     Surface(
         shape = CircleShape,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = if (enabled) 0.6f else 0.25f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = if (enabled) 0.25f else 0.1f)),
         modifier = modifier
             .height(68.dp)
             .clip(CircleShape)
-            .clickable(onClick = onClick),
+            .clickable(enabled = enabled, onClick = onClick),
     ) {
         Box(
             contentAlignment = Alignment.Center,
@@ -875,7 +922,7 @@ private fun KeypadIconButton(
                 imageVector = icon,
                 contentDescription = null,
                 modifier = Modifier.size(24.dp),
-                tint = MaterialTheme.colorScheme.primary,
+                tint = MaterialTheme.colorScheme.primary.copy(alpha = if (enabled) 1f else 0.38f),
             )
         }
     }
@@ -885,16 +932,17 @@ private fun KeypadIconButton(
 private fun KeypadTextButton(
     text: String,
     onClick: () -> Unit,
+    enabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     Surface(
         shape = CircleShape,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = if (enabled) 0.6f else 0.25f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = if (enabled) 0.25f else 0.1f)),
         modifier = modifier
             .height(68.dp)
             .clip(CircleShape)
-            .clickable(onClick = onClick),
+            .clickable(enabled = enabled, onClick = onClick),
     ) {
         Box(
             contentAlignment = Alignment.Center,
@@ -903,7 +951,7 @@ private fun KeypadTextButton(
             Text(
                 text = text,
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (enabled) 1f else 0.38f),
                 fontWeight = FontWeight.Medium,
             )
         }
@@ -1556,6 +1604,7 @@ private fun VaultSettingsModal(
         ChangePinDialog(
             vaultId = vault.id,
             currentPinHash = vault.pinHash,
+            onVerifyOldPin = { candidate -> vaultViewModel.verifyPin(candidate, vault.pinHash) },
             onSuccess = { newPin ->
                 vaultViewModel.updateVaultPin(vault.id, newPin)
                 showChangePinDialog = false
@@ -1972,6 +2021,7 @@ private fun VaultSettingsModal(
 private fun ChangePinDialog(
     vaultId: String,
     currentPinHash: String,
+    onVerifyOldPin: (String) -> Boolean,
     onSuccess: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -1981,15 +2031,9 @@ private fun ChangePinDialog(
     var confirmPin by remember { mutableStateOf("") }
     var errorMsg by remember { mutableStateOf<String?>(null) }
 
-    fun hashPin(pin: String): String {
-        return runCatching {
-            java.security.MessageDigest.getInstance("SHA-256")
-                .digest(pin.toByteArray()).joinToString("") { "%02x".format(it) }
-        }.getOrNull() ?: ""
-    }
-
     AlertDialog(
         onDismissRequest = onDismiss,
+        properties = DialogProperties(securePolicy = SecureFlagPolicy.SecureOn),
         title = {
             Text(
                 when (step) {
@@ -2046,7 +2090,7 @@ private fun ChangePinDialog(
                                     val next = oldPin + digit
                                     oldPin = next
                                     errorMsg = null
-                                    if (next.length >= 4 && hashPin(next) == currentPinHash) {
+                                    if (next.length >= 4 && onVerifyOldPin(next)) {
                                         step = 2
                                     }
                                 }

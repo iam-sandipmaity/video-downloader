@@ -151,15 +151,32 @@ class AudioPlaybackService : Hilt_AudioPlaybackService() {
         stopSelf()
     }
 
+    private fun isVaultPath(filePath: String?): Boolean {
+        if (filePath.isNullOrBlank()) return false
+        val vaultDir = File(noBackupFilesDir, "vault").absolutePath
+        val legacyVaultDir = File(filesDir, "vault").absolutePath
+        return filePath.startsWith(vaultDir) ||
+            filePath.startsWith(legacyVaultDir) ||
+            filePath.contains("${File.separator}vault${File.separator}")
+    }
+
     private fun buildContentIntent(state: AudioPlaybackState): PendingIntent {
+        val isVault = isVaultPath(state.currentFilePath)
         return PendingIntent.getActivity(
             this,
             ROUTE_REQUEST_CODE,
-            AppLaunchRouter.buildIntent(
-                context = this,
-                route = AppLaunchRouter.ROUTE_MUSIC,
-                taskId = state.currentTaskId,
-            ),
+            if (isVault) {
+                AppLaunchRouter.buildIntent(
+                    context = this,
+                    route = AppLaunchRouter.ROUTE_VAULT,
+                )
+            } else {
+                AppLaunchRouter.buildIntent(
+                    context = this,
+                    route = AppLaunchRouter.ROUTE_MUSIC,
+                    taskId = state.currentTaskId,
+                )
+            },
             pendingIntentFlags(updateCurrent = true),
         )
     }
@@ -169,25 +186,34 @@ class AudioPlaybackService : Hilt_AudioPlaybackService() {
         contentIntent: PendingIntent,
     ): Notification {
         val mediaInfo = resolveMediaInfo(state)
+        val isVault = isVaultPath(state.currentFilePath)
 
         val builder = NotificationCompat.Builder(this, AppNotifications.CHANNEL_AUDIO_PLAYBACK)
             .setSmallIcon(android.R.drawable.ic_media_play)
             .setContentTitle(mediaInfo.title.ifBlank { "Audio playback" })
             .setContentText(
-                mediaInfo.artist
-                    ?: mediaInfo.album
-                    ?: buildNotificationLine(state),
+                if (isVault) {
+                    "Private playback"
+                } else {
+                    mediaInfo.artist
+                        ?: mediaInfo.album
+                        ?: buildNotificationLine(state)
+                },
             )
             .setSubText(
-                mediaInfo.album
-                    ?: buildNotificationLine(state),
+                if (isVault) {
+                    null
+                } else {
+                    mediaInfo.album
+                        ?: buildNotificationLine(state)
+                },
             )
             .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
             .setContentIntent(contentIntent)
             .setDeleteIntent(commandPendingIntent(ACTION_STOP, DELETE_REQUEST_CODE))
             .setOnlyAlertOnce(true)
             .setOngoing(state.isPlaying)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setVisibility(if (isVault) NotificationCompat.VISIBILITY_PRIVATE else NotificationCompat.VISIBILITY_PUBLIC)
             .setSilent(true)
             .setShowWhen(false)
             .setColorized(true)
@@ -329,6 +355,14 @@ class AudioPlaybackService : Hilt_AudioPlaybackService() {
         if (filePath.isNullOrBlank()) {
             return NotificationMediaInfo(
                 title = state.currentTitle.ifBlank { "Audio playback" },
+                artist = null,
+                album = null,
+                artwork = null,
+            )
+        }
+        if (isVaultPath(filePath)) {
+            return NotificationMediaInfo(
+                title = "Private Audio",
                 artist = null,
                 album = null,
                 artwork = null,

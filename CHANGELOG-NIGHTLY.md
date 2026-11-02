@@ -2,6 +2,26 @@
 
 Nightly builds are rolling prereleases published from the `nightly` release tag. This file tracks changes that are available in nightly before they are promoted into the stable changelog.
 
+## [2.0.3.5] - 2026-11-01
+
+### Security
+- **Vault PIN Brute-Force Rate Limiting & Cooldown Lockout** - Enforced attempt rate-limiting in `VaultViewModel` (5 failed PIN attempts initiates a 30-second countdown lockout timer). Disabled keypad digits and biometric prompts during active lockout, preventing offline and automated PIN brute-force attacks.
+- **Immediate Vault Auto-Lock & Lifecycle Clearing** - Hardened `onAppBackgrounded` to immediately lock active vaults configured with default immediate auto-lock (`autoLockTimeoutSeconds == 0`) and clear in-progress unlock PIN entries whenever the application is backgrounded or minimized.
+- **Vault Media Visual Privacy (`FLAG_SECURE`) & PiP Disablement** - Bound `FLAG_SECURE` window protection to `PlayerScreen` during playback of vault media, blocked Picture-in-Picture (PiP) window spawning for private media, and suppressed external application opening to protect private videos from device recents and launcher exposure.
+- **Vault Audio Notification & MediaSession Metadata Privacy** - Masked track titles ("Private Audio") and suppressed embedded album artwork and metadata broadcast via `MediaSessionCompat` and system notifications in `AudioPlaybackService` when streaming private vault audio, routing notification taps securely to the Vault unlock screen.
+- **Android Keystore Biometric Binding (`CryptoObject`)** - Bound biometric prompt and fingerprint authentication callbacks to an AES-CBC cipher backed by the Android KeyStore (`CryptoObject`), requiring cryptographic proof before granting access and resolving CodeQL Alert #25 against local authentication bypasses.
+- **Cryptographic PIN Verification & Timing Defense in `ChangePinDialog`** - Replaced legacy single-iteration SHA-256 and non-constant-time String comparisons with `PinHasher.verifyPin`, enabling salted PBKDF2 PIN verification and eliminating timing side-channels during vault PIN changes.
+- **`FLAG_SECURE` Protection for PIN Dialogs** - Configured `DialogProperties(securePolicy = SecureFlagPolicy.SecureOn)` on `ChangePinDialog` to protect Compose dialog sub-windows from screenshot capture and screen recording.
+- **Hardened WebView in Cookie Capture** - Configured `configureRestrictedJavascriptSession` in `CookiesScreen` to strictly disable file/content access, block mixed content, and reject URL redirections outside HTTPS and about schemes.
+- **Sensitive Clipboard Protection for Cookie Exports** - Added `ClipDescription.EXTRA_IS_SENSITIVE` on Android 13+ (API 33+) when copying Netscape cookies to clipboard, preventing session secrets from leaking in system clipboard UI previews.
+- **Internal Storage Boundary Check on `file://` URIs** - Enforced canonical path boundary validation in `FileUtils.importSharedOpenRequest` to prevent external `file://` intents from accessing app-private internal directories.
+- **Sensitive Log & Diagnostic Redaction** - Hardened `SensitiveDataSanitizer` to automatically sanitize and redact passwords (`--password`, `--video-password`, `-p`), user credentials (`--username`, `-u`), proxies (`--proxy`), custom header tokens (`--add-header Authorization:...`), Bearer tokens, API keys, and PIN hashes from all diagnostic logs and exported crash traces.
+- **Vault Notification Privacy & Lockscreen Protection** - Guarded notification details for downloads saved to Private Vault. Notifications mask video titles ("Private download complete") and file paths, suppress direct "Open" quick-play action buttons that could bypass vault PIN authentication, and route taps securely to the Vault unlock destination.
+- **Screen Privacy Protection (`FLAG_SECURE`) on PIN Entry** - Applied Android `FLAG_SECURE` window protection during `VaultSetupScreen` and `VaultUnlockScreen`, shielding PIN input from screenshots, screen recorders, and recent apps overview thumbnails.
+
+### Changed
+- **Nightly Version Bump** - Release metadata updated to `2.0.3.5` (`NIGHTLY_VERSION_CODE` `59`).
+
 ## [2.0.3.4] - 2026-11-01
 
 ### Security

@@ -30,4 +30,24 @@ class SensitiveDataSanitizerTest {
         assertTrue(summary.endsWith(" (path)"))
         assertFalse(summary.contains("abc123"))
     }
+
+    @Test
+    fun sanitize_redactsCredentialsAndHeaders() {
+        val sanitized = SensitiveDataSanitizer.sanitize(
+            "cmd: yt-dlp --password mySecretPass -u myUser --add-header Authorization:Bearer_token123 " +
+                "Bearer secret_jwt_token_456 api_key=key_789 pin=1234 pinHash=abcdef",
+        )
+
+        assertTrue(sanitized.contains("--password <redacted>"))
+        assertTrue(sanitized.contains("-u <redacted>"))
+        assertTrue(sanitized.contains("--add-header Authorization:<redacted>"))
+        assertTrue(sanitized.contains("Bearer <redacted>"))
+        assertTrue(sanitized.contains("token=<redacted>"))
+        assertTrue(sanitized.contains("password=<redacted>"))
+        assertFalse(sanitized.contains("mySecretPass"))
+        assertFalse(sanitized.contains("secret_jwt_token_456"))
+        assertFalse(sanitized.contains("key_789"))
+        assertFalse(sanitized.contains("1234"))
+        assertFalse(sanitized.contains("abcdef"))
+    }
 }
