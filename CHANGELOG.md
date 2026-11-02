@@ -8,6 +8,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 Nightly-only changes are tracked separately in [CHANGELOG-NIGHTLY.md](CHANGELOG-NIGHTLY.md).
 
+## [1.7.6.0] - 2026-11-01
+
+### Added
+- **Reusable Download Presets & Logical Format Matching** (#124) - Added customizable download presets for quality, container, audio extraction, metadata, and subtitles, with option to set a default preset that applies automatically on analysis. Includes smart resolution matching (`findBestMatchingFormatChoice`) that dynamically matches available formats and containers without rigid hardcoding.
+- **Compact Quick Presets Picker Row** (#124) - Replaced bulky wrapped chips with a sleek 30dp horizontal `LazyRow` at the top of the format selection sheet, providing one-tap access without pushing down format cards.
+- **Private Vault Import & Export Tools** (#124) - Added direct file import from system storage into secure vaults, single-file export from vault back to public Downloads with original filename recovery, and a quick-lock button in the Vault TopAppBar.
+- **Dedicated Advanced Settings Screen** (#124) - Added comprehensive configuration options for socket timeouts (15s–120s), download retry attempts (0–20), download rate limiting (500 KB/s – 20 MB/s), geo-bypass, writing descriptions and info-json files, ASCII-only filename restriction, Windows/FAT32-safe filenames, playback speeds, double-tap seek times (5s–30s), background playback, queue scheduling (FIFO vs LIFO), and auto-retrying failed downloads.
+- **High-Resolution Video Formats Support** (#129) - Expanded support for 1440p (2K), 1800p (3K), 4K, and 8K resolutions and format labels across the analyzer and download engine, ensuring high-res streams are retained even when the default container/codec is H.264 MP4.
+
+### Fixed
+- **Player Subtitle Font Customization Bug** (#124) - Fixed ExoPlayer `SubtitleView` ignoring user-selected custom fonts by disabling `applyEmbeddedStyles` and `applyEmbeddedFontSizes`, allowing user typeface choices to take effect immediately. Added support for `Casual` and `Cursive` typefaces.
+- **Private Vault Auto-Lock & App Backgrounding** (#124) - Implemented reliable auto-lock timeout tracking on app backgrounding and foregrounding lifecycle events.
+- **Private Vault Screen Privacy & Music Player Isolation** (#124) - Applied `FLAG_SECURE` window privacy protection to prevent screen captures or app switcher leaks when vaults are open, and guarded vault audio tracks from unauthorized playback in the music player when the vault is locked.
+- **Respect autoDeleteOriginal Setting in Vault** (#124) - Moving downloads into vault now adheres to the individual vault's `autoDeleteOriginal` configuration.
+- **Read-Only File System Crash During Format Validation** (#126) - Fixed `[Errno 30] Read-only file system: '/tmphcg4onva.tmp'` when downloading videos from shared links by routing `yt-dlp`'s working and temporary directories to an application-owned cache directory (`ytdlp_work`).
+- **YouTube Live & HLS Stream Segment Mismatch & Muxer Failure** (#127) - Fixed YouTube live stream downloads failing with `Requested output format 'mpegts' is not known` (`ffmpeg exited with code 234`) and segment extension mismatches (`ffmpeg exited with code 183`) by passing `--no-hls-use-mpegts` to prevent forcing unsupported `mpegts` muxing on Android, and `--downloader-args "ffmpeg_i:-allowed_extensions ALL -extension_picky 0"` to allow all segment URLs in FFmpeg's HLS demuxer.
+
+### Security
+- **Android KeyStore Biometric Binding (`CryptoObject`)** (#131) - Bound biometric prompt and fingerprint authentication callbacks to an AES-CBC cipher backed by the Android KeyStore (`CryptoObject`), requiring hardware-backed cryptographic proof before granting access and resolving CodeQL Alert #25 against local authentication bypasses.
+- **Cryptographic Vault PIN Hashing & Constant-Time Verification** (#130) - Replaced fast single-iteration unsalted SHA-256 PIN hashing with salted `PBKDF2WithHmacSHA256` (100,000 iterations, 128-bit cryptographically secure salt, 256-bit derived key) and constant-time equality checks (`MessageDigest.isEqual`) via `PinHasher`. Implemented seamless, transparent migration on unlock to upgrade existing legacy SHA-256 PIN hashes without user disruption.
+- **Build-Time Dependency Integrity Verification** (#130) - Added strict SHA-256 checksum verification (`verifyFileChecksum`) to Gradle pre-build download tasks for the bundled FFmpeg runtime APK, `yt-dlp` executable, and curl CA bundle (`cert.pem`), preventing execution of compromised, tampered, or incomplete binaries.
+- **CLI Argument Injection Defense & Option Ordering** (#130) - Prepended the `--` end-of-options delimiter before URL parameters in `FormatExtractor` and `DownloadEngine` to guard against argument confusion attacks from malicious URLs. Hardened runtime flag injection in `YtDlpExecutor` (`--ffmpeg-location`, `--no-cache-dir`, `--js-runtimes`) to ensure runtime options are positioned strictly before the `--` separator.
+- **Strict File Permissions for Stored Secrets and Cookies** (#130) - Enforced restrictive file permissions (`0600`/`0700` equivalents with POSIX permissions and private file creation) on saved cookie files and authentication secrets in `DownloadOptionSecretsStore` and `SettingsStore` to protect sensitive session credentials from unauthorized local access.
+- **Pinned yt-dlp Release** (#130) - Pinned the build-time `yt-dlp` distribution to release `2026.10.26` accompanied by verified SHA-256 integrity validation.
+
+### Changed
+- **App Version Bump** - Release metadata updated to `1.7.6.0` (`APP_VERSION_CODE` `35`).
+- **Nightly Promotion** - Summarized and promoted changes from nightly releases `2.0.3.2` through `2.0.3.4` into the stable release changelog.
+
 ## [1.7.5.1] - 2026-09-27
 
 ### Added
